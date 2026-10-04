@@ -36,8 +36,8 @@ Read the full diff output.
 ### 3. Analyze Changes
 
 For each changed file, identify:
-- What module/component it belongs to (e.g. `users`, `health`, `core`, `database`, `cache`, `http`, `config`, `scripts`)
-- What type of change: new feature, bugfix, refactor, chore, docs, style, test, ci, perf
+- What module/component it belongs to (e.g. `users`, `health`, `core/errors`, `database`, `config`, `scripts`)
+- What type of change: new feature, bugfix, refactor, chore, docs, test, ci, perf, build, revert
 - The core purpose of the change
 
 ---
@@ -60,22 +60,29 @@ Use **Conventional Commits** format:
 | Code restructure without behavior change | `refactor` |
 | Config, dependency, build tooling | `chore` |
 | Documentation | `docs` |
-| Formatting, whitespace | `style` |
 | Test additions/changes | `test` |
 | CI/CD pipeline changes | `ci` |
 | Performance improvement | `perf` |
+| Build system / bundling | `build` |
+| Reverting a previous commit | `revert` |
+
+The allowed types are exactly `type-enum` in `commitlint.config.ts` (there is **no** `style`: formatting-only changes are `chore`). Any other type is rejected by the `commit-msg` hook and by CI.
 
 #### Scope Mapping:
 - Feature domains: `users`, `health`, `[feature-name]`
-- Core components: `core/cache`, `core/http`, `core/errors`, `core/middlewares`, `core/logger`
+- Core components: `core/cache`, `core/context`, `core/errors`, `core/http`, `core/logger`, `core/middlewares`, `core/response`
 - Database: `database/schema`, `database/tx-host`, `database/migrations`
-- Configuration: `config/env`
-- Quality Gates / Tooling: `quality-gates`, `deps`, `lint`, `scripts`
+- Configuration: `config`
+- Integrations: `integrations/<vendor>`
+- Quality Gates / Tooling: `quality-gates`, `deps`, `lint`, `scripts`, `ci`
+- Agent rules & docs: `agents`, `plans`
 
 #### Rules:
 - Short description in lowercase, imperative mood ("add", "fix", "update", NOT "added", "fixes")
 - No period at end of subject line
-- Maximum 72 characters for subject line
+- Maximum 72 characters for subject line (commitlint hard limit for the header: 100)
+- Body lines: **maximum 100 characters each** (commitlint `body-max-line-length`) — wrap long bullets
+- Blank line between subject and body
 - Indonesian or English according to user preference, defaulting to concise English
 
 ---

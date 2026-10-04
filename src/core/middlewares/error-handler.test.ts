@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import {
   BadRequestError,
   ConflictError,
@@ -128,6 +129,37 @@ describe('globalErrorHandler — error envelope contract', () => {
         origin: 'APP',
       });
     }
+  });
+});
+
+describe('globalErrorHandler — Hono HTTPException', () => {
+  const cases: [number, string, string][] = [
+    [401, 'UNAUTHORIZED', 'ERR_UNAUTHORIZED'],
+    [403, 'FORBIDDEN', 'ERR_FORBIDDEN'],
+    [404, 'NOT_FOUND', 'ERR_NOT_FOUND'],
+    [413, 'PAYLOAD_TOO_LARGE', 'ERR_PAYLOAD_TOO_LARGE'],
+    [429, 'TOO_MANY_REQUESTS', 'ERR_RATE_LIMITED'],
+    [503, 'SERVICE_UNAVAILABLE', 'ERR_SERVICE_UNAVAILABLE'],
+    [422, 'BAD_REQUEST', 'ERR_BAD_REQUEST'],
+    [502, 'INTERNAL_SERVER_ERROR', 'ERR_INTERNAL'],
+  ];
+
+  it.each(cases)('status %d keeps its meaning in the envelope', async (status, type, code) => {
+    const { res, body } = await call(
+      new HTTPException(status as 401, { message: 'Rejected by middleware' }),
+    );
+    const expectedStatus = status === 422 ? 400 : status === 502 ? 500 : status;
+
+    expect(res.status).toBe(expectedStatus);
+    expect(body.error).toMatchObject({ type, code });
+  });
+
+  it('should keep the middleware message, or fall back to the class default when empty', async () => {
+    const withMessage = await call(new HTTPException(403, { message: 'Origin not allowed' }));
+    const withoutMessage = await call(new HTTPException(403));
+
+    expect(withMessage.body.message).toBe('Origin not allowed');
+    expect(withoutMessage.body.message).toBe('Forbidden');
   });
 });
 

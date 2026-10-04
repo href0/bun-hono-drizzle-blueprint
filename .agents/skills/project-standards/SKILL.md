@@ -79,7 +79,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 ## 3. Strict Layer Boundaries (`dependency-cruiser`)
 
 Enforced by `.dependency-cruiser.cjs`:
-1. **Core Layer**: Cannot import from `src/modules` or `src/database`.
+0. **Config Layer (`src/config/`)**: Root of the graph — libraries only (zod, node). Cannot import from any application layer (`core`, `database`, `modules`, `integrations`, `utils`). Rule `strict-config-isolation`.
+1. **Core Layer**: Cannot import from `src/modules`, `src/database`, or `src/integrations`.
 2. **Utils Layer**: Pure functions only. Cannot import from `src/core`, `src/database`, or `src/modules`.
 3. **Database Layer**: Cannot import from `src/modules` or `src/integrations`. Raw connection (`connection.ts`) cannot be imported by `src/modules`.
 4. **Modules Layer**: Inbound domain modules. Cannot cross-import other domain modules directly (use services or shared core).
@@ -93,6 +94,7 @@ modules → core → config
 modules → core → utils (pure leaf, zero deps)
 modules → database (via TransactionHost / health abstractions only; never connection.ts)
 database → config
+config → (libraries only)
 ```
 Any import path not shown above is forbidden by `dependency-cruiser`.
 
@@ -119,7 +121,7 @@ Routes ──> Controller ──> Service ──> Repository ──> Database (T
 - Controllers **MUST NEVER** call `c.json()` or `c.text()` directly.
 - Controllers **MUST RETURN** an `ApiResponse` instance.
 - Controllers **MUST** be wrapped in `asyncHandler`.
-- Violation of this rule is blocked at the AST level by ESLint rule `no-c-json-in-controllers`.
+- Violation of this rule is blocked at the AST level by ESLint `no-restricted-syntax` (group `CONTROLLER_SYNTAX_RULES` in `eslint.config.mjs`: `c.json`/`c.text`/`c.body`/`c.html`).
 
 ```typescript
 // users.controller.ts
@@ -155,7 +157,7 @@ router.post('/', validate({ body: createUserSchema }), usersController.create);
 - Repositories **MUST** receive `TransactionHost` in constructor (defaulting to singleton `txHost`).
 - All queries **MUST** execute against `this.txHost.tx`.
 - This ensures seamless transactional atomicity under `@Transactional()` or `runInTransaction()`.
-- Violation of this rule is blocked at the AST level by ESLint rule `no-direct-db-in-repositories`.
+- Violation of this rule is blocked by ESLint `no-restricted-syntax` / `no-restricted-imports` (groups `MODULE_SYNTAX_RULES`, `MODULE_IMPORT_PATTERNS`) and dependency-cruiser `no-module-direct-db-connection`.
 
 ```typescript
 // users.repository.ts
@@ -272,7 +274,7 @@ export class UsersService {
       { "field": "password", "message": "Password must be at least 8 characters" }
     ]
   },
-  "request_id": "req-muf1q47a-jntb8o",
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
   "timestamp": "2026-09-24T04:42:51.000Z"
 }
 ```

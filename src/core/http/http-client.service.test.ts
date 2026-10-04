@@ -17,21 +17,80 @@ describe('HttpClientService (Unit)', () => {
     expect(typeof client.delete).toBe('function');
   });
 
-  it('should mask external error into ExternalServiceError', async () => {
+  const captureError = async (call: () => Promise<unknown>): Promise<ExternalServiceError> => {
+    try {
+      await call();
+    } catch (err: unknown) {
+      expect(err).toBeInstanceOf(ExternalServiceError);
+      return err as ExternalServiceError;
+    }
+    throw new Error('expected the call to fail');
+  };
+
+  it('should classify a refused connection as UNREACHABLE (502)', async () => {
     const client = new HttpClientService({
       originName: 'MOCK_VENDOR',
       baseURL: 'http://127.0.0.1:59999', // Non-existent local port
       timeoutMs: 100,
     });
 
-    let thrownError: unknown;
-    try {
-      await client.get('/test');
-    } catch (err: unknown) {
-      thrownError = err;
-    }
+    const error = await captureError(() => client.get('/test'));
 
-    expect(thrownError).toBeInstanceOf(ExternalServiceError);
+    expect([error.kind, error.statusCode, error.errorCode]).toEqual([
+      'UNREACHABLE',
+      502,
+      'ERR_EXT_UNREACHABLE',
+    ]);
+    expect(error.origin).toBe('MOCK_VENDOR');
+  });
+
+  it('should classify a vendor error response as ERROR (502) and never forward its status', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch: () => new Response('Unauthorized', { status: 401 }),
+    });
+    const client = new HttpClientService({
+      originName: 'VENDOR_401',
+      baseURL: `http://localhost:${String(server.port)}`,
+      timeoutMs: 2000,
+    });
+
+    try {
+      const error = await captureError(() => client.get('/secure'));
+      expect([error.kind, error.statusCode, error.errorCode]).toEqual([
+        'ERROR',
+        502,
+        'ERR_EXT_ERROR',
+      ]);
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  it('should classify an exceeded timeout as TIMEOUT (504)', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return new Response('late');
+      },
+    });
+    const client = new HttpClientService({
+      originName: 'SLOW_VENDOR',
+      baseURL: `http://localhost:${String(server.port)}`,
+      timeoutMs: 50,
+    });
+
+    try {
+      const error = await captureError(() => client.get('/slow'));
+      expect([error.kind, error.statusCode, error.errorCode]).toEqual([
+        'TIMEOUT',
+        504,
+        'ERR_EXT_TIMEOUT',
+      ]);
+    } finally {
+      await server.stop(true);
+    }
   });
 
   it('should successfully execute get, post, put, delete with keep-alive server', async () => {

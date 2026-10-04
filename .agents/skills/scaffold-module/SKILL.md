@@ -45,7 +45,7 @@ src/database/schema/domain/
 
 ```typescript
 import { uuid, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
-import { domainTable } from '../../database/schema';
+import { domainTable } from './schema';
 
 export const <camelPlural> = domainTable('<snake_plural>', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -75,8 +75,6 @@ export const create<PascalSingular>Schema = z.object({
   name: z.string().min(1, 'Name is required'),
 });
 
-export const update<PascalSingular>Schema = create<PascalSingular>Schema.partial();
-
 export const <camelSingular>IdParamSchema = z.object({
   id: z.string().uuid('Invalid UUID format'),
 });
@@ -87,7 +85,6 @@ export const <camelSingular>QuerySchema = z.object({
 });
 
 export type Create<PascalSingular>Dto = z.infer<typeof create<PascalSingular>Schema>;
-export type Update<PascalSingular>Dto = z.infer<typeof update<PascalSingular>Schema>;
 export type <PascalSingular>IdParamDto = z.infer<typeof <camelSingular>IdParamSchema>;
 export type <PascalSingular>QueryDto = z.infer<typeof <camelSingular>QuerySchema>;
 ```
@@ -100,19 +97,20 @@ export type <PascalSingular>QueryDto = z.infer<typeof <camelSingular>QuerySchema
 
 ```typescript
 import { eq, count } from 'drizzle-orm';
-import { TransactionHost, txHost as defaultTxHost } from '../../database';
+import { InternalServerError } from '../../core/errors';
+import { TransactionHost, defaultTxHost } from '../../database';
 import { <camelPlural>, type <PascalSingular>, type New<PascalSingular> } from '../../database/schema';
 
 export class <PascalPlural>Repository {
   constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
 
   async findById(id: string): Promise<<PascalSingular> | null> {
-    const [record] = await this.txHost.tx
+    const result = await this.txHost.tx
       .select()
       .from(<camelPlural>)
       .where(eq(<camelPlural>.id, id))
       .limit(1);
-    return record ?? null;
+    return result[0] ?? null;
   }
 
   async create(data: New<PascalSingular>): Promise<<PascalSingular>> {
@@ -120,11 +118,11 @@ export class <PascalPlural>Repository {
       .insert(<camelPlural>)
       .values(data)
       .returning();
-    const created = result[0];
+    // Drizzle types result[0] as always present; INSERT … RETURNING can still be empty at runtime.
+    const created = result[0] as <PascalSingular> | undefined;
     if (!created) {
-      throw new Error(
-        'INSERT returned no rows — unexpected database-level rejection.',
-      );
+      // Broken invariant: logged by the error handler, never shown to the client.
+      throw new InternalServerError('INSERT returned no rows — unexpected database-level rejection.');
     }
     return created;
   }
@@ -138,8 +136,8 @@ export class <PascalPlural>Repository {
   }
 
   async count(): Promise<number> {
-    const [result] = await this.txHost.tx.select({ val: count() }).from(<camelPlural>);
-    return Number(result?.val ?? 0);
+    const result = await this.txHost.tx.select({ val: count() }).from(<camelPlural>);
+    return result[0]?.val ?? 0;
   }
 }
 
@@ -297,7 +295,7 @@ export { router as <camelPlural>Router };
 import { <camelPlural>Router } from './modules/<name>/<name>.routes';
 
 // Inside createApp()
-app.route('/api/v1/<name>', <camelPlural>Router);
+app.route(`${appConfig.API_PREFIX}/<name>`, <camelPlural>Router);
 ```
 
 ---
@@ -305,8 +303,10 @@ app.route('/api/v1/<name>', <camelPlural>Router);
 ### Step 10: Create Co-Located Tests & Verify Quality Gate
 
 Create unit tests covering repository, service, transformer, and controller.
-Run:
+
+The templates are formatted for a short module name; line wrapping changes with the name length, so always format before validating:
 ```bash
+bun run format
 bun run validate:full
 ```
 Verify that all static checks pass and the coverage gate (`scripts/check-coverage.ts`) passes — every new file must be loaded by a test.

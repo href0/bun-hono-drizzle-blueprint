@@ -141,6 +141,7 @@ test/                            # End-to-End (E2E) & Blackbox API Tests
 #### A. Makro Layer Isolation (Antar Direktori Tingkat Atas)
 | Layer | Boleh Mengimpor Dari | DILARANG Mengimpor Dari | Alasan Arsitektural |
 |---|---|---|---|
+| `src/config/` | Library (`zod`, `node:*`) | `src/core/`, `src/database/`, `src/modules/`, `src/integrations/`, `src/utils/` | Akar graf dependensi; mencegah siklus config ↔ logger (`strict-config-isolation`) |
 | `src/utils/` | External pure utilities | `src/modules/`, `src/core/`, `src/database/`, `src/integrations/` | Utils harus pure & side-effect free |
 | `src/core/` | Node/Bun libraries, `src/utils/`, `src/config/` | `src/modules/`, `src/database/`, `src/integrations/` | Mencegah coupling dari core ke domain, database & integrasi |
 | `src/database/schema/`| `drizzle-orm`, `drizzle-orm/pg-core` | `src/modules/`, `src/core/`, `src/config/`, `src/integrations/` | Schema DB tidak boleh bergantung pada aplikasi |

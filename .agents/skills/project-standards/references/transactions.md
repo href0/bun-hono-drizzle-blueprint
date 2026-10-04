@@ -23,31 +23,30 @@ Transaction propagation uses `AsyncLocalStorage` to store the active Drizzle tra
 
 ## 2. Using `TransactionHost` in Repositories
 
-> **ESLint Guard**: Importing `db` directly into repositories is prohibited by ESLint AST rule `no-direct-db-in-repositories`. Repositories MUST use `TransactionHost`.
+> **ESLint Guard**: Importing `db` / `sqlClient` or `database/connection` in `src/modules/**` is prohibited by ESLint (`no-restricted-syntax` / `no-restricted-imports`) and dependency-cruiser (`no-module-direct-db-connection`). Repositories MUST use `TransactionHost`.
 
 ```typescript
 import { eq } from 'drizzle-orm';
-import { TransactionHost, txHost as defaultTxHost } from '../../database';
+import { InternalServerError } from '../../core/errors';
+import { TransactionHost, defaultTxHost } from '../../database';
 import { users, type User, type NewUser } from '../../database/schema';
 
 export class UsersRepository {
   constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
 
   async findById(id: string): Promise<User | null> {
-    const [user] = await this.txHost.tx
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
-    return user ?? null;
+    const result = await this.txHost.tx.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0] ?? null;
   }
 
   async create(data: NewUser): Promise<User> {
-    const [user] = await this.txHost.tx
-      .insert(users)
-      .values(data)
-      .returning();
-    return user;
+    const result = await this.txHost.tx.insert(users).values(data).returning();
+    // Drizzle types result[0] as always present; INSERT … RETURNING can still be empty at runtime.
+    const created = result[0] as User | undefined;
+    if (!created) {
+      throw new InternalServerError('INSERT INTO users returned no rows.');
+    }
+    return created;
   }
 }
 ```

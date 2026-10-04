@@ -33,12 +33,18 @@ const SOURCE_SYNTAX_RULES = [
     message:
       'Error code literals are forbidden. Use APP_ERROR_CODES from src/core/errors/error-codes.ts (add new codes there).',
   },
+  {
+    // Catches codes built at runtime such as `ERR_EXT_${origin}`.
+    selector: 'TemplateElement[value.raw=/^ERR_/]',
+    message:
+      'Error codes must not be built dynamically. Use a fixed code from APP_ERROR_CODES (add new codes there).',
+  },
 ];
 
 /** Domain modules only: business failures must be typed ApiErrors. */
 const MODULE_ERROR_RULES = [
   {
-    selector: 'ThrowStatement > NewExpression[callee.name="Error"]',
+    selector: 'ThrowStatement > :matches(NewExpression, CallExpression)[callee.name="Error"]',
     message:
       'Throwing a plain Error in a module is forbidden. Throw a semantic ApiError (e.g. NotFoundError, ConflictError; InternalServerError for broken invariants).',
   },
@@ -251,10 +257,16 @@ export default tseslint.config(
     },
   },
   {
-    // Override for config files: allow process.env and UPPER_CASE properties
-    files: ['src/config/**/*.ts', 'drizzle.config.ts'],
+    // The only readers of process.env: the app's env source and drizzle-kit's standalone config.
+    files: ['src/config/env-source.ts', 'drizzle.config.ts'],
     rules: {
       'no-process-env': 'off',
+    },
+  },
+  {
+    // Config schemas declare env var names as UPPER_CASE properties.
+    files: ['src/config/**/*.ts', 'drizzle.config.ts'],
+    rules: {
       '@typescript-eslint/naming-convention': [
         'error',
         {

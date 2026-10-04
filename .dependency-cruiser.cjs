@@ -60,6 +60,14 @@ module.exports = {
       to: { path: '^src/(core|database|modules|integrations)/' },
     },
     {
+      name: 'strict-config-isolation',
+      severity: 'error',
+      comment:
+        'Configuration is the root of the graph: it may only use libraries, never application layers (prevents config <-> logger style cycles).',
+      from: { path: '^src/config/' },
+      to: { path: '^src/(core|database|modules|integrations|utils)/' },
+    },
+    {
       name: 'strict-core-isolation',
       severity: 'error',
       comment: 'Core layer must not import from domain modules, database, or integration layers.',
