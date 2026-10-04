@@ -10,5 +10,4 @@ export const CACHE_TTL = {
 
 export const CACHE_KEYS = {
   userDetail: (id: string): string => `${CACHE_PREFIX.USER}detail:${id}`,
-  userList: (page: number, limit: number): string => `${CACHE_PREFIX.USER}list:${page}:${limit}`,
 } as const;

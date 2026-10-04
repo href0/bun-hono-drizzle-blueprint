@@ -18,8 +18,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 - **Validation**: [Zod](https://zod.dev) (v3.24+)
 - **Structured Logging**: [Pino](https://github.com/pinojs/pino) with Correlation ID (`requestId`) and PII redaction
 - **Cache**: Redis via [ioredis](https://github.com/redis/ioredis) with fail-open resilience
-  - By default, this boilerplate uses a **standalone Redis instance** with no key prefix. This is sufficient for single-project deployments.
-  - For multi-project setups sharing one Redis cluster, set `REDIS_KEY_PREFIX=<app-name>:<env>` in `.env`. The ioredis client auto-prepends this prefix to all keys, preventing collisions.
+  - Every key is auto-prefixed with `<APP_NAME>:<NODE_ENV>:` (override: `REDIS_KEY_PREFIX`), so projects and environments can share one Redis.
+  - The client reconnects forever (backoff ≤ 30 s), fails fast while disconnected (`commandTimeout`, no offline queue) and blocks `FLUSHALL`/`FLUSHDB`/`KEYS`. See [redis-cache.md](references/redis-cache.md).
 - **HTTP Client**: Axios with persistent HTTP/HTTPS Keep-Alive connection pooling (`maxSockets: 100`) and vendor masking
 - **Testing**: Native `bun:test` runner with an LCOV coverage gate (`scripts/check-coverage.ts`, the single source of thresholds)
 
