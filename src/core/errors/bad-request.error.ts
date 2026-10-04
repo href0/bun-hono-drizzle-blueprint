@@ -1,15 +1,12 @@
-import { ApiError, type ErrorDetail } from './api-error';
+import { ApiError, type ApiErrorOptions } from './api-error';
+import { APP_ERROR_CODES, ERROR_TYPES } from './error-codes';
 
 export class BadRequestError extends ApiError {
   readonly statusCode = 400;
-  readonly errorType = 'BAD_REQUEST';
-  readonly errorCode = 'ERR_BAD_REQUEST';
+  readonly errorType = ERROR_TYPES.BAD_REQUEST;
+  protected readonly defaultCode = APP_ERROR_CODES.BAD_REQUEST;
 
-  constructor(
-    message: string = 'Bad Request',
-    details: ErrorDetail[] = [],
-    origin: string = 'APP',
-  ) {
-    super(message, details, origin);
+  constructor(message = 'Bad Request', options?: ApiErrorOptions) {
+    super(message, options);
   }
 }

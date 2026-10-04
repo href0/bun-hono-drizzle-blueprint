@@ -57,9 +57,9 @@ describe('Users Module — E2E Contract Tests', () => {
   beforeAll(() => {
     createUserSpy = spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
       if (dto.email === 'existing@example.com') {
-        throw new ConflictError('User with this email already exists', [
-          { field: 'email', message: 'Email is already registered' },
-        ]);
+        throw new ConflictError('User with this email already exists', {
+          details: [{ field: 'email', message: 'Email is already registered' }],
+        });
       }
       return mockUser;
     });
@@ -158,7 +158,7 @@ describe('Users Module — E2E Contract Tests', () => {
       expect(body.success).toBe(false);
       expect(body.error.type).toBe('VALIDATION_ERROR');
       const fields = body.error.details.map((d) => d.field);
-      expect(fields).toContain('fullName');
+      expect(fields).toContain('full_name');
       expect(fields).toContain('password');
     });
 

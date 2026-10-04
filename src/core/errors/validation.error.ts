@@ -1,15 +1,12 @@
-import { ApiError, type ErrorDetail } from './api-error';
+import { ApiError, type ApiErrorOptions } from './api-error';
+import { APP_ERROR_CODES, ERROR_TYPES } from './error-codes';
 
 export class ValidationError extends ApiError {
   readonly statusCode = 400;
-  readonly errorType = 'VALIDATION_ERROR';
-  readonly errorCode = 'ERR_INVALID_INPUT';
+  readonly errorType = ERROR_TYPES.VALIDATION_ERROR;
+  protected readonly defaultCode = APP_ERROR_CODES.INVALID_INPUT;
 
-  constructor(
-    message: string = 'Validation Failed',
-    details: ErrorDetail[] = [],
-    origin: string = 'APP',
-  ) {
-    super(message, details, origin);
+  constructor(message = 'Validation Failed', options?: ApiErrorOptions) {
+    super(message, options);
   }
 }

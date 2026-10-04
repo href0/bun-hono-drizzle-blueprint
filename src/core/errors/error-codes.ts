@@ -1,0 +1,42 @@
+/**
+ * Single source of truth for the error contract (`error.type` and `error.code` in responses).
+ * `ERR_*` literals anywhere else in `src/` are rejected by ESLint: add new codes here.
+ */
+export const ERROR_TYPES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  BAD_REQUEST: 'BAD_REQUEST',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
+  TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+} as const;
+
+export type ErrorType = (typeof ERROR_TYPES)[keyof typeof ERROR_TYPES];
+
+export const APP_ERROR_CODES = {
+  INVALID_INPUT: 'ERR_INVALID_INPUT',
+  INVALID_JSON: 'ERR_INVALID_JSON',
+  BAD_REQUEST: 'ERR_BAD_REQUEST',
+  UNAUTHORIZED: 'ERR_UNAUTHORIZED',
+  FORBIDDEN: 'ERR_FORBIDDEN',
+  NOT_FOUND: 'ERR_NOT_FOUND',
+  ROUTE_NOT_FOUND: 'ERR_ROUTE_NOT_FOUND',
+  CONFLICT: 'ERR_CONFLICT',
+  PAYLOAD_TOO_LARGE: 'ERR_PAYLOAD_TOO_LARGE',
+  RATE_LIMITED: 'ERR_RATE_LIMITED',
+  SERVICE_UNAVAILABLE: 'ERR_SERVICE_UNAVAILABLE',
+  EXT_ERROR: 'ERR_EXT_ERROR',
+  EXT_UNREACHABLE: 'ERR_EXT_UNREACHABLE',
+  EXT_TIMEOUT: 'ERR_EXT_TIMEOUT',
+  INTERNAL: 'ERR_INTERNAL',
+} as const;
+
+export type AppErrorCode = (typeof APP_ERROR_CODES)[keyof typeof APP_ERROR_CODES];
+
+/** `error.origin` for failures raised by this application (integrations use their own code). */
+export const APP_ORIGIN = 'APP';

@@ -176,14 +176,11 @@ export class UsersRepository {
 ### Rule 4: Strict Service Layer & Semantic Error Throwing
 - Services **NEVER** accept the Hono `Context` object. They accept plain DTOs or primitive arguments. Request-scoped data (request ID, actor) comes from `getRequestContext()` / `getActor()` (`src/core/context/request-context.ts`).
 - Services **NEVER** return HTTP responses.
-- Business rule failures **MUST THROW** semantic `ApiError` instances:
-  - `ValidationError` (HTTP 400 / schema validation failure)
-  - `BadRequestError` (HTTP 400 / business logic failure)
-  - `UnauthorizedError` (HTTP 401)
-  - `ForbiddenError` (HTTP 403)
-  - `NotFoundError` (HTTP 404)
-  - `ConflictError` (HTTP 409)
-  - `ExternalServiceError` (HTTP 502 / vendor failure)
+- Business rule failures **MUST THROW** semantic `ApiError` instances (`src/core/errors/`). Throwing a plain `Error` in `src/modules/**` and `'ERR_*'` literals anywhere in `src/` are rejected by ESLint — error codes come only from `APP_ERROR_CODES` (`src/core/errors/error-codes.ts`):
+  - `ValidationError` (400) · `BadRequestError` (400) · `UnauthorizedError` (401) · `ForbiddenError` (403) · `NotFoundError` (404) · `ConflictError` (409, type `CONFLICT`) · `PayloadTooLargeError` (413) · `TooManyRequestsError` (429, optional `retryAfterSeconds` → `Retry-After`) · `ServiceUnavailableError` (503)
+  - `ExternalServiceError(kind, message, { origin })` — `TIMEOUT` → 504, `UNREACHABLE` / `ERROR` → 502; the vendor's status is never forwarded
+  - `InternalServerError` (500) — broken invariants; its message and details are logged, never sent to the client
+- Constructor shape: `new XError(message, { details?, origin?, code? })` — `code` overrides the class default with a more specific registry code (e.g. `APP_ERROR_CODES.INVALID_JSON`).
 
 ```typescript
 // users.service.ts
@@ -191,7 +188,9 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     const existing = await this.repository.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictError(`Email '${dto.email}' is already registered`);
+      throw new ConflictError('User with this email already exists', {
+        details: [{ field: 'email', message: 'Email is already registered' }],
+      });
     }
     return this.repository.create({ ...dto, passwordHash: '...' });
   }

@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
+import { InternalServerError } from '../../core/errors';
 import { TransactionHost, defaultTxHost } from '../../database/transaction-host';
 import { users, type User, type NewUser } from '../../database/schema';
 
@@ -21,7 +22,7 @@ export class UsersRepository {
     // rejections (e.g., trigger-based row denial). Cast explicitly to reflect runtime reality.
     const created = result[0] as User | undefined;
     if (!created) {
-      throw new Error(
+      throw new InternalServerError(
         'INSERT INTO users returned no rows. This indicates an unexpected database-level rejection.',
       );
     }

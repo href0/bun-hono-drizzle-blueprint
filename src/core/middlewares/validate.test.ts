@@ -40,7 +40,7 @@ describe('Validation Middleware (Integration)', () => {
 
     const fields = body.error.details?.map((e) => e.field);
     expect(fields).toContain('email');
-    expect(fields).toContain('fullName');
+    expect(fields).toContain('full_name');
   });
 
   it('POST /api/v1/users with malformed JSON body should return 400 with explicit JSON error', async () => {

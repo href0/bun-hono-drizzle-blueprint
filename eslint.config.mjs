@@ -26,6 +26,24 @@ const MODULE_SYNTAX_RULES = [
   },
 ];
 
+/** All application source (`src/**`, tests excluded). */
+const SOURCE_SYNTAX_RULES = [
+  {
+    selector: 'Literal[value=/^ERR_/]',
+    message:
+      'Error code literals are forbidden. Use APP_ERROR_CODES from src/core/errors/error-codes.ts (add new codes there).',
+  },
+];
+
+/** Domain modules only: business failures must be typed ApiErrors. */
+const MODULE_ERROR_RULES = [
+  {
+    selector: 'ThrowStatement > NewExpression[callee.name="Error"]',
+    message:
+      'Throwing a plain Error in a module is forbidden. Throw a semantic ApiError (e.g. NotFoundError, ConflictError; InternalServerError for broken invariants).',
+  },
+];
+
 const CONTROLLER_SYNTAX_RULES = [
   {
     selector: 'MemberExpression[object.name="c"][property.name=/^(json|text|body|html)$/]',
@@ -49,13 +67,7 @@ const MODULE_IMPORT_PATTERNS = [
 
 export default tseslint.config(
   {
-    ignores: [
-      'eslint.config.mjs',
-      'dist/**',
-      'drizzle/**',
-      'node_modules/**',
-      '.husky/**',
-    ],
+    ignores: ['eslint.config.mjs', 'dist/**', 'drizzle/**', 'node_modules/**', '.husky/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
@@ -178,13 +190,26 @@ export default tseslint.config(
     },
   },
   {
+    // Error contract: codes only from the registry (which is the one file allowed to declare them).
+    files: ['src/**/*.ts'],
+    ignores: ['src/core/errors/error-codes.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...SOURCE_SYNTAX_RULES],
+    },
+  },
+  {
     // AST architectural enforcement: Modules must never touch database connection or raw HTTP client directly
     // Defense-in-depth guards:
     // 1. AST specifier guard: catches `db`, `sqlClient`, or `HttpClientService` imports
     // 2. Path guard: catches any import from database/connection or core/http
     files: ['src/modules/**/*.ts'],
     rules: {
-      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES],
+      'no-restricted-syntax': [
+        'error',
+        ...SOURCE_SYNTAX_RULES,
+        ...MODULE_SYNTAX_RULES,
+        ...MODULE_ERROR_RULES,
+      ],
       'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
     },
   },
@@ -193,7 +218,13 @@ export default tseslint.config(
     // Must come after the modules block and include its groups (see composition note at the top).
     files: ['src/modules/**/*.controller.ts'],
     rules: {
-      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES, ...CONTROLLER_SYNTAX_RULES],
+      'no-restricted-syntax': [
+        'error',
+        ...SOURCE_SYNTAX_RULES,
+        ...MODULE_SYNTAX_RULES,
+        ...MODULE_ERROR_RULES,
+        ...CONTROLLER_SYNTAX_RULES,
+      ],
     },
   },
   {
@@ -287,6 +318,15 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'off',
       'no-process-env': 'off',
       'no-console': 'off',
+      // Tests assert the wire contract literally ('ERR_*') and may throw plain errors as fixtures.
+      'no-restricted-syntax': 'off',
+    },
+  },
+  {
+    // Module tests still must not reach the database connection or the raw HTTP client.
+    files: ['src/modules/**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES],
     },
   },
   {

@@ -1,15 +1,12 @@
-import { ApiError, type ErrorDetail } from './api-error';
+import { ApiError, type ApiErrorOptions } from './api-error';
+import { APP_ERROR_CODES, ERROR_TYPES } from './error-codes';
 
 export class NotFoundError extends ApiError {
   readonly statusCode = 404;
-  readonly errorType = 'NOT_FOUND';
-  readonly errorCode = 'ERR_NOT_FOUND';
+  readonly errorType = ERROR_TYPES.NOT_FOUND;
+  protected readonly defaultCode = APP_ERROR_CODES.NOT_FOUND;
 
-  constructor(
-    message: string = 'Resource Not Found',
-    details: ErrorDetail[] = [],
-    origin: string = 'APP',
-  ) {
-    super(message, details, origin);
+  constructor(message = 'Resource Not Found', options?: ApiErrorOptions) {
+    super(message, options);
   }
 }

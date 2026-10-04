@@ -1,59 +1,38 @@
-import type { ErrorHandler } from 'hono';
+import type { Context, ErrorHandler } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { ApiError } from '../errors/api-error';
 import { getRequestContext } from '../context/request-context';
+import { ApiError } from '../errors/api-error';
+import { InternalServerError } from '../errors/internal-server.error';
+import { TooManyRequestsError } from '../errors/too-many-requests.error';
 import { logger } from '../logger/logger';
+import { buildErrorBody } from '../response/error-response';
+
+/** Serializes an `ApiError` into the standard error envelope (shared with the 404 handler). */
+export const sendError = (c: Context, error: ApiError): Response => {
+  if (error instanceof TooManyRequestsError && error.retryAfterSeconds !== undefined) {
+    c.header('Retry-After', String(Math.ceil(error.retryAfterSeconds)));
+  }
+
+  const requestId = getRequestContext()?.requestId ?? 'unknown';
+  return c.json(buildErrorBody(error, requestId), error.statusCode as ContentfulStatusCode);
+};
 
 export const globalErrorHandler: ErrorHandler = (err, c) => {
-  const requestId = getRequestContext()?.requestId ?? 'unknown';
+  const apiError = err instanceof ApiError ? err : new InternalServerError();
 
-  if (err instanceof ApiError) {
+  if (apiError.statusCode >= 500) {
+    logger.error({ err, type: apiError.errorType, code: apiError.errorCode }, 'Request failed');
+  } else {
     logger.warn(
       {
-        type: err.errorType,
-        code: err.errorCode,
-        message: err.message,
-        details: err.details,
+        type: apiError.errorType,
+        code: apiError.errorCode,
+        message: apiError.message,
+        details: apiError.details,
       },
       'Client error handled',
     );
-
-    return c.json(
-      {
-        success: false,
-        status_code: err.statusCode,
-        message: err.message,
-        data: null,
-        error: {
-          type: err.errorType,
-          code: err.errorCode,
-          origin: err.origin,
-          ...(err.details.length > 0 ? { details: err.details } : {}),
-        },
-        request_id: requestId,
-        timestamp: new Date().toISOString(),
-      },
-      err.statusCode as ContentfulStatusCode,
-    );
   }
 
-  // Unhandled / Internal Server Errors
-  logger.error({ err }, 'Unhandled internal server error');
-
-  return c.json(
-    {
-      success: false,
-      status_code: 500,
-      message: 'Internal Server Error',
-      data: null,
-      error: {
-        type: 'INTERNAL_SERVER_ERROR',
-        code: 'ERR_INTERNAL_SERVER_ERROR',
-        origin: 'APP',
-      },
-      request_id: requestId,
-      timestamp: new Date().toISOString(),
-    },
-    500,
-  );
+  return sendError(c, apiError);
 };

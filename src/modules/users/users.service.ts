@@ -21,9 +21,9 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     const existing = await this.repo.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictError('User with this email already exists', [
-        { field: 'email', message: 'Email is already registered' },
-      ]);
+      throw new ConflictError('User with this email already exists', {
+        details: [{ field: 'email', message: 'Email is already registered' }],
+      });
     }
 
     // Hash password using Bun's native Argon2 / bcrypt implementation
