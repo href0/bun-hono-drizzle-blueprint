@@ -118,7 +118,7 @@ src/
 │       └── index.ts             # Public export untuk dikonsumsi domain modules
 │
 ├── modules/                     # Inbound Domain Feature Modules (Client-Facing HTTP)
-│   ├── health/                  # Healthcheck probe (/api/v1/health)
+│   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
 │   └── users/                   # Modul Referensi Produksi (/api/v1/users)
 │       ├── users.dto.ts         # Zod schemas (create, update, query, params)
 │       ├── users.repository.ts  # Database access via this.txHost.tx
@@ -514,7 +514,7 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
 6. **Service**: Buat file `src/modules/<feature>/<feature>.service.ts` dengan `@Transactional()` pada operasi tulis.
 7. **Controller**: Buat file `src/modules/<feature>/<feature>.controller.ts` dibungkus `asyncHandler` dan me-return `ApiResponse`.
 8. **Routes**: Buat file `src/modules/<feature>/<feature>.routes.ts` dengan middleware `validate({ ... })`.
-9. **Daftarkan di `src/app.ts`**: Pasang route via `app.route('${env.API_PREFIX}/<feature>', featureRoutes)`.
+9. **Daftarkan di `src/app.ts`**: pasang pada router versi, `v1.route('/<feature>', featureRoutes)` → `<API_BASE_PATH>/v1/<feature>`. Versi adalah kode, bukan env: versi baru = router baru (`v2`).
 10. **Tulis Unit Test**: Buat file co-located `src/modules/<feature>/<feature>.service.test.ts`.
 11. **Validasi Penuh**: Jalankan `bun run validate:full`.
 

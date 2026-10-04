@@ -50,7 +50,7 @@ export async function bootstrap(): Promise<Server<unknown>> {
     {
       port: appConfig.PORT,
       env: appConfig.NODE_ENV,
-      apiPrefix: appConfig.API_PREFIX,
+      basePath: appConfig.API_BASE_PATH,
     },
     `${appConfig.APP_NAME} server started successfully on port ${appConfig.PORT}`,
   );

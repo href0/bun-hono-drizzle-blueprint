@@ -1,58 +1,32 @@
-import { describe, expect, it, mock, beforeEach } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
+import { deriveHealthState, HealthService, type HealthProbes } from './health.service';
 
-// Mock database module
-const mockPingDatabase = mock(async () => Promise.resolve(true));
-void mock.module('../../database', () => ({
-  pingDatabase: mockPingDatabase,
-}));
+const probes = (database: boolean, redis: boolean): HealthProbes => ({
+  pingDatabase: () => Promise.resolve(database),
+  isCacheReady: () => redis,
+});
 
-// Mock cache service module
-const mockIsReady = mock(() => true);
-void mock.module('../../core/cache', () => ({
-  cacheService: {
-    isReady: mockIsReady,
-  },
-}));
+describe('deriveHealthState', () => {
+  it('is DOWN without the database, DEGRADED without Redis, UP with both', () => {
+    expect(deriveHealthState({ database: 'UP', redis: 'UP' })).toBe('UP');
+    expect(deriveHealthState({ database: 'UP', redis: 'DOWN' })).toBe('DEGRADED');
+    expect(deriveHealthState({ database: 'DOWN', redis: 'UP' })).toBe('DOWN');
+    expect(deriveHealthState({ database: 'DOWN', redis: 'DOWN' })).toBe('DOWN');
+  });
+});
 
-import { checkReadinessStatus } from './health.service';
+describe('HealthService.check', () => {
+  it('reports every component and the derived state', async () => {
+    const report = await new HealthService(probes(true, false)).check();
 
-describe('checkReadinessStatus() (Unit)', () => {
-  beforeEach(() => {
-    mockPingDatabase.mockReset();
-    mockIsReady.mockReset();
+    expect(report.status).toBe('DEGRADED');
+    expect(report.components).toEqual({ database: 'UP', redis: 'DOWN' });
+    expect(Number.isNaN(Date.parse(report.timestamp))).toBe(false);
   });
 
-  it('should return ready status when DB ping succeeds and Redis is available', async () => {
-    mockPingDatabase.mockResolvedValue(true);
-    mockIsReady.mockReturnValue(true);
-
-    const status = await checkReadinessStatus();
-
-    expect(status.status).toBe('ready');
-    expect(status.database).toBe('ok');
-    expect(status.redis).toBe('ok');
-    expect(typeof status.timestamp).toBe('string');
-  });
-
-  it('should return not_ready status when DB ping fails', async () => {
-    mockPingDatabase.mockResolvedValue(false);
-    mockIsReady.mockReturnValue(true);
-
-    const status = await checkReadinessStatus();
-
-    expect(status.status).toBe('not_ready');
-    expect(status.database).toBe('unavailable');
-    expect(status.redis).toBe('ok');
-  });
-
-  it('should return degraded redis status but still ready if Redis is unavailable', async () => {
-    mockPingDatabase.mockResolvedValue(true);
-    mockIsReady.mockReturnValue(false);
-
-    const status = await checkReadinessStatus();
-
-    expect(status.status).toBe('ready');
-    expect(status.database).toBe('ok');
-    expect(status.redis).toBe('degraded');
+  it('uses the real probes by default (database unreachable and Redis lazy in tests)', async () => {
+    const report = await new HealthService().check();
+    expect(report.components.redis).toBe('DOWN');
+    expect(['UP', 'DOWN']).toContain(report.components.database);
   });
 });

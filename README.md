@@ -14,6 +14,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 6. **Resilient Infrastructure**:
    - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
    - **Platform Hardening**: Rate limit global per IP klien tepercaya lewat Redis (berlaku lintas instance, fail-open), `TRUST_PROXY_HOPS` (`X-Forwarded-For` tidak dipercaya mentah), batas ukuran body (413), CORS allowlist (`CORS_ORIGINS`, kosong = mati), dan security headers.
+   - **Health Probes**: `GET /api/health` (selalu 200, `UP`/`DEGRADED`/`DOWN` + status komponen), `/api/health/readiness` (503 hanya bila database mati; Redis mati = `DEGRADED`), `/api/health/liveness` (tanpa cek dependency). Probe database dibatasi 2 detik.
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, Pino logging, dan vendor error masking.
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
 7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.
@@ -74,7 +75,7 @@ src/
 │           └── ref-roles.schema.ts
 │
 ├── modules/                     # Domain Feature Modules
-│   ├── health/                  # Healthcheck probe (/api/v1/health)
+│   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
 │   └── users/                   # Modul Referensi Produksi (/api/v1/users)
 │       ├── users.dto.ts         # Zod schemas (body, query, params)
 │       ├── users.repository.ts  # Database access via TransactionHost
@@ -236,7 +237,7 @@ export const productRoutes = new Hono();
 
 productRoutes.post('/', validate({ body: createProductSchema }), productsController.create);
 ```
-*Daftarkan di `src/app.ts`: ``app.route(`${appConfig.API_PREFIX}/products`, productRoutes);``*
+*Daftarkan di `src/app.ts` pada router versi: ``v1.route('/products', productRoutes);`` → `/api/v1/products`*
 
 ---
 

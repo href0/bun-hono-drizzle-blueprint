@@ -22,7 +22,7 @@ describe('Platform hardening — createApp() pipeline', () => {
   });
 
   it('rejects a body over HTTP_BODY_LIMIT_BYTES with 413 before reaching the route', async () => {
-    const res = await app.request(`${appConfig.API_PREFIX}/users`, {
+    const res = await app.request(`${appConfig.API_BASE_PATH}/v1/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ full_name: 'x'.repeat(httpConfig.HTTP_BODY_LIMIT_BYTES) }),

@@ -21,7 +21,8 @@ import { userRoutes } from './modules/users/users.routes';
 /** Pipeline order: plan appendix L10. */
 export const createApp = (): Hono => {
   const app = new Hono();
-  const healthPath = `${appConfig.API_PREFIX}/health`;
+  const basePath = appConfig.API_BASE_PATH;
+  const healthPath = `${basePath}/health`;
 
   // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
@@ -47,9 +48,13 @@ export const createApp = (): Hono => {
     }),
   );
 
-  // 7–10. Routes
+  // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
-  app.route(`${appConfig.API_PREFIX}/users`, userRoutes);
+
+  // 10. Versioned API — the version is code, not configuration (a new version = a new router)
+  const v1 = new Hono();
+  v1.route('/users', userRoutes);
+  app.route(`${basePath}/v1`, v1);
 
   app.get(
     '/',

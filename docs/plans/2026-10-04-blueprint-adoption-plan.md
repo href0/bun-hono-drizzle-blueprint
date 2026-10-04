@@ -2,9 +2,9 @@
 
 | Atribut     | Nilai                                                                                                                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — F0, Step 1.1–1.7 + review 1.1–1.3, 1.4–1.5, 1.6–1.7 selesai (`main` @ `99acb2a`); pembaruan plan primary key menunggu review (branch `docs/plan-primary-keys`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status      | IN PROGRESS — F0, Step 1.1–1.7 + review 1.1–1.3, 1.4–1.5, 1.6–1.7 selesai (`main` @ `78033cc`); Step 1.8 menunggu review (branch `feat/health-base-path`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal     | 2026-10-04                                                                                                                                                                                                                                |
-| Basis kode  | branch `main` @ `99acb2a`                                                                                                                                                                                                                 |
+| Basis kode  | branch `main` @ `78033cc` |
 | Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                                                            |
 | Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                                                           |
 | Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                                                            |
@@ -270,6 +270,15 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | Review 3  | ✅ Di-commit (`99acb2a`) dan di-merge ke `main` atas permintaan user                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | —                                                                                                                                                                                                                                                              |
 | 2026-10-04 | Plan      | Konfirmasi user soal primary key (UUID v7 default, bigint hanya untuk tabel pencatatan cepat): sudah ada di D15/2.2/2.5/2.7, dengan 4 celah yang kini ditutup di plan — (1) penjaga "bigint hanya tabel pencatatan": allowlist `APPEND_ONLY_TABLES` + test konvensi 2.7 (juga menolak entri basi); (2) `mode: 'number'` (bigint JS merusak `JSON.stringify`); (3) L6 `bigserial` → `bigint GENERATED ALWAYS AS IDENTITY` (konsisten D15 & larangan `serial(` 2.2); (4) UUID v7 dari aplikasi didokumentasikan (insert SQL mentah wajib mengisi `id`) | Implementasi tetap di Step 2.2 / 2.7                                                                                                                                                                                                                           |
 | 2026-10-04 | Proses | Markdown tidak lagi diformat Prettier (keluhan user: tabel log jadi 48% spasi, baris sampai 834 karakter). `.prettierignore` berisi `*.md`; aturan di `.agents/AGENTS.md`: tabel ringkas (`\| a \| b \|`) dan daftar rapat ditulis manual | Tabel lama di plan masih ber-padding sampai dirapatkan |
+| 2026-10-04 | Plan | ✅ Pembaruan plan primary key + aturan md di-commit (`78033cc`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-04 | 1.8 | `API_PREFIX=/api/v1` → `API_BASE_PATH=/api` (regex: diawali `/`, tanpa `/` di akhir); versi di kode: `const v1 = new Hono(); v1.route('/users', …); app.route(`${base}/v1`, v1)`. `API_PREFIX` masuk `RENAMED_ENV_VARS` → app menolak start bila nama lama masih diset | Terbukti langsung: file env lokal user masih memuat `API_PREFIX` → test/dev berhenti dengan pesan pengganti. **User perlu mengganti `API_PREFIX=/api/v1` menjadi `API_BASE_PATH=/api`** |
+| 2026-10-04 | 1.8 | Health tanpa versi di `<base>/health`: `GET /health` selalu 200 (`status` UP/DEGRADED/DOWN + `components.database`/`redis`), `/readiness` 200 atau 503 `SERVICE_UNAVAILABLE` (envelope error, `details[].field = database`) hanya bila DB mati, `/liveness` selalu 200 tanpa cek dependency (`uptime_seconds`). Path lama `/api/v1/health` → 404 | Readiness memakai envelope error standar (bukan `data` + 503) agar konsisten dengan kontrak error 1.3 |
+| 2026-10-04 | 1.8 | Ditambahkan di luar rencana: `pingDatabase(timeoutMs = 2000)` — sebelumnya tanpa timeout, DB yang menggantung menahan probe sampai `connect_timeout` postgres.js (30 dtk) melebihi timeout probe LB/k8s | Uji nyata ke IP tak terjangkau: `false` tepat 2,00 dtk; health `DOWN` dalam 2,01 dtk |
+| 2026-10-04 | 1.8 | `HealthService`/`HealthController` mengikuti D20 (class + default constructor param, probe di-inject) → `mock.module` global di `health.service.test.ts` dihapus; test controller untuk ketiga state + 503 | Uji nyata Redis lokal: terhubung → `UP`; koneksi putus (`end`) → `DEGRADED` |
+| 2026-10-04 | 1.8 | Ditemukan & diperbaiki: `HEALTHCHECK` di `Dockerfile` menembak `/api/v1/health/liveness` → setelah 1.8 container akan selalu unhealthy; kini `/api/health/liveness` | Build image belum diverifikasi (Docker tidak berjalan) |
+| 2026-10-04 | 1.8 | Tinjauan ulang deviasi 1.7 (health dikecualikan dari rate limit global): **dipertahankan** — probe tetap di `<base>/health` (path stabil lintas versi), skip via `isUnderPath(healthPath)` | — |
+| 2026-10-04 | 1.8 | Dokumen: template `scaffold-module` (route prefix + registrasi `v1.route(...)`), `scripts/verify-scaffold.ts` (patch `v1.route`), README (Health Probes, struktur), CONTRIBUTING (struktur, langkah registrasi — sebelumnya masih `env.API_PREFIX`), `references/testing.md`, `references/bootstrap.md` (§1/§2 disinkronkan, baris pipeline 7–10), `.env.example` | `verify:scaffold` & `validate:full` menunggu file env lokal user diperbarui (lihat baris `API_PREFIX`) |
+| 2026-10-04 | 1.8 | User mengganti `API_PREFIX` → `API_BASE_PATH=/api` di file env lokal; config terbaca, `validate:full` (coverage 99.87% / 98.83%) dan `verify:scaffold` hijau | — |
 
 ---
 
@@ -306,7 +315,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.5  | Kontrak request snake_case + DTO bersama                    | ✅     | 1.3             | `240d8fe`            |
 | 1.6  | Ketahanan Redis & `CacheService` lanjutan                   | ✅     | 1.1             | `89d2e65`            |
 | 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅     | 1.2, 1.6        | `3028ac8`            |
-| 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path                   | ⬜     | 1.6             |                      |
+| 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path | 👀 | 1.6 | |
 | 1.9  | Dokumentasi OpenAPI                                         | ⬜     | 1.5             |                      |
 | 2.1  | Standar tanggal & waktu (Temporal)                          | ⬜     | 0.3             |                      |
 | 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |                      |
@@ -562,7 +571,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] DB up + Redis up → `UP`; Redis down → `DEGRADED` (readiness 200); DB down → `DOWN` (readiness 503).
+- [x] DB up + Redis up → `UP`; Redis down → `DEGRADED` (readiness 200); DB down → `DOWN` (readiness 503).
 
 ### Step 1.9 — Dokumentasi OpenAPI
 
