@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { assertEnvironmentLoaded, isTestEnvironment, parseEnv } from './parse-env';
+import {
+  assertEnvironmentLoaded,
+  assertNoRenamedVariables,
+  isTestEnvironment,
+  parseEnv,
+  RENAMED_ENV_VARS,
+} from './parse-env';
 
 describe('parseEnv (Unit)', () => {
   const schema = z.object({
@@ -41,6 +47,34 @@ describe('parseEnv (Unit)', () => {
       .object({ A: z.string().optional() })
       .refine((value) => value.A !== undefined, 'A is mandatory');
     expect(() => parseEnv('refined', refined, {})).toThrow('(root): A is mandatory');
+  });
+});
+
+describe('assertNoRenamedVariables (Unit)', () => {
+  it('should pass when no renamed variable is set', () => {
+    expect(() => {
+      assertNoRenamedVariables({ CORS_ORIGINS: 'https://app.example.com' });
+    }).not.toThrow();
+  });
+
+  it('should name every stale variable and its replacement without printing values', () => {
+    let message = '';
+    try {
+      assertNoRenamedVariables({
+        CORS_ORIGIN: 'https://secret-origin.example',
+        RATE_LIMIT_WINDOW_MS: '900000',
+      });
+    } catch (err: unknown) {
+      message = err instanceof Error ? err.message : '';
+    }
+    expect(message).toContain('CORS_ORIGIN: renamed to CORS_ORIGINS');
+    expect(message).toContain('RATE_LIMIT_WINDOW_MS: renamed to RATE_LIMIT_WINDOW_SECONDS');
+    expect(message).not.toContain('secret-origin');
+    expect(message).not.toContain('900000');
+  });
+
+  it('should cover the variables renamed in plan step 1.7', () => {
+    expect(Object.keys(RENAMED_ENV_VARS).sort()).toEqual(['CORS_ORIGIN', 'RATE_LIMIT_WINDOW_MS']);
   });
 });
 

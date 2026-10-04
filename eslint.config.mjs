@@ -78,6 +78,13 @@ const CONTROLLER_SYNTAX_RULES = [
   },
 ];
 
+/** Redis is reached only through CacheService (serialization, fail-open, readiness check). */
+const CACHE_CLIENT_IMPORT_PATTERN = {
+  group: ['**/core/cache/redis.client*', 'ioredis'],
+  message:
+    'Use CacheService / cacheService from core/cache instead of the Redis client: it owns serialization, the readiness check and fail-open error handling.',
+};
+
 const MODULE_IMPORT_PATTERNS = [
   {
     group: ['**/database/connection*'],
@@ -89,6 +96,7 @@ const MODULE_IMPORT_PATTERNS = [
     message:
       'Domain modules must never import from core/http directly. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
   },
+  CACHE_CLIENT_IMPORT_PATTERN,
 ];
 
 export default tseslint.config(
@@ -271,6 +279,7 @@ export default tseslint.config(
               message:
                 'Outbound integrations must never import from the database layer. Database persistence is reserved for domain repositories.',
             },
+            CACHE_CLIENT_IMPORT_PATTERN,
           ],
         },
       ],

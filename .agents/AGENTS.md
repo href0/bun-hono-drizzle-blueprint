@@ -25,7 +25,7 @@ Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute
 This project enforces strict automated Quality Gates powered by:
 
 - **TypeScript 5 Strict Type Checking** (`tsc --noEmit`)
-- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()`/`c.text()` in controllers, direct `db`/`HttpClientService` imports in modules, `'ERR_*'` literals or dynamically built codes outside `src/core/errors/error-codes.ts`, plain `throw new Error`/`throw Error` in modules, string-literal user messages in modules, and `process.env` outside `src/config/env-source.ts`), and justified-only `eslint-disable` (`-- <reason>` required)
+- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()`/`c.text()` in controllers, direct `db`/`HttpClientService`/Redis client (`redis.client`, `ioredis`) imports in modules and integrations, `'ERR_*'` literals or dynamically built codes outside `src/core/errors/error-codes.ts`, plain `throw new Error`/`throw Error` in modules, string-literal user messages in modules, and `process.env` outside `src/config/env-source.ts`), and justified-only `eslint-disable` (`-- <reason>` required)
 - **ls-lint** directory and file naming conventions
 - **Prettier** formatting enforcement
 - **Dependency Cruiser** strict layer boundaries (`config`, `core`, `database`, `modules`, `integrations`, `utils`)

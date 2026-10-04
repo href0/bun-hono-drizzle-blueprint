@@ -55,4 +55,18 @@ export const createRedisClient = (config: RedisConfig): SafeRedis => {
   return client;
 };
 
+/**
+ * Shutdown-safe close: `QUIT` (flushes pending replies) only when connected. Otherwise
+ * `quit()` is rejected — the offline queue is off — so the socket and reconnect loop are dropped.
+ */
+export const closeRedisClient = async (
+  client: Pick<Redis, 'status' | 'quit' | 'disconnect'>,
+): Promise<void> => {
+  if (client.status === 'ready') {
+    await client.quit();
+    return;
+  }
+  client.disconnect();
+};
+
 export const redisClient = createRedisClient(redisConfig);

@@ -123,6 +123,17 @@ module.exports = {
       to: { path: '^src/core/http/' },
     },
     {
+      name: 'redis-client-only-in-cache',
+      severity: 'error',
+      comment:
+        'The Redis client is internal to src/core/cache (CacheService owns serialization and fail-open). Only src/index.ts may touch it, to connect on startup and close on shutdown.',
+      from: {
+        path: '^src/',
+        pathNot: '^src/(core/cache/|index\.ts$)',
+      },
+      to: { path: '(^src/core/cache/redis\.client\.ts$|node_modules/ioredis/)' },
+    },
+    {
       name: 'no-module-direct-db-connection',
       severity: 'error',
       comment:

@@ -38,6 +38,28 @@ export const parseEnv = <TSchema extends z.ZodTypeAny>(
   throw new Error(`Invalid environment configuration (${group}):\n${lines.join('\n')}`);
 };
 
+/**
+ * Variables the boilerplate renamed. A stale name would otherwise be ignored silently (CORS quietly
+ * off, a millisecond window read as nothing), so startup fails and names the replacement.
+ * Add an entry whenever a variable is renamed or removed.
+ */
+export const RENAMED_ENV_VARS: Readonly<Record<string, string>> = {
+  CORS_ORIGIN: 'CORS_ORIGINS (comma-separated exact origins; empty = CORS disabled)',
+  RATE_LIMIT_WINDOW_MS: 'RATE_LIMIT_WINDOW_SECONDS (seconds, not milliseconds)',
+};
+
+/** Fails fast when a renamed variable is still set; lists names only, never values. */
+export const assertNoRenamedVariables = (
+  source: EnvSource,
+  renamed: Readonly<Record<string, string>> = RENAMED_ENV_VARS,
+): void => {
+  const stale = Object.keys(renamed).filter((name) => source[name] !== undefined);
+  if (stale.length === 0) return;
+
+  const lines = stale.map((name) => `  - ${name}: renamed to ${renamed[name] ?? ''}`);
+  throw new Error(`Invalid environment configuration (renamed variables):\n${lines.join('\n')}`);
+};
+
 export const isTestEnvironment = (source: EnvSource): boolean => source.NODE_ENV === 'test';
 
 /**

@@ -18,7 +18,7 @@ src/core/cache/
 
 ## 2. Core Operational Rules
 
-1. **Always use `CacheService`, never `redisClient` directly.** `CacheService` owns serialization, the readiness check and fail-open error handling. Only `src/index.ts` touches `redisClient` (connect on startup, `quit()` on shutdown).
+1. **Always use `CacheService`, never `redisClient` directly.** `CacheService` owns serialization, the readiness check and fail-open error handling. Only `src/index.ts` touches `redisClient` (connect on startup, `closeRedisClient()` on shutdown — `quit()` alone is rejected while Redis is down). Enforced: ESLint (`redis.client`/`ioredis` imports in modules and integrations) and dependency-cruiser `redis-client-only-in-cache` (anywhere outside `src/core/cache/`).
 2. **SSOT key generation (`cache-keys.ts`).** Never hardcode keys like `'user:123'`; add a builder to `CACHE_KEYS` and a TTL to `CACHE_TTL`:
    ```typescript
    export const CACHE_KEYS = {

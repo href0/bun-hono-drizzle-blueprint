@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, spyOn } from 'bun:test';
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import {
   BLOCKED_COMMANDS,
   buildRedisOptions,
+  closeRedisClient,
   createRedisClient,
   reconnectDelay,
   redisClient,
@@ -90,6 +91,24 @@ describe('SafeRedis', () => {
     client.disconnect();
 
     expect((await rejectionOf(client.get('key'))).message).toContain('Connection is closed');
+  });
+});
+
+describe('closeRedisClient', () => {
+  it('sends QUIT when connected', async () => {
+    const client = { status: 'ready', quit: mock(async () => 'OK'), disconnect: mock(() => {}) };
+    await closeRedisClient(client as unknown as SafeRedis);
+    expect(client.quit).toHaveBeenCalledTimes(1);
+    expect(client.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('drops the socket without QUIT when Redis is not ready (quit() would reject)', async () => {
+    const client = offlineClient();
+    expect((await rejectionOf(client.quit())).message).toContain('enableOfflineQueue');
+
+    const fresh = offlineClient();
+    await closeRedisClient(fresh);
+    expect(fresh.status).toBe('end');
   });
 });
 
