@@ -487,7 +487,9 @@ Repositori ini menyediakan implementasi referensi nyata yang dapat langsung di-t
 
 1. Semua cache key **WAJIB** didefinisikan secara terpusat di `src/core/cache/cache-keys.ts`.
 2. Dilarang menulis string key secara langsung (*hardcoded string keys*).
-3. **Fail-Open Architecture**: Jika Redis server down atau timeout, `CacheService` otomatis melakukan bypass dan memanggil database fetcher. **Request pengguna tidak boleh crash hanya karena Redis offline.**
+3. **Fail-Open Architecture**: Jika Redis server down, lambat (> `REDIS_COMMAND_TIMEOUT_MS`), atau belum siap, `CacheService` otomatis melakukan bypass dan memanggil database fetcher. **Request pengguna tidak boleh crash hanya karena Redis offline.**
+4. Jangan menambahkan prefix proyek/environment sendiri: client menambahkan `<APP_NAME>:<NODE_ENV>:` otomatis (override `REDIS_KEY_PREFIX`). `FLUSHALL`, `FLUSHDB`, dan `KEYS` diblokir — gunakan `SCAN` atau TTL.
+5. Primitif lain: `setIfAbsent` (nonce/idempotency, `SET NX EX`), `increment` (rate limit, fixed window), dan `getOrSet(…, { negativeTtl })` untuk lookup berdasarkan input tak tepercaya. Detail: `.agents/skills/project-standards/references/redis-cache.md`.
 
 ```typescript
 const user = await this.cache.getOrSet(

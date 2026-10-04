@@ -25,11 +25,6 @@ const COVERAGE_EXCLUSIONS: readonly { path: string; reason: string; until: strin
     reason: 'process bootstrap (Bun.serve, signal handlers, process.exit)',
     until: 'permanent — verified by the release smoke test (plan step 7.3)',
   },
-  {
-    path: 'src/core/cache/redis.client.ts',
-    reason: 'module is mocked globally by e2e tests; retry/event handlers untestable in place',
-    until: 'plan step 1.6 (Redis resilience rewrite with unit tests)',
-  },
 ];
 
 interface FileCoverage {

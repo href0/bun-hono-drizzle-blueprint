@@ -41,15 +41,43 @@ describe('Configuration groups (Unit)', () => {
     ).toMatchObject({ DB_MAX_CONNECTIONS: 5, DB_IDLE_TIMEOUT_SECONDS: 30 });
   });
 
+  const app = { APP_NAME: 'my-app', NODE_ENV: 'production' } as const;
+
   it('redis: should require REDIS_HOST outside test and default it in test', () => {
-    expect(() => buildRedisConfig({ NODE_ENV: 'production' })).toThrow('REDIS_HOST: is required');
-    expect(buildRedisConfig({ NODE_ENV: 'test' })).toEqual({
+    expect(() => buildRedisConfig({ NODE_ENV: 'production' }, app)).toThrow(
+      'REDIS_HOST: is required',
+    );
+    expect(buildRedisConfig({ NODE_ENV: 'test' }, { ...app, NODE_ENV: 'test' })).toEqual({
       REDIS_HOST: 'localhost',
       REDIS_PORT: 6379,
       REDIS_PASSWORD: '',
       REDIS_DB: 0,
-      REDIS_KEY_PREFIX: '',
+      REDIS_KEY_PREFIX: 'my-app:test',
+      REDIS_COMMAND_TIMEOUT_MS: 1000,
     });
+  });
+
+  it('redis: should default the key prefix to <APP_NAME>:<NODE_ENV> and accept an override', () => {
+    const base = { REDIS_HOST: 'redis' };
+    expect(buildRedisConfig(base, app).REDIS_KEY_PREFIX).toBe('my-app:production');
+    expect(buildRedisConfig({ ...base, REDIS_KEY_PREFIX: '' }, app).REDIS_KEY_PREFIX).toBe(
+      'my-app:production',
+    );
+    expect(
+      buildRedisConfig({ ...base, REDIS_KEY_PREFIX: 'shared:billing-api' }, app).REDIS_KEY_PREFIX,
+    ).toBe('shared:billing-api');
+  });
+
+  it('redis: should reject malformed key prefixes and non-positive command timeouts', () => {
+    const base = { REDIS_HOST: 'redis' };
+    for (const prefix of ['my app', 'trailing:', ':leading', 'a::b']) {
+      expect(() => buildRedisConfig({ ...base, REDIS_KEY_PREFIX: prefix }, app)).toThrow(
+        'REDIS_KEY_PREFIX',
+      );
+    }
+    expect(() => buildRedisConfig({ ...base, REDIS_COMMAND_TIMEOUT_MS: '0' }, app)).toThrow(
+      'REDIS_COMMAND_TIMEOUT_MS',
+    );
   });
 
   it('http: should apply defaults and coerce numbers', () => {

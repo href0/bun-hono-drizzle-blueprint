@@ -31,19 +31,8 @@ void mock.module('../src/database/connection', () => ({
   db: {},
 }));
 
-// Mock redis client — avoid real Redis dependency
-void mock.module('../src/core/cache/redis.client', () => ({
-  redisClient: {
-    status: 'ready',
-    get: mock(() => Promise.resolve(null)),
-    setex: mock(() => Promise.resolve('OK')),
-    del: mock(() => Promise.resolve(1)),
-    quit: mock(() => Promise.resolve('OK')),
-    ping: mock(() => Promise.resolve('PONG')),
-    on: mock(() => {}),
-    connect: mock(() => Promise.resolve()),
-  },
-}));
+// No Redis mock needed: the real client is lazy (never connects on import) and the cache fails
+// open while it is not ready. A global mock.module() would also leak into the cache unit tests.
 
 // --- Tests ---
 
