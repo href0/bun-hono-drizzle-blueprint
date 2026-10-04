@@ -78,7 +78,12 @@ describe('UsersService (Unit)', () => {
 
 ---
 
-## 4. Blackbox E2E HTTP Testing (`test/health.e2e.test.ts`)
+## 4. Contract Guards That Run With Every Test Suite
+
+- `test/openapi.e2e.test.ts` — every route of `createApp()` is documented (summary + 2xx via `describeEndpoint()`), snake_case everywhere, 400 on validated routes, common headers present. A new route without `describeEndpoint()` fails here; see [openapi.md](openapi.md).
+- `test/platform.e2e.test.ts` — the `createApp()` pipeline: security headers, CORS off by default, 413 before the route, rate limit failing open.
+
+## 5. Blackbox E2E HTTP Testing (`test/health.e2e.test.ts`)
 
 Instantiate fresh `createApp()` and dispatch requests via `app.request()`:
 

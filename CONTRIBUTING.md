@@ -100,6 +100,7 @@ src/
 │   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
 │   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, errorHandler, dll.)
+│   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   └── response/                # Standard Success Response Envelope (ApiResponse)
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
@@ -508,12 +509,12 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
 
 1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dan re-export di `schema/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
-3. **DTO Zod**: Buat file `src/modules/<feature>/<feature>.dto.ts` (Zod schemas & types).
+3. **DTO Zod**: Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, tanggal memakai `isoDateTime()`); transformer memakai tipe `z.infer` dari schema response.
 4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` menggunakan `this.txHost.tx`.
 5. **Transformer**: Buat file `src/modules/<feature>/<feature>.transformer.ts` untuk membersihkan data.
 6. **Service**: Buat file `src/modules/<feature>/<feature>.service.ts` dengan `@Transactional()` pada operasi tulis.
 7. **Controller**: Buat file `src/modules/<feature>/<feature>.controller.ts` dibungkus `asyncHandler` dan me-return `ApiResponse`.
-8. **Routes**: Buat file `src/modules/<feature>/<feature>.routes.ts` dengan middleware `validate({ ... })`.
+8. **Routes**: Buat file `src/modules/<feature>/<feature>.routes.ts`: setiap route **wajib** memakai `describeEndpoint({ tags, summary, response, errors })` lalu `validate({ ... })`. `errors` cukup berisi error domain (404, 409, …); request body, parameter, 400/413, 429/500, dan header umum terdokumentasi otomatis. Route tanpa `describeEndpoint()` membuat `test/openapi.e2e.test.ts` gagal. Dokumentasi tampil di `/api/docs` (`API_DOCS_ENABLED`, mati di production). Panduan: `.agents/skills/project-standards/references/openapi.md`.
 9. **Daftarkan di `src/app.ts`**: pasang pada router versi, `v1.route('/<feature>', featureRoutes)` → `<API_BASE_PATH>/v1/<feature>`. Versi adalah kode, bukan env: versi baru = router baru (`v2`).
 10. **Tulis Unit Test**: Buat file co-located `src/modules/<feature>/<feature>.service.test.ts`.
 11. **Validasi Penuh**: Jalankan `bun run validate:full`.

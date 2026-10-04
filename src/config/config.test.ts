@@ -12,6 +12,7 @@ describe('Configuration groups (Unit)', () => {
       PORT: 3000,
       APP_NAME: expect.any(String),
       API_BASE_PATH: '/api',
+      API_DOCS_ENABLED: true,
       LOG_LEVEL: 'info',
       DEFAULT_LOCALE: 'id',
     });

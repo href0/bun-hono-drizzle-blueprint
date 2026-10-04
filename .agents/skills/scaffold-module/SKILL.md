@@ -72,14 +72,27 @@ export * from './<name>.schema';
 
 Fields are written in camelCase; clients send them in snake_case (`validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` and converts accepted payloads). Reuse the shared `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`) from `src/core/dto/common.dto.ts` instead of redefining them. For a free-form dictionary field, pass `preserveKeys: ['<field>']` to `validate()` — request side only: responses still convert dictionary keys to snake_case, so prefer `{ key, value }` arrays.
 
+The response schema documents the endpoint (OpenAPI) and types the transformer, so the docs cannot drift from what the API returns. Dates are `isoDateTime()`: a `Date` in TypeScript, an ISO 8601 string on the wire.
+
 ```typescript
 import { z } from 'zod';
+import { isoDateTime } from '../../core/openapi';
 
 export const create<PascalSingular>Schema = z.object({
   name: z.string().min(1, 'Name is required'),
 });
 
 export type Create<PascalSingular>Dto = z.infer<typeof create<PascalSingular>Schema>;
+
+export const <camelSingular>ResponseSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  isActive: z.boolean(),
+  createdAt: isoDateTime(),
+  updatedAt: isoDateTime(),
+});
+
+export type <PascalSingular>Response = z.infer<typeof <camelSingular>ResponseSchema>;
 ```
 
 ---
@@ -167,21 +180,14 @@ export const <camelPlural>Repository = new <PascalPlural>Repository();
 
 ```typescript
 import type { <PascalSingular> } from '../../database/schema';
-
-export interface <PascalSingular>Response {
-  id: string;
-  name: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { <PascalSingular>Response } from './<name>.dto';
 
 export const to<PascalSingular>Response = (entity: <PascalSingular>): <PascalSingular>Response => ({
   id: entity.id,
   name: entity.name,
   isActive: entity.isActive,
-  createdAt: entity.createdAt.toISOString(),
-  updatedAt: entity.updatedAt.toISOString(),
+  createdAt: entity.createdAt,
+  updatedAt: entity.updatedAt,
 });
 
 export const to<PascalSingular>ListResponse = (entities: <PascalSingular>[]): <PascalSingular>Response[] =>
@@ -289,18 +295,50 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 ### Step 9: Create Routes (`src/modules/<name>/<name>.routes.ts`)
 
+Every route carries `describeEndpoint()`: the response envelope and the **domain** errors it can return (e.g. 404, 409). Added automatically: 429 and 500 on every route; the request body, parameters, 400 and (with a body) 413 by `validate()`; the common headers by the document builder — never describe them twice. `test/openapi.e2e.test.ts` fails for a route without `describeEndpoint()`. See `.agents/skills/project-standards/references/openapi.md`.
+
 ```typescript
 import { Hono } from 'hono';
 import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
 import { validate } from '../../core/middlewares';
+import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
-import { create<PascalSingular>Schema } from './<name>.dto';
+import { create<PascalSingular>Schema, <camelSingular>ResponseSchema } from './<name>.dto';
 
 const router = new Hono();
+const tags = ['<PascalPlural>'];
 
-router.post('/', validate({ body: create<PascalSingular>Schema }), <camelPlural>Controller.create);
-router.get('/', validate({ query: paginationQuerySchema }), <camelPlural>Controller.list);
-router.get('/:id', validate({ params: uuidParamSchema }), <camelPlural>Controller.getById);
+router.post(
+  '/',
+  describeEndpoint({
+    tags,
+    summary: 'Create a <camelSingular>',
+    response: { status: 201, description: 'Created', data: <camelSingular>ResponseSchema },
+  }),
+  validate({ body: create<PascalSingular>Schema }),
+  <camelPlural>Controller.create,
+);
+router.get(
+  '/',
+  describeEndpoint({
+    tags,
+    summary: 'List <camelPlural> (paginated)',
+    response: { status: 200, description: 'A page', paginatedItem: <camelSingular>ResponseSchema },
+  }),
+  validate({ query: paginationQuerySchema }),
+  <camelPlural>Controller.list,
+);
+router.get(
+  '/:id',
+  describeEndpoint({
+    tags,
+    summary: 'Get a <camelSingular> by id',
+    response: { status: 200, description: 'Found', data: <camelSingular>ResponseSchema },
+    errors: [404],
+  }),
+  validate({ params: uuidParamSchema }),
+  <camelPlural>Controller.getById,
+);
 
 export { router as <camelPlural>Router };
 ```
