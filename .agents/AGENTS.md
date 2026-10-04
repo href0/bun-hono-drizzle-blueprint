@@ -16,6 +16,8 @@ This rule does NOT apply to: generating commit messages, generating logbook entr
 
 Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute exactly one step at a time, meet its Definition of Done (§14.1), report with the review template (§14.2), then STOP for review. Record progress, findings and any deviation in its log (§4.1) and progress table (§5).
 
+**Never commit or merge until the user explicitly asks.** The user reviews every change first: finish a step with the changes left in the working tree plus a suggested commit message (`generate-commit-text` conventions). Creating a branch is fine; committing and merging are not.
+
 ---
 
 ## Why This Exists
