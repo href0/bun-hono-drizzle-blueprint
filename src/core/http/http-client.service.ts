@@ -2,7 +2,16 @@ import http from 'node:http';
 import https from 'node:https';
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { logger } from '../logger/logger';
-import { ExternalServiceError } from '../errors/external.error';
+import { ExternalServiceError, type ExternalFailureKind } from '../errors/external.error';
+
+const TIMEOUT_CODES = new Set(['ECONNABORTED', 'ETIMEDOUT']);
+
+/** Timeout → 504, no response → 502 unreachable, vendor error response → 502 (never its status). */
+const classifyFailure = (error: unknown): ExternalFailureKind => {
+  if (!axios.isAxiosError(error)) return 'ERROR';
+  if (error.code !== undefined && TIMEOUT_CODES.has(error.code)) return 'TIMEOUT';
+  return error.response ? 'ERROR' : 'UNREACHABLE';
+};
 
 export interface HttpClientOptions {
   baseURL?: string;
@@ -61,12 +70,13 @@ export class HttpClientService {
         return response;
       },
       (error: unknown) => {
-        let status = 502;
+        const kind = classifyFailure(error);
+        let vendorStatus: number | undefined;
         let details = [{ message: 'Unknown external service error' }];
         let errorMessage = 'Unknown error';
 
         if (axios.isAxiosError(error)) {
-          status = error.response?.status ?? 502;
+          vendorStatus = error.response?.status;
           details = error.response?.data
             ? [{ message: JSON.stringify(error.response.data) }]
             : [{ message: error.message }];
@@ -77,16 +87,14 @@ export class HttpClientService {
         }
 
         logger.error(
-          { err: errorMessage, status, origin: this.originName },
+          { err: errorMessage, kind, vendorStatus, origin: this.originName },
           'Outbound HTTP request failed',
         );
 
-        throw new ExternalServiceError(
-          `External service ${this.originName} request failed`,
+        throw new ExternalServiceError(kind, `External service ${this.originName} request failed`, {
           details,
-          this.originName,
-          status,
-        );
+          origin: this.originName,
+        });
       },
     );
   }

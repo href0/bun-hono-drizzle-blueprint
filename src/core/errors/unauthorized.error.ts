@@ -1,15 +1,12 @@
-import { ApiError, type ErrorDetail } from './api-error';
+import { ApiError, type ApiErrorOptions } from './api-error';
+import { APP_ERROR_CODES, ERROR_TYPES } from './error-codes';
 
 export class UnauthorizedError extends ApiError {
   readonly statusCode = 401;
-  readonly errorType = 'UNAUTHORIZED';
-  readonly errorCode = 'ERR_UNAUTHORIZED';
+  readonly errorType = ERROR_TYPES.UNAUTHORIZED;
+  protected readonly defaultCode = APP_ERROR_CODES.UNAUTHORIZED;
 
-  constructor(
-    message: string = 'Unauthorized',
-    details: ErrorDetail[] = [],
-    origin: string = 'APP',
-  ) {
-    super(message, details, origin);
+  constructor(message = 'Unauthorized', options?: ApiErrorOptions) {
+    super(message, options);
   }
 }

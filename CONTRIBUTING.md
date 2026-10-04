@@ -208,22 +208,31 @@ Semua error ditangkap oleh `globalErrorHandler` di [error-handler.ts](src/core/m
   "status_code": 400,
   "message": "Validation Failed",
   "error": {
-    "type": "BAD_REQUEST",
-    "code": "ERR_BAD_REQUEST",
+    "type": "VALIDATION_ERROR",
+    "code": "ERR_INVALID_INPUT",
     "origin": "APP",
     "details": [
       { "field": "email", "message": "Invalid email address format" },
       { "field": "password", "message": "Password must be at least 8 characters" }
     ]
   },
-  "request_id": "req-muf0ayxo-qc2pax",
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
   "timestamp": "2026-09-24T04:13:08.000Z"
 }
 ```
 
+Aturan envelope error (dibangun satu tempat: `buildErrorBody()` di `src/core/response/error-response.ts`, dipakai `globalErrorHandler` dan `notFoundHandler`):
+
+- Tidak ada field `data` pada envelope error.
+- `error.code` hanya dari `APP_ERROR_CODES`; literal `'ERR_*'` di `src/` ditolak ESLint.
+- `error.origin` = `APP`, atau kode integrasi untuk kegagalan sistem eksternal.
+- `details[].field` selalu snake_case (`address.postal_code`).
+- Error 500 (`InternalServerError` atau error tak dikenal) tidak pernah membocorkan pesan/detail internal — pesan aslinya hanya di log.
+- 429 dengan `retryAfterSeconds` mengirim header `Retry-After`.
+
 ### 3.3 Semantic Error Classes
 
-Dilarang melempar error string mentah atau plain `Error`. Wajib menggunakan class turunan `ApiError` dari `src/core/errors/`:
+Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (ditegakkan ESLint). Wajib menggunakan class turunan `ApiError` dari `src/core/errors/` dengan bentuk `new XError(message, { details?, origin?, code? })`:
 
 | Class | HTTP Status | Error Type | Error Code | Penggunaan |
 |---|---|---|---|---|
@@ -233,7 +242,11 @@ Dilarang melempar error string mentah atau plain `Error`. Wajib menggunakan clas
 | `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` | Role user tidak berhak mengakses |
 | `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` | Resource entitas tidak ditemukan |
 | `ConflictError` | 409 | `CONFLICT` | `ERR_CONFLICT` | Data unik sudah terdaftar (duplikat) |
-| `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_<ORIGIN>` | API vendor pihak ketiga timeout / error |
+| `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi batas |
+| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` | Rate limit (opsional `retryAfterSeconds` → header `Retry-After`) |
+| `ServiceUnavailableError` | 503 | `SERVICE_UNAVAILABLE` | `ERR_SERVICE_UNAVAILABLE` | Dependency inti (DB) tidak tersedia |
+| `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` / `ERR_EXT_UNREACHABLE` / `ERR_EXT_ERROR` | Kegagalan API vendor; status vendor tidak pernah diteruskan, vendor diidentifikasi lewat `error.origin` |
+| `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Invariant internal rusak; pesan tidak dikirim ke client |
 
 ---
 
@@ -335,7 +348,9 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     const existing = await this.repo.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictError('User with this email already exists');
+      throw new ConflictError('User with this email already exists', {
+        details: [{ field: 'email', message: 'Email is already registered' }],
+      });
     }
     return this.repo.create({ ... });
   }
@@ -434,7 +449,7 @@ Repositori ini menyediakan implementasi referensi nyata yang dapat langsung di-t
 ### Fitur Standar `HttpClientService`:
 - **Persistent Keep-Alive Connection Pool**: Menggunakan persistent `http.Agent` dan `https.Agent` dengan `maxSockets: 100` untuk mencegah TLS handshake berulang.
 - **Mandatory Timeout**: Menolak hanging request (default 10 detik).
-- **Vendor Error Masking**: Error axios otomatis di-mask menjadi `ExternalServiceError` (HTTP 502) dengan origin spesifik.
+- **Vendor Error Masking**: Error axios otomatis di-mask menjadi `ExternalServiceError` — timeout → 504 `ERR_EXT_TIMEOUT`, tanpa respons → 502 `ERR_EXT_UNREACHABLE`, respons error vendor → 502 `ERR_EXT_ERROR` (status vendor tidak diteruskan); `error.origin` = kode integrasi.
 
 ---
 
