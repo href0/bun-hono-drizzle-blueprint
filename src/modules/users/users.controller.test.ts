@@ -62,7 +62,7 @@ describe('UsersController (Unit)', () => {
 
   it('list should return ApiResponse with status 200 and pagination meta', async () => {
     const mockContext = {
-      get: (key: string) => (key === 'validatedQuery' ? { page: 1, limit: 10 } : undefined),
+      get: (key: string) => (key === 'validatedQuery' ? { page: 1, perPage: 10 } : undefined),
       json: (data: unknown, status: number) => ({ data, status }),
     } as any;
 

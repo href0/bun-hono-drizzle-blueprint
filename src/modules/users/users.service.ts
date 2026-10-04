@@ -7,7 +7,8 @@ import {
   jsonPlaceholderService,
   type JsonPlaceholderPost,
 } from '../../integrations/jsonplaceholder';
-import type { CreateUserDto, UserQueryDto } from './users.dto';
+import type { PaginationQueryDto } from '../../core/dto/common.dto';
+import type { CreateUserDto } from './users.dto';
 import { USER_MESSAGES, userNotFoundMessage } from './users.messages';
 import type { User } from '../../database/schema';
 
@@ -52,11 +53,11 @@ export class UsersService {
     });
   }
 
-  async listUsers(query: UserQueryDto): Promise<{ users: User[]; total: number }> {
-    const offset = (query.page - 1) * query.limit;
+  async listUsers(query: PaginationQueryDto): Promise<{ users: User[]; total: number }> {
+    const offset = (query.page - 1) * query.perPage;
 
     const [users, total] = await Promise.all([
-      this.repo.findAll(query.limit, offset),
+      this.repo.findAll(query.perPage, offset),
       this.repo.count(),
     ]);
 

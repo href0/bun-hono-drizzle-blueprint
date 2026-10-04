@@ -4,7 +4,108 @@ import {
   toCamelCase,
   camelToSnakeCase,
   snakeToCamelCase,
+  snakeToCamelCasePreserving,
+  isSnakeCaseKey,
+  findNonSnakeCaseKeys,
 } from './case-converter.util';
+
+/** The previous (quadratic) implementation, kept only as the behavioural reference. */
+const legacyToSnakeCase = (key: string): string =>
+  key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toLowerCase();
+
+describe('toSnakeCase — linear implementation', () => {
+  it('should produce exactly the same output as the legacy regex implementation', () => {
+    const alphabet = ['a', 'b', 'A', 'B', 'C', '0', '9', '_', '-'];
+    let seed = 42;
+    const random = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+
+    for (let run = 0; run < 5000; run += 1) {
+      const length = Math.floor(random() * 12);
+      const key = Array.from(
+        { length },
+        () => alphabet[Math.floor(random() * alphabet.length)],
+      ).join('');
+      expect(toSnakeCase(key)).toBe(legacyToSnakeCase(key));
+    }
+  });
+
+  it('should handle acronyms like the legacy implementation', () => {
+    expect(toSnakeCase('HTTPServer')).toBe('http_server');
+    expect(toSnakeCase('parseHTTPResponse2Fast')).toBe('parse_http_response2_fast');
+  });
+
+  it('should stay linear on hostile keys (100k uppercase characters)', () => {
+    const hostile = 'A'.repeat(100_000);
+    const start = performance.now();
+    toSnakeCase(hostile);
+    isSnakeCaseKey(hostile);
+    toCamelCase(`${'a_'.repeat(50_000)}b`);
+    expect(performance.now() - start).toBeLessThan(200);
+  });
+});
+
+describe('isSnakeCaseKey / findNonSnakeCaseKeys', () => {
+  it('should accept snake_case keys only', () => {
+    for (const key of ['page', 'user_id', 'address_line_2', '2fa_enabled']) {
+      expect(isSnakeCaseKey(key)).toBe(true);
+    }
+    for (const key of [
+      'fullName',
+      'Full_name',
+      'full-name',
+      '_private',
+      'double__underscore',
+      'trailing_',
+      '',
+    ]) {
+      expect(isSnakeCaseKey(key)).toBe(false);
+    }
+  });
+
+  it('should report every offending key with its path as sent', () => {
+    expect(
+      findNonSnakeCaseKeys({
+        full_name: 'A',
+        fullName: 'B',
+        address: { postal_code: '1', streetName: 'x' },
+        items: [{ item_code: 'a' }, { itemCode: 'b' }],
+        created_at: new Date(0),
+      }),
+    ).toEqual(['fullName', 'address.streetName', 'items.1.itemCode']);
+  });
+
+  it('should not inspect the content of preserved top-level keys', () => {
+    expect(findNonSnakeCaseKeys({ metadata: { anyKey: 1, 'x-y': 2 } }, ['metadata'])).toEqual([]);
+    expect(findNonSnakeCaseKeys({ myMetadata: {} }, ['myMetadata'])).toEqual(['myMetadata']);
+  });
+
+  it('should ignore primitives and top-level arrays of primitives', () => {
+    expect(findNonSnakeCaseKeys('text')).toEqual([]);
+    expect(findNonSnakeCaseKeys([1, 'a', null])).toEqual([]);
+  });
+});
+
+describe('snakeToCamelCasePreserving', () => {
+  it('should convert keys but keep preserved dictionaries verbatim', () => {
+    expect(
+      snakeToCamelCasePreserving(
+        { full_name: 'A', metadata: { any_key: 1, otherKey: 2 }, nested_obj: { inner_key: 3 } },
+        ['metadata'],
+      ),
+    ).toEqual({ fullName: 'A', metadata: { any_key: 1, otherKey: 2 }, nestedObj: { innerKey: 3 } });
+  });
+
+  it('should delegate non-object roots to the plain conversion', () => {
+    expect(snakeToCamelCasePreserving([{ a_b: 1 }], [])).toEqual([{ aB: 1 }]);
+    expect(snakeToCamelCasePreserving(null, [])).toBeNull();
+  });
+});
 
 describe('CaseConverter Utility (Unit)', () => {
   it('should convert strings to snake_case deterministically', () => {

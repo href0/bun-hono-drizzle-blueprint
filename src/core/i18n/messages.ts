@@ -17,6 +17,14 @@ export const I18N_MESSAGES = {
     id: 'Body request bukan JSON yang valid',
     en: 'Request body is not valid JSON',
   },
+  NON_SNAKE_CASE_KEYS: {
+    id: 'Nama field harus snake_case (contoh: full_name)',
+    en: 'Field names must be snake_case (e.g. full_name)',
+  },
+  NON_SNAKE_CASE_KEY_DETAIL: {
+    id: 'Gunakan snake_case untuk nama field ini',
+    en: 'Use snake_case for this field name',
+  },
   BAD_REQUEST: { id: 'Permintaan tidak valid', en: 'Bad request' },
   UNAUTHORIZED: { id: 'Autentikasi diperlukan', en: 'Authentication required' },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },

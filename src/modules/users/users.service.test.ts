@@ -94,7 +94,7 @@ describe('UsersService (Unit)', () => {
     const mockCache: Partial<CacheService> = {};
 
     const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
-    const result = await service.listUsers({ page: 1, limit: 10 });
+    const result = await service.listUsers({ page: 1, perPage: 10 });
     expect(result.users).toEqual([mockUser]);
     expect(result.total).toBe(1);
   });

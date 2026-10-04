@@ -16,7 +16,8 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, Pino logging, dan vendor error masking.
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
 7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.
-8. **Multi-Tier Quality Gates**: ESLint 9 Flat Config, `.ls-lint.yml` (kebab-case naming), Commitlint (Conventional Commits), dan `bun test`.
+8. **Kontrak snake_case Dua Arah**: Request (body & query) wajib `snake_case` — key casing lain ditolak 400 `ERR_NON_SNAKE_CASE_KEY` — lalu dikonversi ke DTO camelCase; response selalu `snake_case`.
+9. **Multi-Tier Quality Gates**: ESLint 9 Flat Config, `.ls-lint.yml` (kebab-case naming), Commitlint (Conventional Commits), dan `bun test`.
 
 ---
 
@@ -35,6 +36,7 @@ src/
 │   │   ├── cache-keys.ts
 │   │   ├── cache.service.ts
 │   │   └── redis.client.ts
+│   ├── dto/                     # Schema request bersama (uuidParamSchema, paginationQuerySchema)
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   │   ├── api-error.ts         # Base error class
 │   │   ├── bad-request.error.ts # 400

@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
+import { findNonSnakeCaseKeys, snakeToCamelCasePreserving } from '../../utils/case-converter.util';
 import { APP_ERROR_CODES } from '../errors/error-codes';
 import { ValidationError } from '../errors/validation.error';
 import { I18N_MESSAGES } from '../i18n/messages';
@@ -8,19 +9,47 @@ export interface ValidationSchemas {
   body?: z.ZodTypeAny;
   query?: z.ZodTypeAny;
   params?: z.ZodTypeAny;
+  /**
+   * Top-level body fields (snake_case names) holding free-form dictionaries: their content keeps
+   * its keys as sent and is not checked for snake_case. Prefer `{ key, value }` arrays in public
+   * contracts; use this only when a dictionary is unavoidable.
+   */
+  preserveKeys?: readonly string[];
 }
 
+/**
+ * Snake_case request contract: clients send snake_case keys (like every response). A key in any
+ * other casing is rejected with 400 instead of being silently ignored; accepted payloads are
+ * converted to camelCase so DTOs keep TypeScript naming. Route params are not converted.
+ */
+const toCamelCasePayload = (payload: unknown, preserveKeys: readonly string[]): unknown => {
+  const offending = findNonSnakeCaseKeys(payload, preserveKeys);
+  if (offending.length > 0) {
+    throw new ValidationError(I18N_MESSAGES.NON_SNAKE_CASE_KEYS, {
+      code: APP_ERROR_CODES.NON_SNAKE_CASE_KEY,
+      details: offending.map((field) => ({
+        field,
+        verbatimField: true,
+        message: I18N_MESSAGES.NON_SNAKE_CASE_KEY_DETAIL,
+      })),
+    });
+  }
+  return snakeToCamelCasePreserving(payload, preserveKeys);
+};
+
 export const validate = (schemas: ValidationSchemas): MiddlewareHandler => {
+  const preserveKeys = schemas.preserveKeys ?? [];
+
   return async (c, next) => {
     try {
       if (schemas.body) {
-        const rawBody = await parseRequestBody(c);
+        const rawBody = toCamelCasePayload(await parseRequestBody(c), preserveKeys);
         const validatedBody: unknown = await schemas.body.parseAsync(rawBody);
         c.set('validatedBody', validatedBody);
       }
 
       if (schemas.query) {
-        const rawQuery = c.req.query();
+        const rawQuery = toCamelCasePayload(c.req.query(), []);
         const validatedQuery: unknown = await schemas.query.parseAsync(rawQuery);
         c.set('validatedQuery', validatedQuery);
       }

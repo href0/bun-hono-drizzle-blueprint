@@ -7,7 +7,8 @@ import {
 import { ApiResponse } from '../../core/response';
 import { usersService, UsersService } from './users.service';
 import { toUserResponse, toUserListResponse } from './users.transformer';
-import type { CreateUserDto, UserIdParamDto, UserQueryDto } from './users.dto';
+import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
+import type { CreateUserDto } from './users.dto';
 import { USER_MESSAGES } from './users.messages';
 
 export class UsersController {
@@ -22,7 +23,7 @@ export class UsersController {
   });
 
   getById = asyncHandler(async (c) => {
-    const param = getValidatedParams<UserIdParamDto>(c);
+    const param = getValidatedParams<UuidParamDto>(c);
     const user = await this.service.getUserById(param.id);
     const responseData = toUserResponse(user);
 
@@ -30,22 +31,22 @@ export class UsersController {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<UserQueryDto>(c);
+    const query = getValidatedQuery<PaginationQueryDto>(c);
     const { users, total } = await this.service.listUsers(query);
     const responseData = toUserListResponse(users);
 
-    const totalPages = Math.ceil(total / query.limit) || 1;
+    const totalPages = Math.ceil(total / query.perPage) || 1;
 
     return new ApiResponse(responseData, USER_MESSAGES.LIST_RETRIEVED, 200, {
       currentPage: query.page,
-      perPage: query.limit,
+      perPage: query.perPage,
       totalItems: total,
       totalPages,
     });
   });
 
   getExternalPosts = asyncHandler(async (c) => {
-    const param = getValidatedParams<UserIdParamDto>(c);
+    const param = getValidatedParams<UuidParamDto>(c);
     const posts = await this.service.getUserExternalPosts(param.id);
 
     return new ApiResponse(posts, USER_MESSAGES.EXTERNAL_POSTS_RETRIEVED, 200);
