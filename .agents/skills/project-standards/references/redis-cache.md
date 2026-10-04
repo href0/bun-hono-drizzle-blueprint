@@ -33,17 +33,17 @@ src/core/cache/
 
 ## 3. `CacheService` API
 
-| Method                                           | Redis                       | When Redis is unavailable           |
-| ------------------------------------------------ | --------------------------- | ----------------------------------- |
-| `getOrSet(key, ttl, fetcher, { negativeTtl })`   | `GET`, then `SET … EX`      | runs `fetcher`, returns its result  |
-| `get(key)` / `set(key, value, ttl)` / `del(key)` | `GET` / `SET … EX` / `DEL`  | `null` / no-op / no-op              |
-| `setIfAbsent(key, value, ttl)`                   | `SET … EX … NX`             | `true` (claim granted) + `warn`     |
-| `increment(key, windowSeconds)`                  | Lua `INCR` + `EXPIRE NX`    | `null` (caller must allow) + `warn` |
-| `isReady()`                                      | client `status === 'ready'` | `false`                             |
+| Method                                           | Redis                         | When Redis is unavailable           |
+| ------------------------------------------------ | ----------------------------- | ----------------------------------- |
+| `getOrSet(key, ttl, fetcher, { negativeTtl })`   | `GET`, then `SET … EX`        | runs `fetcher`, returns its result  |
+| `get(key)` / `set(key, value, ttl)` / `del(key)` | `GET` / `SET … EX` / `DEL`    | `null` / no-op / no-op              |
+| `setIfAbsent(key, value, ttl)`                   | `SET … EX … NX`               | `true` (claim granted) + `warn`     |
+| `increment(key, windowSeconds)`                  | Lua `INCR` + expire-if-no-TTL | `null` (caller must allow) + `warn` |
+| `isReady()`                                      | client `status === 'ready'`   | `false`                             |
 
 - **`getOrSet`**: a fetcher error propagates and **nothing is cached** (e.g. `NotFoundError`). `undefined` is never cached; `null` is cached only when `negativeTtl` is given, stored as the sentinel `{"__nil":1}` and served back as `null`. Use `negativeTtl` (short, e.g. 30–60 s) for lookups keyed by **untrusted input** (API keys, tokens, slugs) so repeated misses cannot hammer the database.
 - **`setIfAbsent`**: `true` only for the first caller while the key lives — nonces, idempotency keys, simple locks. It fails open (`true`), so never rely on it as the _only_ replay defence for money-moving operations.
-- **`increment`**: fixed-window counter returning `{ count, ttlSeconds }`; the window starts at the first hit and later hits never extend it (`EXPIRE … NX`, Redis ≥ 7). `ttlSeconds` feeds `Retry-After` / `RateLimit-Reset`.
+- **`increment`**: fixed-window counter returning `{ count, ttlSeconds }`; the window starts at the first hit and later hits never extend it; a key without TTL gets one. The Lua script avoids `EXPIRE … NX` so it runs on any Redis ≥ 2.6. `ttlSeconds` feeds `Retry-After` / `RateLimit-Reset`.
 - Values are JSON: a cached `Date` comes back as an ISO string. Transformers must not rely on `instanceof Date` for cached entities.
 
 ---
@@ -60,6 +60,8 @@ src/core/cache/
 | Startup            | `lazyConnect`; `src/index.ts` connects and only warns when Redis is down — the app starts degraded     |
 
 Use `SCAN` with a pattern or TTL expiry instead of `KEYS`; never wipe a database from application code.
+
+Latency budget: while Redis is slow, each command costs at most `REDIS_COMMAND_TIMEOUT_MS`; a `getOrSet` miss runs two (read, then write), so it adds up to 2 × the timeout before the request continues (measured on a real Redis: ~1.45 s with a 1 s timeout).
 
 ---
 

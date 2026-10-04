@@ -80,13 +80,39 @@ describe('Configuration groups (Unit)', () => {
     );
   });
 
-  it('http: should apply defaults and coerce numbers', () => {
-    expect(buildHttpConfig({})).toEqual({
-      CORS_ORIGIN: '*',
-      RATE_LIMIT_WINDOW_MS: 900000,
+  const dev = { NODE_ENV: 'development' } as const;
+  const prod = { NODE_ENV: 'production' } as const;
+
+  it('http: should apply defaults (CORS disabled, no trusted proxy) and coerce numbers', () => {
+    expect(buildHttpConfig({}, dev)).toEqual({
+      CORS_ORIGINS: [],
+      TRUST_PROXY_HOPS: 0,
+      HTTP_BODY_LIMIT_BYTES: 1048576,
+      RATE_LIMIT_WINDOW_SECONDS: 900,
       RATE_LIMIT_MAX: 100,
     });
-    expect(buildHttpConfig({ RATE_LIMIT_MAX: '10' }).RATE_LIMIT_MAX).toBe(10);
+    expect(buildHttpConfig({ RATE_LIMIT_MAX: '10', TRUST_PROXY_HOPS: '2' }, dev)).toMatchObject({
+      RATE_LIMIT_MAX: 10,
+      TRUST_PROXY_HOPS: 2,
+    });
+    expect(() => buildHttpConfig({ TRUST_PROXY_HOPS: '-1' }, dev)).toThrow('TRUST_PROXY_HOPS');
+  });
+
+  it('http: should parse CORS_ORIGINS as a list of exact origins', () => {
+    expect(
+      buildHttpConfig({ CORS_ORIGINS: ' https://app.example.com , http://localhost:5173 ' }, prod)
+        .CORS_ORIGINS,
+    ).toEqual(['https://app.example.com', 'http://localhost:5173']);
+    for (const bad of ['app.example.com', 'https://app.example.com/', 'https://a.com/path']) {
+      expect(() => buildHttpConfig({ CORS_ORIGINS: bad }, dev)).toThrow('CORS_ORIGINS');
+    }
+  });
+
+  it('http: should allow "*" outside production only', () => {
+    expect(buildHttpConfig({ CORS_ORIGINS: '*' }, dev).CORS_ORIGINS).toEqual(['*']);
+    expect(() => buildHttpConfig({ CORS_ORIGINS: '*' }, prod)).toThrow(
+      'CORS_ORIGINS: "*" is not allowed in production',
+    );
   });
 
   it('integrations: should reject an invalid base URL', () => {

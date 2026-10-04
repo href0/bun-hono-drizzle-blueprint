@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
-import { rateLimiter } from 'hono-rate-limiter';
 import packageJson from '../package.json';
 import { appConfig, httpConfig } from './config';
 import {
   asyncHandler,
+  bodySizeLimit,
+  corsMiddleware,
   globalErrorHandler,
   loggerMiddleware,
   notFoundHandler,
+  rateLimit,
   requestContextMiddleware,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
@@ -16,57 +17,39 @@ import { ApiResponse } from './core/response';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
 
-/**
- * Parses CORS_ORIGIN env var into Hono-compatible origin config.
- * Supports: '*' (wildcard), single origin, or comma-separated multiple origins.
- */
-const parseCorsOrigin = (raw: string): string | string[] => {
-  if (raw === '*') return '*';
-  const origins = raw
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  return origins.length === 1 ? origins[0] : origins;
-};
-
+/** Pipeline order: plan appendix L10. */
 export const createApp = (): Hono => {
   const app = new Hono();
+  const healthPath = `${appConfig.API_PREFIX}/health`;
 
-  // 1. Core security & tracking middlewares
+  // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
   app.use('*', loggerMiddleware());
+
+  // 3–4. Security headers; CORS only when CORS_ORIGINS lists origins (empty = no CORS headers)
   app.use('*', secureHeaders());
+  if (httpConfig.CORS_ORIGINS.length > 0) {
+    app.use('*', corsMiddleware(httpConfig.CORS_ORIGINS));
+  }
+
+  // 5. Body size limit → 413 in the standard error envelope
+  app.use('*', bodySizeLimit(httpConfig.HTTP_BODY_LIMIT_BYTES));
+
+  // 6. Global rate limit per trusted client IP (Redis, fail-open); probes are exempt
   app.use(
     '*',
-    cors({
-      origin: parseCorsOrigin(httpConfig.CORS_ORIGIN),
-      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
-      exposeHeaders: ['X-Request-ID'],
+    rateLimit({
+      windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
+      max: httpConfig.RATE_LIMIT_MAX,
+      keyPrefix: 'global',
+      skip: (c) => c.req.path.startsWith(healthPath),
     }),
   );
 
-  // 2. Rate limiting (configurable via RATE_LIMIT_WINDOW_MS and RATE_LIMIT_MAX env vars)
-  app.use(
-    '*',
-    rateLimiter({
-      windowMs: httpConfig.RATE_LIMIT_WINDOW_MS,
-      limit: httpConfig.RATE_LIMIT_MAX,
-      standardHeaders: 'draft-6',
-      keyGenerator: (c) =>
-        c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'anonymous',
-    }),
-  );
-
-  // 3. Global error & 404 handlers
-  app.onError(globalErrorHandler);
-  app.notFound(notFoundHandler);
-
-  // 4. Mount module routes under api prefix
-  app.route(`${appConfig.API_PREFIX}/health`, healthRoutes);
+  // 7–10. Routes
+  app.route(healthPath, healthRoutes);
   app.route(`${appConfig.API_PREFIX}/users`, userRoutes);
 
-  // Root endpoint
   app.get(
     '/',
     asyncHandler(() =>
@@ -83,6 +66,10 @@ export const createApp = (): Hono => {
       ),
     ),
   );
+
+  // 11. Error and 404 handlers
+  app.onError(globalErrorHandler);
+  app.notFound(notFoundHandler);
 
   return app;
 };

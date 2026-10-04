@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from 'hono';
+import { getClientIp } from '../context/request-context';
 import { logger } from '../logger/logger';
 
 /** Logs request start/end; `requestId` and `actor` are added by the logger mixin. */
@@ -7,7 +8,7 @@ export const loggerMiddleware = (): MiddlewareHandler => {
     const start = performance.now();
     const { method, path } = c.req;
 
-    logger.info({ method, path }, 'Incoming request');
+    logger.info({ method, path, ip: getClientIp() }, 'Incoming request');
 
     await next();
 

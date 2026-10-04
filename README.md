@@ -13,6 +13,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 5. **Zero-Trust Configuration**: Konfigurasi divalidasi ketat dengan Zod saat aplikasi booting (`src/config/<group>.config.ts`, satu grup per file). Aplikasi *fail-fast* jika ada variabel wajib yang tidak valid. Dilarang mengakses `process.env` di luar direktori config.
 6. **Resilient Infrastructure**:
    - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
+   - **Platform Hardening**: Rate limit global per IP klien tepercaya lewat Redis (berlaku lintas instance, fail-open), `TRUST_PROXY_HOPS` (`X-Forwarded-For` tidak dipercaya mentah), batas ukuran body (413), CORS allowlist (`CORS_ORIGINS`, kosong = mati), dan security headers.
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, Pino logging, dan vendor error masking.
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
 7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.

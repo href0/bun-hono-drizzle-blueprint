@@ -87,10 +87,13 @@ describe('requestContextMixin (Unit)', () => {
     const log = pino({ mixin: requestContextMixin }, destination);
 
     log.info('outside');
-    await runWithRequestContext({ requestId: 'log-1', locale: 'id', actor: 'user:7' }, async () => {
-      await Promise.resolve();
-      log.info('inside');
-    });
+    await runWithRequestContext(
+      { requestId: 'log-1', locale: 'id', clientIp: '127.0.0.1', actor: 'user:7' },
+      async () => {
+        await Promise.resolve();
+        log.info('inside');
+      },
+    );
 
     expect(lines[0]).not.toHaveProperty('requestId');
     expect(lines[1]).toMatchObject({ msg: 'inside', requestId: 'log-1', actor: 'user:7' });
