@@ -87,8 +87,10 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 ```
 src/
 ├── config/                      # Zero-Trust Zod Configuration (fail-fast on startup)
-│   ├── env.config.ts            # Parser & validator process.env
-│   └── index.ts
+│   ├── env-source.ts            # Satu-satunya pembaca process.env
+│   ├── parse-env.ts             # Validasi per grup; error berisi nama variabel, tanpa nilai
+│   ├── <group>.config.ts        # app, database, redis, http, integrations
+│   └── index.ts                 # Barrel
 │
 ├── core/                        # Cross-Cutting Core Framework (Agnostik Domain)
 │   ├── cache/                   # Redis Fail-Open Caching & Key Generators
@@ -344,9 +346,10 @@ export class UsersService {
 
 ## 6. Zero-Trust Configuration
 
-1. **`process.env` DIBLOKIR**: Di-enforce otomatis oleh ESLint `no-process-env`. `process.env` **HANYA** boleh diakses di dalam `src/config/env.config.ts` dan `drizzle.config.ts`.
-2. **Crash-Fast on Startup**: Seluruh environment variable divalidasi skema Zod saat aplikasi booting. Jika ada variabel wajib yang hilang atau salah format, aplikasi langsung berhenti dengan pesan error yang jelas.
-3. Seluruh bagian aplikasi wajib mengimpor variabel konfigurasi dari `src/config/env.config.ts`.
+1. **`process.env` DIBLOKIR**: Di-enforce otomatis oleh ESLint `no-process-env`. `process.env` **HANYA** boleh diakses di dalam `src/config/env-source.ts` dan `drizzle.config.ts`.
+2. **Crash-Fast on Startup**: Setiap grup (`src/config/<group>.config.ts`) divalidasi Zod lewat `parseEnv()` saat aplikasi booting. Bila ada variabel yang hilang atau salah format, aplikasi berhenti dengan daftar **semua** variabel yang salah **dalam grup pertama yang gagal** (nama + aturan, tanpa nilai — env bisa berisi secret). Grup divalidasi saat modulnya di-import, sehingga grup berikutnya baru dilaporkan setelah grup ini diperbaiki.
+3. Seluruh bagian aplikasi mengimpor konfigurasi dari barrel `src/config` (`appConfig`, `databaseConfig`, `redisConfig`, `httpConfig`, `integrationsConfig`).
+4. **Menambah variabel**: tambahkan ke schema grup yang sesuai (atau grup baru `<group>.config.ts` dengan pola `build<Group>Config(source)` + instance), tambahkan test di `src/config/config.test.ts`, dan dokumentasikan di `.env.example` pada bagian grupnya.
 
 ---
 
@@ -385,16 +388,16 @@ Setiap pemanggilan HTTP ke API pihak ketiga atau vendor eksternal (seperti Whats
 ### Contoh Referensi Produksi: JSONPlaceholder (`src/integrations/jsonplaceholder/`)
 Repositori ini menyediakan implementasi referensi nyata yang dapat langsung di-test dan dijalankan di [src/integrations/jsonplaceholder/](src/integrations/jsonplaceholder/):
 
-1. **Konfigurasi URL & Timeout** (`src/config/env.config.ts`):
+1. **Konfigurasi URL & Timeout** (`src/config/integrations.config.ts`):
    ```typescript
-   JSONPLACEHOLDER_BASE_URL: z.string().default('https://jsonplaceholder.typicode.com'),
-   JSONPLACEHOLDER_TIMEOUT_MS: z.coerce.number().default(10000),
+   JSONPLACEHOLDER_BASE_URL: z.string().url().default('https://jsonplaceholder.typicode.com'),
+   JSONPLACEHOLDER_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
    ```
 2. **Inisialisasi Client di Integration Service** (`src/integrations/jsonplaceholder/jsonplaceholder.service.ts`):
    ```typescript
    export const defaultJsonPlaceholderHttpClient = new HttpClientService({
-     baseURL: env.JSONPLACEHOLDER_BASE_URL,
-     timeoutMs: env.JSONPLACEHOLDER_TIMEOUT_MS,
+     baseURL: integrationsConfig.JSONPLACEHOLDER_BASE_URL,
+     timeoutMs: integrationsConfig.JSONPLACEHOLDER_TIMEOUT_MS,
      originName: 'JSONPLACEHOLDER',
    });
 

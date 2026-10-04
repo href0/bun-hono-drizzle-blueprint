@@ -26,11 +26,6 @@ const COVERAGE_EXCLUSIONS: readonly { path: string; reason: string; until: strin
     until: 'permanent — verified by the release smoke test (plan step 7.3)',
   },
   {
-    path: 'src/config/env.config.ts',
-    reason: 'fail-fast branches only reachable at process start',
-    until: 'plan step 1.1 (parseEnv with unit tests)',
-  },
-  {
     path: 'src/core/cache/redis.client.ts',
     reason: 'module is mocked globally by e2e tests; retry/event handlers untestable in place',
     until: 'plan step 1.6 (Redis resilience rewrite with unit tests)',

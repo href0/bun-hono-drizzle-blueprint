@@ -37,9 +37,11 @@ Before writing or modifying any code in this project, you MUST internalize the f
 ├── src/
 │   ├── app.ts                  # Hono application factory & global middleware pipeline
 │   ├── index.ts                # Bootstrap server entry point (Bun.serve)
-│   ├── config/                 # Environment validation (Zod schema fail-fast)
-│   │   ├── env.config.ts
-│   │   └── index.ts
+│   ├── config/                 # Environment validation, one Zod group per file (fail-fast)
+│   │   ├── env-source.ts       # The only reader of process.env (+ missing .env guard)
+│   │   ├── parse-env.ts        # parseEnv(): lists every invalid var, never prints values
+│   │   ├── <group>.config.ts   # app, database, redis, http, integrations → `<group>Config`
+│   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
 │   │   ├── errors/             # Semantic ApiError class hierarchy

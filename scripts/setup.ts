@@ -63,7 +63,7 @@ const IDENTITY_RULES: IdentityRule[] = [
     replace: (id) => `$1${id.snakeName}_db`,
   },
   {
-    file: 'src/config/env.config.ts',
+    file: 'src/config/app.config.ts',
     label: 'APP_NAME default',
     pattern: /(APP_NAME: z\.string\(\)\.default\(')[^']*(')/,
     replace: (id) => `$1${id.name}$2`,

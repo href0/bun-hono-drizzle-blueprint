@@ -51,13 +51,13 @@ export const createApp = (): Hono => {
 ```typescript
 import type { Server } from 'bun';
 import { createApp } from './app';
-import { env } from './config/env.config';
+import { appConfig } from './config';
 import { logger } from './core/logger';
 import { sqlClient } from './database/connection';
 import { redisClient } from './core/cache/redis.client';
 
 export async function bootstrap(): Promise<Server<unknown>> {
-  logger.info({ env: env.NODE_ENV }, 'Starting bootstrap pre-flight verification...');
+  logger.info({ env: appConfig.NODE_ENV }, 'Starting bootstrap pre-flight verification...');
 
   // 1. Verify PostgreSQL Database Connection (Fail-Fast)
   try {

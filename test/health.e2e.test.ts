@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp } from '../src/app';
-import { env } from '../src/config/env.config';
+import { appConfig } from '../src/config';
 
 describe('Health Module', () => {
   const app = createApp();
@@ -18,7 +18,7 @@ describe('Health Module', () => {
     expect(body.success).toBe(true);
     expect(body.status_code).toBe(200);
     expect(body.message).toBe('Service online');
-    expect(body.data.name).toBe(env.APP_NAME);
+    expect(body.data.name).toBe(appConfig.APP_NAME);
     expect(body.data.version).toBe('1.0.0');
   });
 

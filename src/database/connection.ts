@@ -1,11 +1,11 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { env } from '../config/env.config';
+import { databaseConfig } from '../config';
 import * as schema from './schema';
 
-export const sqlClient = postgres(env.DATABASE_URL, {
-  max: env.DB_MAX_CONNECTIONS,
-  idle_timeout: env.DB_IDLE_TIMEOUT_SECONDS,
+export const sqlClient = postgres(databaseConfig.DATABASE_URL, {
+  max: databaseConfig.DB_MAX_CONNECTIONS,
+  idle_timeout: databaseConfig.DB_IDLE_TIMEOUT_SECONDS,
   connect_timeout: 10,
 });
 
