@@ -27,7 +27,7 @@ This project enforces strict automated Quality Gates powered by:
 - **TypeScript 5 Strict Type Checking** (`tsc --noEmit`)
 - **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()`/`c.text()` in controllers, direct `db`/`HttpClientService`/Redis client (`redis.client`, `ioredis`) imports in modules and integrations, `'ERR_*'` literals or dynamically built codes outside `src/core/errors/error-codes.ts`, plain `throw new Error`/`throw Error` in modules, string-literal user messages in modules, and `process.env` outside `src/config/env-source.ts`), and justified-only `eslint-disable` (`-- <reason>` required)
 - **ls-lint** directory and file naming conventions
-- **Prettier** formatting enforcement
+- **Prettier** formatting enforcement for code (`format:check`). Markdown is excluded via `.prettierignore` — never run Prettier on `.md` files (it pads table cells into walls of spaces); write compact tables (`| a | b |`, `|---|---|`) and tight lists by hand
 - **Dependency Cruiser** strict layer boundaries (`config`, `core`, `database`, `modules`, `integrations`, `utils`)
 - **knip** unused files, exports, and dependencies
 - **Branch Naming Validation** (`validate-branch-name`)
