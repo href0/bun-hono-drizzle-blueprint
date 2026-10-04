@@ -43,15 +43,15 @@
 
 ### 1.2 Prinsip eksekusi
 
-| #   | Prinsip                                | Arti praktis                                                                                                                                                |
-| --- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1  | **Satu step, satu review**             | Setiap step = satu branch `<type>/<slug>` + satu commit/PR, dapat di-revert mandiri. AI agent berhenti setelah satu step dan melapor (§14.2).               |
-| P2  | **Enforce, don't document**            | Setiap aturan WAJIB punya penegak (tsc / ESLint / depcruise / ls-lint / test / CI). Aturan tanpa penegak ditandai eksplisit `[review-only]`.                |
-| P3  | **Compile-time > lint > review**       | Pilih penegakan paling awal (mis. schema referensi sebagai `.view().existing()` → mutasi gagal di `tsc`).                                                   |
-| P4  | **Single Source of Truth**             | Satu angka/aturan hanya didefinisikan di satu tempat (`.agents/` untuk aturan agent, `IDENTITY_RULES` untuk identitas, `APP_ERROR_CODES` untuk kode error). |
-| P5  | **Gate hijau di setiap commit**        | `bun run validate:full` + `bun run build` lulus di setiap step; dokumen yang disentuh ikut diperbarui di commit yang sama.                                  |
-| P6  | **Belum ada konsumen**                 | Perubahan breaking (casing request, envelope error, migrasi `0000`) dilakukan sekarang selagi belum ada FE/partner/deployment.                              |
-| P7  | **Catat, jangan diam-diam menyimpang** | Setiap penyimpangan, temuan baru, atau penundaan dicatat di [Log Keputusan & Progres](#41-log-keputusan--progres) dengan tanggal.                           |
+| #   | Prinsip                                | Arti praktis                                                                                                                                                                                 |
+| --- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | **Satu step, satu review**             | Setiap step = satu branch `<type>/<slug>` + satu commit/PR, dapat di-revert mandiri. AI agent berhenti setelah satu step dan melapor (§14.2); **commit & merge hanya setelah diminta user**. |
+| P2  | **Enforce, don't document**            | Setiap aturan WAJIB punya penegak (tsc / ESLint / depcruise / ls-lint / test / CI). Aturan tanpa penegak ditandai eksplisit `[review-only]`.                                                 |
+| P3  | **Compile-time > lint > review**       | Pilih penegakan paling awal (mis. schema referensi sebagai `.view().existing()` → mutasi gagal di `tsc`).                                                                                    |
+| P4  | **Single Source of Truth**             | Satu angka/aturan hanya didefinisikan di satu tempat (`.agents/` untuk aturan agent, `IDENTITY_RULES` untuk identitas, `APP_ERROR_CODES` untuk kode error).                                  |
+| P5  | **Gate hijau di setiap commit**        | `bun run validate:full` + `bun run build` lulus di setiap step; dokumen yang disentuh ikut diperbarui di commit yang sama.                                                                   |
+| P6  | **Belum ada konsumen**                 | Perubahan breaking (casing request, envelope error, migrasi `0000`) dilakukan sekarang selagi belum ada FE/partner/deployment.                                                               |
+| P7  | **Catat, jangan diam-diam menyimpang** | Setiap penyimpangan, temuan baru, atau penundaan dicatat di [Log Keputusan & Progres](#41-log-keputusan--progres) dengan tanggal.                                                            |
 
 ### 1.3 Non-tujuan (lihat [Backlog](#1512-l12--backlog))
 
@@ -167,6 +167,10 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | Desain    | Actor default di request yang belum terautentikasi = `anonymous`; di luar request = `system`                                                                            | Melengkapi D8                                                                                                                                  |
 | 2026-10-04 | Desain    | `record_changes` disimpan di schema proyek (D14), bukan schema `system` terpisah                                                                                        | Satu schema dimigrasi; selaras blueprint                                                                                                       |
 | 2026-10-04 | Catatan   | `docs/plans/from-nestjs-plan.md` (referensi format) belum di-commit                                                                                                     | Menunggu keputusan user: commit ke `docs/archive/` bersama blueprint (Step 7.1) atau tetap lokal                                               |
+| 2026-10-04 | Desain    | ✅ Dikonfirmasi user: `auth_refresh_tokens` dikecualikan dari aturan audit base repository (baris "Perlu konfirmasi di Step 3.2" di atas)                               | Diterapkan di Step 3.2 lewat override ESLint satu file + komentar alasan                                                                       |
+| 2026-10-04 | Catatan   | `docs/plans/from-nestjs-plan.md` **tidak** di-commit dan tidak diarsipkan                                                                                               | Keputusan user: file akan dihapus sendiri oleh user                                                                                            |
+| 2026-10-04 | Proses    | **AI agent tidak pernah commit atau merge sebelum diminta user.** Step diakhiri dengan perubahan di working tree + usulan pesan commit                                  | Keputusan user (semua perubahan direview dulu); berlaku juga di `AGENTS.md`. P1 & §14 disesuaikan                                              |
+| 2026-10-04 | Plan      | Merge `0882a83` (plan detail) ke `main` disetujui user, tetapi merge oleh agent diblokir permission tool                                                                | Merge dijalankan user: `git switch main && git merge --ff-only docs/detailed-adoption-plan`                                                    |
 
 ---
 
@@ -638,7 +642,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 1. `users.role` (`varchar(20)`, default `'user'`), konstanta `ROLES` di `src/core/security/roles.ts`.
 2. `auth_refresh_tokens` (kolom di [L3](#153-l3--spesifikasi-auth)).
-3. **Konfirmasi desain** (lihat 4.1): repository token dikecualikan dari aturan 2.6 lewat override ESLint satu file dengan komentar alasan.
+3. **Pengecualian disetujui user** (lihat 4.1): repository token dikecualikan dari aturan 2.6 lewat override ESLint satu file dengan komentar alasan.
 4. Generate migrasi.
 
 **Acceptance criteria**
@@ -788,7 +792,7 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 
 ### Step 7.1 — `ARCHITECTURE.md` generik + sinkronisasi docs
 
-**Langkah**: tulis `ARCHITECTURE.md` (struktur seperti blueprint: apa & mengapa + rujukan ke sumber detail, isi Bun/Hono, generik); pindahkan `ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md` (+ `from-nestjs-plan.md` bila disetujui) ke `docs/archive/`; sinkronkan `README.md` (quickstart ≤ 150 baris) & `CONTRIBUTING.md`; setiap aturan diberi label penegak `[tsc]`, `[eslint:<rule>]`, `[depcruise:<rule>]`, `[ls-lint]`, `[test]`, `[ci]`, `[review-only]`.
+**Langkah**: tulis `ARCHITECTURE.md` (struktur seperti blueprint: apa & mengapa + rujukan ke sumber detail, isi Bun/Hono, generik); pindahkan `ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md` ke `docs/archive/`; sinkronkan `README.md` (quickstart ≤ 150 baris) & `CONTRIBUTING.md`; setiap aturan diberi label penegak `[tsc]`, `[eslint:<rule>]`, `[depcruise:<rule>]`, `[ls-lint]`, `[test]`, `[ci]`, `[review-only]`.
 
 ### Step 7.2 — Finalisasi skills AI
 
@@ -816,7 +820,7 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
 - [ ] AI agent tidak mengeksekusi perintah ke database (migrasi di-generate; dijalankan developer).
 - [ ] Tabel Progres (§5) dan Log (§4.1) diperbarui di commit step tersebut.
-- [ ] Pesan commit lewat skill `generate-commit-text`.
+- [ ] Perubahan dibiarkan di working tree + usulan pesan commit (skill `generate-commit-text`); commit & merge hanya setelah diminta user.
 
 ### 14.2 Template laporan review
 
@@ -828,6 +832,7 @@ File      : <file utama>
 Verifikasi: validate:full ✅/❌ · build ✅/❌ · coverage lines <x>% / functions <y>%
 Chaos test: <daftar pelanggaran yang dibuktikan gagal>
 Log baru  : <baris yang ditambahkan ke §4.1 | none>
+Usulan commit: <type(scope): subject> (belum di-commit, menunggu permintaan user)
 Catatan   : <hal yang perlu perhatian reviewer>
 ```
 
