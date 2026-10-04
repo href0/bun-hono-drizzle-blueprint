@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import type { CacheService, CounterState } from '../cache';
 import { globalErrorHandler } from './error-handler';
-import { rateLimit, type RateLimitOptions } from './rate-limit';
+import { isUnderPath, rateLimit, type RateLimitOptions } from './rate-limit';
 import { requestContextMiddleware } from './request-context';
 
 /** Counts per key like the Redis script; `down` simulates an unavailable Redis. */
@@ -85,6 +85,22 @@ describe('rateLimit', () => {
     expect((await app.request('/health')).status).toBe(200);
     expect(cache.keys.size).toBe(0);
     expect((await app.request('/ping')).status).toBe(429);
+  });
+
+  it('isUnderPath matches the prefix and its sub-paths on segment boundaries only', async () => {
+    const cache = fakeCache();
+    const app = new Hono();
+    app.use(
+      '*',
+      rateLimit({ windowSeconds: 60, max: 0, keyPrefix: 'g', cache, skip: isUnderPath('/health') }),
+    );
+    app.get('*', (c) => c.text('ok'));
+    app.onError(globalErrorHandler);
+
+    expect((await app.request('/health')).status).toBe(200);
+    expect((await app.request('/health/readiness')).status).toBe(200);
+    expect((await app.request('/healthz')).status).toBe(429);
+    expect((await app.request('/health-records')).status).toBe(429);
   });
 
   it('falls back to the window length when Redis reports no TTL', async () => {

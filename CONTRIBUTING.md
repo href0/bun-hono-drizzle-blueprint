@@ -395,6 +395,7 @@ export class UsersService {
 2. **Crash-Fast on Startup**: Setiap grup (`src/config/<group>.config.ts`) divalidasi Zod lewat `parseEnv()` saat aplikasi booting. Bila ada variabel yang hilang atau salah format, aplikasi berhenti dengan daftar **semua** variabel yang salah **dalam grup pertama yang gagal** (nama + aturan, tanpa nilai — env bisa berisi secret). Grup divalidasi saat modulnya di-import, sehingga grup berikutnya baru dilaporkan setelah grup ini diperbaiki.
 3. Seluruh bagian aplikasi mengimpor konfigurasi dari barrel `src/config` (`appConfig`, `databaseConfig`, `redisConfig`, `httpConfig`, `integrationsConfig`).
 4. **Menambah variabel**: tambahkan ke schema grup yang sesuai (atau grup baru `<group>.config.ts` dengan pola `build<Group>Config(source)` + instance), tambahkan test di `src/config/config.test.ts`, dan dokumentasikan di `.env.example` pada bagian grupnya.
+5. **Mengganti nama / menghapus variabel**: daftarkan nama lama di `RENAMED_ENV_VARS` (`src/config/parse-env.ts`) beserta penggantinya. Aplikasi menolak start bila nama lama masih diset (hanya nama, tanpa nilai) — tanpa ini nama lama diabaikan diam-diam (mis. CORS mati tanpa pesan).
 
 ---
 

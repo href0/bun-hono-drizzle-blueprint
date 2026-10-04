@@ -3,7 +3,7 @@ import { createApp } from './app';
 import { appConfig, redisConfig } from './config';
 import { logger } from './core/logger';
 import { sqlClient } from './database/connection';
-import { redisClient } from './core/cache/redis.client';
+import { closeRedisClient, redisClient } from './core/cache/redis.client';
 
 export async function bootstrap(): Promise<Server<unknown>> {
   logger.info({ env: appConfig.NODE_ENV }, 'Starting bootstrap pre-flight verification...');
@@ -61,7 +61,7 @@ export async function bootstrap(): Promise<Server<unknown>> {
     await server.stop(true);
 
     try {
-      await Promise.all([sqlClient.end({ timeout: 5 }), redisClient.quit()]);
+      await Promise.all([sqlClient.end({ timeout: 5 }), closeRedisClient(redisClient)]);
       logger.info('Database pool and Redis connections closed cleanly');
     } catch (shutdownErr: unknown) {
       logger.error({ err: shutdownErr }, 'Error during resource teardown');

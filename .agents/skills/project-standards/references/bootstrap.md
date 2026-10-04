@@ -20,6 +20,7 @@ import {
   globalErrorHandler,
   loggerMiddleware,
   notFoundHandler,
+  isUnderPath,
   rateLimit,
   requestContextMiddleware,
 } from './core/middlewares';
@@ -53,7 +54,7 @@ export const createApp = (): Hono => {
       windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
       max: httpConfig.RATE_LIMIT_MAX,
       keyPrefix: 'global',
-      skip: (c) => c.req.path.startsWith(healthPath),
+      skip: isUnderPath(healthPath),
     }),
   );
 
@@ -98,7 +99,7 @@ import { createApp } from './app';
 import { appConfig, redisConfig } from './config';
 import { logger } from './core/logger';
 import { sqlClient } from './database/connection';
-import { redisClient } from './core/cache/redis.client';
+import { closeRedisClient, redisClient } from './core/cache/redis.client';
 
 export async function bootstrap(): Promise<Server<unknown>> {
   logger.info({ env: appConfig.NODE_ENV }, 'Starting bootstrap pre-flight verification...');
@@ -156,7 +157,7 @@ export async function bootstrap(): Promise<Server<unknown>> {
     await server.stop(true);
 
     try {
-      await Promise.all([sqlClient.end({ timeout: 5 }), redisClient.quit()]);
+      await Promise.all([sqlClient.end({ timeout: 5 }), closeRedisClient(redisClient)]);
       logger.info('Database pool and Redis connections closed cleanly');
     } catch (shutdownErr: unknown) {
       logger.error({ err: shutdownErr }, 'Error during resource teardown');
@@ -198,3 +199,20 @@ if (import.meta.main) {
 CORS runs before the body limit and rate limit so that 413/429 responses still carry CORS headers (browser code can read them). Preflight `OPTIONS` is answered by CORS and never counts against the rate limit.
 
 Client IP: `X-Forwarded-For` is only honoured with `TRUST_PROXY_HOPS = n > 0` (n-th entry from the right — the last one written by our own proxies). With `0` the socket address is used, so a forged header cannot dodge the rate limit.
+
+### Stricter limits per route
+
+Sensitive endpoints (login, refresh, OTP, password reset) add their own `rateLimit()` in the module's routes file. It counts separately from the global limit (own `keyPrefix`) and both apply:
+
+```typescript
+import { rateLimit, validate } from '../../core/middlewares';
+
+authRoutes.post(
+  '/login',
+  rateLimit({ windowSeconds: 15 * 60, max: 10, keyPrefix: 'auth-login' }),
+  validate({ body: loginSchema }),
+  authController.login,
+);
+```
+
+Use a distinct, kebab-case `keyPrefix` per limit. Exempt paths with `skip: isUnderPath(prefix)` (segment-boundary match — never `startsWith`). The limit fails open when Redis is down, so it is a throttle, not the only defence (combine with account lockout / audit logs where it matters).

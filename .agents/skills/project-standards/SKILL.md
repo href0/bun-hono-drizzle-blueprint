@@ -39,7 +39,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   ├── index.ts                # Bootstrap server entry point (Bun.serve)
 │   ├── config/                 # Environment validation, one Zod group per file (fail-fast)
 │   │   ├── env-source.ts       # The only reader of process.env (+ missing .env guard)
-│   │   ├── parse-env.ts        # parseEnv(): lists every invalid var, never prints values
+│   │   ├── parse-env.ts        # parseEnv(): lists every invalid var, never prints values; RENAMED_ENV_VARS guard
 │   │   ├── <group>.config.ts   # app, database, redis, http, integrations → `<group>Config`
 │   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)

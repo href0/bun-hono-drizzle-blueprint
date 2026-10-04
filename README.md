@@ -99,8 +99,8 @@ src/
 ## 3. Quick Start
 
 ### Prasyarat
-- [Bun](https://bun.sh/) >= 1.2
-- Docker & Docker Compose (untuk menjalankan PostgreSQL & Redis lokal secara otomatis)
+- [Bun](https://bun.sh/) >= 1.3
+- PostgreSQL 16+ dan Redis (≥ 2.6, disarankan 7) — terpasang langsung di mesin **atau** lewat Docker Compose (opsional)
 
 ### Setup & Jalankan (3 Langkah Cepat)
 ```bash
@@ -111,8 +111,8 @@ bun install
 bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk preview
 # atau via AI agent (Claude Code): /init-project my-backend
 
-# 2. Nyalakan PostgreSQL & Redis lokal
-docker compose up -d
+# 2. Pastikan PostgreSQL & Redis berjalan, lalu sesuaikan DATABASE_URL / REDIS_* di file env
+#    (opsional, bila tidak memasang layanan secara langsung: docker compose up -d)
 
 # 3. Jalankan migrasi database & start dev server
 bun run db:migrate

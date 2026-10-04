@@ -4,6 +4,15 @@ import { getClientIp } from '../context/request-context';
 import { TooManyRequestsError } from '../errors';
 import { UNKNOWN_CLIENT_IP } from './client-ip';
 
+/**
+ * `skip` helper: true for `prefix` itself and paths below it, on segment boundaries —
+ * `/api/v1/health` matches `/api/v1/health/readiness` but not `/api/v1/health-records`.
+ */
+export const isUnderPath =
+  (prefix: string) =>
+  (c: Context): boolean =>
+    c.req.path === prefix || c.req.path.startsWith(`${prefix}/`);
+
 export interface RateLimitOptions {
   /** Length of the fixed window; it starts with the caller's first request. */
   windowSeconds: number;

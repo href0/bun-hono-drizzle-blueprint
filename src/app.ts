@@ -9,6 +9,7 @@ import {
   globalErrorHandler,
   loggerMiddleware,
   notFoundHandler,
+  isUnderPath,
   rateLimit,
   requestContextMiddleware,
 } from './core/middlewares';
@@ -42,7 +43,7 @@ export const createApp = (): Hono => {
       windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
       max: httpConfig.RATE_LIMIT_MAX,
       keyPrefix: 'global',
-      skip: (c) => c.req.path.startsWith(healthPath),
+      skip: isUnderPath(healthPath),
     }),
   );
 
