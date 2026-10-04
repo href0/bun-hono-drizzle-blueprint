@@ -7,13 +7,3 @@ export interface JsonPlaceholderPost {
   title: string;
   body: string;
 }
-
-/**
- * Data contract representing a User from the external JSONPlaceholder API.
- */
-export interface JsonPlaceholderUser {
-  id: number;
-  name: string;
-  username: string;
-  email: string;
-}

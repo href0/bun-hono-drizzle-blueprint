@@ -1,1 +1,4 @@
 bun run lint:branch
+bun run lint:arch
+bun run lint:deps
+bun test
