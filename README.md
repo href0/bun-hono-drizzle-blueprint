@@ -52,7 +52,7 @@ src/
 │   │   ├── error-handler.ts     # Global onError handler
 │   │   ├── logger.middleware.ts # Request & response logging
 │   │   ├── not-found.ts         # 404 route handler
-│   │   ├── request-id.ts        # Correlation ID generator
+│   │   ├── request-context.ts   # Request ID + RequestContext (AsyncLocalStorage)
 │   │   ├── validate.ts          # Async Zod request validator & helpers
 │   │   └── validate.test.ts     # Co-located Integration Test
 │   └── response/                # Standard Success Envelope

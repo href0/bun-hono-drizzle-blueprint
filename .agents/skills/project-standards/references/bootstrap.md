@@ -11,7 +11,7 @@ In Hono with Bun, application initialization is isolated in a factory function `
 ```typescript
 import { Hono } from 'hono';
 import {
-  requestIdMiddleware,
+  requestContextMiddleware,
   loggerMiddleware,
   errorHandler,
   notFoundHandler,
@@ -23,7 +23,7 @@ export const createApp = (): Hono => {
   const app = new Hono();
 
   // 1. Correlation ID Middleware (generates or propagates X-Request-ID)
-  app.use('*', requestIdMiddleware);
+  app.use('*', requestContextMiddleware());
 
   // 2. Structured Request Logging (Pino with execution duration)
   app.use('*', loggerMiddleware);
@@ -139,7 +139,7 @@ if (import.meta.main) {
 
 | Order | Middleware | Purpose |
 |---|---|---|
-| 1 | `requestIdMiddleware` | Generates correlation ID (`req-<nanoid>`) or preserves incoming `X-Request-ID` before any log is written |
+| 1 | `requestContextMiddleware` | Resolves the request ID (safe inbound `X-Request-ID` or UUID v7) and runs the rest of the request — including error and not-found handlers — inside the `RequestContext` |
 | 2 | `loggerMiddleware` | Records incoming HTTP method/path and outbound response status with duration |
 | 3 | Route Handlers | Domain logic with input validation (`validate` middleware) and pure response returns |
 | 4 | `notFoundHandler` | Catches unmatched routes and returns standard `NotFoundError` JSON envelope |

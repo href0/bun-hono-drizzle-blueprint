@@ -44,10 +44,11 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
+│   │   ├── context/            # RequestContext (AsyncLocalStorage): requestId, actor
 │   │   ├── errors/             # Semantic ApiError class hierarchy
 │   │   ├── http/               # HttpClientService with connection pool
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # asyncHandler, errorHandler, validate, requestId, etc.
+│   │   ├── middlewares/        # requestContext, asyncHandler, errorHandler, validate, etc.
 │   │   └── response/           # ApiResponse standardized JSON envelope
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
@@ -173,7 +174,7 @@ export class UsersRepository {
 ```
 
 ### Rule 4: Strict Service Layer & Semantic Error Throwing
-- Services **NEVER** accept the Hono `Context` object. They accept plain DTOs or primitive arguments.
+- Services **NEVER** accept the Hono `Context` object. They accept plain DTOs or primitive arguments. Request-scoped data (request ID, actor) comes from `getRequestContext()` / `getActor()` (`src/core/context/request-context.ts`).
 - Services **NEVER** return HTTP responses.
 - Business rule failures **MUST THROW** semantic `ApiError` instances:
   - `ValidationError` (HTTP 400 / schema validation failure)

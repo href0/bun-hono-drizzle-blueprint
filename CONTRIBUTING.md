@@ -356,7 +356,7 @@ export class UsersService {
 ## 7. Enterprise Structured Logging (Pino)
 
 1. **`console.log`, `console.warn`, `console.error` DIBLOKIR KERAS** (di-enforce oleh ESLint `no-console`).
-2. Gunakan singleton `logger` dari `src/core/logger/logger.ts`.
+2. Gunakan singleton `logger` dari `src/core/logger/logger.ts`. `requestId` dan `actor` ditambahkan otomatis ke setiap baris log selama request (Pino `mixin` dari `RequestContext`) — jangan dioper manual dan jangan dibaca dari Hono `Context`.
 3. **Format Objek Pertama, Pesan Kedua**:
    ```typescript
    // BENAR — Terstruktur dalam format JSON (Grafana Loki compatible)

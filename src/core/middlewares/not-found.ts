@@ -1,7 +1,8 @@
 import type { NotFoundHandler } from 'hono';
+import { getRequestContext } from '../context/request-context';
 
 export const notFoundHandler: NotFoundHandler = (c) => {
-  const requestId = (c.get('requestId') as string) || c.req.header('x-request-id') || 'unknown';
+  const requestId = getRequestContext()?.requestId ?? 'unknown';
 
   return c.json(
     {

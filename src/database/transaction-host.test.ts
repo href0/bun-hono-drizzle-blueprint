@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { getRequestContext, runWithRequestContext } from '../core/context/request-context';
 import { defaultTxHost, TransactionHost, transactionStorage } from './transaction-host';
 import { db } from './connection';
 
@@ -18,5 +19,17 @@ describe('TransactionHost (Unit)', () => {
     });
 
     expect(defaultTxHost.tx).toBe(db);
+  });
+
+  it('should nest independently with the request context across async boundaries', async () => {
+    const mockTx = { isMockTransaction: true } as any;
+
+    await runWithRequestContext({ requestId: 'req-tx', actor: 'system' }, () =>
+      transactionStorage.run(mockTx, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        expect(defaultTxHost.tx).toBe(mockTx);
+        expect(getRequestContext()?.requestId).toBe('req-tx');
+      }),
+    );
   });
 });

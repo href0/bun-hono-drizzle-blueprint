@@ -48,21 +48,70 @@ export const logger = pino({
 
 ## 2. Request Correlation & Contextual Logging
 
-Every HTTP request receives a unique `requestId` via `requestIdMiddleware` (`src/core/middlewares/request-id.ts`), stored in Hono context `c.get('requestId')`.
+`requestContextMiddleware` (`src/core/middlewares/request-context.ts`) runs first and executes the rest of the request inside a `RequestContext` (`src/core/context/request-context.ts`, AsyncLocalStorage):
 
-When logging inside middleware or controller:
+- `requestId`: the inbound `X-Request-ID` when it matches `^[A-Za-z0-9._:-]{1,128}# Enterprise Structured Logging — Implementation Guide
+
+Read this file when: writing logs in services, configuring log redaction, or tracing requests with correlation IDs.
+
+---
+
+## 1. Centralized Pino Logger (`src/core/logger/logger.ts`)
+
+Logging uses [Pino](https://github.com/pinojs/pino) configured with automatic PII redaction and environment-sensitive formatting:
 
 ```typescript
-// logger.middleware.ts
-logger.info(
-  {
-    method: c.req.method,
-    path: c.req.path,
-    requestId: c.get('requestId'),
+import pino from 'pino';
+import { appConfig } from '../../config';
+
+// Simplified: the real file builds these options in a pure `buildLoggerOptions(appConfig)`.
+export const logger = pino({
+  level: appConfig.LOG_LEVEL,
+  base: {
+    app: appConfig.APP_NAME,
+    env: appConfig.NODE_ENV,
   },
-  'Incoming request',
-);
+  redact: {
+    paths: [
+      'password',
+      'passwordHash',
+      'token',
+      'authorization',
+      'req.headers.authorization',
+      'apiKey',
+      'secret',
+    ],
+    censor: '[REDACTED]',
+  },
+  transport:
+    env.NODE_ENV === 'development'
+      ? {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            singleLine: true,
+          },
+        }
+      : undefined,
+});
 ```
+
+---
+
+## 2. Request Correlation & Contextual Logging
+
+ (prevents log injection), otherwise a new UUID v7. Echoed in the `X-Request-ID` response header and in error envelopes (`request_id`).
+- `actor`: `anonymous` until authentication sets it (`setActor('user:<id>')` / `partner:<code>`); `system` outside a request.
+
+The logger's `mixin` adds `requestId` and `actor` to **every** log line written during the request, in any layer. Never pass them manually and never read them from the Hono `Context`:
+
+```typescript
+// anywhere in a service, repository or integration — no Context needed
+logger.info({ userId }, 'User registration successful');
+// → {"requestId":"0192f1d0-…","actor":"user:42","userId":"…","msg":"User registration successful"}
+```
+
+Code that needs the values directly (audit columns, outbound propagation) uses `getRequestContext()` / `getActor()`.
 
 ---
 

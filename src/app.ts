@@ -9,7 +9,7 @@ import {
   globalErrorHandler,
   loggerMiddleware,
   notFoundHandler,
-  requestIdMiddleware,
+  requestContextMiddleware,
 } from './core/middlewares';
 import { ApiResponse } from './core/response';
 import { healthRoutes } from './modules/health/health.routes';
@@ -32,7 +32,7 @@ export const createApp = (): Hono => {
   const app = new Hono();
 
   // 1. Core security & tracking middlewares
-  app.use('*', requestIdMiddleware());
+  app.use('*', requestContextMiddleware());
   app.use('*', loggerMiddleware());
   app.use('*', secureHeaders());
   app.use(
