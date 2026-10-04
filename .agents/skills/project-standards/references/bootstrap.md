@@ -32,7 +32,8 @@ import { userRoutes } from './modules/users/users.routes';
 /** Pipeline order: plan appendix L10. */
 export const createApp = (): Hono => {
   const app = new Hono();
-  const healthPath = `${appConfig.API_PREFIX}/health`;
+  const basePath = appConfig.API_BASE_PATH;
+  const healthPath = `${basePath}/health`;
 
   // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
@@ -58,9 +59,13 @@ export const createApp = (): Hono => {
     }),
   );
 
-  // 7–10. Routes
+  // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
-  app.route(`${appConfig.API_PREFIX}/users`, userRoutes);
+
+  // 10. Versioned API — the version is code, not configuration (a new version = a new router)
+  const v1 = new Hono();
+  v1.route('/users', userRoutes);
+  app.route(`${basePath}/v1`, v1);
 
   app.get(
     '/',
@@ -146,7 +151,7 @@ export async function bootstrap(): Promise<Server<unknown>> {
     {
       port: appConfig.PORT,
       env: appConfig.NODE_ENV,
-      apiPrefix: appConfig.API_PREFIX,
+      basePath: appConfig.API_BASE_PATH,
     },
     `${appConfig.APP_NAME} server started successfully on port ${appConfig.PORT}`,
   );
@@ -193,7 +198,7 @@ if (import.meta.main) {
 | 4 | `corsMiddleware(CORS_ORIGINS)` | Mounted only when `CORS_ORIGINS` is non-empty; allowlist with credentials; unlisted origins get no `Access-Control-Allow-Origin` |
 | 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
 | 6 | `rateLimit({ keyPrefix: 'global' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped |
-| 7–10 | Routes | Health, then domain modules (`validate()` per route, controllers return `ApiResponse`). Auth middlewares join here in phases 3 and 5 |
+| 7–10 | Routes | `<API_BASE_PATH>/health` (unversioned, public), then the versioned router `<API_BASE_PATH>/v1` holding the domain modules (`v1.route('/users', …)`; `validate()` per route, controllers return `ApiResponse`). The version is code, not env: a new version is a new router. Auth middlewares join here in phases 3 and 5 |
 | 11 | `app.onError(globalErrorHandler)` · `app.notFound(notFoundHandler)` | Standard error envelope; `ApiError` status, `HTTPException` mapping, internal 500 details never exposed |
 
 CORS runs before the body limit and rate limit so that 413/429 responses still carry CORS headers (browser code can read them). Preflight `OPTIONS` is answered by CORS and never counts against the rate limit.

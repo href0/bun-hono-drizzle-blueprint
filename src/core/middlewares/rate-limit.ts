@@ -6,7 +6,7 @@ import { UNKNOWN_CLIENT_IP } from './client-ip';
 
 /**
  * `skip` helper: true for `prefix` itself and paths below it, on segment boundaries —
- * `/api/v1/health` matches `/api/v1/health/readiness` but not `/api/v1/health-records`.
+ * `/api/health` matches `/api/health/readiness` but not `/api/health-records`.
  */
 export const isUnderPath =
   (prefix: string) =>

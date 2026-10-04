@@ -37,7 +37,7 @@ src/database/schema/domain/
 
 ### Step 1: Define Module Identifiers
 - **Module Name**: `kebab-case` (e.g. `products`, `flight-schedules`).
-- **Route Prefix**: `/api/v1/<kebab-case-plural>` (e.g. `/api/v1/products`).
+- **Route Prefix**: `<API_BASE_PATH>/v1/<kebab-case-plural>` (default `/api/v1/products`). The version is code: modules register on the `v1` router in `createApp()`, never with their own `/api/v1` prefix.
 - **Table Name**: Plural `snake_case` under schema `domain` (e.g. `domain.products`).
 - **Messages constant**: `UPPER_SNAKE` singular + `_MESSAGES` (e.g. `PRODUCT_MESSAGES`) — written `<UPPER_SINGULAR>_MESSAGES` below.
 
@@ -312,8 +312,8 @@ export { router as <camelPlural>Router };
 ```typescript
 import { <camelPlural>Router } from './modules/<name>/<name>.routes';
 
-// Inside createApp()
-app.route(`${appConfig.API_PREFIX}/<name>`, <camelPlural>Router);
+// Inside createApp(), next to the other modules on the versioned router
+v1.route('/<name>', <camelPlural>Router);
 ```
 
 ---

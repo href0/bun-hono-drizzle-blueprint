@@ -86,8 +86,8 @@ const generate = (): string[] => {
         "import { userRoutes } from './modules/users/users.routes';\nimport { scaffoldProbesRouter } from './modules/scaffold-probes/scaffold-probes.routes';",
       )
       .replace(
-        '  app.route(`${appConfig.API_PREFIX}/users`, userRoutes);',
-        '  app.route(`${appConfig.API_PREFIX}/users`, userRoutes);\n  app.route(`${appConfig.API_PREFIX}/scaffold-probes`, scaffoldProbesRouter);',
+        "  v1.route('/users', userRoutes);",
+        "  v1.route('/users', userRoutes);\n  v1.route('/scaffold-probes', scaffoldProbesRouter);",
       ),
   );
   return generated;

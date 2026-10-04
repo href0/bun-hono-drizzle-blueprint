@@ -73,8 +73,12 @@ describe('assertNoRenamedVariables (Unit)', () => {
     expect(message).not.toContain('900000');
   });
 
-  it('should cover the variables renamed in plan step 1.7', () => {
-    expect(Object.keys(RENAMED_ENV_VARS).sort()).toEqual(['CORS_ORIGIN', 'RATE_LIMIT_WINDOW_MS']);
+  it('should cover the variables renamed in plan steps 1.7 and 1.8', () => {
+    expect(Object.keys(RENAMED_ENV_VARS).sort()).toEqual([
+      'API_PREFIX',
+      'CORS_ORIGIN',
+      'RATE_LIMIT_WINDOW_MS',
+    ]);
   });
 });
 

@@ -11,7 +11,7 @@ describe('Configuration groups (Unit)', () => {
       NODE_ENV: 'development',
       PORT: 3000,
       APP_NAME: expect.any(String),
-      API_PREFIX: '/api/v1',
+      API_BASE_PATH: '/api',
       LOG_LEVEL: 'info',
       DEFAULT_LOCALE: 'id',
     });
@@ -20,7 +20,10 @@ describe('Configuration groups (Unit)', () => {
       LOG_LEVEL: 'debug',
     });
     expect(() => buildAppConfig({ PORT: '0' })).toThrow('PORT');
-    expect(() => buildAppConfig({ API_PREFIX: 'api' })).toThrow('API_PREFIX');
+    for (const bad of ['api', '/api/', '/', '/api v1']) {
+      expect(() => buildAppConfig({ API_BASE_PATH: bad })).toThrow('API_BASE_PATH');
+    }
+    expect(buildAppConfig({ API_BASE_PATH: '/backend/api' }).API_BASE_PATH).toBe('/backend/api');
     expect(buildAppConfig({ DEFAULT_LOCALE: 'en' }).DEFAULT_LOCALE).toBe('en');
     expect(() => buildAppConfig({ DEFAULT_LOCALE: 'fr' })).toThrow(
       'DEFAULT_LOCALE: must be one of: id | en',

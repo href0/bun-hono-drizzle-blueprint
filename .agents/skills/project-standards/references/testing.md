@@ -87,14 +87,14 @@ import { describe, expect, it } from 'bun:test';
 import { createApp } from '../src/app';
 
 describe('Health E2E Probe', () => {
-  it('GET /health/liveness should return 200 with OK status', async () => {
+  it('GET /api/health/liveness should return 200 with UP status', async () => {
     const app = createApp();
-    const res = await app.request('/health/liveness');
+    const res = await app.request('/api/health/liveness');
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { success: boolean; data: { status: string } };
     expect(body.success).toBe(true);
-    expect(body.data.status).toBe('ok');
+    expect(body.data.status).toBe('UP');
   });
 });
 ```

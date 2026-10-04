@@ -22,51 +22,41 @@ describe('Health Module', () => {
     expect(body.data.version).toBe('1.0.0');
   });
 
-  it('GET /api/v1/health should return 200 with standard success envelope in snake_case', async () => {
-    const res = await app.request('/api/v1/health');
+  const health = `${appConfig.API_BASE_PATH}/health`;
+
+  it('GET <base>/health answers 200 with UP / DEGRADED / DOWN and component details', async () => {
+    const res = await app.request(health);
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as {
       success: boolean;
-      status_code: number;
-      message: string;
-      data: { status: string; uptime: number };
+      data: { status: string; components: { database: string; redis: string }; timestamp: string };
     };
-
     expect(body.success).toBe(true);
-    expect(body.status_code).toBe(200);
-    expect(body.message).toBe('Layanan berjalan normal');
-    expect(body.data.status).toBe('ok');
-    expect(typeof body.data.uptime).toBe('number');
+    expect(['UP', 'DEGRADED', 'DOWN']).toContain(body.data.status);
+    expect(['UP', 'DOWN']).toContain(body.data.components.database);
+    // Tests never connect Redis (lazy client), so the cache is always reported DOWN here.
+    expect(body.data.components.redis).toBe('DOWN');
   });
 
-  it('GET /api/v1/health/liveness should return 200 with process health info', async () => {
-    const res = await app.request('/api/v1/health/liveness');
+  it('GET <base>/health/liveness answers 200 without touching dependencies', async () => {
+    const res = await app.request(`${health}/liveness`);
     expect(res.status).toBe(200);
 
-    const body = (await res.json()) as {
-      success: boolean;
-      status_code: number;
-      data: { status: string };
-    };
-    expect(body.success).toBe(true);
-    expect(body.status_code).toBe(200);
-    expect(body.data.status).toBe('ok');
+    const body = (await res.json()) as { data: { status: string; uptime_seconds: number } };
+    expect(body.data.status).toBe('UP');
+    expect(typeof body.data.uptime_seconds).toBe('number');
   });
 
-  it('GET /api/v1/health/readiness should probe database and redis dependency status', async () => {
-    const res = await app.request('/api/v1/health/readiness');
-    // In test environment, returns 200 (if DB reachable or mocked) or 503 (if DB offline)
+  it('GET <base>/health/readiness answers 200 or the 503 error envelope (database-dependent)', async () => {
+    const res = await app.request(`${health}/readiness`);
     expect([200, 503]).toContain(res.status);
+  });
 
-    const body = (await res.json()) as {
-      success: boolean;
-      status_code: number;
-      data: { status: string; database: string; redis: string };
-    };
-    expect(typeof body.data.status).toBe('string');
-    expect(typeof body.data.database).toBe('string');
-    expect(typeof body.data.redis).toBe('string');
+  it('health is unversioned: the old /api/v1/health path is gone', async () => {
+    expect(appConfig.API_BASE_PATH).toBe('/api');
+    expect((await app.request('/api/v1/health')).status).toBe(404);
+    expect((await app.request('/api/health/liveness')).status).toBe(200);
   });
 
   it('GET /non-existent-route should return 404 with standard error envelope in snake_case', async () => {

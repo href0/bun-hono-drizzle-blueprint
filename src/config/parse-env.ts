@@ -46,6 +46,7 @@ export const parseEnv = <TSchema extends z.ZodTypeAny>(
 export const RENAMED_ENV_VARS: Readonly<Record<string, string>> = {
   CORS_ORIGIN: 'CORS_ORIGINS (comma-separated exact origins; empty = CORS disabled)',
   RATE_LIMIT_WINDOW_MS: 'RATE_LIMIT_WINDOW_SECONDS (seconds, not milliseconds)',
+  API_PREFIX: 'API_BASE_PATH (without the version, e.g. /api; the version /v1 lives in code)',
 };
 
 /** Fails fast when a renamed variable is still set; lists names only, never values. */
