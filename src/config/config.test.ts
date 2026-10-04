@@ -13,6 +13,7 @@ describe('Configuration groups (Unit)', () => {
       APP_NAME: expect.any(String),
       API_PREFIX: '/api/v1',
       LOG_LEVEL: 'info',
+      DEFAULT_LOCALE: 'id',
     });
     expect(buildAppConfig({ PORT: '8080', LOG_LEVEL: 'debug' })).toMatchObject({
       PORT: 8080,
@@ -20,6 +21,10 @@ describe('Configuration groups (Unit)', () => {
     });
     expect(() => buildAppConfig({ PORT: '0' })).toThrow('PORT');
     expect(() => buildAppConfig({ API_PREFIX: 'api' })).toThrow('API_PREFIX');
+    expect(buildAppConfig({ DEFAULT_LOCALE: 'en' }).DEFAULT_LOCALE).toBe('en');
+    expect(() => buildAppConfig({ DEFAULT_LOCALE: 'fr' })).toThrow(
+      'DEFAULT_LOCALE: must be one of: id | en',
+    );
   });
 
   it('database: should require DATABASE_URL outside test and default it in test', () => {

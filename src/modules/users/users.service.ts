@@ -8,6 +8,7 @@ import {
   type JsonPlaceholderPost,
 } from '../../integrations/jsonplaceholder';
 import type { CreateUserDto, UserQueryDto } from './users.dto';
+import { USER_MESSAGES, userNotFoundMessage } from './users.messages';
 import type { User } from '../../database/schema';
 
 export class UsersService {
@@ -21,8 +22,8 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     const existing = await this.repo.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictError('User with this email already exists', {
-        details: [{ field: 'email', message: 'Email is already registered' }],
+      throw new ConflictError(USER_MESSAGES.EMAIL_TAKEN, {
+        details: [{ field: 'email', message: USER_MESSAGES.EMAIL_ALREADY_REGISTERED }],
       });
     }
 
@@ -45,7 +46,7 @@ export class UsersService {
     return this.cache.getOrSet(cacheKey, CACHE_TTL.USER_DETAIL, async () => {
       const user = await this.repo.findById(id);
       if (!user) {
-        throw new NotFoundError(`User with ID ${id} not found`);
+        throw new NotFoundError(userNotFoundMessage(id));
       }
       return user;
     });

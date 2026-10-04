@@ -1,3 +1,4 @@
+import type { MessageInput } from '../i18n/translate';
 import { ApiError, type ApiErrorOptions } from './api-error';
 import { APP_ERROR_CODES, ERROR_TYPES, type AppErrorCode } from './error-codes';
 
@@ -21,7 +22,11 @@ export class ExternalServiceError extends ApiError {
   protected readonly defaultCode: AppErrorCode;
   readonly kind: ExternalFailureKind;
 
-  constructor(kind: ExternalFailureKind, message: string, options: ExternalServiceErrorOptions) {
+  constructor(
+    kind: ExternalFailureKind,
+    message: MessageInput,
+    options: ExternalServiceErrorOptions,
+  ) {
     super(message, options);
     this.kind = kind;
     this.statusCode = FAILURES[kind].statusCode;

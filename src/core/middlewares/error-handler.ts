@@ -1,7 +1,7 @@
 import type { Context, ErrorHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { getRequestContext } from '../context/request-context';
+import { getLocale, getRequestContext } from '../context/request-context';
 import { ApiError } from '../errors/api-error';
 import { BadRequestError } from '../errors/bad-request.error';
 import { ForbiddenError } from '../errors/forbidden.error';
@@ -55,7 +55,10 @@ export const sendError = (c: Context, error: ApiError): Response => {
   }
 
   const requestId = getRequestContext()?.requestId ?? 'unknown';
-  return c.json(buildErrorBody(error, requestId), error.statusCode as ContentfulStatusCode);
+  return c.json(
+    buildErrorBody(error, requestId, getLocale()),
+    error.statusCode as ContentfulStatusCode,
+  );
 };
 
 export const globalErrorHandler: ErrorHandler = (err, c) => {

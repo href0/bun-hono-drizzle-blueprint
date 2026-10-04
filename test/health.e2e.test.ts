@@ -17,7 +17,7 @@ describe('Health Module', () => {
     };
     expect(body.success).toBe(true);
     expect(body.status_code).toBe(200);
-    expect(body.message).toBe('Service online');
+    expect(body.message).toBe('Layanan aktif');
     expect(body.data.name).toBe(appConfig.APP_NAME);
     expect(body.data.version).toBe('1.0.0');
   });
@@ -35,7 +35,7 @@ describe('Health Module', () => {
 
     expect(body.success).toBe(true);
     expect(body.status_code).toBe(200);
-    expect(body.message).toBe('Service is healthy');
+    expect(body.message).toBe('Layanan berjalan normal');
     expect(body.data.status).toBe('ok');
     expect(typeof body.data.uptime).toBe('number');
   });
@@ -102,7 +102,7 @@ describe('Health Module', () => {
     };
     expect(body.success).toBe(false);
     expect(body.status_code).toBe(500);
-    expect(body.message).toBe('Internal Server Error');
+    expect(body.message).toBe('Terjadi kesalahan pada server');
     expect(body.error.type).toBe('INTERNAL_SERVER_ERROR');
   });
 });

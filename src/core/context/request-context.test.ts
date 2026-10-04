@@ -13,12 +13,15 @@ describe('RequestContext (Unit)', () => {
   });
 
   it('should expose the context and let the actor be updated for the rest of the request', async () => {
-    await runWithRequestContext({ requestId: 'req-1', actor: 'anonymous' }, async () => {
-      expect(getActor()).toBe('anonymous');
-      setActor('user:42');
-      await tick(1);
-      expect(getRequestContext()).toEqual({ requestId: 'req-1', actor: 'user:42' });
-    });
+    await runWithRequestContext(
+      { requestId: 'req-1', locale: 'id', actor: 'anonymous' },
+      async () => {
+        expect(getActor()).toBe('anonymous');
+        setActor('user:42');
+        await tick(1);
+        expect(getRequestContext()).toEqual({ requestId: 'req-1', locale: 'id', actor: 'user:42' });
+      },
+    );
 
     expect(getRequestContext()).toBeUndefined();
   });
@@ -31,7 +34,7 @@ describe('RequestContext (Unit)', () => {
 
   it('should isolate concurrent requests', async () => {
     const handle = (id: string, delay: number): Promise<string | undefined> =>
-      runWithRequestContext({ requestId: id, actor: 'anonymous' }, async () => {
+      runWithRequestContext({ requestId: id, locale: 'id', actor: 'anonymous' }, async () => {
         setActor(`user:${id}`);
         await tick(delay);
         return `${getRequestContext()?.requestId ?? '-'}/${getActor()}`;

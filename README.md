@@ -4,7 +4,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 
 ---
 
-## 1. The 7 Pillars Architecture
+## 1. Architecture Pillars
 
 1. **Pure Controllers**: Controller adalah pure function yang mengembalikan `ApiResponse`. Response dibungkus otomatis oleh wrapper `asyncHandler` ke dalam envelope standar.
 2. **Strict Layer Isolation**: Alur data satu arah: `Route` -> `Controller` -> `Service` -> `Repository` -> `Database`. Diverifikasi otomatis oleh `dependency-cruiser`.
@@ -15,7 +15,8 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
    - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, Pino logging, dan vendor error masking.
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
-7. **Multi-Tier Quality Gates**: ESLint 9 Flat Config, `.ls-lint.yml` (kebab-case naming), Commitlint (Conventional Commits), dan `bun test`.
+7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.
+8. **Multi-Tier Quality Gates**: ESLint 9 Flat Config, `.ls-lint.yml` (kebab-case naming), Commitlint (Conventional Commits), dan `bun test`.
 
 ---
 
@@ -206,6 +207,7 @@ import { asyncHandler, getValidatedBody } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
 import { productsService, ProductsService } from './products.service';
 import type { CreateProductDto } from './products.dto';
+import { PRODUCT_MESSAGES } from './products.messages'; // { CREATED: { id: '…', en: '…' } }
 
 export class ProductsController {
   constructor(private readonly service: ProductsService = productsService) {}
@@ -213,7 +215,7 @@ export class ProductsController {
   create = asyncHandler(async (c) => {
     const dto = getValidatedBody<CreateProductDto>(c);
     const product = await this.service.createProduct(dto);
-    return new ApiResponse(product, 'Product created successfully', 201);
+    return new ApiResponse(product, PRODUCT_MESSAGES.CREATED, 201);
   });
 }
 

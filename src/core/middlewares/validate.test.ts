@@ -32,7 +32,7 @@ describe('Validation Middleware (Integration)', () => {
 
     expect(body.success).toBe(false);
     expect(body.status_code).toBe(400);
-    expect(body.message).toBe('Validation Failed');
+    expect(body.message).toBe('Validasi data gagal. Silakan periksa kembali input Anda');
     expect(body.error.type).toBe('VALIDATION_ERROR');
     expect(body.error.code).toBe('ERR_INVALID_INPUT');
     expect(Array.isArray(body.error.details)).toBe(true);

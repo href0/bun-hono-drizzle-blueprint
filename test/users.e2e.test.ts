@@ -112,7 +112,7 @@ describe('Users Module — E2E Contract Tests', () => {
 
       expect(body.success).toBe(true);
       expect(body.status_code).toBe(201);
-      expect(body.message).toBe('User created successfully');
+      expect(body.message).toBe('Pengguna berhasil dibuat');
       // Verify snake_case wire format — core contract invariant
       expect(body.data.full_name).toBe('Test User');
       expect(body.data.is_active).toBe(true);

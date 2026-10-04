@@ -1,10 +1,12 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { appConfig, type Locale } from '../../config';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
 export type Actor = `user:${string}` | `partner:${string}` | 'system' | 'anonymous';
 
 export interface RequestContext {
   readonly requestId: string;
+  readonly locale: Locale;
   actor: Actor;
 }
 
@@ -18,6 +20,9 @@ export const getRequestContext = (): RequestContext | undefined => storage.getSt
 
 /** Current actor; `system` outside a request (bootstrap, scheduled jobs). */
 export const getActor = (): Actor => storage.getStore()?.actor ?? 'system';
+
+/** Language of user-facing messages; `DEFAULT_LOCALE` outside a request. */
+export const getLocale = (): Locale => storage.getStore()?.locale ?? appConfig.DEFAULT_LOCALE;
 
 export const runWithRequestContext = <T>(context: RequestContext, fn: () => T): T =>
   storage.run(context, fn);

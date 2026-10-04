@@ -1,5 +1,6 @@
 import { ApiResponse } from '../../core/response';
 import { asyncHandler } from '../../core/middlewares';
+import { HEALTH_MESSAGES } from './health.messages';
 import { checkReadinessStatus } from './health.service';
 
 export const checkLiveness = asyncHandler(() => {
@@ -10,7 +11,7 @@ export const checkLiveness = asyncHandler(() => {
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
       },
-      'Service is healthy',
+      HEALTH_MESSAGES.HEALTHY,
       200,
     ),
   );
@@ -22,7 +23,7 @@ export const checkReadiness = asyncHandler(async () => {
 
   return new ApiResponse(
     healthStatus,
-    isHealthy ? 'Service is ready' : 'Service database unavailable',
+    isHealthy ? HEALTH_MESSAGES.READY : HEALTH_MESSAGES.DATABASE_UNAVAILABLE,
     isHealthy ? 200 : 503,
   );
 });
