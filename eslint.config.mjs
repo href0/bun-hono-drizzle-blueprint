@@ -1,8 +1,51 @@
 // @ts-check
 import eslint from '@eslint/js';
+import eslintComments from '@eslint-community/eslint-plugin-eslint-comments/configs';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+
+/*
+ * `no-restricted-syntax` / `no-restricted-imports` groups.
+ * In flat config, a later override REPLACES the whole rule array of an earlier one for files
+ * matched by both. Never redefine these rules ad hoc in an override: compose the groups below
+ * so that every file gets the union of the groups that apply to it.
+ */
+const MODULE_SYNTAX_RULES = [
+  {
+    selector:
+      'ImportDeclaration[source.value=/.*database.*/] ImportSpecifier[imported.name=/^(db|sqlClient)$/]',
+    message:
+      'Direct import of "db" or "sqlClient" in domain modules is strictly forbidden. Repositories must query through "this.txHost.tx"; services must use repositories or domain abstractions.',
+  },
+  {
+    selector:
+      'ImportDeclaration[source.value=/.*core\\/http.*/] ImportSpecifier[imported.name="HttpClientService"]',
+    message:
+      'Direct import of "HttpClientService" in domain modules is strictly forbidden. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
+  },
+];
+
+const CONTROLLER_SYNTAX_RULES = [
+  {
+    selector: 'MemberExpression[object.name="c"][property.name=/^(json|text|body|html)$/]',
+    message:
+      'Sending a response directly from a controller is forbidden. Return an instance of ApiResponse wrapped with asyncHandler.',
+  },
+];
+
+const MODULE_IMPORT_PATTERNS = [
+  {
+    group: ['**/database/connection*'],
+    message:
+      'Domain modules must never import from database/connection directly. Connection management is internal to the database infrastructure layer.',
+  },
+  {
+    group: ['**/core/http*'],
+    message:
+      'Domain modules must never import from core/http directly. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
+  },
+];
 
 export default tseslint.config(
   {
@@ -17,6 +60,17 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   eslintPluginPrettierRecommended,
+  eslintComments.recommended,
+  {
+    // Rules can only be silenced deliberately: scoped, justified (`-- <reason>`), and still needed.
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
+    rules: {
+      '@eslint-community/eslint-comments/require-description': 'error',
+      '@eslint-community/eslint-comments/no-unlimited-disable': 'error',
+      '@eslint-community/eslint-comments/no-unused-disable': 'error',
+      '@eslint-community/eslint-comments/disable-enable-pair': ['error', { allowWholeFile: true }],
+    },
+  },
   {
     languageOptions: {
       globals: {
@@ -124,58 +178,22 @@ export default tseslint.config(
     },
   },
   {
-    // AST architectural enforcement for Controllers: Pure Controllers only
-    files: ['src/modules/**/*.controller.ts'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'MemberExpression[object.name="c"][property.name="json"]',
-          message:
-            'Calling c.json() directly in controllers is forbidden. Return an instance of ApiResponse wrapped with asyncHandler.',
-        },
-      ],
-    },
-  },
-  {
     // AST architectural enforcement: Modules must never touch database connection or raw HTTP client directly
     // Defense-in-depth guards:
     // 1. AST specifier guard: catches `db`, `sqlClient`, or `HttpClientService` imports
     // 2. Path guard: catches any import from database/connection or core/http
     files: ['src/modules/**/*.ts'],
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector:
-            'ImportDeclaration[source.value=/.*database.*/] ImportSpecifier[imported.name=/^(db|sqlClient)$/]',
-          message:
-            'Direct import of "db" or "sqlClient" in domain modules is strictly forbidden. Repositories must query through "this.txHost.tx"; services must use repositories or domain abstractions.',
-        },
-        {
-          selector:
-            'ImportDeclaration[source.value=/.*core\\/http.*/] ImportSpecifier[imported.name="HttpClientService"]',
-          message:
-            'Direct import of "HttpClientService" in domain modules is strictly forbidden. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
-        },
-      ],
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['**/database/connection*'],
-              message:
-                'Domain modules must never import from database/connection directly. Connection management is internal to the database infrastructure layer.',
-            },
-            {
-              group: ['**/core/http*'],
-              message:
-                'Domain modules must never import from core/http directly. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
-            },
-          ],
-        },
-      ],
+      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES],
+      'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
+    },
+  },
+  {
+    // AST architectural enforcement for Controllers: Pure Controllers only.
+    // Must come after the modules block and include its groups (see composition note at the top).
+    files: ['src/modules/**/*.controller.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES, ...CONTROLLER_SYNTAX_RULES],
     },
   },
   {

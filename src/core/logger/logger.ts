@@ -1,10 +1,14 @@
-import pino from 'pino';
-import { env } from '../../config/env.config';
+import pino, { type LoggerOptions } from 'pino';
+import { env, type EnvConfig } from '../../config/env.config';
 
-const isDev = env.NODE_ENV === 'development';
-
-export const logger = pino({
-  level: env.LOG_LEVEL,
+/**
+ * Builds Pino options from validated config. Kept pure so every environment branch
+ * (pretty transport in development, JSON elsewhere) is unit-testable.
+ */
+export const buildLoggerOptions = (
+  config: Pick<EnvConfig, 'NODE_ENV' | 'LOG_LEVEL' | 'APP_NAME'>,
+): LoggerOptions => ({
+  level: config.LOG_LEVEL,
   redact: {
     paths: [
       'password',
@@ -24,19 +28,22 @@ export const logger = pino({
     ],
     censor: '[REDACTED]',
   },
-  transport: isDev
-    ? {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
-          ignore: 'pid,hostname',
-          singleLine: true,
-        },
-      }
-    : undefined,
+  transport:
+    config.NODE_ENV === 'development'
+      ? {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+            ignore: 'pid,hostname',
+            singleLine: true,
+          },
+        }
+      : undefined,
   base: {
-    app: env.APP_NAME,
-    env: env.NODE_ENV,
+    app: config.APP_NAME,
+    env: config.NODE_ENV,
   },
 });
+
+export const logger = pino(buildLoggerOptions(env));

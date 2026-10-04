@@ -28,24 +28,40 @@ Semua standar di dokumen ini **di-enforce secara otomatis oleh gerbang kualitas 
 Setiap commit dan push melewati lapis proteksi otomatis:
 
 ```
-[1] git commit ditekan
+[1] git commit ditekan                       (cepat — hanya pemeriksaan per file & tipe)
       └─ pre-commit hook (Husky)
             ├─ lint-staged        → ESLint strictTypeChecked + Prettier (pada staged files)
             ├─ tsc --noEmit       → TypeScript strict typecheck seluruh proyek
-            ├─ ls-lint            → Validasi penamaan file & folder (kebab-case)
-            └─ depcruise          → Validasi isolasi layer arsitektur (.dependency-cruiser.cjs)
+            └─ ls-lint            → Validasi penamaan file & folder (kebab-case)
 
 [2] Pesan commit diketik
       └─ commit-msg hook (Husky)
             └─ commitlint         → Validasi format pesan commit (Conventional Commits)
 
-[3] git push dijalankan
+[3] git push dijalankan                      (pemeriksaan seluruh proyek)
       └─ pre-push hook (Husky)
-            └─ bun run lint:branch→ Validasi nama branch sesuai standar branching strategy
+            ├─ lint:branch        → Validasi nama branch sesuai standar branching strategy
+            ├─ lint:arch          → depcruise: isolasi layer arsitektur (.dependency-cruiser.cjs)
+            ├─ lint:deps          → knip: file, export, dan dependency yang tidak terpakai
+            └─ bun test           → Seluruh unit & e2e test
 
-[4] CI/CD Pipeline / Pull Request Gate
-      └─ bun run validate:full    → Typecheck + ESLint + ls-lint + Prettier + depcruise + depcheck + lint:branch + bun test (Line Coverage >= 95.0%)
+[4] CI (GitHub Actions, .github/workflows/ci.yml) — setiap push ke main & pull request
+      └─ nama branch + commitlint (PR) → typecheck → lint → ls-lint → prettier
+         → depcruise → knip → test + coverage gate → build
 ```
+
+Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, termasuk nama branch dan pesan commit.
+
+**Coverage gate** (`scripts/check-coverage.ts` — satu-satunya sumber ambang):
+
+- Dihitung dari file sumber saja (`*.test.ts` dan `test/` tidak ikut dihitung).
+- Ambang global (lines & functions) dan ambang per file (lines) didefinisikan di konstanta `THRESHOLDS`.
+- Setiap file di `src/` wajib dimuat oleh minimal satu test — Bun hanya menginstrumentasi file yang di-import test, sehingga file tanpa test terlihat sebagai pelanggaran, bukan lolos diam-diam. Barrel re-export murni dikecualikan otomatis.
+- Pengecualian hanya lewat `COVERAGE_EXCLUSIONS` dengan alasan dan step rencana yang menghapusnya; daftarnya dicetak di setiap run.
+
+**ESLint `eslint-disable`** wajib sempit dan beralasan: `// eslint-disable-next-line <rule> -- <alasan>`. Directive tanpa alasan, tanpa nama rule, atau yang sudah tidak diperlukan akan gagal lint.
+
+**Komposisi rule ESLint**: di flat config, override yang lebih akhir **mengganti** seluruh array `no-restricted-syntax` / `no-restricted-imports` dari override sebelumnya untuk file yang cocok dengan keduanya. Jangan mendefinisikan ulang rule tersebut secara ad hoc — komposisikan grup konstanta di bagian atas `eslint.config.mjs` (`MODULE_SYNTAX_RULES`, `CONTROLLER_SYNTAX_RULES`, …).
 
 ### Perintah Validasi Lokal
 
@@ -56,10 +72,10 @@ Setiap commit dan push melewati lapis proteksi otomatis:
 | `bun run lint:fix` | Memperbaiki format ESLint & Prettier secara otomatis | Jika ada error format/styling |
 | `bun run lint:ls` | Memvalidasi struktur penamaan file & folder | Saat menambah file/direktori baru |
 | `bun run lint:arch` | Memeriksa pelanggaran batas layer arsitektur | Saat menambah ketergantungan antar layer |
-| `bun run lint:deps` | Memeriksa dependensi yang tidak terpakai (depcheck) | Saat mengelola package npm |
+| `bun run lint:deps` | Memeriksa file, export, dan dependency yang tidak terpakai (knip) | Saat menghapus/memindah kode atau mengelola package |
 | `bun run lint:branch` | Memvalidasi kepatuhan format nama git branch aktif | Sebelum git push |
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
-| `bun run test:cov` | Menjalankan test runner dengan kalkulasi coverage & verifikasi >= 95% | Saat memastikan kelayakan test coverage |
+| `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
 | **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** | **Wajib sebelum membuat Pull/Merge Request** |
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: scaffold-module
-description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle multi-schema, Zod DTOs, TransactionHost Repository, and >=95% test coverage.
+description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle multi-schema, Zod DTOs, TransactionHost Repository, and the coverage gate.
 ---
 
 # Scaffold Feature Module
@@ -309,4 +309,4 @@ Run:
 ```bash
 bun run validate:full
 ```
-Verify that all static checks pass and line coverage remains $\ge 95.0\%$.
+Verify that all static checks pass and the coverage gate (`scripts/check-coverage.ts`) passes — every new file must be loaded by a test.

@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { db, type DrizzleDatabase } from './connection';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- PgTransaction generics differ per driver/schema; any transaction must be accepted
 export type DrizzleTxOrDb = DrizzleDatabase | PgTransaction<any, any, any>;
 
 export const transactionStorage = new AsyncLocalStorage<DrizzleTxOrDb>();

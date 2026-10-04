@@ -21,7 +21,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
   - By default, this boilerplate uses a **standalone Redis instance** with no key prefix. This is sufficient for single-project deployments.
   - For multi-project setups sharing one Redis cluster, set `REDIS_KEY_PREFIX=<app-name>:<env>` in `.env`. The ioredis client auto-prepends this prefix to all keys, preventing collisions.
 - **HTTP Client**: Axios with persistent HTTP/HTTPS Keep-Alive connection pooling (`maxSockets: 100`) and vendor masking
-- **Testing**: Native `bun:test` runner with automated LCOV coverage verification ($\ge 95.0\%$ line coverage)
+- **Testing**: Native `bun:test` runner with an LCOV coverage gate (`scripts/check-coverage.ts`, the single source of thresholds)
 
 ---
 
@@ -32,7 +32,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 ├── .agents/                    # Workspace agent rules & skills
 ├── drizzle/                    # Auto-generated SQL migrations (drizzle-kit)
 ├── scripts/
-│   └── check-coverage.ts       # Automated LCOV line coverage enforcement (>= 95%)
+│   ├── check-coverage.ts       # Coverage gate: thresholds (SSOT), per-file check, untested-file detection
+│   └── setup.ts                # Project initializer (init-project skill, IDENTITY_RULES)
 ├── src/
 │   ├── app.ts                  # Hono application factory & global middleware pipeline
 │   ├── index.ts                # Bootstrap server entry point (Bun.serve)
@@ -280,7 +281,7 @@ export class UsersService {
 
 1. **Unit Tests**: Co-located in the same directory (`*.test.ts`).
 2. **E2E Tests**: Located in `test/*.e2e.test.ts` testing blackbox HTTP routes via `app.request()`.
-3. **Mandatory Coverage**: Line coverage must be $\ge 95.0\%$.
+3. **Mandatory Coverage**: `bun run test:cov` must pass. Thresholds live only in `scripts/check-coverage.ts` (`THRESHOLDS`): global lines & functions, per-file lines, and every `src/` file must be loaded by at least one test. Exclusions require a reason and a removal step in `COVERAGE_EXCLUSIONS`.
 4. **Verification Command**:
    ```bash
    bun run validate:full

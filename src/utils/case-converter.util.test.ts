@@ -76,4 +76,19 @@ describe('CaseConverter Utility (Unit)', () => {
     expect(result.userName).toBe('John Doe');
     expect(result.nestedData.itemCode).toBe('ITM-1');
   });
+
+  it('should keep Date and RegExp instances intact and convert arrays to camelCase', () => {
+    const createdAt = new Date(0);
+    const pattern = /a_b/;
+
+    const result = snakeToCamelCase({
+      created_at: createdAt,
+      match_pattern: pattern,
+      line_items: [{ item_code: 'A' }, 'raw_value'],
+    }) as Record<string, any>;
+
+    expect(result.createdAt).toBe(createdAt);
+    expect(result.matchPattern).toBe(pattern);
+    expect(result.lineItems).toEqual([{ itemCode: 'A' }, 'raw_value']);
+  });
 });

@@ -16,8 +16,6 @@ export const checkLiveness = asyncHandler(() => {
   );
 });
 
-export const checkHealth = checkLiveness;
-
 export const checkReadiness = asyncHandler(async () => {
   const healthStatus = await checkReadinessStatus();
   const isHealthy = healthStatus.status === 'ready';

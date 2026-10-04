@@ -8,7 +8,7 @@ Read this file when: writing new test suites, mocking dependencies, or validatin
 
 - **Test Runner**: Native Bun Test (`bun:test`)
 - **Execution Command**: `bun test`
-- **Coverage Command**: `bun run test:cov` (enforces $\ge 95.0\%$ line coverage)
+- **Coverage Command**: `bun run test:cov` (coverage gate; thresholds in `scripts/check-coverage.ts`)
 - **Unit Tests**: Co-located with implementation files (`src/**/*.test.ts`).
 - **E2E Tests**: Blackbox integration tests located under `test/*.e2e.test.ts`.
 

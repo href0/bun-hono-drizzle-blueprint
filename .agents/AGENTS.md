@@ -23,16 +23,19 @@ Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute
 ## Why This Exists
 
 This project enforces strict automated Quality Gates powered by:
+
 - **TypeScript 5 Strict Type Checking** (`tsc --noEmit`)
-- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()` in controllers and direct `db` import in repositories)
+- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()` in controllers and direct `db` import in modules), and justified-only `eslint-disable` (`-- <reason>` required)
 - **ls-lint** directory and file naming conventions
 - **Prettier** formatting enforcement
 - **Dependency Cruiser** strict layer boundaries (`core`, `database`, `modules`, `utils`)
-- **Depcheck** dependency hygiene
+- **knip** unused files, exports, and dependencies
 - **Branch Naming Validation** (`validate-branch-name`)
-- **Bun Test Coverage Enforcement** ($\ge 95.0\%$ line coverage verified by `scripts/check-coverage.ts`)
+- **Coverage gate** `scripts/check-coverage.ts` — the single source of coverage thresholds (source files only, global + per-file, every source file must be loaded by a test)
 
-Any code violating these standards will fail `bun run validate:full`, blocking commits locally via Husky and failing CI pipelines.
+Any code violating these standards will fail `bun run validate:full`, blocking commits/pushes locally via Husky and failing CI (`.github/workflows/ci.yml`).
+
+When adding `no-restricted-syntax` / `no-restricted-imports` rules, compose the shared rule groups at the top of `eslint.config.mjs` — a later flat-config override replaces the whole rule array of an earlier one.
 
 ---
 
@@ -41,9 +44,11 @@ Any code violating these standards will fail `bun run validate:full`, blocking c
 You are strictly PROHIBITED from reading, searching, or exposing any active or sensitive `.env` files (e.g., `.env`, `.env.production`, `.env.local`, `.env.development`, `.env.dev`, `.env.stg`, `.env.prod`).
 
 ### Whitelist Exemption
+
 You are ONLY allowed to read or access `.env.example`. Any other environment file MUST be rejected.
 
 ### Action on Violations
+
 1. **ABORT** the read operation immediately BEFORE invoking any tool call (`view_file`, `grep_search`, `run_command` with `cat`/`type`).
 2. **NEVER generate a tool call** that triggers a permission prompt or approval dialog to the user for protected `.env` files.
 3. Inform the user directly in natural language:
@@ -57,7 +62,7 @@ You are ONLY allowed to read or access `.env.example`. Any other environment fil
 2. **Validation First**: Every route accepting inputs MUST use `validate({ body, query, params })` middleware with Zod schemas. Controllers extract sanitized data via `getValidatedBody(c)`, `getValidatedParams(c)`, and `getValidatedQuery(c)`.
 3. **Decoupled Repositories**: Repositories MUST receive `TransactionHost` and query through `this.txHost.tx`. Never import `db` directly into repositories.
 4. **Data Shaping**: Controllers MUST use a Transformer (`toResponse`, `toListResponse`) to sanitize and shape entity objects before returning them to clients.
-5. **Coverage Quality Gate**: All code must maintain $\ge 95\%$ line coverage verified via `bun run test:cov`.
+5. **Coverage Quality Gate**: All code must pass the coverage gate (`bun run test:cov`, thresholds in `scripts/check-coverage.ts`). Never add a `COVERAGE_EXCLUSIONS` entry without a reason and the plan step that removes it.
 6. **Strict Casing Invariant**: All HTTP response envelopes and payload keys MUST be `snake_case` (e.g. `status_code`, `full_name`, `is_active`). This is automatically enforced by `ApiResponse.toJSON()` and `globalErrorHandler`. In the TypeScript codebase, `snake_case` is forbidden for all identifiers — only SQL column names in Drizzle schemas may use `snake_case`.
 7. **Strict Intra-Module Unidirectional Flow**: Data access and control MUST flow strictly unidirectional: `Routes -> Controller -> Service -> Repository`. Controllers MUST NOT import repositories directly. Routes MUST NOT import services or repositories. Services MUST NOT import controllers, routes, or transformers. Repositories MUST NOT import services or controllers. Transformers MUST be pure data mappers. Enforced deterministically by `dependency-cruiser`.
 8. **Absolute Database Connection Isolation**: Domain modules (`src/modules/**`) MUST NEVER import `src/database/connection.ts` or directly import `db` or `sqlClient`. Connection pooling is strictly internal to `src/database/`. Repositories query exclusively through `this.txHost.tx`; services interact with persistence strictly through repositories. Enforced by ESLint AST rules and `dependency-cruiser`.
