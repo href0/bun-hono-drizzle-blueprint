@@ -25,10 +25,10 @@ Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute
 This project enforces strict automated Quality Gates powered by:
 
 - **TypeScript 5 Strict Type Checking** (`tsc --noEmit`)
-- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()` in controllers and direct `db` import in modules), and justified-only `eslint-disable` (`-- <reason>` required)
+- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()`/`c.text()` in controllers, direct `db`/`HttpClientService` imports in modules, `'ERR_*'` literals or dynamically built codes outside `src/core/errors/error-codes.ts`, plain `throw new Error`/`throw Error` in modules, and `process.env` outside `src/config/env-source.ts`), and justified-only `eslint-disable` (`-- <reason>` required)
 - **ls-lint** directory and file naming conventions
 - **Prettier** formatting enforcement
-- **Dependency Cruiser** strict layer boundaries (`core`, `database`, `modules`, `utils`)
+- **Dependency Cruiser** strict layer boundaries (`config`, `core`, `database`, `modules`, `integrations`, `utils`)
 - **knip** unused files, exports, and dependencies
 - **Branch Naming Validation** (`validate-branch-name`)
 - **Coverage gate** `scripts/check-coverage.ts` — the single source of coverage thresholds (source files only, global + per-file, every source file must be loaded by a test)

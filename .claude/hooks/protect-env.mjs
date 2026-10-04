@@ -1,5 +1,11 @@
 // PreToolUse hook — mechanical enforcement of .agents/skills/env-protection.
 // Blocks any tool call that references an active .env file; only .env.example is allowed.
+//
+// Fail-closed by design: the match is textual, so some harmless strings are blocked too,
+// e.g. a regex `process\.env` or a heredoc that merely mentions an env file name inside a
+// Bash command. They cannot be told apart from real paths (`C:\process\.env`), so there is
+// no exception. Workarounds: write such content with the Write/Edit tools (file content is
+// not inspected) and grep for `process.env` without the escaping backslash.
 import { readFileSync } from 'node:fs';
 
 const ALLOWED_SUFFIXES = new Set(['.example']);

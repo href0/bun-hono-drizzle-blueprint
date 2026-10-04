@@ -231,7 +231,7 @@ export const productRoutes = new Hono();
 
 productRoutes.post('/', validate({ body: createProductSchema }), productsController.create);
 ```
-*Daftarkan di `src/app.ts`: `app.route('${env.API_PREFIX}/products', productRoutes);`*
+*Daftarkan di `src/app.ts`: ``app.route(`${appConfig.API_PREFIX}/products`, productRoutes);``*
 
 ---
 
