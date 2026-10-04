@@ -1,0 +1,4 @@
+{
+  "pattern": "^(feat|fix|hotfix|chore|docs|test|refactor|ci|perf)\\/.*$|^(prod|staging|development|boilerplate|main|master)$",
+  "errorMsg": "Nama branch tidak sesuai standar! Gunakan format: <type>/<scope> (contoh: feat/login-api, fix/user-typo) atau gunakan branch prod, staging, development, main, master, boilerplate."
+}

@@ -1,0 +1,63 @@
+# Agent Rules & Engineering Standards
+
+## MANDATORY: Read Project Standards Before Writing Code
+
+Before writing or modifying any code, generating new files, or making architectural decisions in this workspace, you MUST read the `project-standards` skill:
+
+**File**: `.agents/skills/project-standards/SKILL.md`
+
+This rule applies to: creating modules, writing services, controllers, DTOs, schemas, transformers, middlewares, utilities, and test suites.
+
+This rule does NOT apply to: generating commit messages, generating logbook entries, bumping versions, or answering investigatory questions that do not involve writing code.
+
+---
+
+## Active Work Plan
+
+Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute exactly one step at a time, meet its Definition of Done (§0.1), report with the review template (§0.2), then STOP for review. Record any deviation in its Decision Log.
+
+---
+
+## Why This Exists
+
+This project enforces strict automated Quality Gates powered by:
+- **TypeScript 5 Strict Type Checking** (`tsc --noEmit`)
+- **ESLint 9 Flat Config** with `strictTypeChecked`, custom AST rules (banning `c.json()` in controllers and direct `db` import in repositories)
+- **ls-lint** directory and file naming conventions
+- **Prettier** formatting enforcement
+- **Dependency Cruiser** strict layer boundaries (`core`, `database`, `modules`, `utils`)
+- **Depcheck** dependency hygiene
+- **Branch Naming Validation** (`validate-branch-name`)
+- **Bun Test Coverage Enforcement** ($\ge 95.0\%$ line coverage verified by `scripts/check-coverage.ts`)
+
+Any code violating these standards will fail `bun run validate:full`, blocking commits locally via Husky and failing CI pipelines.
+
+---
+
+## MANDATORY: Environment File Protection Policy
+
+You are strictly PROHIBITED from reading, searching, or exposing any active or sensitive `.env` files (e.g., `.env`, `.env.production`, `.env.local`, `.env.development`, `.env.dev`, `.env.stg`, `.env.prod`).
+
+### Whitelist Exemption
+You are ONLY allowed to read or access `.env.example`. Any other environment file MUST be rejected.
+
+### Action on Violations
+1. **ABORT** the read operation immediately BEFORE invoking any tool call (`view_file`, `grep_search`, `run_command` with `cat`/`type`).
+2. **NEVER generate a tool call** that triggers a permission prompt or approval dialog to the user for protected `.env` files.
+3. Inform the user directly in natural language:
+   > "Error: Access to the requested environment file is blocked by the repository's Environment File Protection Policy (`env-protection` skill). Only whitelisted environment templates (e.g., `.env.example`) can be read."
+
+---
+
+## Core Architectural Invariants
+
+1. **Return-Based Controllers**: Controllers MUST return `new ApiResponse(data, message, statusCode, meta)`. Calling `c.json()` inside controllers is prohibited by ESLint AST rules.
+2. **Validation First**: Every route accepting inputs MUST use `validate({ body, query, params })` middleware with Zod schemas. Controllers extract sanitized data via `getValidatedBody(c)`, `getValidatedParams(c)`, and `getValidatedQuery(c)`.
+3. **Decoupled Repositories**: Repositories MUST receive `TransactionHost` and query through `this.txHost.tx`. Never import `db` directly into repositories.
+4. **Data Shaping**: Controllers MUST use a Transformer (`toResponse`, `toListResponse`) to sanitize and shape entity objects before returning them to clients.
+5. **Coverage Quality Gate**: All code must maintain $\ge 95\%$ line coverage verified via `bun run test:cov`.
+6. **Strict Casing Invariant**: All HTTP response envelopes and payload keys MUST be `snake_case` (e.g. `status_code`, `full_name`, `is_active`). This is automatically enforced by `ApiResponse.toJSON()` and `globalErrorHandler`. In the TypeScript codebase, `snake_case` is forbidden for all identifiers — only SQL column names in Drizzle schemas may use `snake_case`.
+7. **Strict Intra-Module Unidirectional Flow**: Data access and control MUST flow strictly unidirectional: `Routes -> Controller -> Service -> Repository`. Controllers MUST NOT import repositories directly. Routes MUST NOT import services or repositories. Services MUST NOT import controllers, routes, or transformers. Repositories MUST NOT import services or controllers. Transformers MUST be pure data mappers. Enforced deterministically by `dependency-cruiser`.
+8. **Absolute Database Connection Isolation**: Domain modules (`src/modules/**`) MUST NEVER import `src/database/connection.ts` or directly import `db` or `sqlClient`. Connection pooling is strictly internal to `src/database/`. Repositories query exclusively through `this.txHost.tx`; services interact with persistence strictly through repositories. Enforced by ESLint AST rules and `dependency-cruiser`.
+9. **Isolated Outbound Integrations**: Third-party vendor adapters (e.g. WhatsApp, Payment Gateways) MUST live exclusively under `src/integrations/<vendor>/`. They MUST NOT contain controllers or routes, and MUST NOT depend on domain modules or database layers. Domain services in `src/modules/**.service.ts` consume them as internal dependencies.
+10. **Single-Source Project Identity**: This repository is a boilerplate initialized per project by the `init-project` skill (`bun run setup <name>`). Never hardcode the project name in agent rules, skills, or docs — write "this project". Any code/config that must carry the name (package name, `APP_NAME`, database name, container names, …) MUST be registered in `IDENTITY_RULES` in `scripts/setup.ts`; the script aborts when a rule stops matching.

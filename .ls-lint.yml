@@ -1,0 +1,36 @@
+ls:
+  src:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  src/modules:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  src/core:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  src/utils:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  src/config:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  src/database:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  src/integrations:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  test:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
+
+  scripts:
+    .dir: kebab-case
+    .ts: kebab-case | regex:[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.ts$
