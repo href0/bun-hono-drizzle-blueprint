@@ -10,6 +10,7 @@ In Hono with Bun, application initialization is isolated in a factory function `
 
 ```typescript
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { secureHeaders } from 'hono/secure-headers';
 import packageJson from '../package.json';
 import { appConfig, httpConfig } from './config';
@@ -25,9 +26,16 @@ import {
   requestContextMiddleware,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
+import { describeEndpoint, mountApiDocs } from './core/openapi';
 import { ApiResponse } from './core/response';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
+
+const serviceInfoSchema = z.object({
+  name: z.string(),
+  environment: z.enum(['development', 'production', 'test']),
+  version: z.string(),
+});
 
 /** Pipeline order: plan appendix L10. */
 export const createApp = (): Hono => {
@@ -69,6 +77,11 @@ export const createApp = (): Hono => {
 
   app.get(
     '/',
+    describeEndpoint({
+      tags: ['Service'],
+      summary: 'Service identity: name, environment and version',
+      response: { status: 200, description: 'Service is online', data: serviceInfoSchema },
+    }),
     asyncHandler(() =>
       Promise.resolve(
         new ApiResponse(
@@ -83,6 +96,17 @@ export const createApp = (): Hono => {
       ),
     ),
   );
+
+  // OpenAPI JSON + reference UI (<base>/docs) — last, so the document sees every route
+  mountApiDocs(app, {
+    basePath,
+    enabled: appConfig.API_DOCS_ENABLED,
+    info: {
+      title: appConfig.APP_NAME,
+      version: packageJson.version,
+      description: packageJson.description,
+    },
+  });
 
   // 11. Error and 404 handlers
   app.onError(globalErrorHandler);
@@ -152,6 +176,10 @@ export async function bootstrap(): Promise<Server<unknown>> {
       port: appConfig.PORT,
       env: appConfig.NODE_ENV,
       basePath: appConfig.API_BASE_PATH,
+      health: `${server.url.origin}${appConfig.API_BASE_PATH}/health`,
+      docs: appConfig.API_DOCS_ENABLED
+        ? `${server.url.origin}${appConfig.API_BASE_PATH}/docs`
+        : 'disabled',
     },
     `${appConfig.APP_NAME} server started successfully on port ${appConfig.PORT}`,
   );
@@ -199,6 +227,7 @@ if (import.meta.main) {
 | 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
 | 6 | `rateLimit({ keyPrefix: 'global' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped |
 | 7–10 | Routes | `<API_BASE_PATH>/health` (unversioned, public), then the versioned router `<API_BASE_PATH>/v1` holding the domain modules (`v1.route('/users', …)`; `validate()` per route, controllers return `ApiResponse`). The version is code, not env: a new version is a new router. Auth middlewares join here in phases 3 and 5 |
+| — | `mountApiDocs()` | `<API_BASE_PATH>/docs` (Scalar UI) + `/docs/openapi.json`, mounted after every route so the document sees them all; not mounted when `API_DOCS_ENABLED` is false (production default) |
 | 11 | `app.onError(globalErrorHandler)` · `app.notFound(notFoundHandler)` | Standard error envelope; `ApiError` status, `HTTPException` mapping, internal 500 details never exposed |
 
 CORS runs before the body limit and rate limit so that 413/429 responses still carry CORS headers (browser code can read them). Preflight `OPTIONS` is answered by CORS and never counts against the rate limit.

@@ -1,13 +1,5 @@
 import type { User } from '../../database/schema';
-
-export interface UserResponse {
-  id: string;
-  email: string;
-  fullName: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { UserResponse } from './users.dto';
 
 export const toUserResponse = (user: User): UserResponse => ({
   id: user.id,

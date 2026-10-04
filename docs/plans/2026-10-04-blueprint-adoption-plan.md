@@ -2,9 +2,9 @@
 
 | Atribut     | Nilai                                                                                                                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — F0, Step 1.1–1.7 + review 1.1–1.3, 1.4–1.5, 1.6–1.7 selesai (`main` @ `78033cc`); Step 1.8 menunggu review (branch `feat/health-base-path`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status      | IN PROGRESS — F0, Step 1.1–1.8 + review 1.1–1.7 selesai (`main` @ `0f2dae5`); Step 1.9 + perbaikan review 1.8–1.9 menunggu review (branch `feat/openapi-docs`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal     | 2026-10-04                                                                                                                                                                                                                                |
-| Basis kode  | branch `main` @ `78033cc` |
+| Basis kode  | branch `main` @ `0f2dae5` |
 | Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                                                            |
 | Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                                                           |
 | Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                                                            |
@@ -279,6 +279,24 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | 1.8 | Tinjauan ulang deviasi 1.7 (health dikecualikan dari rate limit global): **dipertahankan** — probe tetap di `<base>/health` (path stabil lintas versi), skip via `isUnderPath(healthPath)` | — |
 | 2026-10-04 | 1.8 | Dokumen: template `scaffold-module` (route prefix + registrasi `v1.route(...)`), `scripts/verify-scaffold.ts` (patch `v1.route`), README (Health Probes, struktur), CONTRIBUTING (struktur, langkah registrasi — sebelumnya masih `env.API_PREFIX`), `references/testing.md`, `references/bootstrap.md` (§1/§2 disinkronkan, baris pipeline 7–10), `.env.example` | `verify:scaffold` & `validate:full` menunggu file env lokal user diperbarui (lihat baris `API_PREFIX`) |
 | 2026-10-04 | 1.8 | User mengganti `API_PREFIX` → `API_BASE_PATH=/api` di file env lokal; config terbaca, `validate:full` (coverage 99.87% / 98.83%) dan `verify:scaffold` hijau | — |
+| 2026-10-04 | 1.8 | ✅ Di-commit (`0f2dae5`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-04 | 1.9 | **Hasil spike (D17)**: `@hono/zod-openapi` 1.6.3 mensyaratkan **Zod 4** (peer `zod ^4`, juga `@asteasolutions/zod-to-openapi` 9) dan pola `createRoute` + `app.openapi` dengan validator sendiri yang bertabrakan dengan `validate()` (kontrak snake_case + konversi camelCase). `hono-openapi` 1.3.3 berbasis Standard Schema, jalan di Zod 3.25 lewat `zod-openapi` v4 (peer `zod ^3.21.4`), dan membaca metadata dari properti `uniqueSymbol` di middleware route → `validate()` yang ada bisa mendokumentasikan dirinya sendiri | Prototipe: `describeRoute` + metadata `validate()` tergabung dalam satu operation; route tanpa metadata tidak masuk spec |
+| 2026-10-04 | 1.9 | **Deviasi D17**: dipilih **`hono-openapi` + `zod-openapi` v4 + Scalar** (bukan `@hono/zod-openapi`). Tanpa migrasi Zod 4, tanpa mengubah pola route/controller, `validate()` tetap satu-satunya validator | Migrasi Zod 4 masuk backlog L12 (bila nanti dibutuhkan, `hono-openapi` mendukung Zod 4 tanpa perubahan pemakai) |
+| 2026-10-04 | 1.9 | `src/core/openapi/`: `describeEndpoint({ tags, summary, response: { data \| paginatedItem }, errors })` (envelope standar, 429 & 500 otomatis, error memakai komponen `ErrorEnvelope`), skema envelope yang mencerminkan `ApiResponse.toJSON()` / `buildErrorBody()`, `isoDateTime()` / `isoDateTimeString()`, `buildOpenApiDocument()` (security scheme `bearerAuth` untuk Fase 3), `mountApiDocs()` (`<base>/docs` Scalar + `<base>/docs/openapi.json`, di-cache per app, tidak dipasang bila nonaktif). `validate()` menempelkan `describeRequest()` (body via resolver, query/path via `createSchema` sinkron) | Request tidak pernah ditulis dua kali: satu skema untuk validasi & dokumentasi |
+| 2026-10-04 | 1.9 | `toSnakeCaseOpenApi()` di `src/utils/` (murni): nama properti schema, daftar `required`, nama parameter query → snake_case; nama komponen, `operationId`, dan parameter path (harus cocok dengan template route) dibiarkan | Hasil nyata: `full_name`, `per_page`, `created_at`, `status_code`, `request_id` |
+| 2026-10-04 | 1.9 | Skema response di `<module>.dto.ts` (`userResponseSchema`, `healthReportSchema`, …) dan tipe transformer/`HealthReport` diturunkan dari skema (`z.infer`) → dokumentasi tidak bisa menyimpang dari tipe yang dikembalikan. Endpoint root `/` ikut terdokumentasi | — |
+| 2026-10-04 | 1.9 | `API_DOCS_ENABLED` (`true \| false`, kosong = aktif kecuali production) | `.env.example` & L1 |
+| 2026-10-04 | 1.9 | Penjaga di `test/openapi.e2e.test.ts`: setiap route `createApp()` (kecuali docs) ada di dokumen; semua properti & parameter query snake_case; setiap route yang memvalidasi input mencantumkan 400 | Chaos test: route tanpa `describeEndpoint` → gagal menyebut route; route `/:id` tanpa 400 → gagal menyebut route; dipulihkan |
+| 2026-10-04 | 1.9 | Dokumen: template `scaffold-module` (skema response di DTO, transformer bertipe dari skema, `describeEndpoint` di routes), project-standards Rule 11 + tech stack + struktur, `AGENTS.md` invariant #12 (Documented Endpoints), CONTRIBUTING §10, README, `references/bootstrap.md` (§1 disinkronkan + baris `mountApiDocs`) | `verify:scaffold` hijau dengan template baru |
+| 2026-10-04 | 1.9 | Catatan: bundle `bun build` naik 1,34 MB → 1,89 MB (`hono-openapi`, `zod-openapi`, `@scalar/hono-api-reference`); UI Scalar memuat aset dari CDN (jsDelivr) saat dibuka | Bila CSP diperketat nanti, izinkan CDN itu untuk `/api/docs` atau matikan docs |
+| 2026-10-04 | 1.9 | User memilih tetap memakai Scalar (lebih mudah dipahami daripada Swagger UI) | — |
+| 2026-10-04 | Review 4 | Review ulang 1.8–1.9 atas permintaan user (sebelum 1.9 di-commit): 9 temuan + 1 celah penjaga yang ditemukan saat chaos test; semua diperbaiki di branch `feat/openapi-docs` | Gate hijau; penjaga dibuktikan chaos test |
+| 2026-10-04 | Review 4 | **Celah penjaga sendiri**: `validate()` juga menempelkan metadata, sehingga route ber-`validate()` tanpa `describeEndpoint()` tetap muncul di dokumen dan lolos test "setiap route terdokumentasi" (chaos test pertama hanya memakai route tanpa `validate()`). Kini setiap operation wajib punya `summary` + response 2xx (hanya dari `describeEndpoint()`), di e2e maupun `verify:scaffold` | Chaos test: route users `/chaos/:id` dengan `validate()` saja → gagal; template `/:id` tanpa `describeEndpoint` → `verify:scaffold` gagal |
+| 2026-10-04 | Review 4 | 400 (dan 413 bila ada body) kini didokumentasikan otomatis oleh `validate()` (`errorResponse()` bersama) — penulis route cukup menulis error domain; `errors` di users & template dirampingkan | Terbukti: response dari dua sumber metadata tergabung dalam satu operation |
+| 2026-10-04 | Review 4 | Header umum terdokumentasi lewat `addCommonHeaders()`: parameter `Accept-Language` & `X-Request-ID`; header respons `X-Request-ID`, `Content-Language`, `RateLimit-*`; `Retry-After` pada 429 (komponen `parameters`/`headers`) | Sebelumnya hanya disebut di teks deskripsi |
+| 2026-10-04 | Review 4 | Bundle UI Scalar dikunci (`SCALAR_BUNDLE_URL` = `@scalar/api-reference@1.72.4`, build UMD) — sebelumnya `esm.js` tanpa versi = apa pun yang disajikan CDN hari itu; `info.description` dari `package.json` (dulu default library "Development documentation") | Test memastikan HTML memuat URL berversi |
+| 2026-10-04 | Review 4 | `verify:scaffold`: live check memakai `API_BASE_PATH` dan memastikan modul hasil template ada di dokumen dengan summary + 2xx. Log startup mencatat URL health & docs; README Quick Start menyebut `/api/docs` & `/api/health` | — |
+| 2026-10-04 | Review 4 | Dokumen: `references/openapi.md` baru (apa yang otomatis vs ditulis, `describeEndpoint`, skema response, tanggal, `API_DOCS_ENABLED`, penegakan, yang belum tercakup) + baris di tabel referensi project-standards; Rule 11, `AGENTS.md` invariant #12 + daftar API inti `verify:scaffold` (+`openapi`), CONTRIBUTING §10, scope commit `core/openapi`, `references/testing.md` (§4 penjaga kontrak), DoD §14.1 (+ endpoint baru wajib `describeEndpoint`), L10 & L11 | Nama komponen OpenAPI PascalCase: `naming-convention` dinonaktifkan berpasangan + alasan di `common-headers.ts` |
 
 ---
 
@@ -315,8 +333,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.5  | Kontrak request snake_case + DTO bersama                    | ✅     | 1.3             | `240d8fe`            |
 | 1.6  | Ketahanan Redis & `CacheService` lanjutan                   | ✅     | 1.1             | `89d2e65`            |
 | 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅     | 1.2, 1.6        | `3028ac8`            |
-| 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path | 👀 | 1.6 | |
-| 1.9  | Dokumentasi OpenAPI                                         | ⬜     | 1.5             |                      |
+| 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path | ✅ | 1.6 | `0f2dae5` |
+| 1.9  | Dokumentasi OpenAPI | 👀 | 1.5 | |
 | 2.1  | Standar tanggal & waktu (Temporal)                          | ⬜     | 0.3             |                      |
 | 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |                      |
 | 2.3  | Test helper data layer                                      | ⬜     | 2.2             |                      |
@@ -586,9 +604,9 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] Test: setiap route di `app.routes` (kecuali docs) ada di spec.
-- [ ] Semua properti schema di spec snake_case.
-- [ ] Production → `/api/docs` 404.
+- [x] Test: setiap route di `app.routes` (kecuali docs) ada di spec.
+- [x] Semua properti schema di spec snake_case.
+- [x] Production → `/api/docs` 404.
 
 ---
 
@@ -925,7 +943,8 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 - [ ] `bun run validate:full` hijau dan `bun run build` sukses.
 - [ ] Test baru menutup perilaku baru (unit; e2e bila menyentuh HTTP). **Setiap cabang logika** (klasifikasi, pemetaan status, fallback) punya test eksplisit — coverage Bun hanya mengukur baris, bukan cabang.
 - [ ] Aturan baru ditegakkan mesin (atau ditandai `[review-only]` dengan alasan).
-- [ ] Dokumen terdampak diperbarui di commit yang sama: `.agents/AGENTS.md`, `.agents/skills/**`, `CONTRIBUTING.md`, `README.md`, `.env.example`. Bila API inti yang dipakai template berubah (errors, response, middlewares, dto, i18n, database) → `bun run verify:scaffold` hijau.
+- [ ] Dokumen terdampak diperbarui di commit yang sama: `.agents/AGENTS.md`, `.agents/skills/**`, `CONTRIBUTING.md`, `README.md`, `.env.example`. Bila API inti yang dipakai template berubah (errors, response, middlewares, dto, i18n, openapi, database) → `bun run verify:scaffold` hijau.
+- [ ] Endpoint baru memakai `describeEndpoint()` dengan skema response di `<module>.dto.ts` (`test/openapi.e2e.test.ts` hijau).
 - [ ] Nilai yang membawa nama proyek → `IDENTITY_RULES`; `bun run setup demo --dry-run` lulus.
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
 - [ ] AI agent tidak mengeksekusi perintah ke database (migrasi di-generate; dijalankan developer).
@@ -1269,6 +1288,7 @@ jobs:
  8. app.use('/api/v1/partner/*', partnerAuth())    HMAC (Fase 5)
  9. app.use('/api/v1/*', authenticate())           default-deny, kecuali PUBLIC_ROUTES & partner
 10. app.route('/api/v1', v1Router)                 modul (requireRole per route)
+    mountApiDocs()                                 /api/docs + /api/docs/openapi.json (terakhir; mati di production)
 11. app.onError(globalErrorHandler) · app.notFound(notFoundHandler)
 ```
 
@@ -1287,6 +1307,7 @@ src/
 │   ├── i18n/      messages.ts
 │   ├── logger/
 │   ├── middlewares/ request-context, client-ip, rate-limit, authenticate, require-role, validate, …
+│   ├── openapi/   describeEndpoint, schemas (envelopes), common-headers, api-docs (document + Scalar)
 │   ├── response/  ApiResponse
 │   └── security/  jwt.ts, roles.ts, public-routes.ts
 ├── database/
@@ -1310,3 +1331,4 @@ src/
 - OpenTelemetry tracing + metrics `/metrics`
 - Job queue / scheduler dengan actor `system`
 - Validasi production: partner wajib `ip_whitelist` (setelah `TRUST_PROXY_HOPS` diukur per environment)
+- Migrasi Zod 3 → 4 (`z.email()`, kode issue baru `invalid_value`, `issue.received` hilang → `describeIssue` di `parse-env.ts`, pemetaan issue di `validate()`); `hono-openapi` tetap kompatibel

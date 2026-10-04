@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { secureHeaders } from 'hono/secure-headers';
 import packageJson from '../package.json';
 import { appConfig, httpConfig } from './config';
@@ -14,9 +15,16 @@ import {
   requestContextMiddleware,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
+import { describeEndpoint, mountApiDocs } from './core/openapi';
 import { ApiResponse } from './core/response';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
+
+const serviceInfoSchema = z.object({
+  name: z.string(),
+  environment: z.enum(['development', 'production', 'test']),
+  version: z.string(),
+});
 
 /** Pipeline order: plan appendix L10. */
 export const createApp = (): Hono => {
@@ -58,6 +66,11 @@ export const createApp = (): Hono => {
 
   app.get(
     '/',
+    describeEndpoint({
+      tags: ['Service'],
+      summary: 'Service identity: name, environment and version',
+      response: { status: 200, description: 'Service is online', data: serviceInfoSchema },
+    }),
     asyncHandler(() =>
       Promise.resolve(
         new ApiResponse(
@@ -72,6 +85,17 @@ export const createApp = (): Hono => {
       ),
     ),
   );
+
+  // OpenAPI JSON + reference UI (<base>/docs) — last, so the document sees every route
+  mountApiDocs(app, {
+    basePath,
+    enabled: appConfig.API_DOCS_ENABLED,
+    info: {
+      title: appConfig.APP_NAME,
+      version: packageJson.version,
+      description: packageJson.description,
+    },
+  });
 
   // 11. Error and 404 handlers
   app.onError(globalErrorHandler);

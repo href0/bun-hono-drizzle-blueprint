@@ -14,6 +14,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 6. **Resilient Infrastructure**:
    - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
    - **Platform Hardening**: Rate limit global per IP klien tepercaya lewat Redis (berlaku lintas instance, fail-open), `TRUST_PROXY_HOPS` (`X-Forwarded-For` tidak dipercaya mentah), batas ukuran body (413), CORS allowlist (`CORS_ORIGINS`, kosong = mati), dan security headers.
+   - **API Docs (OpenAPI 3.1)**: `GET /api/docs` (UI Scalar) dan `/api/docs/openapi.json`, dihasilkan dari schema Zod yang sama dengan validasi (snake_case, envelope standar). Aktif kecuali di production (`API_DOCS_ENABLED`).
    - **Health Probes**: `GET /api/health` (selalu 200, `UP`/`DEGRADED`/`DOWN` + status komponen), `/api/health/readiness` (503 hanya bila database mati; Redis mati = `DEGRADED`), `/api/health/liveness` (tanpa cek dependency). Probe database dibatasi 2 detik.
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, Pino logging, dan vendor error masking.
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
@@ -53,6 +54,7 @@ src/
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
 │   │   └── logger.ts
 │   ├── middlewares/             # Hono Middlewares Pipeline
+│   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   │   ├── async-handler.ts     # Wrapper untuk Pure Controllers
 │   │   ├── error-handler.ts     # Global onError handler
 │   │   ├── logger.middleware.ts # Request & response logging
@@ -120,7 +122,10 @@ bun run db:migrate
 bun run dev
 ```
 
-Server berjalan secara default di `http://localhost:3000`.
+Server berjalan secara default di `http://localhost:3000` (URL juga dicatat di log startup):
+
+- Dokumentasi API (Scalar): `http://localhost:3000/api/docs` · JSON: `/api/docs/openapi.json`
+- Health: `http://localhost:3000/api/health` (`UP` / `DEGRADED` / `DOWN`)
 
 #### Alternatif: Full Containerized Development (Zero Host Install)
 Jika Anda tidak ingin menginstall Bun di host OS:

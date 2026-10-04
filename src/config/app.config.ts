@@ -18,10 +18,23 @@ const appSchema = z.object({
     .default('/api'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   DEFAULT_LOCALE: z.enum(SUPPORTED_LOCALES).default('id'),
+  /** OpenAPI JSON + reference UI under `<API_BASE_PATH>/docs`. Unset = on, except in production. */
+  API_DOCS_ENABLED: z.enum(['true', 'false']).optional(),
 });
 
-export type AppConfig = z.infer<typeof appSchema>;
+export type AppConfig = Omit<z.infer<typeof appSchema>, 'API_DOCS_ENABLED'> & {
+  API_DOCS_ENABLED: boolean;
+};
 
-export const buildAppConfig = (source: EnvSource): AppConfig => parseEnv('app', appSchema, source);
+export const buildAppConfig = (source: EnvSource): AppConfig => {
+  const config = parseEnv('app', appSchema, source);
+  return {
+    ...config,
+    API_DOCS_ENABLED:
+      config.API_DOCS_ENABLED === undefined
+        ? config.NODE_ENV !== 'production'
+        : config.API_DOCS_ENABLED === 'true',
+  };
+};
 
 export const appConfig = buildAppConfig(envSource);

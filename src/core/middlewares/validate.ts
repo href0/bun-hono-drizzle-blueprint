@@ -1,9 +1,11 @@
 import type { Context, MiddlewareHandler } from 'hono';
+import { uniqueSymbol } from 'hono-openapi';
 import { z } from 'zod';
 import { findNonSnakeCaseKeys, snakeToCamelCasePreserving } from '../../utils/case-converter.util';
 import { APP_ERROR_CODES } from '../errors/error-codes';
 import { ValidationError } from '../errors/validation.error';
 import { I18N_MESSAGES } from '../i18n/messages';
+import { describeRequest } from '../openapi/request-spec';
 
 export interface ValidationSchemas {
   body?: z.ZodTypeAny;
@@ -37,10 +39,14 @@ const toCamelCasePayload = (payload: unknown, preserveKeys: readonly string[]): 
   return snakeToCamelCasePreserving(payload, preserveKeys);
 };
 
+/**
+ * Validates and converts the request, and documents it: the same schemas become the OpenAPI request
+ * body and parameters of the route (read by `hono-openapi` through `uniqueSymbol`).
+ */
 export const validate = (schemas: ValidationSchemas): MiddlewareHandler => {
   const preserveKeys = schemas.preserveKeys ?? [];
 
-  return async (c, next) => {
+  const middleware: MiddlewareHandler = async (c, next) => {
     try {
       if (schemas.body) {
         const rawBody = toCamelCasePayload(await parseRequestBody(c), preserveKeys);
@@ -72,6 +78,8 @@ export const validate = (schemas: ValidationSchemas): MiddlewareHandler => {
       throw error;
     }
   };
+
+  return Object.assign(middleware, { [uniqueSymbol]: { spec: describeRequest(schemas) } });
 };
 
 /**

@@ -1,19 +1,7 @@
 import { pingDatabase } from '../../database';
 import { cacheService } from '../../core/cache';
 
-export type ComponentStatus = 'UP' | 'DOWN';
-
-/** `DEGRADED`: serving, but a fail-open dependency (Redis) is down — alert, don't restart. */
-export type HealthState = 'UP' | 'DEGRADED' | 'DOWN';
-
-export interface HealthReport {
-  status: HealthState;
-  components: {
-    database: ComponentStatus;
-    redis: ComponentStatus;
-  };
-  timestamp: string;
-}
+import type { HealthReport, HealthState } from './health.dto';
 
 export interface HealthProbes {
   pingDatabase: () => Promise<boolean>;

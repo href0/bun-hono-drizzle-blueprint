@@ -20,6 +20,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 - **Cache**: Redis via [ioredis](https://github.com/redis/ioredis) with fail-open resilience
   - Every key is auto-prefixed with `<APP_NAME>:<NODE_ENV>:` (override: `REDIS_KEY_PREFIX`), so projects and environments can share one Redis.
   - The client reconnects forever (backoff ≤ 30 s), fails fast while disconnected (`commandTimeout`, no offline queue) and blocks `FLUSHALL`/`FLUSHDB`/`KEYS`. See [redis-cache.md](references/redis-cache.md).
+- **API Docs**: OpenAPI 3.1 via [hono-openapi](https://github.com/rhinobase/hono-openapi) + `zod-openapi` v4 (Zod 3) and the [Scalar](https://scalar.com) reference UI — see Rule 11
 - **HTTP Client**: Axios with persistent HTTP/HTTPS Keep-Alive connection pooling (`maxSockets: 100`) and vendor masking
 - **Testing**: Native `bun:test` runner with an LCOV coverage gate (`scripts/check-coverage.ts`, the single source of thresholds)
 
@@ -51,6 +52,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
 │   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, errorHandler, …
+│   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   └── response/           # ApiResponse standardized JSON envelope
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
@@ -249,6 +251,14 @@ export class UsersService {
 - `Error.message` stays English for logs; translation happens when the envelope is built. Zod field messages are not translated (known limitation).
 - Enforced by ESLint `no-restricted-syntax` in `src/modules/**` (string literals in `new ApiResponse(...)`, `new XError(...)`, error `details[].message`); `InternalServerError` is exempt because its text is log-only.
 
+### Rule 11: Documented Endpoints (OpenAPI)
+- Every route carries `describeEndpoint({ tags, summary, response, errors })` from `src/core/openapi`: the success envelope (`data` or `paginatedItem`) and the **domain** errors it can return.
+- Never described by hand: the request body, query and path parameters, 400 and (with a body) 413 — `validate()` documents them from the same Zod schemas it enforces; 429 and 500 — added on every route; the common headers (`Accept-Language`, `X-Request-ID`, `Content-Language`, `RateLimit-*`, `Retry-After`) — added by the document builder.
+- Response schemas live in `<name>.dto.ts` (`<name>ResponseSchema`) and type the transformer (`z.infer`), so docs cannot drift from what the API returns. Dates use `isoDateTime()` (a `Date` in TypeScript, ISO 8601 on the wire).
+- Schemas are camelCase like DTOs; the published document is converted to snake_case by `toSnakeCaseOpenApi()`.
+- Served at `<API_BASE_PATH>/docs` (Scalar UI) and `<API_BASE_PATH>/docs/openapi.json` when `API_DOCS_ENABLED` (default on, off in production).
+- Enforced by `test/openapi.e2e.test.ts`: every route of `createApp()` is in the document with a `summary` and a 2xx response (so `validate()` alone is not enough), every schema property and query parameter is snake_case, validated routes document 400, every operation carries the common headers. Full guide: [openapi.md](references/openapi.md).
+
 ---
 
 ## 5. Standard Output Envelopes
@@ -326,5 +336,6 @@ When implementing specific subsystems, consult the corresponding deep-dive refer
 | **Structured Logging** | [logging.md](references/logging.md) | Pino logger, `requestId` correlation, automatic PII redaction |
 | **Redis Caching** | [redis-cache.md](references/redis-cache.md) | `CacheService`, `CACHE_KEYS` SSOT, fail-open resilience guarantee |
 | **Raw SQL Queries** | [raw-queries.md](references/raw-queries.md) | Drizzle `sql` tagged template, parameterization safety, `*.queries.ts` files |
+| **API Documentation** | [openapi.md](references/openapi.md) | `describeEndpoint`, response schemas in DTOs, what is generated automatically, `/api/docs`, enforcement |
 | **Testing Standards** | [testing.md](references/testing.md) | `bun:test` controller/service/repo mocking, blackbox E2E HTTP testing |
 

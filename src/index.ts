@@ -51,6 +51,10 @@ export async function bootstrap(): Promise<Server<unknown>> {
       port: appConfig.PORT,
       env: appConfig.NODE_ENV,
       basePath: appConfig.API_BASE_PATH,
+      health: `${server.url.origin}${appConfig.API_BASE_PATH}/health`,
+      docs: appConfig.API_DOCS_ENABLED
+        ? `${server.url.origin}${appConfig.API_BASE_PATH}/docs`
+        : 'disabled',
     },
     `${appConfig.APP_NAME} server started successfully on port ${appConfig.PORT}`,
   );

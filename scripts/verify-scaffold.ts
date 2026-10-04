@@ -95,10 +95,24 @@ const generate = (): string[] => {
 
 const LIVE_CHECK = `
 const { createApp } = await import('./src/app.ts');
-const res = await createApp().request('/api/v1/scaffold-probes/not-a-uuid', { headers: { 'Accept-Language': 'en' } });
+const { appConfig } = await import('./src/config/index.ts');
+const app = createApp();
+const base = appConfig.API_BASE_PATH;
+const res = await app.request(base + '/v1/scaffold-probes/not-a-uuid', { headers: { 'Accept-Language': 'en' } });
 const body = await res.json();
 if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
   console.error('unexpected response', res.status, JSON.stringify(body));
+  process.exit(1);
+}
+const doc = await (await app.request(base + '/docs/openapi.json')).json();
+// Present with a summary and a 2xx response = described by describeEndpoint(), not only by validate().
+const documented = [['/v1/scaffold-probes', 'post'], ['/v1/scaffold-probes', 'get'], ['/v1/scaffold-probes/{id}', 'get']]
+  .every(([path, method]) => {
+    const op = doc.paths?.[base + path]?.[method];
+    return op?.summary && Object.keys(op.responses ?? {}).some((status) => status.startsWith('2'));
+  });
+if (!documented) {
+  console.error('scaffolded routes not described with describeEndpoint() in the OpenAPI document:', Object.keys(doc.paths ?? {}).join(', '));
   process.exit(1);
 }`;
 
