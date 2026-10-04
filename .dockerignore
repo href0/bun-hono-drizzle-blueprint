@@ -1,0 +1,36 @@
+# Dependencies & Cache
+node_modules/
+.pnp
+.pnp.js
+
+# Environment Files (Security)
+.env
+.env.*
+!.env.example
+
+# Git & Tooling
+.git/
+.gitignore
+.husky/
+.agents/
+
+# Testing & Coverage
+coverage/
+test/
+*.spec.ts
+*.test.ts
+
+# Documentation & Blueprints
+*.md
+LICENSE
+
+# Build outputs & Logs
+dist/
+logs/
+*.log
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

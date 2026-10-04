@@ -1,0 +1,12 @@
+FROM oven/bun:1.2-alpine
+WORKDIR /app
+
+# Install all dependencies (including devDependencies for dev/watcher)
+COPY package.json bun.lock tsconfig.json ./
+RUN bun install --frozen-lockfile
+
+# Expose server port
+EXPOSE 3000
+
+# Default development command with watch mode
+CMD ["bun", "run", "dev"]

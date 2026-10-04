@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'bun:test';
+import { UsersController } from './users.controller';
+import type { UsersService } from './users.service';
+import type { User } from '../../database/schema';
+
+describe('UsersController (Unit)', () => {
+  const mockUser: User = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    email: 'test@example.com',
+    fullName: 'Test User',
+    passwordHash: 'hash',
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockService: Partial<UsersService> = {
+    createUser: async () => mockUser,
+    getUserById: async () => mockUser,
+    listUsers: async () => ({ users: [mockUser], total: 1 }),
+    getUserExternalPosts: async () => [
+      { id: 1, userId: 1, title: 'Sample Post', body: 'Sample Body' },
+    ],
+  };
+
+  const controller = new UsersController(mockService as UsersService);
+  const mockNext = (async () => {}) as any;
+
+  it('create should return ApiResponse with status 201', async () => {
+    const mockContext = {
+      get: (key: string) =>
+        key === 'validatedBody'
+          ? { email: 'test@example.com', fullName: 'Test User', password: 'password123' }
+          : undefined,
+      json: (data: unknown, status: number) => ({ data, status }),
+    } as any;
+
+    const result = (await controller.create(mockContext, mockNext)) as unknown as {
+      status: number;
+      data: { success: boolean; data: { email: string; full_name: string } };
+    };
+    expect(result.status).toBe(201);
+    expect(result.data.success).toBe(true);
+    expect(result.data.data.email).toBe('test@example.com');
+    expect(result.data.data.full_name).toBe('Test User');
+  });
+
+  it('getById should return ApiResponse with status 200', async () => {
+    const mockContext = {
+      get: (key: string) =>
+        key === 'validatedParams' ? { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' } : undefined,
+      json: (data: unknown, status: number) => ({ data, status }),
+    } as any;
+
+    const result = (await controller.getById(mockContext, mockNext)) as unknown as {
+      status: number;
+      data: { data: { id: string } };
+    };
+    expect(result.status).toBe(200);
+    expect(result.data.data.id).toBe(mockUser.id);
+  });
+
+  it('list should return ApiResponse with status 200 and pagination meta', async () => {
+    const mockContext = {
+      get: (key: string) => (key === 'validatedQuery' ? { page: 1, limit: 10 } : undefined),
+      json: (data: unknown, status: number) => ({ data, status }),
+    } as any;
+
+    const result = (await controller.list(mockContext, mockNext)) as unknown as {
+      status: number;
+      data: { meta?: { current_page: number; total_items: number } };
+    };
+    expect(result.status).toBe(200);
+    expect(result.data.meta).toBeDefined();
+    expect(result.data.meta?.current_page).toBe(1);
+    expect(result.data.meta?.total_items).toBe(1);
+  });
+
+  it('getExternalPosts should return ApiResponse with status 200', async () => {
+    const mockContext = {
+      get: (key: string) =>
+        key === 'validatedParams' ? { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' } : undefined,
+      json: (data: unknown, status: number) => ({ data, status }),
+    } as any;
+
+    const result = (await controller.getExternalPosts(mockContext, mockNext)) as unknown as {
+      status: number;
+      data: { success: boolean; data: Array<{ id: number; title: string }> };
+    };
+
+    expect(result.status).toBe(200);
+    expect(result.data.success).toBe(true);
+    expect(result.data.data).toHaveLength(1);
+    expect(result.data.data[0]?.title).toBe('Sample Post');
+  });
+});

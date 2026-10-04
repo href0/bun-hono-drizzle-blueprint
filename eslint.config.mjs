@@ -1,0 +1,284 @@
+// @ts-check
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: [
+      'eslint.config.mjs',
+      'dist/**',
+      'drizzle/**',
+      'node_modules/**',
+      '.husky/**',
+    ],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.strictTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.builtin,
+      },
+      sourceType: 'module',
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    rules: {
+      // TypeScript strictness: enforce explicit typing across modules
+      '@typescript-eslint/explicit-function-return-type': 'error',
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/no-useless-constructor': 'off',
+      '@typescript-eslint/no-extraneous-class': 'off',
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        {
+          allowNumber: true,
+          allowBoolean: true,
+        },
+      ],
+
+      // General hygiene
+      'no-console': 'error',
+      'no-process-env': 'error',
+
+      // Strict Naming Conventions
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          selector: 'default',
+          format: ['camelCase'],
+          leadingUnderscore: 'allow',
+          trailingUnderscore: 'forbid',
+        },
+        {
+          selector: 'variable',
+          format: ['camelCase', 'UPPER_CASE'],
+          leadingUnderscore: 'allow',
+        },
+        {
+          selector: 'function',
+          format: ['camelCase', 'PascalCase'], // Allow PascalCase for Decorators / Custom Middlewares
+        },
+        {
+          selector: 'parameter',
+          format: ['camelCase'],
+          leadingUnderscore: 'allow',
+        },
+        {
+          selector: 'property',
+          format: ['camelCase', 'UPPER_CASE'],
+          leadingUnderscore: 'allow',
+        },
+        {
+          // Allow quoted properties like HTTP headers ('Content-Type', 'Connection')
+          selector: 'property',
+          modifiers: ['requiresQuotes'],
+          format: null,
+        },
+        {
+          selector: 'import',
+          format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
+        },
+        {
+          selector: 'class',
+          format: ['PascalCase'],
+        },
+        {
+          selector: 'interface',
+          format: ['PascalCase'],
+        },
+        {
+          selector: 'typeAlias',
+          format: ['PascalCase'],
+        },
+        {
+          selector: 'enum',
+          format: ['PascalCase'],
+        },
+        {
+          selector: 'enumMember',
+          format: ['UPPER_CASE'],
+        },
+        {
+          selector: 'typeParameter',
+          format: ['PascalCase'],
+        },
+      ],
+    },
+  },
+  {
+    // AST architectural enforcement for Controllers: Pure Controllers only
+    files: ['src/modules/**/*.controller.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'MemberExpression[object.name="c"][property.name="json"]',
+          message:
+            'Calling c.json() directly in controllers is forbidden. Return an instance of ApiResponse wrapped with asyncHandler.',
+        },
+      ],
+    },
+  },
+  {
+    // AST architectural enforcement: Modules must never touch database connection or raw HTTP client directly
+    // Defense-in-depth guards:
+    // 1. AST specifier guard: catches `db`, `sqlClient`, or `HttpClientService` imports
+    // 2. Path guard: catches any import from database/connection or core/http
+    files: ['src/modules/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'ImportDeclaration[source.value=/.*database.*/] ImportSpecifier[imported.name=/^(db|sqlClient)$/]',
+          message:
+            'Direct import of "db" or "sqlClient" in domain modules is strictly forbidden. Repositories must query through "this.txHost.tx"; services must use repositories or domain abstractions.',
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value=/.*core\\/http.*/] ImportSpecifier[imported.name="HttpClientService"]',
+          message:
+            'Direct import of "HttpClientService" in domain modules is strictly forbidden. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/database/connection*'],
+              message:
+                'Domain modules must never import from database/connection directly. Connection management is internal to the database infrastructure layer.',
+            },
+            {
+              group: ['**/core/http*'],
+              message:
+                'Domain modules must never import from core/http directly. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // AST architectural enforcement: Outbound integrations must never depend on domain modules or database layer
+    files: ['src/integrations/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/modules/**', '**/modules'],
+              message:
+                'Outbound integrations must never import from domain modules. Integrations are decoupled outbound adapters.',
+            },
+            {
+              group: ['**/database/**', '**/database'],
+              message:
+                'Outbound integrations must never import from the database layer. Database persistence is reserved for domain repositories.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Override for config files: allow process.env and UPPER_CASE properties
+    files: ['src/config/**/*.ts', 'drizzle.config.ts'],
+    rules: {
+      'no-process-env': 'off',
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          selector: 'property',
+          format: ['camelCase', 'UPPER_CASE'],
+        },
+      ],
+    },
+  },
+  {
+    // Override for database connection: allow third-party postgres driver snake_case options
+    files: ['src/database/connection.ts', 'src/database/schema/**/*.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          selector: 'property',
+          format: ['camelCase', 'UPPER_CASE', 'snake_case'],
+        },
+      ],
+    },
+  },
+  {
+    // Override for HTTP response envelopes: allow standardized snake_case response payload keys
+    files: [
+      'src/core/response/**/*.ts',
+      'src/core/middlewares/error-handler.ts',
+      'src/core/middlewares/not-found.ts',
+    ],
+    rules: {
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          selector: 'property',
+          format: ['camelCase', 'UPPER_CASE', 'snake_case'],
+        },
+      ],
+    },
+  },
+  {
+    // Override for generic validation helper getters
+    files: ['src/core/middlewares/validate.ts'],
+    rules: {
+      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
+    },
+  },
+  {
+    // Override for test files: relax strict checks for mocks and test assertions
+    files: ['**/*.spec.ts', '**/*.test.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/naming-convention': 'off',
+      '@typescript-eslint/require-await': 'off',
+      'no-process-env': 'off',
+      'no-console': 'off',
+    },
+  },
+  {
+    // Override for standalone tooling scripts: allow console output and process.env access
+    files: ['scripts/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+      'no-process-env': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+    },
+  },
+);

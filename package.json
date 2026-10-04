@@ -1,0 +1,67 @@
+{
+  "name": "bun-hono-starter",
+  "version": "1.0.0",
+  "description": "Enterprise Backend Starter (Bun, Hono, Drizzle ORM, PostgreSQL)",
+  "type": "module",
+  "scripts": {
+    "setup": "bun scripts/setup.ts",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "test": "bun test",
+    "test:cov": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov && bun scripts/check-coverage.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "lint:fix": "eslint src test --fix",
+    "lint:ls": "ls-lint",
+    "lint:arch": "depcruise src --config .dependency-cruiser.cjs",
+    "lint:deps": "depcheck --config .depcheckrc.json",
+    "lint:branch": "validate-branch-name",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:branch",
+    "validate:full": "bun run validate && bun run test:cov",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "axios": "^1.8.2",
+    "drizzle-orm": "^0.40.0",
+    "hono": "^4.7.4",
+    "hono-rate-limiter": "^0.5.4",
+    "ioredis": "^5.6.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@eslint/js": "^9.22.0",
+    "@ls-lint/ls-lint": "^2.3.1",
+    "@types/bun": "latest",
+    "@types/node": "^22.13.10",
+    "depcheck": "^1.4.7",
+    "dependency-cruiser": "^16.10.0",
+    "drizzle-kit": "^0.30.5",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "globals": "^17.12.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0",
+    "validate-branch-name": "^1.3.2"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
+}
