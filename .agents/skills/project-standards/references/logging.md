@@ -10,13 +10,14 @@ Logging uses [Pino](https://github.com/pinojs/pino) configured with automatic PI
 
 ```typescript
 import pino from 'pino';
-import { env } from '../../config/env.config';
+import { appConfig } from '../../config';
 
+// Simplified: the real file builds these options in a pure `buildLoggerOptions(appConfig)`.
 export const logger = pino({
-  level: env.LOG_LEVEL,
+  level: appConfig.LOG_LEVEL,
   base: {
-    app: env.APP_NAME,
-    env: env.NODE_ENV,
+    app: appConfig.APP_NAME,
+    env: appConfig.NODE_ENV,
   },
   redact: {
     paths: [

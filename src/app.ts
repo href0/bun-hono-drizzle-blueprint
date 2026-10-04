@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { rateLimiter } from 'hono-rate-limiter';
 import packageJson from '../package.json';
-import { env } from './config/env.config';
+import { appConfig, httpConfig } from './config';
 import {
   asyncHandler,
   globalErrorHandler,
@@ -38,7 +38,7 @@ export const createApp = (): Hono => {
   app.use(
     '*',
     cors({
-      origin: parseCorsOrigin(env.CORS_ORIGIN),
+      origin: parseCorsOrigin(httpConfig.CORS_ORIGIN),
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
       exposeHeaders: ['X-Request-ID'],
@@ -49,8 +49,8 @@ export const createApp = (): Hono => {
   app.use(
     '*',
     rateLimiter({
-      windowMs: env.RATE_LIMIT_WINDOW_MS,
-      limit: env.RATE_LIMIT_MAX,
+      windowMs: httpConfig.RATE_LIMIT_WINDOW_MS,
+      limit: httpConfig.RATE_LIMIT_MAX,
       standardHeaders: 'draft-6',
       keyGenerator: (c) =>
         c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'anonymous',
@@ -62,8 +62,8 @@ export const createApp = (): Hono => {
   app.notFound(notFoundHandler);
 
   // 4. Mount module routes under api prefix
-  app.route(`${env.API_PREFIX}/health`, healthRoutes);
-  app.route(`${env.API_PREFIX}/users`, userRoutes);
+  app.route(`${appConfig.API_PREFIX}/health`, healthRoutes);
+  app.route(`${appConfig.API_PREFIX}/users`, userRoutes);
 
   // Root endpoint
   app.get(
@@ -72,8 +72,8 @@ export const createApp = (): Hono => {
       Promise.resolve(
         new ApiResponse(
           {
-            name: env.APP_NAME,
-            environment: env.NODE_ENV,
+            name: appConfig.APP_NAME,
+            environment: appConfig.NODE_ENV,
             version: packageJson.version,
           },
           'Service online',

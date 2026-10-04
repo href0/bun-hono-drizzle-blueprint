@@ -1,12 +1,12 @@
 import type { Server } from 'bun';
 import { createApp } from './app';
-import { env } from './config/env.config';
+import { appConfig, redisConfig } from './config';
 import { logger } from './core/logger';
 import { sqlClient } from './database/connection';
 import { redisClient } from './core/cache/redis.client';
 
 export async function bootstrap(): Promise<Server<unknown>> {
-  logger.info({ env: env.NODE_ENV }, 'Starting bootstrap pre-flight verification...');
+  logger.info({ env: appConfig.NODE_ENV }, 'Starting bootstrap pre-flight verification...');
 
   // 1. Verify PostgreSQL Database Connection
   try {
@@ -33,7 +33,7 @@ export async function bootstrap(): Promise<Server<unknown>> {
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     logger.warn(
-      { err: errorMsg, host: env.REDIS_HOST, port: env.REDIS_PORT },
+      { err: errorMsg, host: redisConfig.REDIS_HOST, port: redisConfig.REDIS_PORT },
       'WARNING: Redis connection unavailable on startup. Operating in degraded fail-open mode.',
     );
   }
@@ -42,17 +42,17 @@ export async function bootstrap(): Promise<Server<unknown>> {
   const app = createApp();
 
   const server = Bun.serve({
-    port: env.PORT,
+    port: appConfig.PORT,
     fetch: app.fetch,
   });
 
   logger.info(
     {
-      port: env.PORT,
-      env: env.NODE_ENV,
-      apiPrefix: env.API_PREFIX,
+      port: appConfig.PORT,
+      env: appConfig.NODE_ENV,
+      apiPrefix: appConfig.API_PREFIX,
     },
-    `${env.APP_NAME} server started successfully on port ${env.PORT}`,
+    `${appConfig.APP_NAME} server started successfully on port ${appConfig.PORT}`,
   );
 
   // 4. Graceful Shutdown Hooks

@@ -1,12 +1,12 @@
 import pino, { type LoggerOptions } from 'pino';
-import { env, type EnvConfig } from '../../config/env.config';
+import { appConfig, type AppConfig } from '../../config';
 
 /**
  * Builds Pino options from validated config. Kept pure so every environment branch
  * (pretty transport in development, JSON elsewhere) is unit-testable.
  */
 export const buildLoggerOptions = (
-  config: Pick<EnvConfig, 'NODE_ENV' | 'LOG_LEVEL' | 'APP_NAME'>,
+  config: Pick<AppConfig, 'NODE_ENV' | 'LOG_LEVEL' | 'APP_NAME'>,
 ): LoggerOptions => ({
   level: config.LOG_LEVEL,
   redact: {
@@ -46,4 +46,4 @@ export const buildLoggerOptions = (
   },
 });
 
-export const logger = pino(buildLoggerOptions(env));
+export const logger = pino(buildLoggerOptions(appConfig));

@@ -1,14 +1,14 @@
 # Implementation Plan — Adopsi Blueprint ke Boilerplate Bun + Hono + Drizzle
 
-| Atribut     | Nilai                                                                                                                                                                |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — F0: Step 0.1 & 0.2 selesai; Step 0.3 menunggu review (branch `chore/quality-gate-parity`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
-| Tanggal     | 2026-10-04                                                                                                                                                           |
-| Basis kode  | branch `main` @ `fb843bb`                                                                                                                                            |
-| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                       |
-| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                      |
-| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)       |
-| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                     |
+| Atribut     | Nilai                                                                                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status      | IN PROGRESS — F0 selesai; Step 1.1 menunggu review (branch `feat/config-groups`, di atas `chore/quality-gate-parity`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Tanggal     | 2026-10-04                                                                                                                                                                         |
+| Basis kode  | branch `main` @ `fb843bb`                                                                                                                                                          |
+| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                     |
+| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                    |
+| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                     |
+| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                   |
 
 ---
 
@@ -181,6 +181,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | 0.3       | `logger.ts` di-refactor: `buildLoggerOptions(config)` murni agar cabang development/production teruji (tanpa perubahan perilaku)                                                                                                   | Diperlukan ambang per file; mixin request context menyusul di 1.2                                                                                   |
 | 2026-10-04 | 0.3       | Cakupan `lint` dan `format`/`format:check` diperluas ke `scripts/`; `depcruise` dipindah dari pre-commit ke pre-push                                                                                                               | Pre-commit tetap cepat                                                                                                                              |
 | 2026-10-04 | 0.3       | Acceptance "CI hijau pada PR pertama" **belum terverifikasi**: repo belum punya remote GitHub                                                                                                                                      | Diverifikasi saat repo di-push pertama kali                                                                                                         |
+| 2026-10-04 | 0.3       | ✅ Di-commit atas permintaan user (`9e0b75a`) di `chore/quality-gate-parity`; commitlint menolak percobaan pertama (baris body > 100 karakter) → pesan dipendekkan                                                                 | Merge ke `main` **belum** dilakukan (menunggu user); Step 1.1 dikerjakan di branch yang ditumpuk di atasnya                                         |
+| 2026-10-04 | 1.1       | Pola config: `build<Group>Config(source)` murni + instance `<group>Config`; `env-source.ts` satu-satunya pembaca `process.env` + guard `.env` hilang; barrel `src/config`                                                          | Semua cabang validasi teruji tanpa proses terpisah; pengecualian coverage `env.config.ts` dihapus                                                   |
+| 2026-10-04 | 1.1       | Default khusus test (`DATABASE_URL`, `REDIS_HOST`) digabung ke source sebelum validasi, bukan schema berbeda per mode                                                                                                              | Schema tetap statis → tipe ter-infer tanpa factory (ESLint `explicit-function-return-type`)                                                         |
+| 2026-10-04 | 1.1       | Pesan error tidak pernah mencetak nilai: `invalid_type` / `invalid_enum_value` diformat ulang (pesan bawaan Zod menyertakan nilai yang diterima)                                                                                   | Env bisa berisi secret                                                                                                                              |
+| 2026-10-04 | 1.1       | Keterbatasan: validasi berhenti di grup pertama yang gagal (setiap grup divalidasi saat modulnya di-import) — terbukti lewat smoke test proses terpisah                                                                            | Dokumen dikoreksi menjadi "semua variabel dalam grup"; agregasi lintas grup tidak dikerjakan (tidak sepadan)                                        |
+| 2026-10-04 | 1.1       | `EXTERNAL_VENDOR_*` dihapus di 1.1 (tidak pernah dipakai kode), bukan di 4.2; `DB_SCHEMA` tetap sampai 2.2; `.env.example` dikelompokkan per file config                                                                           | L1 diperbarui                                                                                                                                       |
 
 ---
 
@@ -209,8 +215,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | ---- | ----------------------------------------------------------- | ------ | --------------- | --------- |
 | 0.1  | Baseline commit                                             | ✅     | —               | `df3c0da` |
 | 0.2  | Review rencana & keputusan                                  | ✅     | 0.1             | `e6fd8af` |
-| 0.3  | Paritas quality gate (ESLint, coverage, knip, hooks, CI)    | 👀     | 0.2             |           |
-| 1.1  | Konfigurasi per grup + `parseEnv`                           | ⬜     | 0.3             |           |
+| 0.3  | Paritas quality gate (ESLint, coverage, knip, hooks, CI)    | ✅     | 0.2             | `9e0b75a` |
+| 1.1  | Konfigurasi per grup + `parseEnv`                           | 👀     | 0.3             |           |
 | 1.2  | Request context, request ID, logger mixin                   | ⬜     | 1.1             |           |
 | 1.3  | Kontrak error + registry `APP_ERROR_CODES`                  | ⬜     | 1.2             |           |
 | 1.4  | i18n `id`/`en`                                              | ⬜     | 1.3             |           |
@@ -317,9 +323,9 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] Test: env invalid → error menyebut semua variabel yang salah, tanpa nilainya.
-- [ ] `process.env` hanya muncul di `src/config/**` (ESLint `no-process-env`, sudah ada).
-- [ ] `bun run setup demo --dry-run` lulus (drift guard).
+- [x] Test: env invalid → error menyebut semua variabel yang salah dalam grupnya, tanpa nilainya (`parse-env.test.ts`, termasuk enum yang nilainya tidak boleh ikut tercetak).
+- [x] `process.env` hanya dibaca di `src/config/env-source.ts` (ESLint `no-process-env` untuk sisa `src/`).
+- [x] `bun run setup demo --dry-run` lulus (rule `APP_NAME` kini menunjuk `app.config.ts`).
 
 ### Step 1.2 — Request context, request ID, logger mixin
 
@@ -732,7 +738,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 ### Step 4.2 — Template integrasi & cache token vendor
 
-**Langkah**: pola vendor berbasis login (`getAccessToken()` di-cache sampai `expires_in − 60 dtk`, single-flight agar request paralel tidak login berulang); `config/<vendor>.config.ts`; hapus env contoh `EXTERNAL_VENDOR_*` yang tak terpakai; `references/integrations.md` + bagian di `scaffold-module`.
+**Langkah**: pola vendor berbasis login (`getAccessToken()` di-cache sampai `expires_in − 60 dtk`, single-flight agar request paralel tidak login berulang); `config/<vendor>.config.ts`; `references/integrations.md` + bagian di `scaffold-module`.
 
 **Acceptance criteria**
 
@@ -899,7 +905,7 @@ Catatan   : <hal yang perlu perhatian reviewer>
 | `PARTNER_SECRET_KEYS`                     | 5.2  | —                              | `k1:<64hex>[,k0:<64hex>]`                                 |
 | `PARTNER_SECRET_ACTIVE_KEY_ID`            | 5.2  | —                              | harus ada di keyring                                      |
 | `JSONPLACEHOLDER_BASE_URL` / `TIMEOUT_MS` | ada  | contoh                         | contoh integrasi                                          |
-| `EXTERNAL_VENDOR_*`                       | 4.2  | —                              | **dihapus** (tidak terpakai)                              |
+| `EXTERNAL_VENDOR_*`                       | 1.1  | —                              | **dihapus** di 1.1 (tidak pernah dipakai kode)            |
 
 ### 15.2 L2 — Error types & `APP_ERROR_CODES`
 

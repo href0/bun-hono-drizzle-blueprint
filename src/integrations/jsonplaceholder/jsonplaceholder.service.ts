@@ -1,10 +1,10 @@
-import { env } from '../../config/env.config';
+import { integrationsConfig } from '../../config';
 import { HttpClientService } from '../../core/http';
 import type { JsonPlaceholderPost } from './jsonplaceholder.dto';
 
 export const defaultJsonPlaceholderHttpClient = new HttpClientService({
-  baseURL: env.JSONPLACEHOLDER_BASE_URL,
-  timeoutMs: env.JSONPLACEHOLDER_TIMEOUT_MS,
+  baseURL: integrationsConfig.JSONPLACEHOLDER_BASE_URL,
+  timeoutMs: integrationsConfig.JSONPLACEHOLDER_TIMEOUT_MS,
   originName: 'JSONPLACEHOLDER',
 });
 
