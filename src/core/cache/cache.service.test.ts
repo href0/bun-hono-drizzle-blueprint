@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { CacheService, type CacheClient } from './cache.service';
+import { CacheService, INCREMENT_SCRIPT, type CacheClient } from './cache.service';
 import { CACHE_KEYS } from './cache-keys';
 
 /** Awaits a promise expected to reject and returns the error (Bun types `.rejects` as void). */
@@ -200,12 +200,7 @@ describe('CacheService', () => {
 
       expect(await service.increment('rl:ip', 60)).toEqual({ count: 1, ttlSeconds: 60 });
       expect(await service.increment('rl:ip', 999)).toEqual({ count: 2, ttlSeconds: 60 });
-      expect(client.eval).toHaveBeenLastCalledWith(
-        expect.stringContaining("'NX'"),
-        1,
-        'rl:ip',
-        999,
-      );
+      expect(client.eval).toHaveBeenLastCalledWith(INCREMENT_SCRIPT, 1, 'rl:ip', 999);
     });
 
     it('fails open (null) when Redis is not ready, rejects, or replies unexpectedly', async () => {

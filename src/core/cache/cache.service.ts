@@ -20,13 +20,19 @@ export interface CounterState {
 const NIL_SENTINEL = '{"__nil":1}';
 
 /**
- * `INCR` + `EXPIRE … NX` in one round trip: the window starts with the first hit and is never
- * extended by later ones. `NX` needs Redis ≥ 7.
+ * `INCR` + expire-if-no-TTL, atomic in one round trip: the window starts with the first hit and is
+ * never extended by later ones; a key left without a TTL gets one. Same semantics as
+ * `EXPIRE … NX` but without its Redis ≥ 7 requirement (`EXPIRE` with 3 args errors on older
+ * servers, which would silently disable every rate limit through fail-open).
  */
-const INCREMENT_SCRIPT = `
+export const INCREMENT_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])
-redis.call('EXPIRE', KEYS[1], ARGV[1], 'NX')
-return {count, redis.call('TTL', KEYS[1])}
+local ttl = redis.call('TTL', KEYS[1])
+if ttl < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
 `;
 
 const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));

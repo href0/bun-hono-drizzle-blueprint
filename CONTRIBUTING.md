@@ -99,7 +99,7 @@ src/
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   ├── middlewares/             # Hono Middlewares (asyncHandler, validate, errorHandler, dll.)
+│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, errorHandler, dll.)
 │   └── response/                # Standard Success Response Envelope (ApiResponse)
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer

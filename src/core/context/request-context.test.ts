@@ -14,12 +14,17 @@ describe('RequestContext (Unit)', () => {
 
   it('should expose the context and let the actor be updated for the rest of the request', async () => {
     await runWithRequestContext(
-      { requestId: 'req-1', locale: 'id', actor: 'anonymous' },
+      { requestId: 'req-1', locale: 'id', clientIp: '127.0.0.1', actor: 'anonymous' },
       async () => {
         expect(getActor()).toBe('anonymous');
         setActor('user:42');
         await tick(1);
-        expect(getRequestContext()).toEqual({ requestId: 'req-1', locale: 'id', actor: 'user:42' });
+        expect(getRequestContext()).toEqual({
+          requestId: 'req-1',
+          locale: 'id',
+          clientIp: '127.0.0.1',
+          actor: 'user:42',
+        });
       },
     );
 
@@ -34,11 +39,14 @@ describe('RequestContext (Unit)', () => {
 
   it('should isolate concurrent requests', async () => {
     const handle = (id: string, delay: number): Promise<string | undefined> =>
-      runWithRequestContext({ requestId: id, locale: 'id', actor: 'anonymous' }, async () => {
-        setActor(`user:${id}`);
-        await tick(delay);
-        return `${getRequestContext()?.requestId ?? '-'}/${getActor()}`;
-      });
+      runWithRequestContext(
+        { requestId: id, locale: 'id', clientIp: '127.0.0.1', actor: 'anonymous' },
+        async () => {
+          setActor(`user:${id}`);
+          await tick(delay);
+          return `${getRequestContext()?.requestId ?? '-'}/${getActor()}`;
+        },
+      );
 
     const results = await Promise.all([handle('a', 15), handle('b', 1), handle('c', 8)]);
 

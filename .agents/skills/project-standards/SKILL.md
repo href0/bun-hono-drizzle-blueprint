@@ -44,13 +44,13 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
-│   │   ├── context/            # RequestContext (AsyncLocalStorage): requestId, actor
+│   │   ├── context/            # RequestContext (AsyncLocalStorage): requestId, locale, clientIp, actor
 │   │   ├── dto/                # Shared request schemas (uuidParamSchema, paginationQuerySchema)
 │   │   ├── errors/             # Semantic ApiError class hierarchy
 │   │   ├── http/               # HttpClientService with connection pool
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # requestContext, asyncHandler, errorHandler, validate, etc.
+│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, errorHandler, …
 │   │   └── response/           # ApiResponse standardized JSON envelope
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance

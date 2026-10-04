@@ -10,35 +10,77 @@ In Hono with Bun, application initialization is isolated in a factory function `
 
 ```typescript
 import { Hono } from 'hono';
+import { secureHeaders } from 'hono/secure-headers';
+import packageJson from '../package.json';
+import { appConfig, httpConfig } from './config';
 import {
-  requestContextMiddleware,
+  asyncHandler,
+  bodySizeLimit,
+  corsMiddleware,
+  globalErrorHandler,
   loggerMiddleware,
-  errorHandler,
   notFoundHandler,
+  rateLimit,
+  requestContextMiddleware,
 } from './core/middlewares';
-import { healthRouter } from './modules/health/health.routes';
-import { usersRouter } from './modules/users/users.routes';
+import { I18N_MESSAGES } from './core/i18n';
+import { ApiResponse } from './core/response';
+import { healthRoutes } from './modules/health/health.routes';
+import { userRoutes } from './modules/users/users.routes';
 
+/** Pipeline order: plan appendix L10. */
 export const createApp = (): Hono => {
   const app = new Hono();
+  const healthPath = `${appConfig.API_PREFIX}/health`;
 
-  // 1. Correlation ID Middleware (generates or propagates X-Request-ID)
+  // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
+  app.use('*', loggerMiddleware());
 
-  // 2. Structured Request Logging (Pino with execution duration)
-  app.use('*', loggerMiddleware);
+  // 3–4. Security headers; CORS only when CORS_ORIGINS lists origins (empty = no CORS headers)
+  app.use('*', secureHeaders());
+  if (httpConfig.CORS_ORIGINS.length > 0) {
+    app.use('*', corsMiddleware(httpConfig.CORS_ORIGINS));
+  }
 
-  // 3. Healthcheck Probes (Liveness & Readiness)
-  app.route('/health', healthRouter);
+  // 5. Body size limit → 413 in the standard error envelope
+  app.use('*', bodySizeLimit(httpConfig.HTTP_BODY_LIMIT_BYTES));
 
-  // 4. API Domain Routes
-  app.route('/api/v1/users', usersRouter);
+  // 6. Global rate limit per trusted client IP (Redis, fail-open); probes are exempt
+  app.use(
+    '*',
+    rateLimit({
+      windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
+      max: httpConfig.RATE_LIMIT_MAX,
+      keyPrefix: 'global',
+      skip: (c) => c.req.path.startsWith(healthPath),
+    }),
+  );
 
-  // 5. Global 404 Not Found Handler
+  // 7–10. Routes
+  app.route(healthPath, healthRoutes);
+  app.route(`${appConfig.API_PREFIX}/users`, userRoutes);
+
+  app.get(
+    '/',
+    asyncHandler(() =>
+      Promise.resolve(
+        new ApiResponse(
+          {
+            name: appConfig.APP_NAME,
+            environment: appConfig.NODE_ENV,
+            version: packageJson.version,
+          },
+          I18N_MESSAGES.SERVICE_ONLINE,
+          200,
+        ),
+      ),
+    ),
+  );
+
+  // 11. Error and 404 handlers
+  app.onError(globalErrorHandler);
   app.notFound(notFoundHandler);
-
-  // 6. Global Exception Error Filter
-  app.onError(errorHandler);
 
   return app;
 };
@@ -144,8 +186,15 @@ if (import.meta.main) {
 
 | Order | Middleware | Purpose |
 |---|---|---|
-| 1 | `requestContextMiddleware` | Resolves the request ID (safe inbound `X-Request-ID` or UUID v7) and runs the rest of the request — including error and not-found handlers — inside the `RequestContext` |
-| 2 | `loggerMiddleware` | Records incoming HTTP method/path and outbound response status with duration |
-| 3 | Route Handlers | Domain logic with input validation (`validate` middleware) and pure response returns |
-| 4 | `notFoundHandler` | Catches unmatched routes and returns standard `NotFoundError` JSON envelope |
-| 5 | `errorHandler` | Catches unhandled exceptions, maps `ApiError` status, masks internal 500 stacks, and outputs standard JSON |
+| 1 | `requestContextMiddleware()` | Request ID (safe inbound `X-Request-ID` or UUID v7), locale (`Accept-Language`), trusted client IP (`TRUST_PROXY_HOPS`); runs the rest of the request — including error and not-found handlers — inside the `RequestContext` |
+| 2 | `loggerMiddleware()` | Logs method/path/client IP in and status/duration out (`requestId`/`actor` come from the logger mixin) |
+| 3 | `secureHeaders()` | `X-Content-Type-Options`, `X-Frame-Options`, HSTS, … |
+| 4 | `corsMiddleware(CORS_ORIGINS)` | Mounted only when `CORS_ORIGINS` is non-empty; allowlist with credentials; unlisted origins get no `Access-Control-Allow-Origin` |
+| 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
+| 6 | `rateLimit({ keyPrefix: 'global' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped |
+| 7–10 | Routes | Health, then domain modules (`validate()` per route, controllers return `ApiResponse`). Auth middlewares join here in phases 3 and 5 |
+| 11 | `app.onError(globalErrorHandler)` · `app.notFound(notFoundHandler)` | Standard error envelope; `ApiError` status, `HTTPException` mapping, internal 500 details never exposed |
+
+CORS runs before the body limit and rate limit so that 413/429 responses still carry CORS headers (browser code can read them). Preflight `OPTIONS` is answered by CORS and never counts against the rate limit.
+
+Client IP: `X-Forwarded-For` is only honoured with `TRUST_PROXY_HOPS = n > 0` (n-th entry from the right — the last one written by our own proxies). With `0` the socket address is used, so a forged header cannot dodge the rate limit.

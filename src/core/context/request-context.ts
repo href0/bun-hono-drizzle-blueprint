@@ -7,6 +7,8 @@ export type Actor = `user:${string}` | `partner:${string}` | 'system' | 'anonymo
 export interface RequestContext {
   readonly requestId: string;
   readonly locale: Locale;
+  /** Trusted client address (`TRUST_PROXY_HOPS`), or `unknown`; the rate-limit key. */
+  readonly clientIp: string;
   actor: Actor;
 }
 
@@ -23,6 +25,9 @@ export const getActor = (): Actor => storage.getStore()?.actor ?? 'system';
 
 /** Language of user-facing messages; `DEFAULT_LOCALE` outside a request. */
 export const getLocale = (): Locale => storage.getStore()?.locale ?? appConfig.DEFAULT_LOCALE;
+
+/** Trusted client IP of the current request; `undefined` outside a request. */
+export const getClientIp = (): string | undefined => storage.getStore()?.clientIp;
 
 export const runWithRequestContext = <T>(context: RequestContext, fn: () => T): T =>
   storage.run(context, fn);
