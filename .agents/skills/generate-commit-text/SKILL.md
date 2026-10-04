@@ -70,7 +70,7 @@ The allowed types are exactly `type-enum` in `commitlint.config.ts` (there is **
 
 #### Scope Mapping:
 - Feature domains: `users`, `health`, `[feature-name]`
-- Core components: `core/cache`, `core/context`, `core/errors`, `core/http`, `core/logger`, `core/middlewares`, `core/response`
+- Core components: `core/cache`, `core/context`, `core/errors`, `core/http`, `core/i18n`, `core/logger`, `core/middlewares`, `core/response`
 - Database: `database/schema`, `database/tx-host`, `database/migrations`
 - Configuration: `config`
 - Integrations: `integrations/<vendor>`

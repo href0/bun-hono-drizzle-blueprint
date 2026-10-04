@@ -18,6 +18,7 @@ src/modules/<name>/
 ├── <name>.controller.ts
 ├── <name>.controller.test.ts
 ├── <name>.dto.ts
+├── <name>.messages.ts
 ├── <name>.repository.ts
 ├── <name>.repository.test.ts
 ├── <name>.routes.ts
@@ -38,6 +39,7 @@ src/database/schema/domain/
 - **Module Name**: `kebab-case` (e.g. `products`, `flight-schedules`).
 - **Route Prefix**: `/api/v1/<kebab-case-plural>` (e.g. `/api/v1/products`).
 - **Table Name**: Plural `snake_case` under schema `domain` (e.g. `domain.products`).
+- **Messages constant**: `UPPER_SNAKE` singular + `_MESSAGES` (e.g. `PRODUCT_MESSAGES`) — written `<UPPER_SINGULAR>_MESSAGES` below.
 
 ---
 
@@ -91,7 +93,31 @@ export type <PascalSingular>QueryDto = z.infer<typeof <camelSingular>QuerySchema
 
 ---
 
-### Step 4: Create Repository (`src/modules/<name>/<name>.repository.ts`)
+### Step 4: Create Messages (`src/modules/<name>/<name>.messages.ts`)
+
+Every user-facing message is a `LocalizedMessage` (`{ id, en }`). String literals passed to `new ApiResponse(...)`, `new XError(...)` or error `details[].message` in `src/modules/**` are rejected by ESLint (only `InternalServerError`, whose text is log-only, may use a plain string). Replace `<PascalSingular>` in the Indonesian texts with the proper Indonesian noun.
+
+```typescript
+import type { LocalizedMessage } from '../../core/i18n';
+
+export const <UPPER_SINGULAR>_MESSAGES = {
+  CREATED: { id: '<PascalSingular> berhasil dibuat', en: '<PascalSingular> created successfully' },
+  RETRIEVED: { id: 'Data <PascalSingular> berhasil diambil', en: '<PascalSingular> retrieved successfully' },
+  LIST_RETRIEVED: {
+    id: 'Daftar <PascalSingular> berhasil diambil',
+    en: '<PascalPlural> retrieved successfully',
+  },
+} as const satisfies Record<string, LocalizedMessage>;
+
+export const <camelSingular>NotFoundMessage = (id: string): LocalizedMessage => ({
+  id: `<PascalSingular> dengan ID '${id}' tidak ditemukan`,
+  en: `<PascalSingular> with ID '${id}' not found`,
+});
+```
+
+---
+
+### Step 5: Create Repository (`src/modules/<name>/<name>.repository.ts`)
 
 > **ESLint Guard**: DO NOT import `db` directly. Use `TransactionHost`.
 
@@ -146,7 +172,7 @@ export const <camelPlural>Repository = new <PascalPlural>Repository();
 
 ---
 
-### Step 5: Create Transformer (`src/modules/<name>/<name>.transformer.ts`)
+### Step 6: Create Transformer (`src/modules/<name>/<name>.transformer.ts`)
 
 ```typescript
 import type { <PascalSingular> } from '../../database/schema';
@@ -173,12 +199,13 @@ export const to<PascalSingular>ListResponse = (entities: <PascalSingular>[]): <P
 
 ---
 
-### Step 6: Create Service (`src/modules/<name>/<name>.service.ts`)
+### Step 7: Create Service (`src/modules/<name>/<name>.service.ts`)
 
 ```typescript
 import { <camelPlural>Repository, <PascalPlural>Repository } from './<name>.repository';
 import { NotFoundError } from '../../core/errors';
 import type { Create<PascalSingular>Dto, <PascalSingular>QueryDto } from './<name>.dto';
+import { <camelSingular>NotFoundMessage } from './<name>.messages';
 import type { <PascalSingular> } from '../../database/schema';
 
 export class <PascalPlural>Service {
@@ -191,7 +218,7 @@ export class <PascalPlural>Service {
   async get<PascalSingular>ById(id: string): Promise<<PascalSingular>> {
     const record = await this.repository.findById(id);
     if (!record) {
-      throw new NotFoundError(`<PascalSingular> with ID '${id}' not found`);
+      throw new NotFoundError(<camelSingular>NotFoundMessage(id));
     }
     return record;
   }
@@ -211,7 +238,7 @@ export const <camelPlural>Service = new <PascalPlural>Service();
 
 ---
 
-### Step 7: Create Controller (`src/modules/<name>/<name>.controller.ts`)
+### Step 8: Create Controller (`src/modules/<name>/<name>.controller.ts`)
 
 > **ESLint Guard**: DO NOT call `c.json()` inside controllers. Return `ApiResponse`.
 
@@ -226,6 +253,7 @@ import { ApiResponse } from '../../core/response';
 import { <camelPlural>Service, <PascalPlural>Service } from './<name>.service';
 import { to<PascalSingular>Response, to<PascalSingular>ListResponse } from './<name>.transformer';
 import type { Create<PascalSingular>Dto, <PascalSingular>IdParamDto, <PascalSingular>QueryDto } from './<name>.dto';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 
 export class <PascalPlural>Controller {
   constructor(private readonly service: <PascalPlural>Service = <camelPlural>Service) {}
@@ -235,7 +263,7 @@ export class <PascalPlural>Controller {
     const created = await this.service.create<PascalSingular>(dto);
     const responseData = to<PascalSingular>Response(created);
 
-    return new ApiResponse(responseData, '<PascalSingular> created successfully', 201);
+    return new ApiResponse(responseData, <UPPER_SINGULAR>_MESSAGES.CREATED, 201);
   });
 
   getById = asyncHandler(async (c) => {
@@ -243,7 +271,7 @@ export class <PascalPlural>Controller {
     const record = await this.service.get<PascalSingular>ById(param.id);
     const responseData = to<PascalSingular>Response(record);
 
-    return new ApiResponse(responseData, '<PascalSingular> retrieved successfully', 200);
+    return new ApiResponse(responseData, <UPPER_SINGULAR>_MESSAGES.RETRIEVED, 200);
   });
 
   list = asyncHandler(async (c) => {
@@ -252,7 +280,7 @@ export class <PascalPlural>Controller {
     const responseData = to<PascalSingular>ListResponse(records);
     const totalPages = Math.ceil(total / query.limit) || 1;
 
-    return new ApiResponse(responseData, '<PascalPlural> retrieved successfully', 200, {
+    return new ApiResponse(responseData, <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, 200, {
       currentPage: query.page,
       perPage: query.limit,
       totalItems: total,
@@ -266,7 +294,7 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 ---
 
-### Step 8: Create Routes (`src/modules/<name>/<name>.routes.ts`)
+### Step 9: Create Routes (`src/modules/<name>/<name>.routes.ts`)
 
 ```typescript
 import { Hono } from 'hono';
@@ -289,7 +317,7 @@ export { router as <camelPlural>Router };
 
 ---
 
-### Step 9: Register Route in `src/app.ts`
+### Step 10: Register Route in `src/app.ts`
 
 ```typescript
 import { <camelPlural>Router } from './modules/<name>/<name>.routes';
@@ -300,7 +328,7 @@ app.route(`${appConfig.API_PREFIX}/<name>`, <camelPlural>Router);
 
 ---
 
-### Step 10: Create Co-Located Tests & Verify Quality Gate
+### Step 11: Create Co-Located Tests & Verify Quality Gate
 
 Create unit tests covering repository, service, transformer, and controller.
 

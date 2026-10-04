@@ -249,6 +249,26 @@ Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (di
 | `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` / `ERR_EXT_UNREACHABLE` / `ERR_EXT_ERROR` | Kegagalan API vendor; status vendor tidak pernah diteruskan, vendor diidentifikasi lewat `error.origin` |
 | `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Invariant internal rusak; pesan tidak dikirim ke client |
 
+### 3.4 Pesan Dwibahasa (i18n `id` / `en`)
+
+Bahasa respons dipilih per request dari header `Accept-Language` (RFC 9110: urut q-value, `en-US` → `en`, bahasa tak didukung → `DEFAULT_LOCALE`, default `id`). Locale disimpan di `RequestContext` dan diumumkan lewat header `Content-Language` (+ `Vary: Accept-Language`).
+
+- Pesan untuk client berupa `LocalizedMessage` = `{ id, en }` — tipe memaksa setiap bahasa terisi.
+- Pesan lintas modul ada di `I18N_MESSAGES` (`src/core/i18n/messages.ts`); pesan domain ada di `src/modules/<name>/<name>.messages.ts` (mis. `USER_MESSAGES`, `userNotFoundMessage(id)` untuk pesan berparameter).
+- String literal sebagai pesan `new ApiResponse(...)`, `new XError(...)`, atau `details[].message` di `src/modules/**` **ditolak ESLint**. Pengecualian: `InternalServerError` (pesannya hanya untuk log, tidak pernah dikirim ke client).
+- `Error.message` selalu bahasa Inggris (log seragam); terjemahan terjadi saat envelope dibangun.
+- Keterbatasan: pesan per field dari skema Zod tidak diterjemahkan (ditulis apa adanya di schema).
+
+```typescript
+// users.messages.ts
+export const USER_MESSAGES = {
+  CREATED: { id: 'Pengguna berhasil dibuat', en: 'User created successfully' },
+} as const satisfies Record<string, LocalizedMessage>;
+
+// users.controller.ts
+return new ApiResponse(responseData, USER_MESSAGES.CREATED, 201);
+```
+
 ---
 
 ## 4. Pure Controllers & Request Validation
@@ -269,7 +289,7 @@ export class UsersController {
     const dto = getValidatedBody<CreateUserDto>(c);
     const user = await this.service.createUser(dto);
     const responseData = toUserResponse(user);
-    return new ApiResponse(responseData, 'User created successfully', 201);
+    return new ApiResponse(responseData, USER_MESSAGES.CREATED, 201);
   });
 }
 
@@ -349,8 +369,8 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     const existing = await this.repo.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictError('User with this email already exists', {
-        details: [{ field: 'email', message: 'Email is already registered' }],
+      throw new ConflictError(USER_MESSAGES.EMAIL_TAKEN, {
+        details: [{ field: 'email', message: USER_MESSAGES.EMAIL_ALREADY_REGISTERED }],
       });
     }
     return this.repo.create({ ... });

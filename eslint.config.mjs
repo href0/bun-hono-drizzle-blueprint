@@ -48,6 +48,19 @@ const MODULE_ERROR_RULES = [
     message:
       'Throwing a plain Error in a module is forbidden. Throw a semantic ApiError (e.g. NotFoundError, ConflictError; InternalServerError for broken invariants).',
   },
+  {
+    // User-facing messages must be localized. InternalServerError is exempt: its text is log-only.
+    selector:
+      'NewExpression[callee.name=/^(ApiResponse|(?!InternalServerError$)[A-Za-z]+Error)$/] > :matches(Literal[raw=/^[\'"]/], TemplateLiteral)',
+    message:
+      "User-facing messages must be a LocalizedMessage ({ id, en }) from I18N_MESSAGES or the module's <name>.messages.ts, not a string literal.",
+  },
+  {
+    selector:
+      'NewExpression[callee.name=/^(?!InternalServerError$)[A-Za-z]+Error$/] Property[key.name="message"] > :matches(Literal[raw=/^[\'"]/], TemplateLiteral)',
+    message:
+      "Error detail messages must be a LocalizedMessage ({ id, en }) from the module's <name>.messages.ts, not a string literal.",
+  },
 ];
 
 const CONTROLLER_SYNTAX_RULES = [

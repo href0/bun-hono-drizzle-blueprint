@@ -8,6 +8,7 @@ import { ApiResponse } from '../../core/response';
 import { usersService, UsersService } from './users.service';
 import { toUserResponse, toUserListResponse } from './users.transformer';
 import type { CreateUserDto, UserIdParamDto, UserQueryDto } from './users.dto';
+import { USER_MESSAGES } from './users.messages';
 
 export class UsersController {
   constructor(private readonly service: UsersService = usersService) {}
@@ -17,7 +18,7 @@ export class UsersController {
     const user = await this.service.createUser(dto);
     const responseData = toUserResponse(user);
 
-    return new ApiResponse(responseData, 'User created successfully', 201);
+    return new ApiResponse(responseData, USER_MESSAGES.CREATED, 201);
   });
 
   getById = asyncHandler(async (c) => {
@@ -25,7 +26,7 @@ export class UsersController {
     const user = await this.service.getUserById(param.id);
     const responseData = toUserResponse(user);
 
-    return new ApiResponse(responseData, 'User retrieved successfully', 200);
+    return new ApiResponse(responseData, USER_MESSAGES.RETRIEVED, 200);
   });
 
   list = asyncHandler(async (c) => {
@@ -35,7 +36,7 @@ export class UsersController {
 
     const totalPages = Math.ceil(total / query.limit) || 1;
 
-    return new ApiResponse(responseData, 'Users retrieved successfully', 200, {
+    return new ApiResponse(responseData, USER_MESSAGES.LIST_RETRIEVED, 200, {
       currentPage: query.page,
       perPage: query.limit,
       totalItems: total,
@@ -47,7 +48,7 @@ export class UsersController {
     const param = getValidatedParams<UserIdParamDto>(c);
     const posts = await this.service.getUserExternalPosts(param.id);
 
-    return new ApiResponse(posts, 'User external posts retrieved successfully', 200);
+    return new ApiResponse(posts, USER_MESSAGES.EXTERNAL_POSTS_RETRIEVED, 200);
   });
 }
 

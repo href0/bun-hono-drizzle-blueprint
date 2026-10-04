@@ -11,6 +11,7 @@ import {
   notFoundHandler,
   requestContextMiddleware,
 } from './core/middlewares';
+import { I18N_MESSAGES } from './core/i18n';
 import { ApiResponse } from './core/response';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
@@ -76,7 +77,7 @@ export const createApp = (): Hono => {
             environment: appConfig.NODE_ENV,
             version: packageJson.version,
           },
-          'Service online',
+          I18N_MESSAGES.SERVICE_ONLINE,
           200,
         ),
       ),

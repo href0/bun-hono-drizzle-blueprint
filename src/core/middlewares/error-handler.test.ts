@@ -122,7 +122,7 @@ describe('globalErrorHandler — error envelope contract', () => {
 
     for (const { res, body } of [thrown, unknown]) {
       expect(res.status).toBe(500);
-      expect(body.message).toBe('Internal Server Error');
+      expect(body.message).toBe('Terjadi kesalahan pada server');
       expect(body.error).toEqual({
         type: 'INTERNAL_SERVER_ERROR',
         code: 'ERR_INTERNAL',
@@ -159,7 +159,7 @@ describe('globalErrorHandler — Hono HTTPException', () => {
     const withoutMessage = await call(new HTTPException(403));
 
     expect(withMessage.body.message).toBe('Origin not allowed');
-    expect(withoutMessage.body.message).toBe('Forbidden');
+    expect(withoutMessage.body.message).toBe('Akses ditolak');
   });
 });
 
@@ -171,7 +171,7 @@ describe('notFoundHandler', () => {
     expect(body).toMatchObject({
       success: false,
       status_code: 404,
-      message: 'Route not found: GET /missing',
+      message: 'Rute tidak ditemukan: GET /missing',
       error: { type: 'NOT_FOUND', code: 'ERR_ROUTE_NOT_FOUND', origin: 'APP' },
       request_id: 'req-err',
     });

@@ -47,6 +47,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── context/            # RequestContext (AsyncLocalStorage): requestId, actor
 │   │   ├── errors/             # Semantic ApiError class hierarchy
 │   │   ├── http/               # HttpClientService with connection pool
+│   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
 │   │   ├── middlewares/        # requestContext, asyncHandler, errorHandler, validate, etc.
 │   │   └── response/           # ApiResponse standardized JSON envelope
@@ -115,7 +116,7 @@ Routes ──> Controller ──> Service ──> Repository ──> Database (T
 
 ---
 
-## 4. The 5 Core Architectural Rules
+## 4. Core Architectural Rules
 
 ### Rule 1: Return, Don't Send (Pure Controllers)
 - Controllers **MUST NEVER** call `c.json()` or `c.text()` directly.
@@ -133,7 +134,7 @@ export class UsersController {
     const user = await this.service.createUser(dto);
     const responseData = toUserResponse(user);
 
-    return new ApiResponse(responseData, 'User created successfully', 201);
+    return new ApiResponse(responseData, USER_MESSAGES.CREATED, 201);
   });
 }
 ```
@@ -190,8 +191,8 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     const existing = await this.repository.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictError('User with this email already exists', {
-        details: [{ field: 'email', message: 'Email is already registered' }],
+      throw new ConflictError(USER_MESSAGES.EMAIL_TAKEN, {
+        details: [{ field: 'email', message: USER_MESSAGES.EMAIL_ALREADY_REGISTERED }],
       });
     }
     return this.repository.create({ ...dto, passwordHash: '...' });
@@ -232,6 +233,13 @@ export class UsersService {
 - Controllers **MUST NOT** import integrations directly; domain services orchestrate external data fetching.
 - Integrations **MUST NOT** contain routes, controllers, or database calls.
 - Enforced deterministically via ESLint AST (`no-restricted-syntax`, `no-restricted-imports`) and Dependency Cruiser (`http-client-only-in-integrations`, `strict-integrations-isolation`, `controller-no-integrations`).
+
+
+### Rule 10: Localized User-Facing Messages (i18n `id` / `en`)
+- Messages sent to clients are `LocalizedMessage` objects (`{ id, en }`, every supported locale required by the type), never string literals: `I18N_MESSAGES` (`src/core/i18n/messages.ts`) for cross-cutting text, `src/modules/<name>/<name>.messages.ts` for domain text (`<NAME>_MESSAGES` constants; functions such as `userNotFoundMessage(id)` for parameterized text).
+- The response language is resolved per request from `Accept-Language` (fallback `DEFAULT_LOCALE`, default `id`), stored in `RequestContext` (`getLocale()`), and sent back as `Content-Language`.
+- `Error.message` stays English for logs; translation happens when the envelope is built. Zod field messages are not translated (known limitation).
+- Enforced by ESLint `no-restricted-syntax` in `src/modules/**` (string literals in `new ApiResponse(...)`, `new XError(...)`, error `details[].message`); `InternalServerError` is exempt because its text is log-only.
 
 ---
 

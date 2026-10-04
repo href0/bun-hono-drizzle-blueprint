@@ -51,7 +51,7 @@ export class UsersService {
     return this.cacheService.getOrSet(key, ttlSeconds, async () => {
       const user = await this.repository.findById(id);
       if (!user) {
-        throw new NotFoundError(`User with ID '${id}' not found`);
+        throw new NotFoundError(userNotFoundMessage(id));
       }
       return user;
     });

@@ -87,7 +87,7 @@ describe('requestContextMixin (Unit)', () => {
     const log = pino({ mixin: requestContextMixin }, destination);
 
     log.info('outside');
-    await runWithRequestContext({ requestId: 'log-1', actor: 'user:7' }, async () => {
+    await runWithRequestContext({ requestId: 'log-1', locale: 'id', actor: 'user:7' }, async () => {
       await Promise.resolve();
       log.info('inside');
     });

@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { APP_ERROR_CODES } from '../errors/error-codes';
 import { ValidationError } from '../errors/validation.error';
+import { I18N_MESSAGES } from '../i18n/messages';
 
 export interface ValidationSchemas {
   body?: z.ZodTypeAny;
@@ -37,7 +38,7 @@ export const validate = (schemas: ValidationSchemas): MiddlewareHandler => {
           field: err.path.join('.'),
           message: err.message,
         }));
-        throw new ValidationError('Validation Failed', { details: errorMessages });
+        throw new ValidationError(I18N_MESSAGES.VALIDATION_FAILED, { details: errorMessages });
       }
       throw error;
     }
@@ -65,7 +66,7 @@ const parseRequestBody = async (c: Context): Promise<unknown> => {
   try {
     return (await c.req.json()) as unknown;
   } catch {
-    throw new ValidationError('Invalid request body', {
+    throw new ValidationError(I18N_MESSAGES.INVALID_JSON_BODY, {
       code: APP_ERROR_CODES.INVALID_JSON,
       details: [{ field: 'body', message: 'Request body contains invalid JSON syntax' }],
     });

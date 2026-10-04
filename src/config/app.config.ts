@@ -2,12 +2,18 @@ import { z } from 'zod';
 import { envSource } from './env-source';
 import { parseEnv, type EnvSource } from './parse-env';
 
+/** Languages the API can answer in (`Accept-Language`); messages are written for each. */
+export const SUPPORTED_LOCALES = ['id', 'en'] as const;
+
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
 const appSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   APP_NAME: z.string().default('bun-hono-starter'),
   API_PREFIX: z.string().startsWith('/').default('/api/v1'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  DEFAULT_LOCALE: z.enum(SUPPORTED_LOCALES).default('id'),
 });
 
 export type AppConfig = z.infer<typeof appSchema>;

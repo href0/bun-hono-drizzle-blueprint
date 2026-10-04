@@ -24,7 +24,7 @@ describe('TransactionHost (Unit)', () => {
   it('should nest independently with the request context across async boundaries', async () => {
     const mockTx = { isMockTransaction: true } as any;
 
-    await runWithRequestContext({ requestId: 'req-tx', actor: 'system' }, () =>
+    await runWithRequestContext({ requestId: 'req-tx', locale: 'id', actor: 'system' }, () =>
       transactionStorage.run(mockTx, async () => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         expect(defaultTxHost.tx).toBe(mockTx);

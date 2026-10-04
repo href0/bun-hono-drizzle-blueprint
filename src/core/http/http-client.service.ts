@@ -3,6 +3,7 @@ import https from 'node:https';
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { logger } from '../logger/logger';
 import { ExternalServiceError, type ExternalFailureKind } from '../errors/external.error';
+import { I18N_MESSAGES } from '../i18n/messages';
 
 const TIMEOUT_CODES = new Set(['ECONNABORTED', 'ETIMEDOUT']);
 
@@ -91,7 +92,7 @@ export class HttpClientService {
           'Outbound HTTP request failed',
         );
 
-        throw new ExternalServiceError(kind, `External service ${this.originName} request failed`, {
+        throw new ExternalServiceError(kind, I18N_MESSAGES.EXTERNAL_SERVICE_FAILED, {
           details,
           origin: this.originName,
         });

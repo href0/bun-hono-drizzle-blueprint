@@ -1,14 +1,14 @@
 # Implementation Plan — Adopsi Blueprint ke Boilerplate Bun + Hono + Drizzle
 
-| Atribut     | Nilai                                                                                                                                                                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status      | IN PROGRESS — F0, Step 1.1 & 1.2 selesai (`main` @ `32d8661`); Step 1.3 di-commit (`bd6c74e`) + perbaikan hasil review 1.1–1.3 menunggu review (branch `feat/error-contract`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
-| Tanggal     | 2026-10-04                                                                                                                                                                                                                                 |
-| Basis kode  | branch `main` @ `32d8661`                                                                                                                                                                                                                  |
-| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                                                             |
-| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                                                            |
-| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                                                             |
-| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                                                                           |
+| Atribut     | Nilai                                                                                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status      | IN PROGRESS — F0, Step 1.1–1.3 selesai (`main` @ `dd2a7fd`); Step 1.4 menunggu review (branch `feat/i18n`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Tanggal     | 2026-10-04                                                                                                                                                              |
+| Basis kode  | branch `main` @ `dd2a7fd`                                                                                                                                               |
+| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                          |
+| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                         |
+| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)          |
+| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                        |
 
 ---
 
@@ -214,6 +214,14 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | Review    | Dokumen disinkronkan: daftar aturan AST & layer di `AGENTS.md`, lapisan `config` di project-standards §3 & CONTRIBUTING §2.2, contoh `request_id` UUID v7, rute README memakai `appConfig.API_PREFIX`, DoD §14.1 & risiko §14.3    | —                                                                                                                                                                                    |
 | 2026-10-04 | Review    | Temuan tambahan saat sweep akhir: project-standards & `references/transactions.md` menyebut aturan ESLint yang **tidak ada** (`no-c-json-in-controllers`, `no-direct-db-in-repositories`)                                          | Diganti dengan penegak sebenarnya (grup `no-restricted-syntax`/`no-restricted-imports`, depcruise `no-module-direct-db-connection`)                                                  |
 | 2026-10-04 | Review    | Contoh repository di `references/transactions.md` memakai import `txHost` yang tidak ada dan pola destructuring yang gagal lint — disamakan dengan pola terverifikasi template scaffold                                            | Total temuan review: 14 (12 awal + 2 sweep akhir), semua ditutup                                                                                                                     |
+| 2026-10-04 | Review    | ✅ Perbaikan review di-commit (`dd2a7fd`); Step 1.3 + perbaikan di-merge ke `main` atas permintaan user                                                                                                                            | —                                                                                                                                                                                    |
+| 2026-10-04 | 1.4       | `SUPPORTED_LOCALES`/`Locale`/`DEFAULT_LOCALE` didefinisikan di `app.config.ts` (bukan `core/i18n`)                                                                                                                                 | `strict-config-isolation` melarang config meng-import `core`; arah dependensi `core → config` dipertahankan                                                                          |
+| 2026-10-04 | 1.4       | Penyimpangan: pesan domain berada di `src/modules/<name>/<name>.messages.ts`, bukan satu registry `I18N_MESSAGES` global                                                                                                           | `core/` tidak memuat teks domain; `I18N_MESSAGES` hanya untuk pesan lintas modul. Pesan berparameter memakai fungsi (`userNotFoundMessage(id)`)                                      |
+| 2026-10-04 | 1.4       | `MessageInput = LocalizedMessage \| string`: string hanya untuk teks yang tak bisa dilokalkan di sini (pesan `HTTPException` pihak ketiga, pesan field Zod)                                                                        | ESLint menolak string literal di modul, sehingga jalur string tidak dipakai untuk teks domain                                                                                        |
+| 2026-10-04 | 1.4       | `ErrorDetail.message` juga bisa dilokalkan (detail domain diterjemahkan); `Error.message` selalu bahasa Inggris agar log seragam                                                                                                   | Pesan per field Zod tetap tidak diterjemahkan (keterbatasan terdokumentasi)                                                                                                          |
+| 2026-10-04 | 1.4       | Respons membawa `Content-Language` + `Vary: Accept-Language` (tidak ada di rencana awal)                                                                                                                                           | Cache/proxy tidak mencampur bahasa                                                                                                                                                   |
+| 2026-10-04 | 1.4       | Template `scaffold-module` mendapat langkah baru "Create Messages" (Step 4; langkah berikutnya bergeser) — diverifikasi ulang dengan men-generate modul `products`                                                                 | Tanpa ini modul hasil scaffold langsung gagal lint aturan baru                                                                                                                       |
+| 2026-10-04 | 1.4       | Judul dokumen yang angkanya basi diperbaiki: "The 5 Core Architectural Rules" (project-standards, berisi 10 aturan) dan "The 7 Pillars" (README)                                                                                   | Ditemukan saat menambah Rule 10 / pilar i18n                                                                                                                                         |
 
 ---
 
@@ -238,43 +246,43 @@ F0 Fondasi ──► F1 Platform & Kontrak ──► F2 Data Layer ──► F3 
 
 Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ selesai · ⏸ ditunda
 
-| Step | Judul                                                       | Status | Bergantung pada | Commit    |
-| ---- | ----------------------------------------------------------- | ------ | --------------- | --------- |
-| 0.1  | Baseline commit                                             | ✅     | —               | `df3c0da` |
-| 0.2  | Review rencana & keputusan                                  | ✅     | 0.1             | `e6fd8af` |
-| 0.3  | Paritas quality gate (ESLint, coverage, knip, hooks, CI)    | ✅     | 0.2             | `9e0b75a` |
-| 1.1  | Konfigurasi per grup + `parseEnv`                           | ✅     | 0.3             | `159cae2` |
-| 1.2  | Request context, request ID, logger mixin                   | ✅     | 1.1             | `32d8661` |
-| 1.3  | Kontrak error + registry `APP_ERROR_CODES`                  | 👀     | 1.2             |           |
-| 1.4  | i18n `id`/`en`                                              | ⬜     | 1.3             |           |
-| 1.5  | Kontrak request snake_case + DTO bersama                    | ⬜     | 1.3             |           |
-| 1.6  | Ketahanan Redis & `CacheService` lanjutan                   | ⬜     | 1.1             |           |
-| 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ⬜     | 1.2, 1.6        |           |
-| 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path                   | ⬜     | 1.6             |           |
-| 1.9  | Dokumentasi OpenAPI                                         | ⬜     | 1.5             |           |
-| 2.1  | Standar tanggal & waktu (Temporal)                          | ⬜     | 0.3             |           |
-| 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |           |
-| 2.3  | Test helper data layer                                      | ⬜     | 2.2             |           |
-| 2.4  | `record_changes` + `AuditedRepository`                      | ⬜     | 1.2, 2.3        |           |
-| 2.5  | `BaseRepository` + `ChildRepository`                        | ⬜     | 2.4             |           |
-| 2.6  | Penegakan aturan data layer                                 | ⬜     | 2.5             |           |
-| 2.7  | Test konvensi schema                                        | ⬜     | 2.5             |           |
-| 2.8  | Migrasi modul `users` + template scaffold                   | ⬜     | 2.6, 2.7        |           |
-| 3.1  | Primitif keamanan & config auth                             | ⬜     | 1.1             |           |
-| 3.2  | Schema auth (`role`, `auth_refresh_tokens`)                 | ⬜     | 2.8             |           |
-| 3.3  | Modul `auth` (login, refresh, logout, me)                   | ⬜     | 3.1, 3.2, 1.7   |           |
-| 3.4  | `authenticate()` default-deny + `requireRole()`             | ⬜     | 3.3             |           |
-| 3.5  | Proteksi `users`, seed admin, panduan FE                    | ⬜     | 3.4             |           |
-| 4.1  | Hardening `HttpClientService`                               | ⬜     | 1.3             |           |
-| 4.2  | Template integrasi & cache token vendor                     | ⬜     | 4.1             |           |
-| 5.1  | Utilitas kripto & signing partner                           | ⬜     | 0.3             |           |
-| 5.2  | Kredensial partner (schema + admin API)                     | ⬜     | 5.1, 2.8, 3.4   |           |
-| 5.3  | Middleware `partnerAuth()`                                  | ⬜     | 5.2, 1.6        |           |
-| 5.4  | Panduan integrasi partner                                   | ⬜     | 5.3             |           |
-| 6.1  | Integration test (Postgres + Redis asli)                    | ⬜     | 3.5, 5.3        |           |
-| 7.1  | `ARCHITECTURE.md` generik + sinkronisasi docs               | ⬜     | 6.1             |           |
-| 7.2  | Finalisasi skills AI                                        | ⬜     | 7.1             |           |
-| 7.3  | Release check boilerplate v1.0.0                            | ⬜     | 7.2             |           |
+| Step | Judul                                                       | Status | Bergantung pada | Commit               |
+| ---- | ----------------------------------------------------------- | ------ | --------------- | -------------------- |
+| 0.1  | Baseline commit                                             | ✅     | —               | `df3c0da`            |
+| 0.2  | Review rencana & keputusan                                  | ✅     | 0.1             | `e6fd8af`            |
+| 0.3  | Paritas quality gate (ESLint, coverage, knip, hooks, CI)    | ✅     | 0.2             | `9e0b75a`            |
+| 1.1  | Konfigurasi per grup + `parseEnv`                           | ✅     | 0.3             | `159cae2`            |
+| 1.2  | Request context, request ID, logger mixin                   | ✅     | 1.1             | `32d8661`            |
+| 1.3  | Kontrak error + registry `APP_ERROR_CODES`                  | ✅     | 1.2             | `bd6c74e`, `dd2a7fd` |
+| 1.4  | i18n `id`/`en`                                              | 👀     | 1.3             |                      |
+| 1.5  | Kontrak request snake_case + DTO bersama                    | ⬜     | 1.3             |                      |
+| 1.6  | Ketahanan Redis & `CacheService` lanjutan                   | ⬜     | 1.1             |                      |
+| 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ⬜     | 1.2, 1.6        |                      |
+| 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path                   | ⬜     | 1.6             |                      |
+| 1.9  | Dokumentasi OpenAPI                                         | ⬜     | 1.5             |                      |
+| 2.1  | Standar tanggal & waktu (Temporal)                          | ⬜     | 0.3             |                      |
+| 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |                      |
+| 2.3  | Test helper data layer                                      | ⬜     | 2.2             |                      |
+| 2.4  | `record_changes` + `AuditedRepository`                      | ⬜     | 1.2, 2.3        |                      |
+| 2.5  | `BaseRepository` + `ChildRepository`                        | ⬜     | 2.4             |                      |
+| 2.6  | Penegakan aturan data layer                                 | ⬜     | 2.5             |                      |
+| 2.7  | Test konvensi schema                                        | ⬜     | 2.5             |                      |
+| 2.8  | Migrasi modul `users` + template scaffold                   | ⬜     | 2.6, 2.7        |                      |
+| 3.1  | Primitif keamanan & config auth                             | ⬜     | 1.1             |                      |
+| 3.2  | Schema auth (`role`, `auth_refresh_tokens`)                 | ⬜     | 2.8             |                      |
+| 3.3  | Modul `auth` (login, refresh, logout, me)                   | ⬜     | 3.1, 3.2, 1.7   |                      |
+| 3.4  | `authenticate()` default-deny + `requireRole()`             | ⬜     | 3.3             |                      |
+| 3.5  | Proteksi `users`, seed admin, panduan FE                    | ⬜     | 3.4             |                      |
+| 4.1  | Hardening `HttpClientService`                               | ⬜     | 1.3             |                      |
+| 4.2  | Template integrasi & cache token vendor                     | ⬜     | 4.1             |                      |
+| 5.1  | Utilitas kripto & signing partner                           | ⬜     | 0.3             |                      |
+| 5.2  | Kredensial partner (schema + admin API)                     | ⬜     | 5.1, 2.8, 3.4   |                      |
+| 5.3  | Middleware `partnerAuth()`                                  | ⬜     | 5.2, 1.6        |                      |
+| 5.4  | Panduan integrasi partner                                   | ⬜     | 5.3             |                      |
+| 6.1  | Integration test (Postgres + Redis asli)                    | ⬜     | 3.5, 5.3        |                      |
+| 7.1  | `ARCHITECTURE.md` generik + sinkronisasi docs               | ⬜     | 6.1             |                      |
+| 7.2  | Finalisasi skills AI                                        | ⬜     | 7.1             |                      |
+| 7.3  | Release check boilerplate v1.0.0                            | ⬜     | 7.2             |                      |
 
 ---
 
@@ -432,8 +440,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] `Accept-Language: en` → pesan en; tanpa header → `DEFAULT_LOCALE`; locale tak didukung → fallback.
-- [ ] `new ApiResponse(data, 'ok')` di controller → error ESLint.
+- [x] `Accept-Language: en` → pesan en (sukses, error, detail, 404 route); tanpa header → `DEFAULT_LOCALE`; locale tak didukung → fallback; header `Content-Language` + `Vary` (test HTTP + uji langsung `createApp`).
+- [x] `new ApiResponse(data, 'ok')`, template literal, pesan error, dan `details[].message` literal di modul → error ESLint; `InternalServerError` & pesan terlokalisasi lolos (chaos test).
 
 ### Step 1.5 — Kontrak request snake_case + DTO bersama
 
@@ -1113,17 +1121,17 @@ const CONTROLLER_RULES = [
 
 Selector yang direncanakan:
 
-| Step | Larangan                                   | Selector                                                                                                                                                                             |
-| ---- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1.3  | Literal error code di luar registry        | `Literal[value=/^ERR_/]`, `TemplateElement[value.raw=/^ERR_/]` (kode yang dibangun dinamis)                                                                                          |
-| 1.3  | `throw new Error` / `throw Error` di modul | `ThrowStatement > :matches(NewExpression, CallExpression)[callee.name="Error"]`                                                                                                      |
-| 1.4  | Pesan literal                              | `NewExpression[callee.name=/^(ApiResponse\|\w+Error)$/] > Literal.arguments` (diverifikasi chaos test)                                                                               |
-| 2.1  | `new Date(arg)` / `Date.parse`             | `NewExpression[callee.name="Date"][arguments.length>0]`, `MemberExpression[object.name="Date"][property.name="parse"]`                                                               |
-| 2.1  | Getter/formatter waktu lokal               | `CallExpression[callee.property.name=/^(getHours\|getMinutes\|getDate\|getDay\|getMonth\|getFullYear\|getTimezoneOffset\|toLocaleString\|toLocaleDateString\|toLocaleTimeString)$/]` |
-| 2.6  | Tulis DB langsung di repository modul      | `CallExpression[callee.property.name=/^(update\|delete)$/][callee.object.property.name="tx"]`                                                                                        |
-| 2.6  | Raw SQL tulis                              | `TaggedTemplateExpression[tag.name="sql"] TemplateElement[value.raw=/\b(update\|delete\s+from)\b/i]`                                                                                 |
-| 2.6  | `sql.raw`                                  | `CallExpression[callee.object.name="sql"][callee.property.name="raw"]`                                                                                                               |
-| 4.1  | `fetch(` di luar `core/http`               | `CallExpression[callee.name="fetch"]`                                                                                                                                                |
+| Step | Larangan                                   | Selector                                                                                                                                                                                             |
+| ---- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.3  | Literal error code di luar registry        | `Literal[value=/^ERR_/]`, `TemplateElement[value.raw=/^ERR_/]` (kode yang dibangun dinamis)                                                                                                          |
+| 1.3  | `throw new Error` / `throw Error` di modul | `ThrowStatement > :matches(NewExpression, CallExpression)[callee.name="Error"]`                                                                                                                      |
+| 1.4  | Pesan literal                              | `NewExpression[callee.name=/^(ApiResponse\|(?!InternalServerError$)[A-Za-z]+Error)$/] > :matches(Literal[raw=/^['"]/], TemplateLiteral)` + `Property[key.name="message"]` di dalam `new XError(...)` |
+| 2.1  | `new Date(arg)` / `Date.parse`             | `NewExpression[callee.name="Date"][arguments.length>0]`, `MemberExpression[object.name="Date"][property.name="parse"]`                                                                               |
+| 2.1  | Getter/formatter waktu lokal               | `CallExpression[callee.property.name=/^(getHours\|getMinutes\|getDate\|getDay\|getMonth\|getFullYear\|getTimezoneOffset\|toLocaleString\|toLocaleDateString\|toLocaleTimeString)$/]`                 |
+| 2.6  | Tulis DB langsung di repository modul      | `CallExpression[callee.property.name=/^(update\|delete)$/][callee.object.property.name="tx"]`                                                                                                        |
+| 2.6  | Raw SQL tulis                              | `TaggedTemplateExpression[tag.name="sql"] TemplateElement[value.raw=/\b(update\|delete\s+from)\b/i]`                                                                                                 |
+| 2.6  | `sql.raw`                                  | `CallExpression[callee.object.name="sql"][callee.property.name="raw"]`                                                                                                                               |
+| 4.1  | `fetch(` di luar `core/http`               | `CallExpression[callee.name="fetch"]`                                                                                                                                                                |
 
 ### 15.8 L8 — CI GitHub Actions
 
