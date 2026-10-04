@@ -45,6 +45,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
 │   │   ├── context/            # RequestContext (AsyncLocalStorage): requestId, actor
+│   │   ├── dto/                # Shared request schemas (uuidParamSchema, paginationQuerySchema)
 │   │   ├── errors/             # Semantic ApiError class hierarchy
 │   │   ├── http/               # HttpClientService with connection pool
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
@@ -151,7 +152,11 @@ export class UsersController {
 // users.routes.ts
 const router = new Hono();
 router.post('/', validate({ body: createUserSchema }), usersController.create);
+router.get('/', validate({ query: paginationQuerySchema }), usersController.list);
+router.get('/:id', validate({ params: uuidParamSchema }), usersController.getById);
 ```
+
+- Body and query keys arrive in `snake_case` and reach the DTO in camelCase (see Rule 6).
 
 ### Rule 3: Decoupled Repositories (TransactionHost)
 - Repositories **MUST NOT** import `db` directly.
@@ -208,6 +213,8 @@ export class UsersService {
 
 ### Rule 6: Strict Casing Invariant (snake_case Wire Format vs camelCase Codebase)
 - **HTTP Response Payloads**: MUST ALWAYS be serialized in `snake_case` (e.g. `status_code`, `full_name`, `is_active`). This is automatically performed by `ApiResponse.toJSON()` and `globalErrorHandler`.
+- **HTTP Request Payloads (body & query)**: clients MUST send `snake_case` keys. `validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` (each offending key listed exactly as sent) and converts accepted payloads to camelCase before Zod, so DTOs stay camelCase. Route params are not converted. Free-form dictionary fields opt out with `validate({ body, preserveKeys: ['metadata'] })` (top-level only).
+- **Shared request DTOs**: `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`, max `MAX_PER_PAGE`) live in `src/core/dto/common.dto.ts` — reuse them instead of redefining per module.
 - **Database Tables**: Physical SQL table names MUST be `snake_case` (e.g. `domainSchema.table('user_profiles', ...)`).
 - **TypeScript Codebase**: All identifiers (variables, parameters, properties, methods, DTO fields) **MUST NOT** be `snake_case`. They MUST use `camelCase` or `PascalCase` enforced by ESLint.
 

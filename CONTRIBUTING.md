@@ -94,6 +94,7 @@ src/
 │
 ├── core/                        # Cross-Cutting Core Framework (Agnostik Domain)
 │   ├── cache/                   # Redis Fail-Open Caching & Key Generators
+│   ├── dto/                     # Schema request bersama (uuidParamSchema, paginationQuerySchema)
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
@@ -162,7 +163,10 @@ test/                            # End-to-End (E2E) & Blackbox API Tests
 
 ## 3. Standar HTTP Response & Error Envelopes
 
-Frontend (FE) tidak boleh menerima format response yang berbeda-beda antar endpoint. Seluruh key response wajib berupa `snake_case` (dikonversi otomatis oleh method `toJSON()` pada `ApiResponse` dan ditangani secara seragam di `globalErrorHandler`).
+Frontend (FE) tidak boleh menerima format response yang berbeda-beda antar endpoint. Kontrak casing berlaku **dua arah**:
+
+- **Response**: seluruh key `snake_case` (dikonversi otomatis oleh `ApiResponse.toJSON()` dan `globalErrorHandler`).
+- **Request (body & query)**: FE wajib mengirim key `snake_case`. Key dengan casing lain (`fullName`, `full-name`) ditolak 400 `ERR_NON_SNAKE_CASE_KEY` dengan `details` berisi setiap key persis seperti yang dikirim. Payload yang lolos dikonversi ke camelCase sebelum Zod, sehingga DTO tetap camelCase. Param route tidak dikonversi.
 
 ### 3.1 Kontrak Response Sukses (2xx)
 
@@ -314,7 +318,10 @@ userRoutes.post(
 );
 ```
 
-Prefix path internal (`body.`, `query.`) otomatis dibersihkan agar FE dapat langsung memetakan nama field ke form error.
+Prefix path internal (`body.`, `query.`) otomatis dibersihkan dan nama field dikirim dalam snake_case, agar FE dapat langsung memetakan nama field ke form error.
+
+- **Schema bersama** (`src/core/dto/common.dto.ts`): `uuidParamSchema` untuk `:id` (UUID salah format → 400, bukan error database) dan `paginationQuerySchema` untuk `?page=&per_page=` (maks `MAX_PER_PAGE` = 100). Gunakan ulang, jangan didefinisikan ulang per modul.
+- **Dictionary bebas**: field berisi key bebas (mis. `metadata`) didaftarkan lewat `validate({ body, preserveKeys: ['metadata'] })` — isinya tidak dicek dan tidak dikonversi (hanya field top-level). Untuk kontrak publik, utamakan array `{ key, value }`.
 
 ---
 
@@ -519,13 +526,13 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
 | Module Constants & Enums | `UPPER_CASE` | `CACHE_PREFIX`, `STATUS.ACTIVE` |
 | Method Decorator | `PascalCase` | `@Transactional()` |
 | Database Table Names | `snake_case` | `domainSchema.table('user_profiles', ...)` |
-| HTTP Response Payload & Envelopes | `snake_case` | `status_code`, `full_name`, `is_active` |
+| HTTP Request & Response Payload / Envelopes | `snake_case` | `status_code`, `full_name`, `per_page` |
 
 > [!IMPORTANT]
 > **Aturan Casing Absolut:**
 > 1. `snake_case` **HANYA** diizinkan untuk:
 >    - **Nama tabel fisik database SQL** (Drizzle table definitions).
->    - **Output HTTP response envelope & wire payload** (dikonversi otomatis oleh `ApiResponse` & `globalErrorHandler`).
+>    - **Wire payload HTTP dua arah**: response (dikonversi otomatis oleh `ApiResponse` & `globalErrorHandler`) dan key body/query request (divalidasi & dikonversi oleh `validate()`).
 > 2. Seluruh elemen kode TypeScript lainnya (variabel, parameter, method, properti object, DTOs, interfaces) **DILARANG KERAS** menggunakan `snake_case` dan wajib mematuhi `camelCase` / `PascalCase` (di-enforce oleh ESLint rule `@typescript-eslint/naming-convention`).
 
 ---

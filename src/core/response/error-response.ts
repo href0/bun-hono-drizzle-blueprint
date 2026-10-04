@@ -12,7 +12,9 @@ const toWireDetail = (
   detail: ErrorDetail,
   locale: Locale,
 ): { field?: string; message: string } => ({
-  ...(detail.field === undefined ? {} : { field: toWireField(detail.field) }),
+  ...(detail.field === undefined
+    ? {}
+    : { field: detail.verbatimField ? detail.field : toWireField(detail.field) }),
   message: translate(detail.message, locale),
 });
 

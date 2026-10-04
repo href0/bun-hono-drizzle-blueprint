@@ -70,6 +70,8 @@ export * from './<name>.schema';
 
 ### Step 3: Create DTOs with Zod (`src/modules/<name>/<name>.dto.ts`)
 
+Fields are written in camelCase; clients send them in snake_case (`validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` and converts accepted payloads). Reuse the shared `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`) from `src/core/dto/common.dto.ts` instead of redefining them. For a free-form dictionary field, pass `preserveKeys: ['<field>']` to `validate()`.
+
 ```typescript
 import { z } from 'zod';
 
@@ -77,18 +79,7 @@ export const create<PascalSingular>Schema = z.object({
   name: z.string().min(1, 'Name is required'),
 });
 
-export const <camelSingular>IdParamSchema = z.object({
-  id: z.string().uuid('Invalid UUID format'),
-});
-
-export const <camelSingular>QuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-});
-
 export type Create<PascalSingular>Dto = z.infer<typeof create<PascalSingular>Schema>;
-export type <PascalSingular>IdParamDto = z.infer<typeof <camelSingular>IdParamSchema>;
-export type <PascalSingular>QueryDto = z.infer<typeof <camelSingular>QuerySchema>;
 ```
 
 ---
@@ -204,7 +195,8 @@ export const to<PascalSingular>ListResponse = (entities: <PascalSingular>[]): <P
 ```typescript
 import { <camelPlural>Repository, <PascalPlural>Repository } from './<name>.repository';
 import { NotFoundError } from '../../core/errors';
-import type { Create<PascalSingular>Dto, <PascalSingular>QueryDto } from './<name>.dto';
+import type { PaginationQueryDto } from '../../core/dto/common.dto';
+import type { Create<PascalSingular>Dto } from './<name>.dto';
 import { <camelSingular>NotFoundMessage } from './<name>.messages';
 import type { <PascalSingular> } from '../../database/schema';
 
@@ -223,10 +215,10 @@ export class <PascalPlural>Service {
     return record;
   }
 
-  async list<PascalPlural>(query: <PascalSingular>QueryDto): Promise<{ records: <PascalSingular>[]; total: number }> {
-    const offset = (query.page - 1) * query.limit;
+  async list<PascalPlural>(query: PaginationQueryDto): Promise<{ records: <PascalSingular>[]; total: number }> {
+    const offset = (query.page - 1) * query.perPage;
     const [records, total] = await Promise.all([
-      this.repository.findAll(query.limit, offset),
+      this.repository.findAll(query.perPage, offset),
       this.repository.count(),
     ]);
     return { records, total };
@@ -252,7 +244,8 @@ import {
 import { ApiResponse } from '../../core/response';
 import { <camelPlural>Service, <PascalPlural>Service } from './<name>.service';
 import { to<PascalSingular>Response, to<PascalSingular>ListResponse } from './<name>.transformer';
-import type { Create<PascalSingular>Dto, <PascalSingular>IdParamDto, <PascalSingular>QueryDto } from './<name>.dto';
+import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
+import type { Create<PascalSingular>Dto } from './<name>.dto';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 
 export class <PascalPlural>Controller {
@@ -267,7 +260,7 @@ export class <PascalPlural>Controller {
   });
 
   getById = asyncHandler(async (c) => {
-    const param = getValidatedParams<<PascalSingular>IdParamDto>(c);
+    const param = getValidatedParams<UuidParamDto>(c);
     const record = await this.service.get<PascalSingular>ById(param.id);
     const responseData = to<PascalSingular>Response(record);
 
@@ -275,14 +268,14 @@ export class <PascalPlural>Controller {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<<PascalSingular>QueryDto>(c);
+    const query = getValidatedQuery<PaginationQueryDto>(c);
     const { records, total } = await this.service.list<PascalPlural>(query);
     const responseData = to<PascalSingular>ListResponse(records);
-    const totalPages = Math.ceil(total / query.limit) || 1;
+    const totalPages = Math.ceil(total / query.perPage) || 1;
 
     return new ApiResponse(responseData, <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, 200, {
       currentPage: query.page,
-      perPage: query.limit,
+      perPage: query.perPage,
       totalItems: total,
       totalPages,
     });
@@ -298,19 +291,16 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 ```typescript
 import { Hono } from 'hono';
+import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
 import { validate } from '../../core/middlewares';
 import { <camelPlural>Controller } from './<name>.controller';
-import {
-  create<PascalSingular>Schema,
-  <camelSingular>IdParamSchema,
-  <camelSingular>QuerySchema,
-} from './<name>.dto';
+import { create<PascalSingular>Schema } from './<name>.dto';
 
 const router = new Hono();
 
 router.post('/', validate({ body: create<PascalSingular>Schema }), <camelPlural>Controller.create);
-router.get('/', validate({ query: <camelSingular>QuerySchema }), <camelPlural>Controller.list);
-router.get('/:id', validate({ params: <camelSingular>IdParamSchema }), <camelPlural>Controller.getById);
+router.get('/', validate({ query: paginationQuerySchema }), <camelPlural>Controller.list);
+router.get('/:id', validate({ params: uuidParamSchema }), <camelPlural>Controller.getById);
 
 export { router as <camelPlural>Router };
 ```

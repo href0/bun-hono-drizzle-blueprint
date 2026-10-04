@@ -2,7 +2,10 @@ import { translate, type MessageInput } from '../i18n/translate';
 import { APP_ORIGIN, type AppErrorCode, type ErrorType } from './error-codes';
 
 export interface ErrorDetail {
+  /** Field path; converted to snake_case on the wire unless `verbatimField` is set. */
   field?: string;
+  /** Set when `field` is already exactly what the client sent (e.g. a rejected key name). */
+  verbatimField?: boolean;
   /** Localizable; validation messages coming from Zod schemas are plain strings. */
   message: MessageInput;
 }

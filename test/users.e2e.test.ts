@@ -96,7 +96,7 @@ describe('Users Module — E2E Contract Tests', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: 'new@example.com',
-          fullName: 'New User',
+          full_name: 'New User',
           password: 'securepassword',
         }),
       });
@@ -125,7 +125,7 @@ describe('Users Module — E2E Contract Tests', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: 'existing@example.com',
-          fullName: 'Existing User',
+          full_name: 'Existing User',
           password: 'securepassword',
         }),
       });
@@ -145,7 +145,7 @@ describe('Users Module — E2E Contract Tests', () => {
       const res = await app.request('/api/v1/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@example.com' }), // missing fullName, password
+        body: JSON.stringify({ email: 'test@example.com' }), // missing full_name, password
       });
 
       expect(res.status).toBe(400);
@@ -166,7 +166,7 @@ describe('Users Module — E2E Contract Tests', () => {
       const res = await app.request('/api/v1/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'not-an-email', fullName: 'Test', password: 'password123' }),
+        body: JSON.stringify({ email: 'not-an-email', full_name: 'Test', password: 'password123' }),
       });
 
       expect(res.status).toBe(400);
@@ -199,7 +199,7 @@ describe('Users Module — E2E Contract Tests', () => {
       const res = await app.request('/api/v1/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@mail.com', fullName: 'Test', password: 'short' }),
+        body: JSON.stringify({ email: 'test@mail.com', full_name: 'Test', password: 'short' }),
       });
 
       expect(res.status).toBe(400);
@@ -214,7 +214,7 @@ describe('Users Module — E2E Contract Tests', () => {
 
   describe('GET /api/v1/users', () => {
     it('should return 200 with paginated user list and snake_case meta', async () => {
-      const res = await app.request('/api/v1/users?page=1&limit=10');
+      const res = await app.request('/api/v1/users?page=1&per_page=10');
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as {
@@ -239,7 +239,7 @@ describe('Users Module — E2E Contract Tests', () => {
     });
 
     it('should return 400 VALIDATION_ERROR for invalid pagination params', async () => {
-      const res = await app.request('/api/v1/users?page=0&limit=9999');
+      const res = await app.request('/api/v1/users?page=0&per_page=9999');
       expect(res.status).toBe(400);
       const body = (await res.json()) as { error: { type: string } };
       expect(body.error.type).toBe('VALIDATION_ERROR');
