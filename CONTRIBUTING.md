@@ -74,6 +74,7 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 | `bun run lint:arch` | Memeriksa pelanggaran batas layer arsitektur | Saat menambah ketergantungan antar layer |
 | `bun run lint:deps` | Memeriksa file, export, dan dependency yang tidak terpakai (knip) | Saat menghapus/memindah kode atau mengelola package |
 | `bun run lint:branch` | Memvalidasi kepatuhan format nama git branch aktif | Sebelum git push |
+| `bun run verify:scaffold` | Men-generate modul contoh dari template skill `scaffold-module` lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, database) atau template itu sendiri |
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
 | `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
 | **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** | **Wajib sebelum membuat Pull/Merge Request** |
@@ -241,7 +242,7 @@ Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (di
 
 | Class | HTTP Status | Error Type | Error Code | Penggunaan |
 |---|---|---|---|---|
-| `ValidationError` | 400 | `VALIDATION_ERROR` | `ERR_INVALID_INPUT` | Format skema input Zod tidak valid |
+| `ValidationError` | 400 | `VALIDATION_ERROR` | `ERR_INVALID_INPUT` (default) · `ERR_INVALID_JSON` · `ERR_NON_SNAKE_CASE_KEY` | Skema Zod tidak terpenuhi · body bukan JSON valid · key bukan snake_case (`field` = key persis seperti dikirim) |
 | `BadRequestError` | 400 | `BAD_REQUEST` | `ERR_BAD_REQUEST` | Pelanggaran aturan bisnis |
 | `UnauthorizedError` | 401 | `UNAUTHORIZED` | `ERR_UNAUTHORIZED` | Token tidak ada / expired |
 | `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` | Role user tidak berhak mengakses |
@@ -322,6 +323,7 @@ Prefix path internal (`body.`, `query.`) otomatis dibersihkan dan nama field dik
 
 - **Schema bersama** (`src/core/dto/common.dto.ts`): `uuidParamSchema` untuk `:id` (UUID salah format → 400, bukan error database) dan `paginationQuerySchema` untuk `?page=&per_page=` (maks `MAX_PER_PAGE` = 100). Gunakan ulang, jangan didefinisikan ulang per modul.
 - **Dictionary bebas**: field berisi key bebas (mis. `metadata`) didaftarkan lewat `validate({ body, preserveKeys: ['metadata'] })` — isinya tidak dicek dan tidak dikonversi (hanya field top-level). Untuk kontrak publik, utamakan array `{ key, value }`.
+- **Keterbatasan — dictionary di response**: `preserveKeys` hanya berlaku untuk request. `ApiResponse` mengonversi semua key response (termasuk dictionary yang dikembalikan) ke snake_case, sehingga `{ someKey: 1 }` dikirim sebagai `{ some_key: 1 }`. Untuk kontrak publik utamakan array `{ key, value }`; opt-out di sisi response baru ditambahkan bila ada kebutuhan nyata.
 
 ---
 

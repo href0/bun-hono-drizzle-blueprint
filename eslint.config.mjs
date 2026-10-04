@@ -50,8 +50,15 @@ const MODULE_ERROR_RULES = [
   },
   {
     // User-facing messages must be localized. InternalServerError is exempt: its text is log-only.
+    // ExternalServiceError is checked separately: its first argument is the failure kind, not text.
     selector:
-      'NewExpression[callee.name=/^(ApiResponse|(?!InternalServerError$)[A-Za-z]+Error)$/] > :matches(Literal[raw=/^[\'"]/], TemplateLiteral)',
+      'NewExpression[callee.name=/^(ApiResponse|(?!(InternalServerError|ExternalServiceError)$)[A-Za-z]+Error)$/] > :matches(Literal[raw=/^[\'"]/], TemplateLiteral)',
+    message:
+      "User-facing messages must be a LocalizedMessage ({ id, en }) from I18N_MESSAGES or the module's <name>.messages.ts, not a string literal.",
+  },
+  {
+    selector:
+      'NewExpression[callee.name="ExternalServiceError"] > :matches(Literal[raw=/^[\'"]/], TemplateLiteral):nth-child(2)',
     message:
       "User-facing messages must be a LocalizedMessage ({ id, en }) from I18N_MESSAGES or the module's <name>.messages.ts, not a string literal.",
   },

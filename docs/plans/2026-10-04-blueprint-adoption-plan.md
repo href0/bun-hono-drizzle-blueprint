@@ -1,14 +1,14 @@
 # Implementation Plan — Adopsi Blueprint ke Boilerplate Bun + Hono + Drizzle
 
-| Atribut     | Nilai                                                                                                                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — F0, Step 1.1–1.4 selesai (`main` @ `0ab188e`); Step 1.5 menunggu review (branch `feat/snake-case-contract`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
-| Tanggal     | 2026-10-04                                                                                                                                                                             |
-| Basis kode  | branch `main` @ `0ab188e`                                                                                                                                                              |
-| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                         |
-| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                        |
-| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                         |
-| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                       |
+| Atribut     | Nilai                                                                                                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status      | IN PROGRESS — F0, Step 1.1–1.5 selesai (`main` @ `240d8fe`); perbaikan hasil review 1.4–1.5 menunggu review (branch `fix/review-1-4-1-5`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Tanggal     | 2026-10-04                                                                                                                                                                                             |
+| Basis kode  | branch `main` @ `240d8fe`                                                                                                                                                                              |
+| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                         |
+| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                        |
+| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                         |
+| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                                       |
 
 ---
 
@@ -229,6 +229,14 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | 1.5       | Kontrak paginasi `users` berubah: query `limit` → `per_page` (DTO `perPage`), selaras dengan `meta.per_page` yang sudah ada di respons                                                                                                                                | Belum ada konsumen; e2e & unit test diperbarui                                                                                                                                       |
 | 2026-10-04 | 1.5       | `preserveKeys` hanya untuk body (top-level); query & params tidak mendukungnya                                                                                                                                                                                        | Query selalu string datar; dictionary di query tidak didukung secara sengaja                                                                                                         |
 | 2026-10-04 | 1.5       | Template `scaffold-module`: DTO memakai `uuidParamSchema`/`paginationQuerySchema` bersama + penjelasan kontrak snake_case; diverifikasi ulang dengan men-generate modul `products` (gate hijau, body & query camelCase → 400)                                         | —                                                                                                                                                                                    |
+| 2026-10-04 | 1.5       | ✅ Di-commit (`240d8fe`) dan di-merge ke `main` atas permintaan user                                                                                                                                                                                                  | —                                                                                                                                                                                    |
+| 2026-10-04 | Review 2  | Review ulang 1.4–1.5 atas permintaan user: 9 temuan — 7 diperbaiki di branch `fix/review-1-4-1-5`, 2 dipindah ke step terjadwal (baris di bawah)                                                                                                                      | Gate tetap hijau; aturan yang diubah dibuktikan dengan chaos test                                                                                                                    |
+| 2026-10-04 | Review 2  | Aturan ESLint i18n salah menolak `new ExternalServiceError('TIMEOUT', …)` (argumen pertama = jenis kegagalan). Kini `ExternalServiceError` hanya dicek pada argumen ke-2 (`:nth-child(2)`)                                                                            | Chaos test: jenis literal lolos; pesan literal/template di argumen ke-2 tetap ditolak                                                                                                |
+| 2026-10-04 | Review 2  | Detail error JSON rusak kini dilokalkan (`I18N_MESSAGES.INVALID_JSON_DETAIL`)                                                                                                                                                                                         | Sebelumnya hanya bahasa Inggris                                                                                                                                                      |
+| 2026-10-04 | Review 2  | Keputusan user (rekomendasi): asimetri `preserveKeys` (request saja; response tetap mengonversi key dictionary) **didokumentasikan sebagai keterbatasan** + anjuran array `{ key, value }`                                                                            | Opt-out sisi response baru dibuat bila ada kebutuhan nyata                                                                                                                           |
+| 2026-10-04 | Review 2  | Penjaga baru `scripts/verify-scaffold.ts` (`bun run verify:scaffold`, langkah CI): men-generate modul `scaffold-probes` dari template, menjalankan prettier/tsc/ESLint/ls-lint/depcruise/knip + request nyata, lalu memulihkan semua file (juga saat gagal/Ctrl+C)    | Template sudah tiga kali tertinggal dari kode; chaos test: template yang dirusak → gagal & bersih                                                                                    |
+| 2026-10-04 | Review 2  | Dokumen disinkronkan: contoh envelope project-standards §5 (pesan default `id`, negosiasi bahasa, kode `ERR_INVALID_JSON`/`ERR_NON_SNAKE_CASE_KEY`), tabel kelas error CONTRIBUTING §3.3, scope commit `core/dto`, AGENTS.md & DoD §14.1 (`verify:scaffold`)          | —                                                                                                                                                                                    |
+| 2026-10-04 | Review 2  | Ditunda ke 1.6: `CACHE_KEYS.userList(page, limit)` tak dipakai kode produksi & nama basi. Ditunda ke 4.1: fallback detail `'Unknown external service error'` belum dilokalkan                                                                                         | Dicatat di langkah step terkait                                                                                                                                                      |
 
 ---
 
@@ -262,7 +270,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.2  | Request context, request ID, logger mixin                   | ✅     | 1.1             | `32d8661`            |
 | 1.3  | Kontrak error + registry `APP_ERROR_CODES`                  | ✅     | 1.2             | `bd6c74e`, `dd2a7fd` |
 | 1.4  | i18n `id`/`en`                                              | ✅     | 1.3             | `0ab188e`            |
-| 1.5  | Kontrak request snake_case + DTO bersama                    | 👀     | 1.3             |                      |
+| 1.5  | Kontrak request snake_case + DTO bersama                    | ✅     | 1.3             | `240d8fe`            |
 | 1.6  | Ketahanan Redis & `CacheService` lanjutan                   | ⬜     | 1.1             |                      |
 | 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ⬜     | 1.2, 1.6        |                      |
 | 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path                   | ⬜     | 1.6             |                      |
@@ -481,7 +489,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | Tidak ada primitif untuk rate limit & nonce | `increment(key, ttlSeconds)` (Lua `INCR` + `EXPIRE NX`), `setIfAbsent(key, value, ttlSeconds)` (`SET NX EX`) |
 | Lookup input tak tepercaya selalu ke DB     | `getOrSet(key, ttl, fetcher, { negativeTtl })` — sentinel `{"__nil":1}`                                      |
 
-**Langkah**: implementasi tabel di atas di `redis.client.ts` & `cache.service.ts`; semua method baru fail-open (Redis gagal → `increment` mengembalikan `null`, `setIfAbsent` mengembalikan `true`, dicatat `warn`); `CACHE_KEYS` tetap SSOT; `references/redis-cache.md` diperbarui.
+**Langkah**: implementasi tabel di atas di `redis.client.ts` & `cache.service.ts`; semua method baru fail-open (Redis gagal → `increment` mengembalikan `null`, `setIfAbsent` mengembalikan `true`, dicatat `warn`); `CACHE_KEYS` tetap SSOT; `references/redis-cache.md` diperbarui. Bersihkan juga `CACHE_KEYS.userList(page, limit)` (tidak dipakai kode produksi; nama `limit` basi sejak 1.5) — temuan review 1.4–1.5.
 
 **Acceptance criteria**
 
@@ -767,7 +775,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Langkah**
 
-1. Pemetaan tabel di atas; body vendor hanya di-log (terpotong 2 KB, lewat redaksi), header tidak di-log; `details` ke client = pesan generik dwibahasa.
+1. Pemetaan tabel di atas; body vendor hanya di-log (terpotong 2 KB, lewat redaksi), header tidak di-log; `details` ke client = pesan generik dwibahasa. Fallback detail `'Unknown external service error'` ikut hilang/dilokalkan — temuan review 1.4–1.5.
 2. Interceptor request menambahkan `X-Request-ID` dari context.
 3. `timeoutMs` wajib di `HttpClientOptions` (tanpa default diam-diam).
 4. `src/integrations/registry.ts`: `INTEGRATION_REGISTRY = { JSONPLACEHOLDER: { institution: 'JSONPlaceholder' } }` → `error.institution` pada envelope.
@@ -873,7 +881,7 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 - [ ] `bun run validate:full` hijau dan `bun run build` sukses.
 - [ ] Test baru menutup perilaku baru (unit; e2e bila menyentuh HTTP). **Setiap cabang logika** (klasifikasi, pemetaan status, fallback) punya test eksplisit — coverage Bun hanya mengukur baris, bukan cabang.
 - [ ] Aturan baru ditegakkan mesin (atau ditandai `[review-only]` dengan alasan).
-- [ ] Dokumen terdampak diperbarui di commit yang sama: `.agents/AGENTS.md`, `.agents/skills/**`, `CONTRIBUTING.md`, `README.md`, `.env.example`.
+- [ ] Dokumen terdampak diperbarui di commit yang sama: `.agents/AGENTS.md`, `.agents/skills/**`, `CONTRIBUTING.md`, `README.md`, `.env.example`. Bila API inti yang dipakai template berubah (errors, response, middlewares, dto, i18n, database) → `bun run verify:scaffold` hijau.
 - [ ] Nilai yang membawa nama proyek → `IDENTITY_RULES`; `bun run setup demo --dry-run` lulus.
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
 - [ ] AI agent tidak mengeksekusi perintah ke database (migrasi di-generate; dijalankan developer).

@@ -192,7 +192,7 @@ describe('Users Module — E2E Contract Tests', () => {
       // Must distinguish malformed JSON from field validation errors
       expect(body.error.type).toBe('VALIDATION_ERROR');
       expect(body.error.details[0]?.field).toBe('body');
-      expect(body.error.details[0]?.message).toContain('invalid JSON');
+      expect(body.error.details[0]?.message).toBe('Sintaks JSON pada body request tidak valid');
     });
 
     it('should return 400 for password shorter than 8 characters', async () => {

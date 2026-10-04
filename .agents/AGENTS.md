@@ -32,6 +32,7 @@ This project enforces strict automated Quality Gates powered by:
 - **knip** unused files, exports, and dependencies
 - **Branch Naming Validation** (`validate-branch-name`)
 - **Coverage gate** `scripts/check-coverage.ts` — the single source of coverage thresholds (source files only, global + per-file, every source file must be loaded by a test)
+- **Scaffold template verification** `bun run verify:scaffold` (CI) — generates a module from the `scaffold-module` skill and runs every gate; run it after changing the template or any core API it uses
 
 Any code violating these standards will fail `bun run validate:full`, blocking commits/pushes locally via Husky and failing CI (`.github/workflows/ci.yml`).
 
