@@ -1,10 +1,11 @@
 import type { ErrorHandler } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ApiError } from '../errors/api-error';
+import { getRequestContext } from '../context/request-context';
 import { logger } from '../logger/logger';
 
 export const globalErrorHandler: ErrorHandler = (err, c) => {
-  const requestId = (c.get('requestId') as string) || c.req.header('x-request-id') || 'unknown';
+  const requestId = getRequestContext()?.requestId ?? 'unknown';
 
   if (err instanceof ApiError) {
     logger.warn(
@@ -13,7 +14,6 @@ export const globalErrorHandler: ErrorHandler = (err, c) => {
         code: err.errorCode,
         message: err.message,
         details: err.details,
-        requestId,
       },
       'Client error handled',
     );
@@ -38,7 +38,7 @@ export const globalErrorHandler: ErrorHandler = (err, c) => {
   }
 
   // Unhandled / Internal Server Errors
-  logger.error({ err, requestId }, 'Unhandled internal server error');
+  logger.error({ err }, 'Unhandled internal server error');
 
   return c.json(
     {

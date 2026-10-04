@@ -1,5 +1,12 @@
 import pino, { type LoggerOptions } from 'pino';
 import { appConfig, type AppConfig } from '../../config';
+import { getRequestContext } from '../context/request-context';
+
+/** Adds request correlation to every log line, so callers never pass `requestId` manually. */
+export const requestContextMixin = (): Record<string, string> => {
+  const context = getRequestContext();
+  return context ? { requestId: context.requestId, actor: context.actor } : {};
+};
 
 /**
  * Builds Pino options from validated config. Kept pure so every environment branch
@@ -44,6 +51,7 @@ export const buildLoggerOptions = (
     app: config.APP_NAME,
     env: config.NODE_ENV,
   },
+  mixin: requestContextMixin,
 });
 
 export const logger = pino(buildLoggerOptions(appConfig));

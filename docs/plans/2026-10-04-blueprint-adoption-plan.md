@@ -1,14 +1,14 @@
 # Implementation Plan — Adopsi Blueprint ke Boilerplate Bun + Hono + Drizzle
 
-| Atribut     | Nilai                                                                                                                                                                              |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — F0 selesai; Step 1.1 menunggu review (branch `feat/config-groups`, di atas `chore/quality-gate-parity`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
-| Tanggal     | 2026-10-04                                                                                                                                                                         |
-| Basis kode  | branch `main` @ `fb843bb`                                                                                                                                                          |
-| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                     |
-| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                    |
-| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                     |
-| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                   |
+| Atribut     | Nilai                                                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status      | IN PROGRESS — F0 & Step 1.1 selesai (`main` @ `159cae2`); Step 1.2 menunggu review (branch `feat/request-context`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Tanggal     | 2026-10-04                                                                                                                                                                      |
+| Basis kode  | branch `main` @ `159cae2`                                                                                                                                                       |
+| Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                  |
+| Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                 |
+| Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                  |
+| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                |
 
 ---
 
@@ -187,6 +187,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | 1.1       | Pesan error tidak pernah mencetak nilai: `invalid_type` / `invalid_enum_value` diformat ulang (pesan bawaan Zod menyertakan nilai yang diterima)                                                                                   | Env bisa berisi secret                                                                                                                              |
 | 2026-10-04 | 1.1       | Keterbatasan: validasi berhenti di grup pertama yang gagal (setiap grup divalidasi saat modulnya di-import) — terbukti lewat smoke test proses terpisah                                                                            | Dokumen dikoreksi menjadi "semua variabel dalam grup"; agregasi lintas grup tidak dikerjakan (tidak sepadan)                                        |
 | 2026-10-04 | 1.1       | `EXTERNAL_VENDOR_*` dihapus di 1.1 (tidak pernah dipakai kode), bukan di 4.2; `DB_SCHEMA` tetap sampai 2.2; `.env.example` dikelompokkan per file config                                                                           | L1 diperbarui                                                                                                                                       |
+| 2026-10-04 | 1.1       | ✅ Di-commit (`159cae2`) dan di-merge ke `main` atas permintaan user, bersama Step 0.3 (`9e0b75a`)                                                                                                                                 | Branch `chore/quality-gate-parity` & `feat/config-groups` sudah ter-merge (belum dihapus)                                                           |
+| 2026-10-04 | 1.2       | `RequestContext` berisi `requestId` + `actor` saja; `locale` ditambahkan di 1.4 dan `clientIp` di 1.7, bersama logika yang mengisinya                                                                                              | Menghindari field yang diisi nilai sementara (hardcode)                                                                                             |
+| 2026-10-04 | 1.2       | `setActor()` di luar request **melempar error** (plan: no-op)                                                                                                                                                                      | Actor yang di-set di luar request akan hilang diam-diam → bug audit yang sulit dilacak                                                              |
+| 2026-10-04 | 1.2       | Error handler & not-found tidak lagi fallback ke header `x-request-id` mentah; nilai dari context (terbukti: `onError`/`notFound` Hono berjalan di dalam context middleware)                                                       | Fallback header mentah adalah jalur log injection (G2)                                                                                              |
+| 2026-10-04 | 1.2       | Test "context request bersarang dengan context transaksi" ditempatkan di `src/database/transaction-host.test.ts`, bukan di `src/core/`                                                                                             | depcruise `strict-core-isolation` menolak test di `core/` meng-import `database/`; aturan tidak dilonggarkan                                        |
+| 2026-10-04 | 1.2       | Barrel `src/core/context/index.ts` dihapus (knip: tidak terpakai); pemakai meng-import `request-context.ts` langsung                                                                                                               | —                                                                                                                                                   |
 
 ---
 
@@ -216,8 +222,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 0.1  | Baseline commit                                             | ✅     | —               | `df3c0da` |
 | 0.2  | Review rencana & keputusan                                  | ✅     | 0.1             | `e6fd8af` |
 | 0.3  | Paritas quality gate (ESLint, coverage, knip, hooks, CI)    | ✅     | 0.2             | `9e0b75a` |
-| 1.1  | Konfigurasi per grup + `parseEnv`                           | 👀     | 0.3             |           |
-| 1.2  | Request context, request ID, logger mixin                   | ⬜     | 1.1             |           |
+| 1.1  | Konfigurasi per grup + `parseEnv`                           | ✅     | 0.3             | `159cae2` |
+| 1.2  | Request context, request ID, logger mixin                   | 👀     | 1.1             |           |
 | 1.3  | Kontrak error + registry `APP_ERROR_CODES`                  | ⬜     | 1.2             |           |
 | 1.4  | i18n `id`/`en`                                              | ⬜     | 1.3             |           |
 | 1.5  | Kontrak request snake_case + DTO bersama                    | ⬜     | 1.3             |           |
@@ -349,7 +355,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
      fn: () => Promise<T>,
    ): Promise<T> => storage.run(ctx, fn);
    export const setActor = (actor: Actor): void => {
-     /* mutasi store aktif; no-op di luar request */
+     /* mutasi store aktif; melempar error di luar request (lihat log 1.2) */
    };
    ```
 2. `src/utils/request-id.util.ts` (murni): `resolveRequestId(header?: string): string` sesuai D9.
@@ -359,10 +365,10 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] `X-Request-ID: "evil\nline"` → diganti UUID v7; header respons berisi ID final.
-- [ ] Dua request paralel (`Promise.all`) tidak saling bocor context.
-- [ ] Log dari dalam service memuat `requestId` tanpa dioper manual (test dengan destination pino in-memory).
-- [ ] Di luar request (`bootstrap`), `getActor()` = `system`.
+- [x] `X-Request-ID` tidak aman (newline, spasi, kosong, > 128 karakter) → diganti UUID v7; header respons berisi ID final.
+- [x] Request paralel (`Promise.all`, delay berbeda) tidak saling bocor context — di level unit maupun HTTP.
+- [x] Log yang ditulis di dalam request memuat `requestId` + `actor` tanpa dioper manual (pino dengan destination in-memory); log di luar request tidak memuatnya.
+- [x] Di luar request, `getActor()` = `system`; `setActor()` di luar request melempar error.
 
 ### Step 1.3 — Kontrak error + registry `APP_ERROR_CODES`
 
