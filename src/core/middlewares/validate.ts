@@ -97,7 +97,7 @@ const parseRequestBody = async (c: Context): Promise<unknown> => {
   } catch {
     throw new ValidationError(I18N_MESSAGES.INVALID_JSON_BODY, {
       code: APP_ERROR_CODES.INVALID_JSON,
-      details: [{ field: 'body', message: 'Request body contains invalid JSON syntax' }],
+      details: [{ field: 'body', message: I18N_MESSAGES.INVALID_JSON_DETAIL }],
     });
   }
 };

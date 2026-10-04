@@ -67,7 +67,7 @@ describe('Validation Middleware (Integration)', () => {
     expect(body.error.type).toBe('VALIDATION_ERROR');
     // Must explicitly say body is invalid JSON, not field-level errors
     expect(body.error.details?.[0]?.field).toBe('body');
-    expect(body.error.details?.[0]?.message).toContain('invalid JSON');
+    expect(body.error.details?.[0]?.message).toBe('Sintaks JSON pada body request tidak valid');
   });
 
   it('should validate query and params and extract with getters', async () => {

@@ -70,7 +70,7 @@ export * from './<name>.schema';
 
 ### Step 3: Create DTOs with Zod (`src/modules/<name>/<name>.dto.ts`)
 
-Fields are written in camelCase; clients send them in snake_case (`validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` and converts accepted payloads). Reuse the shared `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`) from `src/core/dto/common.dto.ts` instead of redefining them. For a free-form dictionary field, pass `preserveKeys: ['<field>']` to `validate()`.
+Fields are written in camelCase; clients send them in snake_case (`validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` and converts accepted payloads). Reuse the shared `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`) from `src/core/dto/common.dto.ts` instead of redefining them. For a free-form dictionary field, pass `preserveKeys: ['<field>']` to `validate()` — request side only: responses still convert dictionary keys to snake_case, so prefer `{ key, value }` arrays.
 
 ```typescript
 import { z } from 'zod';
@@ -321,6 +321,8 @@ app.route(`${appConfig.API_PREFIX}/<name>`, <camelPlural>Router);
 ### Step 11: Create Co-Located Tests & Verify Quality Gate
 
 Create unit tests covering repository, service, transformer, and controller.
+
+This template is verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from these code blocks and runs every gate. After editing this file, or any core API the template uses, run it.
 
 The templates are formatted for a short module name; line wrapping changes with the name length, so always format before validating:
 ```bash

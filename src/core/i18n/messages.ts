@@ -17,6 +17,10 @@ export const I18N_MESSAGES = {
     id: 'Body request bukan JSON yang valid',
     en: 'Request body is not valid JSON',
   },
+  INVALID_JSON_DETAIL: {
+    id: 'Sintaks JSON pada body request tidak valid',
+    en: 'Request body contains invalid JSON syntax',
+  },
   NON_SNAKE_CASE_KEYS: {
     id: 'Nama field harus snake_case (contoh: full_name)',
     en: 'Field names must be snake_case (e.g. full_name)',

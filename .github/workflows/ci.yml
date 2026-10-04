@@ -60,3 +60,6 @@ jobs:
 
       - name: Build
         run: bun run build
+
+      - name: Scaffold template verification
+        run: bun run verify:scaffold

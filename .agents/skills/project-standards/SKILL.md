@@ -214,6 +214,7 @@ export class UsersService {
 ### Rule 6: Strict Casing Invariant (snake_case Wire Format vs camelCase Codebase)
 - **HTTP Response Payloads**: MUST ALWAYS be serialized in `snake_case` (e.g. `status_code`, `full_name`, `is_active`). This is automatically performed by `ApiResponse.toJSON()` and `globalErrorHandler`.
 - **HTTP Request Payloads (body & query)**: clients MUST send `snake_case` keys. `validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` (each offending key listed exactly as sent) and converts accepted payloads to camelCase before Zod, so DTOs stay camelCase. Route params are not converted. Free-form dictionary fields opt out with `validate({ body, preserveKeys: ['metadata'] })` (top-level only).
+- **Known limitation — response dictionaries**: `preserveKeys` only applies to requests. `ApiResponse` converts every key of the response (including a dictionary echoed back) to snake_case, so `{ someKey: 1 }` is returned as `{ some_key: 1 }`. In public contracts prefer `{ key, value }` arrays over dictionaries; a response-side opt-out will be added only when a real need appears.
 - **Shared request DTOs**: `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`, max `MAX_PER_PAGE`) live in `src/core/dto/common.dto.ts` — reuse them instead of redefining per module.
 - **Database Tables**: Physical SQL table names MUST be `snake_case` (e.g. `domainSchema.table('user_profiles', ...)`).
 - **TypeScript Codebase**: All identifiers (variables, parameters, properties, methods, DTO fields) **MUST NOT** be `snake_case`. They MUST use `camelCase` or `PascalCase` enforced by ESLint.
@@ -252,12 +253,14 @@ export class UsersService {
 
 ## 5. Standard Output Envelopes
 
+`message` is written in the language negotiated from `Accept-Language` (fallback `DEFAULT_LOCALE`, default `id`); the response carries `Content-Language` and `Vary: Accept-Language`. The examples below are the default (`id`) responses.
+
 ### Success Envelope
 ```json
 {
   "success": true,
   "status_code": 200,
-  "message": "Users retrieved successfully",
+  "message": "Daftar pengguna berhasil diambil",
   "data": [
     {
       "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
@@ -279,7 +282,7 @@ export class UsersService {
 {
   "success": false,
   "status_code": 400,
-  "message": "Validation Failed",
+  "message": "Validasi data gagal. Silakan periksa kembali input Anda",
   "error": {
     "type": "VALIDATION_ERROR",
     "code": "ERR_INVALID_INPUT",
@@ -293,6 +296,8 @@ export class UsersService {
   "timestamp": "2026-09-24T04:42:51.000Z"
 }
 ```
+
+Field messages come from the Zod schema and are not translated (known limitation). Other `VALIDATION_ERROR` codes: `ERR_INVALID_JSON` (malformed body) and `ERR_NON_SNAKE_CASE_KEY` (key not in snake_case; `field` is the key exactly as sent).
 
 ---
 
