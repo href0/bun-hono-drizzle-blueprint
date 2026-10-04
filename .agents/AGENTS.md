@@ -14,7 +14,7 @@ This rule does NOT apply to: generating commit messages, generating logbook entr
 
 ## Active Work Plan
 
-Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute exactly one step at a time, meet its Definition of Done (§0.1), report with the review template (§0.2), then STOP for review. Record any deviation in its Decision Log.
+Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute exactly one step at a time, meet its Definition of Done (§14.1), report with the review template (§14.2), then STOP for review. Record progress, findings and any deviation in its log (§4.1) and progress table (§5).
 
 ---
 
