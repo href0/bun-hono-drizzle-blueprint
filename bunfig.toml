@@ -1,0 +1,3 @@
+[test]
+# Unit and e2e tests never reach real services, whatever the local env file says.
+preload = ["./test/setup/hermetic-env.ts"]

@@ -56,6 +56,8 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 
 - Dihitung dari file sumber saja (`*.test.ts` dan `test/` tidak ikut dihitung).
 - Ambang global (lines & functions) dan ambang per file (lines) didefinisikan di konstanta `THRESHOLDS`.
+- Test bersifat **hermetik**: `bunfig.toml` me-preload `test/setup/hermetic-env.ts` yang mengarahkan `DATABASE_URL`/`REDIS_*` ke port lokal tertutup — unit & e2e test tidak pernah menyentuh database/Redis pengembang, apa pun isi file env lokal (dijaga `test/hermetic-env.test.ts`). Integration test ke layanan asli (Step 6.1) memakai variabel `TEST_*` sendiri.
+- `mock.module()` dilarang di test (ESLint): mock-nya bocor ke semua file test berikutnya dalam proses yang sama. Injeksi dependensi lewat default parameter konstruktor/fungsi.
 - Setiap file di `src/` wajib dimuat oleh minimal satu test — Bun hanya menginstrumentasi file yang di-import test, sehingga file tanpa test terlihat sebagai pelanggaran, bukan lolos diam-diam. Barrel re-export murni dikecualikan otomatis.
 - Pengecualian hanya lewat `COVERAGE_EXCLUSIONS` dengan alasan dan step rencana yang menghapusnya; daftarnya dicetak di setiap run.
 
@@ -99,7 +101,7 @@ src/
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, errorHandler, dll.)
+│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   └── response/                # Standard Success Response Envelope (ApiResponse)
 │

@@ -2,13 +2,13 @@
 
 | Atribut     | Nilai                                                                                                                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — F0, Step 1.1–1.8 + review 1.1–1.7 selesai (`main` @ `0f2dae5`); Step 1.9 + perbaikan review 1.8–1.9 menunggu review (branch `feat/openapi-docs`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status      | IN PROGRESS — Fase 0 & Fase 1 selesai (`main` @ `ce62029`); perbaikan review menyeluruh Fase 1 menunggu review (branch `fix/review-phase-1`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal     | 2026-10-04                                                                                                                                                                                                                                |
-| Basis kode  | branch `main` @ `0f2dae5` |
+| Basis kode  | branch `main` @ `ce62029` |
 | Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                                                            |
 | Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                                                           |
 | Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                                                            |
-| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3                                                                                          |
+| Versi kunci | Bun 1.3.0 · Hono 4.13.9 · Zod 3.25.76 · drizzle-orm 0.40.1 · drizzle-kit 0.30.6 · ioredis 5.11.1 · pino 9.14.0 · axios 1.20.0 · TypeScript 5.9.3 · hono-openapi 1.3.3 · zod-openapi 4.2.4 · @scalar/hono-api-reference 0.12.9 |
 
 ---
 
@@ -297,6 +297,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-04 | Review 4 | Bundle UI Scalar dikunci (`SCALAR_BUNDLE_URL` = `@scalar/api-reference@1.72.4`, build UMD) — sebelumnya `esm.js` tanpa versi = apa pun yang disajikan CDN hari itu; `info.description` dari `package.json` (dulu default library "Development documentation") | Test memastikan HTML memuat URL berversi |
 | 2026-10-04 | Review 4 | `verify:scaffold`: live check memakai `API_BASE_PATH` dan memastikan modul hasil template ada di dokumen dengan summary + 2xx. Log startup mencatat URL health & docs; README Quick Start menyebut `/api/docs` & `/api/health` | — |
 | 2026-10-04 | Review 4 | Dokumen: `references/openapi.md` baru (apa yang otomatis vs ditulis, `describeEndpoint`, skema response, tanggal, `API_DOCS_ENABLED`, penegakan, yang belum tercakup) + baris di tabel referensi project-standards; Rule 11, `AGENTS.md` invariant #12 + daftar API inti `verify:scaffold` (+`openapi`), CONTRIBUTING §10, scope commit `core/openapi`, `references/testing.md` (§4 penjaga kontrak), DoD §14.1 (+ endpoint baru wajib `describeEndpoint`), L10 & L11 | Nama komponen OpenAPI PascalCase: `naming-convention` dinonaktifkan berpasangan + alasan di `common-headers.ts` |
+| 2026-10-04 | 1.9 | ✅ Step 1.9 + perbaikan Review 4 di-commit (`ce62029`) dan di-merge ke `main` atas permintaan user — **Fase 1 selesai** | — |
+| 2026-10-05 | Review 5 | Review menyeluruh Fase 1 (1.1–1.9 + gate Fase 0) atas permintaan user: 6 temuan, semua diperbaiki di branch `fix/review-phase-1` | Gate hijau; aturan baru dibuktikan chaos test |
+| 2026-10-05 | Review 5 | **Test tidak hermetik**: `bun test` memuat file env lokal developer → `DATABASE_URL` asli menimpa default test → health e2e & test `HealthService` menjalankan `SELECT 1` ke database pengembangan user di setiap run (probe: client postgres asli, `pingDatabase() = true`); hasil lokal juga bisa beda dengan CI. Perbaikan: `bunfig.toml` preload `test/setup/hermetic-env.ts` (DB & Redis → `127.0.0.1:1`, gagal ±19 ms — target tercepat dari tiga yang diukur) + `test/hermetic-env.test.ts` | Setelah perbaikan: `DATABASE_URL` test = target hermetik, probe DB `false` seketika |
+| 2026-10-05 | Review 5 | `mock.module()` global atas `database/connection` (users e2e, `health-probe.test.ts`) terbukti bocor ke file test berikutnya — kelas masalah yang sama dengan mock Redis 1.6. Dihapus: users e2e tidak membutuhkannya (env hermetik, client lazy), `pingDatabase(timeoutMs, client)` menerima client. ESLint `TEST_SYNTAX_RULES` kini melarang `mock.module()` di semua test | Chaos test: `mock.module` di `test/` dan di test modul → ditolak ESLint |
+| 2026-10-05 | Review 5 | Dokumen referensi basi sejak 1.1 (lolos review 1–4): `database.md` §1 (`sqlPool`, `env.*`) & §3 (drizzle config `process.env`, `schemaFilter: ['domain']`), `logging.md` §1 (`env.NODE_ENV` tidak ada, redaksi tidak lengkap, `mixin` tidak disebut). Ditulis ulang sebagai cuplikan pendek + rujukan file sumber (bukan salinan penuh); §2 `database.md` diberi catatan "keadaan sekarang vs target 2.2" | — |
+| 2026-10-05 | Review 5 | Versi minimum `package.json` dinaikkan ke versi teruji: `hono ^4.13.9` (Scalar butuh ≥ 4.12.5), `zod ^3.25.76` (`hono-openapi` butuh ≥ 3.25), `zod-openapi ^4.2.4`; L8 (langkah `verify:scaffold`, argumen commitlint) & baris "Versi kunci" diperbarui; `errorHandler` → `globalErrorHandler` di struktur folder | Diverifikasi tanpa perubahan: L1 & L2 sinkron dengan kode; `.rejects` tanpa `await` tetap diperiksa Bun (dibuktikan dengan promise tertunda) |
 
 ---
 
@@ -334,7 +340,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.6  | Ketahanan Redis & `CacheService` lanjutan                   | ✅     | 1.1             | `89d2e65`            |
 | 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅     | 1.2, 1.6        | `3028ac8`            |
 | 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path | ✅ | 1.6 | `0f2dae5` |
-| 1.9  | Dokumentasi OpenAPI | 👀 | 1.5 | |
+| 1.9  | Dokumentasi OpenAPI | ✅ | 1.5 | `ce62029` |
 | 2.1  | Standar tanggal & waktu (Temporal)                          | ⬜     | 0.3             |                      |
 | 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |                      |
 | 2.3  | Test helper data layer                                      | ⬜     | 2.2             |                      |
@@ -1239,7 +1245,7 @@ jobs:
         run: bunx validate-branch-name -t "${{ github.head_ref }}"
       - name: commitlint
         if: github.event_name == 'pull_request'
-        run: bunx commitlint --from ${{ github.event.pull_request.base.sha }} --to HEAD
+        run: bunx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
       - run: bun run typecheck
       - run: bun run lint
       - run: bun run lint:ls
@@ -1248,6 +1254,7 @@ jobs:
       - run: bun run lint:deps
       - run: bun run test:cov
       - run: bun run build
+      - run: bun run verify:scaffold
 ```
 
 `lint:branch` lokal membaca branch git aktif; di CI (checkout detached) nama branch diberikan eksplisit lewat `-t`.

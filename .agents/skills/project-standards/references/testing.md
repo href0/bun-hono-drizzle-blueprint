@@ -11,6 +11,8 @@ Read this file when: writing new test suites, mocking dependencies, or validatin
 - **Coverage Command**: `bun run test:cov` (coverage gate; thresholds in `scripts/check-coverage.ts`)
 - **Unit Tests**: Co-located with implementation files (`src/**/*.test.ts`).
 - **E2E Tests**: Blackbox integration tests located under `test/*.e2e.test.ts`.
+- **Hermetic by default**: `bunfig.toml` preloads `test/setup/hermetic-env.ts`, pointing `DATABASE_URL` / `REDIS_*` at a closed local port. Bun loads the local env file into `bun test` too; without the preload the suite would reach the developer's real database. `test/hermetic-env.test.ts` guards it.
+- **No `mock.module()`** (ESLint): Bun applies it to every later test file in the process. Inject dependencies instead — services/controllers take constructor defaults (`new UsersService(fakeRepo)`), functions take parameters (`pingDatabase(timeout, fakeClient)`), the cache takes a client (`new CacheService(fakeClient)`).
 
 ---
 
