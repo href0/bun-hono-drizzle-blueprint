@@ -1,5 +1,6 @@
 import { pingDatabase } from '../../database';
 import { cacheService } from '../../core/cache';
+import { nowIsoUtc } from '../../utils/datetime.util';
 
 import type { HealthReport, HealthState } from './health.dto';
 
@@ -31,7 +32,7 @@ export class HealthService {
     return {
       status: deriveHealthState(components),
       components,
-      timestamp: new Date().toISOString(),
+      timestamp: nowIsoUtc(),
     };
   }
 }

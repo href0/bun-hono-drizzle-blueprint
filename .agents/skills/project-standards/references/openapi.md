@@ -62,7 +62,7 @@ export type ProductResponse = z.infer<typeof productResponseSchema>;
 ```
 
 - The transformer returns `ProductResponse` (`z.infer`), so changing one without the other fails `tsc`.
-- Dates: `isoDateTime()` for `Date` values, `isoDateTimeString()` for values already serialized (`new Date().toISOString()`).
+- Dates: `isoDateTime()` for `Date` values, `isoDateTimeString()` for values already serialized (`nowIsoUtc()`). Request-side time fields (`instantField`, `calendarDateField`, `timeZoneField`) document themselves — see [datetime.md](datetime.md).
 - Free-form dictionaries: `z.record(...)`; prefer `{ key, value }` arrays (see `validate()` `preserveKeys`).
 - Extra OpenAPI hints: `.openapi({ description, example })` (available on every Zod schema through `zod-openapi/extend`, loaded by `src/core/openapi`).
 

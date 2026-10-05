@@ -1,0 +1,74 @@
+# Date & Time Standard — Implementation Guide
+
+Read this file when: a field, column or query involves a date, a time, a duration or a time zone.
+
+---
+
+## 1. Three kinds of time — never mixed
+
+| Kind | Field name | TypeScript | Column | Wire format |
+|---|---|---|---|---|
+| Instant (an exact moment) | `*_at` | `Temporal.Instant` (driver: `Date`) | `timestamptz` | ISO 8601 UTC, e.g. `2026-10-05T03:00:00.000Z`; requests **must** carry an offset |
+| Calendar date (a day, no zone) | `*_date` | `Temporal.PlainDate` | `date` | `YYYY-MM-DD` |
+| Local schedule | instant + `*_timezone` | `Temporal.Instant` + IANA name | `timestamptz` + `text` | instant + zone such as `Asia/Jakarta` |
+
+A birthday or a due day is a calendar date — storing it as an instant shifts it by a day for half the world. A meeting "at 09:00 Jakarta time" is an instant plus the zone it was planned in.
+
+---
+
+## 2. The one conversion module: `src/utils/datetime.util.ts`
+
+| Function | Use |
+|---|---|
+| `nowInstant()` / `nowIsoUtc()` / `nowAsDate()` | Current moment as an instant / as `…Z` text (envelope `timestamp`, health) / as a `Date` for driver columns (`$onUpdate(nowAsDate)`) |
+| `parseInstant(text)` | ISO 8601 with offset → instant; no offset → `DateTimeError('MISSING_OFFSET')` |
+| `parseCalendarDate(text)` | Exactly `YYYY-MM-DD` → `PlainDate`; rejects `2026-02-30` |
+| `isValidTimeZone(zone)` | IANA names only; `+07:00` is not a zone |
+| `dayRangeInZone(date, zone)` | `[start, end)` instants of a day in a zone — query with `>= start AND < end`; DST-correct (23/25-hour days) |
+| `wallTimeToInstant(date, 'HH:mm', zone)` | Wall-clock time → instant; times skipped or repeated by DST are **rejected**, never guessed |
+| `instantFromDate(date)` / `instantToDate(instant)` | Driver boundary: postgres reads and writes `timestamptz` as `Date` |
+| `toIsoUtc(instant)` | `…T03:00:00.000Z` (same shape as `Date#toISOString`) |
+
+Errors are `DateTimeError` with a `reason` (`INVALID_INSTANT`, `MISSING_OFFSET`, `INVALID_DATE`, `INVALID_TIME`, `INVALID_TIME_ZONE`, `NONEXISTENT_LOCAL_TIME`, `AMBIGUOUS_LOCAL_TIME`) — services map them to a `BadRequestError` with a localized message when they come from user input.
+
+---
+
+## 3. Request fields: `src/core/dto/datetime.dto.ts`
+
+```typescript
+import { calendarDateField, instantField, timeZoneField } from '../../core/dto/datetime.dto';
+
+export const createMeetingSchema = z.object({
+  startsAt: instantField, // "2026-10-05T09:00:00+07:00" → Temporal.Instant
+  dueDate: calendarDateField.optional(), // "2026-10-05" → Temporal.PlainDate
+  timezone: timeZoneField, // "Asia/Jakarta"
+});
+```
+
+- Invalid values become 400 `ERR_INVALID_INPUT` with a format message (the submitted value is never echoed).
+- They are documented in OpenAPI as `string` with `format: date-time` / `date` automatically.
+
+---
+
+## 4. Responses
+
+- Temporal values serialize through their `toJSON()`; `camelToSnakeCase()` keeps class instances intact (it used to turn them into `{}`).
+- Today's columns are `Date` from the driver: document them with `isoDateTime()` (see [openapi.md](openapi.md)). Column helpers for instants and calendar dates arrive with plan step 2.2.
+
+---
+
+## 5. UTC everywhere
+
+- **Runtime**: `src/config/env-source.ts` sets `process.env.TZ = 'UTC'` at startup; `Dockerfile` and the compose files set `TZ=UTC`; the test preload does too. Local-time behaviour of `Date` is therefore identical on every machine.
+- **Database session**: `connection: { timezone: 'UTC' }` in `src/database/connection.ts` — server-side `now()`, `date_trunc` and text casts of `timestamptz` never depend on the server's zone.
+- Never derive a calendar date from an instant without saying in which zone (`instant.toZonedDateTimeISO(zone).toPlainDate()`).
+
+---
+
+## 6. Enforcement (ESLint `DATETIME_SYNTAX_RULES`, everywhere in `src/` except `datetime.util.ts`)
+
+- `new Date(...)`, **including `new Date()` for "now"** — one way to obtain time values: `nowInstant()` / `nowIsoUtc()` / `nowAsDate()` (a `Date` for driver columns such as Drizzle `$onUpdate(nowAsDate)`), `parseInstant()` / `parseCalendarDate()` for text, `instantToDate()` at the driver boundary.
+- `Date.parse` — guesses the zone of strings without an offset.
+- Local getters/setters/formatters: `getHours`, `getDate`, `getMonth`, `getFullYear`, `getTimezoneOffset`, `setHours`, …, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `toDateString`, `toTimeString`. UTC variants (`getUTCHours`, `toISOString`) are fine. Format numbers with `Intl.NumberFormat`.
+
+Tests may build fixture dates freely.

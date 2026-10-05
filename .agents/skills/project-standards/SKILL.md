@@ -15,7 +15,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 - **HTTP Engine**: [Hono](https://hono.dev) (v4.7+)
 - **Language**: TypeScript 5 (Strict Mode: `noImplicitAny`, `strictNullChecks`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`)
 - **Database ORM**: [Drizzle ORM](https://orm.drizzle.team) with `postgres` driver (PostgreSQL 16+)
-- **Validation**: [Zod](https://zod.dev) (v3.24+)
+- **Validation**: [Zod](https://zod.dev) (v3.25+)
+- **Date & Time**: [temporal-polyfill](https://github.com/fullcalendar/temporal-polyfill) (`Temporal`), UTC runtime and DB session — see Rule 12
 - **Structured Logging**: [Pino](https://github.com/pinojs/pino) with Correlation ID (`requestId`) and PII redaction
 - **Cache**: Redis via [ioredis](https://github.com/redis/ioredis) with fail-open resilience
   - Every key is auto-prefixed with `<APP_NAME>:<NODE_ENV>:` (override: `REDIS_KEY_PREFIX`), so projects and environments can share one Redis.
@@ -259,6 +260,12 @@ export class UsersService {
 - Served at `<API_BASE_PATH>/docs` (Scalar UI) and `<API_BASE_PATH>/docs/openapi.json` when `API_DOCS_ENABLED` (default on, off in production).
 - Enforced by `test/openapi.e2e.test.ts`: every route of `createApp()` is in the document with a `summary` and a 2xx response (so `validate()` alone is not enough), every schema property and query parameter is snake_case, validated routes document 400, every operation carries the common headers. Full guide: [openapi.md](references/openapi.md).
 
+### Rule 12: Date & Time (Temporal, UTC)
+- Three kinds of time, never mixed: instant (`*_at`, `Temporal.Instant`, `timestamptz`, ISO 8601 UTC), calendar date (`*_date`, `Temporal.PlainDate`, `date`, `YYYY-MM-DD`), local schedule (instant + `*_timezone` IANA name).
+- All parsing and `Date` ⇄ Temporal conversion goes through `src/utils/datetime.util.ts`; request fields use `instantField` / `calendarDateField` / `timeZoneField` (`src/core/dto/datetime.dto.ts`). Requests without a UTC offset are rejected; DST-skipped or repeated wall times are rejected, never guessed.
+- The process (`TZ=UTC`) and the database session (`timezone=UTC`) run in UTC.
+- Enforced by ESLint `DATETIME_SYNTAX_RULES`: `new Date(...)` — even for "now" (use `nowInstant()` / `nowIsoUtc()` / `nowAsDate()`) — `Date.parse` and local-time getters/setters/formatters are rejected outside `datetime.util.ts`. Full guide: [datetime.md](references/datetime.md).
+
 ---
 
 ## 5. Standard Output Envelopes
@@ -336,6 +343,7 @@ When implementing specific subsystems, consult the corresponding deep-dive refer
 | **Structured Logging** | [logging.md](references/logging.md) | Pino logger, `requestId` correlation, automatic PII redaction |
 | **Redis Caching** | [redis-cache.md](references/redis-cache.md) | `CacheService`, `CACHE_KEYS` SSOT, fail-open resilience guarantee |
 | **Raw SQL Queries** | [raw-queries.md](references/raw-queries.md) | Drizzle `sql` tagged template, parameterization safety, `*.queries.ts` files |
+| **Date & Time** | [datetime.md](references/datetime.md) | Instant vs calendar date vs local schedule, `datetime.util.ts`, DTO fields, UTC runtime/session, DST rules |
 | **API Documentation** | [openapi.md](references/openapi.md) | `describeEndpoint`, response schemas in DTOs, what is generated automatically, `/api/docs`, enforcement |
 | **Testing Standards** | [testing.md](references/testing.md) | `bun:test` controller/service/repo mocking, blackbox E2E HTTP testing |
 

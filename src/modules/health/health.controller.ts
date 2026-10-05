@@ -1,6 +1,7 @@
 import { ServiceUnavailableError } from '../../core/errors';
 import { asyncHandler } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
+import { nowIsoUtc } from '../../utils/datetime.util';
 import { HEALTH_MESSAGES } from './health.messages';
 import { healthService, HealthService } from './health.service';
 
@@ -31,7 +32,7 @@ export class HealthController {
         {
           status: 'UP',
           uptimeSeconds: Math.round(process.uptime()),
-          timestamp: new Date().toISOString(),
+          timestamp: nowIsoUtc(),
         },
         HEALTH_MESSAGES.ALIVE,
         200,

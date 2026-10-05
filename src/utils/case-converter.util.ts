@@ -26,6 +26,17 @@ export function toSnakeCase(key: string): string {
   return result.toLowerCase();
 }
 
+/**
+ * Only plain objects (`{}` / `Object.create(null)`) have their keys converted. Class instances —
+ * `Date`, `RegExp`, Temporal values, buffers — are leaves: walking their own (often empty) keys
+ * would silently turn e.g. a `Temporal.Instant` into `{}` in a response.
+ */
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value) as unknown;
+  return prototype === Object.prototype || prototype === null;
+};
+
 const SNAKE_CASE_KEY = /^[a-z0-9]+(?:_[a-z0-9]+)*$/;
 
 /** `user_id`, `page`, `address_line_2` — lowercase words joined by single underscores. */
@@ -46,11 +57,11 @@ export function findNonSnakeCaseKeys(
       findNonSnakeCaseKeys(item, [], `${path}${String(index)}.`),
     );
   }
-  if (value === null || typeof value !== 'object' || value instanceof Date) {
+  if (!isPlainObject(value)) {
     return [];
   }
 
-  return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => {
+  return Object.entries(value).flatMap(([key, child]) => {
     const own = isSnakeCaseKey(key) ? [] : [`${path}${key}`];
     const nested =
       path === '' && preserveKeys.includes(key)
@@ -75,27 +86,19 @@ export function toCamelCase(key: string): string {
 
 /**
  * Recursively transforms object keys from camelCase to snake_case.
- * Leaves primitives, null, undefined, Date, and RegExp instances intact.
+ * Leaves primitives, null, undefined and class instances (Date, RegExp, Temporal, …) intact.
  */
 export function camelToSnakeCase(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return value;
-  }
-
-  if (typeof value !== 'object') {
-    return value;
-  }
-
-  if (value instanceof Date || value instanceof RegExp) {
-    return value;
-  }
-
   if (Array.isArray(value)) {
     return value.map((item: unknown) => camelToSnakeCase(item));
   }
 
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
   const result: Record<string, unknown> = {};
-  const entries = Object.entries(value as Record<string, unknown>);
+  const entries = Object.entries(value);
 
   for (const [key, val] of entries) {
     const snakeKey = toSnakeCase(key);
@@ -107,27 +110,19 @@ export function camelToSnakeCase(value: unknown): unknown {
 
 /**
  * Recursively transforms object keys from snake_case to camelCase.
- * Leaves primitives, null, undefined, Date, and RegExp instances intact.
+ * Leaves primitives, null, undefined and class instances (Date, RegExp, Temporal, …) intact.
  */
 export function snakeToCamelCase(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return value;
-  }
-
-  if (typeof value !== 'object') {
-    return value;
-  }
-
-  if (value instanceof Date || value instanceof RegExp) {
-    return value;
-  }
-
   if (Array.isArray(value)) {
     return value.map((item: unknown) => snakeToCamelCase(item));
   }
 
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
   const result: Record<string, unknown> = {};
-  const entries = Object.entries(value as Record<string, unknown>);
+  const entries = Object.entries(value);
 
   for (const [key, val] of entries) {
     const camelKey = toCamelCase(key);
@@ -145,12 +140,12 @@ export function snakeToCamelCasePreserving(
   value: unknown,
   preserveKeys: readonly string[],
 ): unknown {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (!isPlainObject(value)) {
     return snakeToCamelCase(value);
   }
 
   return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+    Object.entries(value).map(([key, child]) => [
       toCamelCase(key),
       preserveKeys.includes(key) ? child : snakeToCamelCase(child),
     ]),

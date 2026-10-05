@@ -11,7 +11,7 @@ import { APP_ERROR_CODES, ERROR_TYPES } from '../errors/error-codes';
 export const isoDateTime = (): z.ZodDate =>
   z.date().openapi({ type: 'string', format: 'date-time', example: '2026-10-04T03:00:00.000Z' });
 
-/** A timestamp already serialized to an ISO 8601 UTC string (e.g. `new Date().toISOString()`). */
+/** A timestamp already serialized to an ISO 8601 UTC string (e.g. `nowIsoUtc()`). */
 export const isoDateTimeString = (): z.ZodString =>
   z.string().openapi({ format: 'date-time', example: '2026-10-04T03:00:00.000Z' });
 
