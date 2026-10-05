@@ -2,9 +2,9 @@
 
 | Atribut     | Nilai                                                                                                                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — Fase 0 & Fase 1 selesai + review menyeluruh (`main` @ `84cf28b`); Step 2.1 menunggu review (branch `feat/datetime-standard`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status      | IN PROGRESS — Fase 0–1 + Step 2.1 selesai (`main` @ `d1aa11a`); tindak lanjut log lokal 2.1 menunggu review (branch `feat/dev-log-local-time`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal     | 2026-10-04                                                                                                                                                                                                                                |
-| Basis kode  | branch `main` @ `84cf28b` |
+| Basis kode  | branch `main` @ `d1aa11a` |
 | Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                                                            |
 | Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                                                           |
 | Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                                                            |
@@ -311,6 +311,8 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-05 | 2.1 | ESLint `DATETIME_SYNTAX_RULES` (dipisah dari grup kode error agar `datetime.util.ts` bisa dikecualikan): `new Date(<value>)`, `Date.parse`, getter/setter/formatter waktu lokal — selector L7 diperluas dengan setter, `getSeconds`/`getMilliseconds`/`getYear`, `toDateString`/`toTimeString`. `new Date()` untuk "sekarang" dan varian UTC tetap boleh. Catatan: `toLocaleString` pada angka ikut ditolak (pakai `Intl.NumberFormat`) | Chaos test: 6 pelanggaran di modul/`core`/`utils` ditolak; `new Date()` & `getUTCHours()` lolos |
 | 2026-10-05 | 2.1 | Dokumen: `references/datetime.md` baru + baris tabel referensi, project-standards Rule 12 + tech stack, `AGENTS.md` invariant #13 + daftar aturan AST, CONTRIBUTING §10 (field waktu DTO), README, `openapi.md` | Kolom DB berbasis Temporal (helper `instant()`/`calendarDate()`) menyusul di 2.2; respons saat ini tetap `Date` dari driver |
 | 2026-10-05 | 2.1 | **Diperketat atas permintaan user** (penyimpangan dari L7 yang hanya melarang `new Date(<arg>)`): `new Date()` untuk "sekarang" ikut dilarang di luar `datetime.util.ts` — satu cara mendapatkan nilai waktu. Helper baru `nowAsDate()` untuk kolom driver (`users.schema.ts` `$onUpdate(nowAsDate)`). `Date.now()`, varian UTC, `toISOString()` tetap boleh (bebas zona) | Chaos test: `new Date()` di modul & `core` → ditolak |
+| 2026-10-05 | 2.1 | ✅ Di-commit (`d1aa11a`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-05 | 2.1+ | Atas permintaan user (tindak lanjut 2.1, branch `feat/dev-log-local-time`): log pretty development memakai jam dinding zona mesin + offset (`hostTimeZone` dibaca di `env-source.ts` sebelum `TZ=UTC`; `formatWallClock()`), mengikuti lokasi developer tanpa konfigurasi; runtime tetap UTC. Log non-development: `time` ISO 8601 UTC (`pino.stdTimeFunctions.isoTime`, sebelumnya epoch ms). Rekomendasi untuk VPS: UTC (pipeline log menampilkan sesuai zona pembaca; korelasi dengan sesi DB UTC & layanan lain) | Terlihat nyata: dev `[2026-10-05 11:30:22.877 +07:00]` dengan proses `UTC`; produksi `"time":"2026-10-05T04:30:23.989Z"` |
 
 ---
 
@@ -349,7 +351,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅     | 1.2, 1.6        | `3028ac8`            |
 | 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path | ✅ | 1.6 | `0f2dae5` |
 | 1.9  | Dokumentasi OpenAPI | ✅ | 1.5 | `ce62029` |
-| 2.1  | Standar tanggal & waktu (Temporal) | 👀 | 0.3 | |
+| 2.1  | Standar tanggal & waktu (Temporal) | ✅ | 0.3 | `d1aa11a` |
 | 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |                      |
 | 2.3  | Test helper data layer                                      | ⬜     | 2.2             |                      |
 | 2.4  | `record_changes` + `AuditedRepository`                      | ⬜     | 1.2, 2.3        |                      |

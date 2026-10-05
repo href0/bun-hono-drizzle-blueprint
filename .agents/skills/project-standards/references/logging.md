@@ -6,7 +6,7 @@ Read this file when: writing logs in services, configuring log redaction, or tra
 
 ## 1. Centralized Pino Logger (`src/core/logger/logger.ts`)
 
-Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/logger/logger.ts` — options are built by the pure `buildLoggerOptions(appConfig)` so every environment branch is unit-tested, then `export const logger = pino(buildLoggerOptions(appConfig))`.
+Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/logger/logger.ts` — options are built by the pure `buildLoggerOptions(appConfig, hostTimeZone)` so every environment branch is unit-tested, then `export const logger = pino(buildLoggerOptions(appConfig, hostTimeZone))`.
 
 | Option | Value |
 |---|---|
@@ -14,7 +14,8 @@ Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/
 | `base` | `{ app: APP_NAME, env: NODE_ENV }` on every line |
 | `mixin` | `requestContextMixin` → `requestId` and `actor` from the `RequestContext` (§2) |
 | `redact` | `password`, `passwordHash`, `token`, `apiKey`, `secret` (each also as `*.<name>`), `authorization`, `req.headers.authorization`, `nik`, `creditCard` → `[REDACTED]` |
-| `transport` | `pino-pretty` (single line, local time) only when `NODE_ENV=development`; JSON lines elsewhere |
+| `timestamp` | Development: the host machine's wall clock with its offset, e.g. `[2026-10-05 11:30:22.877 +07:00]` — follows the developer's zone wherever they are (`hostTimeZone`, read before the process switches to UTC). Elsewhere: ISO 8601 UTC, `"time":"2026-10-05T04:30:23.989Z"` — readable raw on a server and parsed natively by log pipelines, which display it in each viewer's zone |
+| `transport` | `pino-pretty` (single line) only when `NODE_ENV=development`; JSON lines elsewhere |
 
 Adding a sensitive field: extend `redact.paths` in `buildLoggerOptions()` (top level and `*.<field>`) and add a case to `logger.test.ts`.
 

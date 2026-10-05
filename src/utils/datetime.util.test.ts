@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import {
   dayRangeInZone,
+  formatWallClock,
   DateTimeError,
   instantFromDate,
   instantToDate,
@@ -134,5 +135,14 @@ describe('wallTimeToInstant', () => {
     expect(reasonOf(() => wallTimeToInstant(date('2026-10-05'), '09:30', '+07:00'))).toBe(
       'INVALID_TIME_ZONE',
     );
+  });
+});
+
+describe('formatWallClock', () => {
+  it('shows an instant in a zone with its offset', () => {
+    const instant = parseInstant('2026-10-05T03:00:00.123Z');
+    expect(formatWallClock(instant, 'Asia/Jakarta')).toBe('2026-10-05 10:00:00.123 +07:00');
+    expect(formatWallClock(instant, 'Asia/Jayapura')).toBe('2026-10-05 12:00:00.123 +09:00');
+    expect(formatWallClock(instant, 'UTC')).toBe('2026-10-05 03:00:00.123 +00:00');
   });
 });
