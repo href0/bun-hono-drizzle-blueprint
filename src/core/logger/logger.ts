@@ -1,5 +1,6 @@
 import pino, { type LoggerOptions } from 'pino';
-import { appConfig, type AppConfig } from '../../config';
+import { appConfig, hostTimeZone, type AppConfig } from '../../config';
+import { formatWallClock, nowInstant } from '../../utils/datetime.util';
 import { getRequestContext } from '../context/request-context';
 
 /** Adds request correlation to every log line, so callers never pass `requestId` manually. */
@@ -8,14 +9,28 @@ export const requestContextMixin = (): Record<string, string> => {
   return context ? { requestId: context.requestId, actor: context.actor } : {};
 };
 
+/** `"time"` in the wall clock of `zone` with its offset, e.g. `2026-10-05 11:27:43.123 +07:00`. */
+export const wallClockTimestamp =
+  (zone: string): (() => string) =>
+  () =>
+    `,"time":"${formatWallClock(nowInstant(), zone)}"`;
+
 /**
- * Builds Pino options from validated config. Kept pure so every environment branch
- * (pretty transport in development, JSON elsewhere) is unit-testable.
+ * Builds Pino options from validated config. Kept pure so every environment branch is unit-testable:
+ * - development: pretty single-line logs timed in `displayTimeZone` (the host's zone — follows the
+ *   developer wherever they are, offset printed so it stays unambiguous);
+ * - elsewhere: JSON lines with an ISO 8601 UTC `time`, readable raw on a server and parsed natively
+ *   by log pipelines, which show it in each viewer's own zone.
  */
 export const buildLoggerOptions = (
   config: Pick<AppConfig, 'NODE_ENV' | 'LOG_LEVEL' | 'APP_NAME'>,
+  displayTimeZone: string,
 ): LoggerOptions => ({
   level: config.LOG_LEVEL,
+  timestamp:
+    config.NODE_ENV === 'development'
+      ? wallClockTimestamp(displayTimeZone)
+      : pino.stdTimeFunctions.isoTime,
   redact: {
     paths: [
       'password',
@@ -41,7 +56,7 @@ export const buildLoggerOptions = (
           target: 'pino-pretty',
           options: {
             colorize: true,
-            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+            translateTime: false, // `time` is already a wall-clock string (wallClockTimestamp)
             ignore: 'pid,hostname',
             singleLine: true,
           },
@@ -54,4 +69,4 @@ export const buildLoggerOptions = (
   mixin: requestContextMixin,
 });
 
-export const logger = pino(buildLoggerOptions(appConfig));
+export const logger = pino(buildLoggerOptions(appConfig, hostTimeZone));

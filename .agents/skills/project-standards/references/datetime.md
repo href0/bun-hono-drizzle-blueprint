@@ -28,6 +28,7 @@ A birthday or a due day is a calendar date — storing it as an instant shifts i
 | `wallTimeToInstant(date, 'HH:mm', zone)` | Wall-clock time → instant; times skipped or repeated by DST are **rejected**, never guessed |
 | `instantFromDate(date)` / `instantToDate(instant)` | Driver boundary: postgres reads and writes `timestamptz` as `Date` |
 | `toIsoUtc(instant)` | `…T03:00:00.000Z` (same shape as `Date#toISOString`) |
+| `formatWallClock(instant, zone)` | Display only: `2026-10-05 10:00:00.123 +07:00` (offset always printed) |
 
 Errors are `DateTimeError` with a `reason` (`INVALID_INSTANT`, `MISSING_OFFSET`, `INVALID_DATE`, `INVALID_TIME`, `INVALID_TIME_ZONE`, `NONEXISTENT_LOCAL_TIME`, `AMBIGUOUS_LOCAL_TIME`) — services map them to a `BadRequestError` with a localized message when they come from user input.
 
@@ -62,6 +63,7 @@ export const createMeetingSchema = z.object({
 - **Runtime**: `src/config/env-source.ts` sets `process.env.TZ = 'UTC'` at startup; `Dockerfile` and the compose files set `TZ=UTC`; the test preload does too. Local-time behaviour of `Date` is therefore identical on every machine.
 - **Database session**: `connection: { timezone: 'UTC' }` in `src/database/connection.ts` — server-side `now()`, `date_trunc` and text casts of `timestamptz` never depend on the server's zone.
 - Never derive a calendar date from an instant without saying in which zone (`instant.toZonedDateTimeISO(zone).toPlainDate()`).
+- **One display-only exception**: `hostTimeZone` (`src/config/env-source.ts`) is the machine's own zone, read before the switch to UTC. Only the development log timestamp uses it (`formatWallClock()`), so a developer sees their local time wherever they are; servers log ISO 8601 UTC. Never use it for business logic.
 
 ---
 

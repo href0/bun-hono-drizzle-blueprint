@@ -145,6 +145,16 @@ export const wallTimeToInstant = (
   }
 };
 
+/**
+ * Human-readable wall-clock time of an instant in a zone, with its offset so it stays
+ * unambiguous: `2026-10-05 11:27:43.123 +07:00`. For display only (e.g. development logs).
+ */
+export const formatWallClock = (instant: Temporal.Instant, zone: string): string => {
+  const local = instant.toZonedDateTimeISO(zone);
+  const time = local.toPlainTime().toString({ fractionalSecondDigits: 3 });
+  return `${local.toPlainDate().toString()} ${time} ${local.offset}`;
+};
+
 /** Driver boundary: the postgres driver reads and writes `timestamptz` as `Date`. */
 export const instantFromDate = (date: Date): Temporal.Instant =>
   Temporal.Instant.fromEpochMilliseconds(date.getTime());
