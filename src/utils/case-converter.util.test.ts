@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import {
   toSnakeCase,
   toCamelCase,
@@ -191,5 +192,28 @@ describe('CaseConverter Utility (Unit)', () => {
     expect(result.createdAt).toBe(createdAt);
     expect(result.matchPattern).toBe(pattern);
     expect(result.lineItems).toEqual([{ itemCode: 'A' }, 'raw_value']);
+  });
+});
+
+describe('class instances are leaves (Date, RegExp, Temporal)', () => {
+  const instant = Temporal.Instant.from('2026-10-05T03:00:00Z');
+  const day = Temporal.PlainDate.from('2026-10-05');
+
+  it('camelToSnakeCase keeps them intact instead of turning them into {}', () => {
+    const converted = camelToSnakeCase({ createdAt: instant, dueDate: day, at: new Date(0) });
+    expect(JSON.stringify(converted)).toBe(
+      '{"created_at":"2026-10-05T03:00:00Z","due_date":"2026-10-05","at":"1970-01-01T00:00:00.000Z"}',
+    );
+  });
+
+  it('snakeToCamelCase, the preserving variant and the key finder leave them alone too', () => {
+    expect(snakeToCamelCase({ due_date: day })).toEqual({ dueDate: day });
+    expect(snakeToCamelCasePreserving({ starts_at: instant }, [])).toEqual({ startsAt: instant });
+    expect(findNonSnakeCaseKeys({ due_date: day, pattern: /x/ })).toEqual([]);
+  });
+
+  it('still converts plain objects, including prototype-less ones', () => {
+    const bare = Object.assign(Object.create(null) as Record<string, unknown>, { someKey: 1 });
+    expect(camelToSnakeCase(bare)).toEqual({ some_key: 1 });
   });
 });

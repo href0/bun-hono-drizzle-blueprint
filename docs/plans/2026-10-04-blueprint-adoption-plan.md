@@ -2,9 +2,9 @@
 
 | Atribut     | Nilai                                                                                                                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | IN PROGRESS — Fase 0 & Fase 1 selesai (`main` @ `ce62029`); perbaikan review menyeluruh Fase 1 menunggu review (branch `fix/review-phase-1`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status      | IN PROGRESS — Fase 0 & Fase 1 selesai + review menyeluruh (`main` @ `84cf28b`); Step 2.1 menunggu review (branch `feat/datetime-standard`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal     | 2026-10-04                                                                                                                                                                                                                                |
-| Basis kode  | branch `main` @ `ce62029` |
+| Basis kode  | branch `main` @ `84cf28b` |
 | Sumber      | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan)                                                                                                            |
 | Target      | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan                                                                                                                                           |
 | Baseline    | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test)                                                                            |
@@ -303,6 +303,14 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-05 | Review 5 | `mock.module()` global atas `database/connection` (users e2e, `health-probe.test.ts`) terbukti bocor ke file test berikutnya — kelas masalah yang sama dengan mock Redis 1.6. Dihapus: users e2e tidak membutuhkannya (env hermetik, client lazy), `pingDatabase(timeoutMs, client)` menerima client. ESLint `TEST_SYNTAX_RULES` kini melarang `mock.module()` di semua test | Chaos test: `mock.module` di `test/` dan di test modul → ditolak ESLint |
 | 2026-10-05 | Review 5 | Dokumen referensi basi sejak 1.1 (lolos review 1–4): `database.md` §1 (`sqlPool`, `env.*`) & §3 (drizzle config `process.env`, `schemaFilter: ['domain']`), `logging.md` §1 (`env.NODE_ENV` tidak ada, redaksi tidak lengkap, `mixin` tidak disebut). Ditulis ulang sebagai cuplikan pendek + rujukan file sumber (bukan salinan penuh); §2 `database.md` diberi catatan "keadaan sekarang vs target 2.2" | — |
 | 2026-10-05 | Review 5 | Versi minimum `package.json` dinaikkan ke versi teruji: `hono ^4.13.9` (Scalar butuh ≥ 4.12.5), `zod ^3.25.76` (`hono-openapi` butuh ≥ 3.25), `zod-openapi ^4.2.4`; L8 (langkah `verify:scaffold`, argumen commitlint) & baris "Versi kunci" diperbarui; `errorHandler` → `globalErrorHandler` di struktur folder | Diverifikasi tanpa perubahan: L1 & L2 sinkron dengan kode; `.rejects` tanpa `await` tetap diperiksa Bun (dibuktikan dengan promise tertunda) |
+| 2026-10-05 | Review 5 | ✅ Di-commit (`84cf28b`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-05 | 2.1 | `temporal-polyfill` 1.0.5 (Bun 1.3 belum punya `Temporal`). `src/utils/datetime.util.ts`: `nowInstant`, `nowIsoUtc`, `toIsoUtc` (selalu milidetik, bentuk sama dengan `Date#toISOString`), `parseInstant` (offset wajib → `MISSING_OFFSET`), `parseCalendarDate` (persis `YYYY-MM-DD`, tolak 2026-02-30), `isValidTimeZone` (IANA saja, offset `+07:00` ditolak), `dayRangeInZone` (`[start, end)`), `wallTimeToInstant` (jam DST yang dilompati → `NONEXISTENT_LOCAL_TIME`, terulang → `AMBIGUOUS_LOCAL_TIME`), `instantFromDate`/`instantToDate` | Error berupa `DateTimeError` (+`reason`) di `utils/`, bukan `ApiError` — `strict-utils-isolation` melarang `utils` meng-import `core` |
+| 2026-10-05 | 2.1 | `src/core/dto/datetime.dto.ts`: `instantField` → `Temporal.Instant`, `calendarDateField` → `Temporal.PlainDate`, `timeZoneField`; pesan format tanpa menyalin input pengguna; terdokumentasi otomatis di OpenAPI (`format: date-time` / `date`) | — |
+| 2026-10-05 | 2.1 | **Bug ditemukan & diperbaiki**: `camelToSnakeCase` (dan konverter lain) hanya mengecualikan `Date`/`RegExp` → objek Temporal (tanpa properti enumerable) menjadi `{}` di response secara diam-diam (terbukti: `{"created_at":{}}`). Kini hanya objek polos (`Object.prototype`/`null` prototype) yang ditelusuri; semua instance kelas adalah daun | Test regresi untuk keempat fungsi konverter |
+| 2026-10-05 | 2.1 | UTC: runtime dipaksa di `env-source.ts` (`process.env.TZ = 'UTC'`, terbukti berlaku saat runtime di Bun; mesin user `Asia/Jakarta`), preload test, `Dockerfile` & kedua compose `TZ=UTC`; sesi DB `connection: { timezone: 'UTC' }` (huruf kecil — nama GUC PostgreSQL tidak peka huruf, lolos `naming-convention`). `new Date().toISOString()` diganti `nowIsoUtc()` (envelope error, health) | Sesi `timezone=UTC` terverifikasi sebagai parameter startup client; **belum diuji ke PostgreSQL asli** (integration 6.1) |
+| 2026-10-05 | 2.1 | ESLint `DATETIME_SYNTAX_RULES` (dipisah dari grup kode error agar `datetime.util.ts` bisa dikecualikan): `new Date(<value>)`, `Date.parse`, getter/setter/formatter waktu lokal — selector L7 diperluas dengan setter, `getSeconds`/`getMilliseconds`/`getYear`, `toDateString`/`toTimeString`. `new Date()` untuk "sekarang" dan varian UTC tetap boleh. Catatan: `toLocaleString` pada angka ikut ditolak (pakai `Intl.NumberFormat`) | Chaos test: 6 pelanggaran di modul/`core`/`utils` ditolak; `new Date()` & `getUTCHours()` lolos |
+| 2026-10-05 | 2.1 | Dokumen: `references/datetime.md` baru + baris tabel referensi, project-standards Rule 12 + tech stack, `AGENTS.md` invariant #13 + daftar aturan AST, CONTRIBUTING §10 (field waktu DTO), README, `openapi.md` | Kolom DB berbasis Temporal (helper `instant()`/`calendarDate()`) menyusul di 2.2; respons saat ini tetap `Date` dari driver |
+| 2026-10-05 | 2.1 | **Diperketat atas permintaan user** (penyimpangan dari L7 yang hanya melarang `new Date(<arg>)`): `new Date()` untuk "sekarang" ikut dilarang di luar `datetime.util.ts` — satu cara mendapatkan nilai waktu. Helper baru `nowAsDate()` untuk kolom driver (`users.schema.ts` `$onUpdate(nowAsDate)`). `Date.now()`, varian UTC, `toISOString()` tetap boleh (bebas zona) | Chaos test: `new Date()` di modul & `core` → ditolak |
 
 ---
 
@@ -341,7 +349,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.7  | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅     | 1.2, 1.6        | `3028ac8`            |
 | 1.8  | Health `UP`/`DEGRADED`/`DOWN` + base path | ✅ | 1.6 | `0f2dae5` |
 | 1.9  | Dokumentasi OpenAPI | ✅ | 1.5 | `ce62029` |
-| 2.1  | Standar tanggal & waktu (Temporal)                          | ⬜     | 0.3             |                      |
+| 2.1  | Standar tanggal & waktu (Temporal) | 👀 | 0.3 | |
 | 2.2  | Schema proyek, column helpers, UUID v7, schema referensi    | ⬜     | 2.1             |                      |
 | 2.3  | Test helper data layer                                      | ⬜     | 2.2             |                      |
 | 2.4  | `record_changes` + `AuditedRepository`                      | ⬜     | 1.2, 2.3        |                      |
@@ -637,8 +645,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] Test DST (mis. `America/New_York` 2026-03-08 02:30 → ditolak), batas hari `Asia/Jayapura` vs UTC.
-- [ ] `new Date('2026-01-01')` di modul → error ESLint.
+- [x] Test DST (mis. `America/New_York` 2026-03-08 02:30 → ditolak), batas hari `Asia/Jayapura` vs UTC.
+- [x] `new Date('2026-01-01')` di modul → error ESLint.
 
 ### Step 2.2 — Schema proyek, column helpers, UUID v7, schema referensi
 

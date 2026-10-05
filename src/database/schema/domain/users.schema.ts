@@ -1,4 +1,5 @@
 import { uuid, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { nowAsDate } from '../../../utils/datetime.util';
 import { domainTable } from './schema';
 
 export const users = domainTable('users', {
@@ -11,7 +12,7 @@ export const users = domainTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow()
-    .$onUpdate(() => new Date()),
+    .$onUpdate(nowAsDate),
 });
 
 export type User = typeof users.$inferSelect;

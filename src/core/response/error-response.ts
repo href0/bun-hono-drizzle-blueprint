@@ -4,6 +4,7 @@ import { ApiError, type ErrorDetail } from '../errors/api-error';
 import { InternalServerError } from '../errors/internal-server.error';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { translate } from '../i18n/translate';
+import { nowIsoUtc } from '../../utils/datetime.util';
 
 /** `user.fullName` → `user.full_name`: field names follow the snake_case wire contract. */
 const toWireField = (field: string): string => field.split('.').map(toSnakeCase).join('.');
@@ -45,6 +46,6 @@ export const buildErrorBody = (
         : {}),
     },
     request_id: requestId,
-    timestamp: new Date().toISOString(),
+    timestamp: nowIsoUtc(),
   };
 };

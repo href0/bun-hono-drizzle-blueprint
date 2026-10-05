@@ -8,6 +8,7 @@
  */
 export const HERMETIC_ENV = {
   NODE_ENV: 'test',
+  TZ: 'UTC',
   DATABASE_URL: 'postgresql://hermetic:hermetic@127.0.0.1:1/hermetic_test',
   REDIS_HOST: '127.0.0.1',
   REDIS_PORT: '1',

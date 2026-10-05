@@ -511,7 +511,7 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
 
 1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dan re-export di `schema/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
-3. **DTO Zod**: Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, tanggal memakai `isoDateTime()`); transformer memakai tipe `z.infer` dari schema response.
+3. **DTO Zod**: Field waktu memakai `instantField` (`*_at`), `calendarDateField` (`*_date`), `timeZoneField` (`*_timezone`) dari `src/core/dto/datetime.dto.ts` — jangan `new Date(...)` (termasuk `new Date()` untuk "sekarang": pakai `nowInstant()` / `nowIsoUtc()` / `nowAsDate()`) maupun `Date.parse` (ditolak ESLint; panduan `references/datetime.md`). Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, tanggal memakai `isoDateTime()`); transformer memakai tipe `z.infer` dari schema response.
 4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` menggunakan `this.txHost.tx`.
 5. **Transformer**: Buat file `src/modules/<feature>/<feature>.transformer.ts` untuk membersihkan data.
 6. **Service**: Buat file `src/modules/<feature>/<feature>.service.ts` dengan `@Transactional()` pada operasi tulis.

@@ -27,7 +27,7 @@ const MODULE_SYNTAX_RULES = [
 ];
 
 /** All application source (`src/**`, tests excluded). */
-const SOURCE_SYNTAX_RULES = [
+const ERROR_CODE_SYNTAX_RULES = [
   {
     selector: 'Literal[value=/^ERR_/]',
     message:
@@ -40,6 +40,32 @@ const SOURCE_SYNTAX_RULES = [
       'Error codes must not be built dynamically. Use a fixed code from APP_ERROR_CODES (add new codes there).',
   },
 ];
+
+/**
+ * Time is parsed, converted and read in local time only in src/utils/datetime.util.ts (plan D13):
+ * `new Date(<value>)` and `Date.parse` guess the zone of strings without an offset, local
+ * getters/formatters depend on the host's TZ, and even `new Date()` for "now" is routed through
+ * the module so there is exactly one way to obtain a time value.
+ */
+const DATETIME_SYNTAX_RULES = [
+  {
+    selector: 'NewExpression[callee.name="Date"]',
+    message:
+      'new Date(...) is only allowed in src/utils/datetime.util.ts. Use nowInstant() / nowIsoUtc() / nowAsDate() for "now", parseInstant() / parseCalendarDate() for text, instantToDate() at the driver boundary.',
+  },
+  {
+    selector: 'MemberExpression[object.name="Date"][property.name="parse"]',
+    message: 'Date.parse guesses the zone of strings without an offset. Use parseInstant().',
+  },
+  {
+    selector:
+      'CallExpression[callee.property.name=/^(getHours|getMinutes|getSeconds|getMilliseconds|getDate|getDay|getMonth|getFullYear|getYear|getTimezoneOffset|setHours|setMinutes|setSeconds|setDate|setMonth|setFullYear|toLocaleString|toLocaleDateString|toLocaleTimeString|toDateString|toTimeString)$/]',
+    message:
+      'Local-time Date getters/setters/formatters depend on the host zone. Use Temporal via src/utils/datetime.util.ts (or Intl.NumberFormat for numbers).',
+  },
+];
+
+const SOURCE_SYNTAX_RULES = [...ERROR_CODE_SYNTAX_RULES, ...DATETIME_SYNTAX_RULES];
 
 /** Domain modules only: business failures must be typed ApiErrors. */
 const MODULE_ERROR_RULES = [
@@ -242,6 +268,13 @@ export default tseslint.config(
     ignores: ['src/core/errors/error-codes.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...SOURCE_SYNTAX_RULES],
+    },
+  },
+  {
+    // The one module allowed to convert between text, Date and Temporal values.
+    files: ['src/utils/datetime.util.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...ERROR_CODE_SYNTAX_RULES],
     },
   },
   {

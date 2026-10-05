@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { databaseConfig, redisConfig } from '../src/config';
+import { sqlClient } from '../src/database/connection';
 import { pingDatabase } from '../src/database/health-probe';
 import { HERMETIC_ENV } from './setup/hermetic-env';
 
@@ -9,6 +10,18 @@ describe('hermetic test environment (bunfig.toml preload)', () => {
     expect(redisConfig.REDIS_HOST).toBe('127.0.0.1');
     expect(redisConfig.REDIS_PORT).toBe(1);
     expect(process.env.NODE_ENV).toBe('test');
+  });
+
+  it('runs in UTC whatever the host zone (plan D13)', () => {
+    expect(process.env.TZ).toBe('UTC');
+    expect(new Date(0).getTimezoneOffset()).toBe(0);
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('UTC');
+  });
+
+  it('asks PostgreSQL for a UTC session (startup parameter, sent on connect)', () => {
+    const options = (sqlClient as unknown as { options: { connection: Record<string, string> } })
+      .options;
+    expect(options.connection.timezone).toBe('UTC');
   });
 
   it('fails a database probe immediately instead of reaching a real server', async () => {

@@ -18,6 +18,7 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV TZ=UTC
 ENV PORT=3000
 
 # Security: Run container as non-root user 'bun'
