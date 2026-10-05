@@ -51,7 +51,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── http/               # HttpClientService with connection pool
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, errorHandler, …
+│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   └── response/           # ApiResponse standardized JSON envelope
 │   ├── database/               # Database persistence & connection layer

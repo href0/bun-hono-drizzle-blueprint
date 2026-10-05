@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, spyOn, beforeAll, afterAll } from 'bun:test';
+import { describe, expect, it, spyOn, beforeAll, afterAll } from 'bun:test';
 import type { User } from '../src/database/schema';
 import type { Hono } from 'hono';
 import { createApp } from '../src/app';
@@ -23,16 +23,9 @@ const mockUser: User = {
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
 
-// Mock database connection — no real DB needed for contract tests
-void mock.module('../src/database/connection', () => ({
-  sqlClient: Object.assign(async () => Promise.resolve([{ '?column?': 1 }]), {
-    end: async () => Promise.resolve(),
-  }),
-  db: {},
-}));
-
-// No Redis mock needed: the real client is lazy (never connects on import) and the cache fails
-// open while it is not ready. A global mock.module() would also leak into the cache unit tests.
+// No module mocks: the test env is hermetic (bunfig.toml preload) and the clients are lazy — the
+// database and Redis are never contacted because the service is spied. A global mock.module()
+// would leak into every later test file.
 
 // --- Tests ---
 

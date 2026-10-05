@@ -6,43 +6,17 @@ Read this file when: writing logs in services, configuring log redaction, or tra
 
 ## 1. Centralized Pino Logger (`src/core/logger/logger.ts`)
 
-Logging uses [Pino](https://github.com/pinojs/pino) configured with automatic PII redaction and environment-sensitive formatting:
+Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/logger/logger.ts` — options are built by the pure `buildLoggerOptions(appConfig)` so every environment branch is unit-tested, then `export const logger = pino(buildLoggerOptions(appConfig))`.
 
-```typescript
-import pino from 'pino';
-import { appConfig } from '../../config';
+| Option | Value |
+|---|---|
+| `level` | `LOG_LEVEL` (default `info`; tests usually run with `LOG_LEVEL=fatal`) |
+| `base` | `{ app: APP_NAME, env: NODE_ENV }` on every line |
+| `mixin` | `requestContextMixin` → `requestId` and `actor` from the `RequestContext` (§2) |
+| `redact` | `password`, `passwordHash`, `token`, `apiKey`, `secret` (each also as `*.<name>`), `authorization`, `req.headers.authorization`, `nik`, `creditCard` → `[REDACTED]` |
+| `transport` | `pino-pretty` (single line, local time) only when `NODE_ENV=development`; JSON lines elsewhere |
 
-// Simplified: the real file builds these options in a pure `buildLoggerOptions(appConfig)`.
-export const logger = pino({
-  level: appConfig.LOG_LEVEL,
-  base: {
-    app: appConfig.APP_NAME,
-    env: appConfig.NODE_ENV,
-  },
-  redact: {
-    paths: [
-      'password',
-      'passwordHash',
-      'token',
-      'authorization',
-      'req.headers.authorization',
-      'apiKey',
-      'secret',
-    ],
-    censor: '[REDACTED]',
-  },
-  transport:
-    env.NODE_ENV === 'development'
-      ? {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            singleLine: true,
-          },
-        }
-      : undefined,
-});
-```
+Adding a sensitive field: extend `redact.paths` in `buildLoggerOptions()` (top level and `*.<field>`) and add a case to `logger.test.ts`.
 
 ---
 

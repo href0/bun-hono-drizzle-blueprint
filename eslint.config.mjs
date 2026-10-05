@@ -85,6 +85,19 @@ const CACHE_CLIENT_IMPORT_PATTERN = {
     'Use CacheService / cacheService from core/cache instead of the Redis client: it owns serialization, the readiness check and fail-open error handling.',
 };
 
+/**
+ * Bun's mock.module() replaces a module for every later test file in the process — it leaked a fake
+ * Redis client (step 1.6) and a fake database connection (review of phase 1) into unrelated tests.
+ * Inject dependencies instead (constructor defaults, function parameters).
+ */
+const TEST_SYNTAX_RULES = [
+  {
+    selector: 'CallExpression[callee.object.name="mock"][callee.property.name="module"]',
+    message:
+      'mock.module() leaks into every later test file. Inject the dependency instead (constructor default or parameter).',
+  },
+];
+
 const MODULE_IMPORT_PATTERNS = [
   {
     group: ['**/database/connection*'],
@@ -359,15 +372,16 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'off',
       'no-process-env': 'off',
       'no-console': 'off',
-      // Tests assert the wire contract literally ('ERR_*') and may throw plain errors as fixtures.
-      'no-restricted-syntax': 'off',
+      // Tests assert the wire contract literally ('ERR_*') and may throw plain errors as fixtures;
+      // only the test-specific rules apply.
+      'no-restricted-syntax': ['error', ...TEST_SYNTAX_RULES],
     },
   },
   {
     // Module tests still must not reach the database connection or the raw HTTP client.
     files: ['src/modules/**/*.test.ts'],
     rules: {
-      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES],
+      'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES, ...TEST_SYNTAX_RULES],
     },
   },
   {
