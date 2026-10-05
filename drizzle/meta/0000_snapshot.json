@@ -1,5 +1,5 @@
 {
-  "id": "bf17bb63-8174-4bcb-9837-7ccccaaea482",
+  "id": "7e8c98c4-a725-4f7e-9453-614a2c51e066",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -12,8 +12,7 @@
           "name": "id",
           "type": "uuid",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "email": {
           "name": "email",
@@ -70,15 +69,20 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "ref_schema.ref_roles": {
-      "name": "ref_roles",
-      "schema": "ref_schema",
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {
+    "reference.ref_roles": {
       "columns": {
         "code": {
           "name": "code",
           "type": "varchar(50)",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "name": {
@@ -97,27 +101,15 @@
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "name": "ref_roles",
+      "schema": "reference",
+      "isExisting": true,
+      "materialized": false
     }
   },
-  "enums": {},
-  "schemas": {
-    "ref_schema": "ref_schema"
-  },
-  "sequences": {},
-  "roles": {},
-  "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

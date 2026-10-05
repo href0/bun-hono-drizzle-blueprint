@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import { toUserResponse, toUserListResponse } from './users.transformer';
 import type { User } from '../../database/schema';
 
@@ -9,8 +10,8 @@ describe('UsersTransformer (Unit)', () => {
     fullName: 'Test User',
     passwordHash: 'secret_hash',
     isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: Temporal.Now.instant(),
+    updatedAt: Temporal.Now.instant(),
   };
 
   it('should strip passwordHash from single user response', () => {

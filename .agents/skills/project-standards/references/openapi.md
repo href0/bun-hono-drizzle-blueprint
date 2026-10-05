@@ -50,19 +50,19 @@ productRoutes.post(
 ## 3. Response schemas (`<name>.dto.ts`)
 
 ```typescript
-import { isoDateTime } from '../../core/openapi';
+import { isoInstant } from '../../core/openapi';
 
 export const productResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  createdAt: isoDateTime(), // Date in TypeScript, ISO 8601 string on the wire
+  createdAt: isoInstant(), // Temporal.Instant in TypeScript, ISO 8601 UTC string on the wire
 });
 
 export type ProductResponse = z.infer<typeof productResponseSchema>;
 ```
 
 - The transformer returns `ProductResponse` (`z.infer`), so changing one without the other fails `tsc`.
-- Dates: `isoDateTime()` for `Date` values, `isoDateTimeString()` for values already serialized (`nowIsoUtc()`). Request-side time fields (`instantField`, `calendarDateField`, `timeZoneField`) document themselves — see [datetime.md](datetime.md).
+- Time: `isoInstant()` for `Temporal.Instant` (instant columns), `isoCalendarDate()` for `Temporal.PlainDate`, `isoDateTimeString()` for values already serialized (`nowIsoUtc()`). Request-side time fields (`instantField`, `calendarDateField`, `timeZoneField`) document themselves — see [datetime.md](datetime.md).
 - Free-form dictionaries: `z.record(...)`; prefer `{ key, value }` arrays (see `validate()` `preserveKeys`).
 - Extra OpenAPI hints: `.openapi({ description, example })` (available on every Zod schema through `zod-openapi/extend`, loaded by `src/core/openapi`).
 

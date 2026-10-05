@@ -1,4 +1,5 @@
 import { describe, expect, it, spyOn, beforeAll, afterAll } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import type { User } from '../src/database/schema';
 import type { Hono } from 'hono';
 import { createApp } from '../src/app';
@@ -19,8 +20,8 @@ const mockUser: User = {
   fullName: 'Test User',
   passwordHash: '$argon2id$v=19$m=16,t=2,p=1$abc',
   isActive: true,
-  createdAt: new Date('2026-01-01T00:00:00Z'),
-  updatedAt: new Date('2026-01-01T00:00:00Z'),
+  createdAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
+  updatedAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
 };
 
 // No module mocks: the test env is hermetic (bunfig.toml preload) and the clients are lazy — the

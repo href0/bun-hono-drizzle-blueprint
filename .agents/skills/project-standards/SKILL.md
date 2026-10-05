@@ -59,8 +59,11 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
 │   │   ├── transaction-host.ts # TransactionHost (AsyncLocalStorage context resolver)
 │   │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
-│   │   └── schema/             # Multi-schema Drizzle definitions
-│   │       ├── domain/         # Primary domain tables (CRUD)
+│   │   └── schema/             # Drizzle definitions (see references/database.md)
+│   │       ├── schemas.ts      # appTable (public) + referenceSchema — the only pgTable()/pgSchema()
+│   │       ├── columns.ts      # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …
+│   │       ├── append-only-tables.ts # The only tables allowed a sequential (bigint) key
+│   │       ├── domain/         # Project tables (appTable)
 │   │       └── reference/      # Shared reference tables (Read-Only)
 │   ├── modules/                # Feature domains (business capabilities)
 │   │   ├── health/             # Healthcheck probes
@@ -338,7 +341,7 @@ When implementing specific subsystems, consult the corresponding deep-dive refer
 | Subsystem | Reference Document | Key Topics |
 |---|---|---|
 | **Bootstrap & Lifecycle** | [bootstrap.md](references/bootstrap.md) | `createApp()`, `Bun.serve`, middleware pipeline sequence, graceful shutdown |
-| **Database & Multi-Schema** | [database.md](references/database.md) | Connection pool, `domain` vs `reference` schemas, `drizzle-kit` migration isolation |
+| **Database & Schema** | [database.md](references/database.md) | Connection pool, tables in `public` vs optional reference views, column helpers, choosing a primary key, migrations |
 | **Declarative Transactions** | [transactions.md](references/transactions.md) | `TransactionHost`, `AsyncLocalStorage`, `@Transactional()`, nested context |
 | **Structured Logging** | [logging.md](references/logging.md) | Pino logger, `requestId` correlation, automatic PII redaction |
 | **Redis Caching** | [redis-cache.md](references/redis-cache.md) | `CacheService`, `CACHE_KEYS` SSOT, fail-open resilience guarantee |

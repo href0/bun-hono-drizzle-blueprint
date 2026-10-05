@@ -1,4 +1,5 @@
 import 'zod-openapi/extend';
+import { Temporal } from 'temporal-polyfill';
 import { z } from 'zod';
 import { APP_ERROR_CODES, ERROR_TYPES } from '../errors/error-codes';
 
@@ -7,9 +8,16 @@ import { APP_ERROR_CODES, ERROR_TYPES } from '../errors/error-codes';
  * converted to the snake_case wire contract by `toSnakeCaseOpenApi()`.
  */
 
-/** A `Date` in TypeScript, documented as what goes over the wire: an ISO 8601 UTC string. */
-export const isoDateTime = (): z.ZodDate =>
-  z.date().openapi({ type: 'string', format: 'date-time', example: '2026-10-04T03:00:00.000Z' });
+/**
+ * A `Temporal.Instant` (instant columns, plan step 2.2), documented as an ISO 8601 UTC string —
+ * the shape its `toJSON()` puts on the wire.
+ */
+export const isoInstant = (): z.ZodType<Temporal.Instant> =>
+  z.instanceof(Temporal.Instant).openapi({ type: 'string', format: 'date-time' });
+
+/** A `Temporal.PlainDate` (calendar date columns), documented as `YYYY-MM-DD`. */
+export const isoCalendarDate = (): z.ZodType<Temporal.PlainDate> =>
+  z.instanceof(Temporal.PlainDate).openapi({ type: 'string', format: 'date' });
 
 /** A timestamp already serialized to an ISO 8601 UTC string (e.g. `nowIsoUtc()`). */
 export const isoDateTimeString = (): z.ZodString =>
@@ -33,7 +41,7 @@ export const errorEnvelopeSchema = z
       details: z.array(z.object({ field: z.string().optional(), message: z.string() })).optional(),
     }),
     requestId: z.string(),
-    timestamp: isoDateTime(),
+    timestamp: isoDateTimeString(),
   })
   .openapi({ ref: 'ErrorEnvelope' });
 

@@ -214,7 +214,7 @@ function runSetup(): void {
   console.log('----------------------------------------------------');
   console.log(`[Setup] Project initialization ${dryRun ? 'preview' : 'completed'} successfully`);
   console.log('Next steps:');
-  console.log('  1. Start local dependencies: docker compose up -d');
+  console.log('  1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)');
   console.log('  2. Apply database migrations: bun run db:migrate');
   console.log('  3. Start development server:  bun run dev');
   console.log('----------------------------------------------------');

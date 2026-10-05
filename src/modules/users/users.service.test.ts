@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import { UsersService } from './users.service';
 import { ConflictError, NotFoundError } from '../../core/errors';
 import { transactionStorage } from '../../database/transaction-host';
@@ -13,8 +14,8 @@ describe('UsersService (Unit)', () => {
     fullName: 'Test User',
     passwordHash: 'hashed_password',
     isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: Temporal.Now.instant(),
+    updatedAt: Temporal.Now.instant(),
   };
 
   const mockTx = { isMockTransaction: true } as any;

@@ -39,14 +39,17 @@ export const parseEnv = <TSchema extends z.ZodTypeAny>(
 };
 
 /**
- * Variables the boilerplate renamed. A stale name would otherwise be ignored silently (CORS quietly
- * off, a millisecond window read as nothing), so startup fails and names the replacement.
- * Add an entry whenever a variable is renamed or removed.
+ * Variables the boilerplate renamed or removed (value = what to do instead). A stale name would
+ * otherwise be ignored silently (CORS quietly off, a millisecond window read as nothing), so
+ * startup fails and says what to do. Add an entry whenever a variable is renamed or removed.
  */
 export const RENAMED_ENV_VARS: Readonly<Record<string, string>> = {
-  CORS_ORIGIN: 'CORS_ORIGINS (comma-separated exact origins; empty = CORS disabled)',
-  RATE_LIMIT_WINDOW_MS: 'RATE_LIMIT_WINDOW_SECONDS (seconds, not milliseconds)',
-  API_PREFIX: 'API_BASE_PATH (without the version, e.g. /api; the version /v1 lives in code)',
+  CORS_ORIGIN: 'renamed to CORS_ORIGINS (comma-separated exact origins; empty = CORS disabled)',
+  RATE_LIMIT_WINDOW_MS: 'renamed to RATE_LIMIT_WINDOW_SECONDS (seconds, not milliseconds)',
+  API_PREFIX:
+    'renamed to API_BASE_PATH (without the version, e.g. /api; the version /v1 lives in code)',
+  DB_SCHEMA:
+    'removed — tables always live in the public schema (src/database/schema/schemas.ts); delete the line',
 };
 
 /** Fails fast when a renamed variable is still set; lists names only, never values. */
@@ -57,7 +60,7 @@ export const assertNoRenamedVariables = (
   const stale = Object.keys(renamed).filter((name) => source[name] !== undefined);
   if (stale.length === 0) return;
 
-  const lines = stale.map((name) => `  - ${name}: renamed to ${renamed[name] ?? ''}`);
+  const lines = stale.map((name) => `  - ${name}: ${renamed[name] ?? ''}`);
   throw new Error(`Invalid environment configuration (renamed variables):\n${lines.join('\n')}`);
 };
 
