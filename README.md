@@ -72,6 +72,8 @@ src/
 │   ├── transaction-host.test.ts # Co-located Unit Test
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
 │   └── schema/                  # Multi-Schema Definitions
+│       ├── schemas.ts           # appTable (public) & referenceSchema (opsional)
+│       ├── columns.ts           # Helper kolom (UUID v7, timestamps Temporal, soft delete, …)
 │       ├── domain/              # Domain Schema (CRUD & Migrated)
 │       │   └── users.schema.ts
 │       └── reference/           # Reference Schema (Read-Only)
@@ -143,14 +145,16 @@ Untuk menambahkan modul domain baru (misal: `products`):
 
 ### 1. Buat Schema Database (`src/database/schema/domain/products.schema.ts`)
 ```typescript
-import { uuid, varchar, integer, timestamp } from 'drizzle-orm/pg-core';
-import { domainTable } from './schema';
+import { integer, varchar } from 'drizzle-orm/pg-core';
+import { timestamps, uuidPrimaryKey } from '../columns';
+import { appTable } from '../schemas';
 
-export const products = domainTable('products', {
-  id: uuid('id').primaryKey().defaultRandom(),
+// Tabel di public; id (UUID v7) & timestamp (Temporal.Instant) dari helper kolom.
+export const products = appTable('products', {
+  id: uuidPrimaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   price: integer('price').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  ...timestamps(),
 });
 
 export type Product = typeof products.$inferSelect;

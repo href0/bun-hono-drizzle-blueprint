@@ -1,18 +1,14 @@
-import { uuid, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
-import { nowAsDate } from '../../../utils/datetime.util';
-import { domainTable } from './schema';
+import { boolean, varchar } from 'drizzle-orm/pg-core';
+import { timestamps, uuidPrimaryKey } from '../columns';
+import { appTable } from '../schemas';
 
-export const users = domainTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
+export const users = appTable('users', {
+  id: uuidPrimaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   fullName: varchar('full_name', { length: 255 }).notNull(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(nowAsDate),
+  ...timestamps(),
 });
 
 export type User = typeof users.$inferSelect;

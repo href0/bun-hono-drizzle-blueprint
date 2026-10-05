@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isoDateTime } from '../../core/openapi';
+import { isoInstant } from '../../core/openapi';
 
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email address format'),
@@ -15,8 +15,8 @@ export const userResponseSchema = z.object({
   email: z.string().email(),
   fullName: z.string(),
   isActive: z.boolean(),
-  createdAt: isoDateTime(),
-  updatedAt: isoDateTime(),
+  createdAt: isoInstant(),
+  updatedAt: isoInstant(),
 });
 
 export type UserResponse = z.infer<typeof userResponseSchema>;

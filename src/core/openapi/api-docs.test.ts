@@ -5,9 +5,11 @@ import { validate } from '../middlewares/validate';
 import { buildOpenApiDocument, mountApiDocs, SCALAR_BUNDLE_URL } from './api-docs';
 import { describeEndpoint } from './describe-endpoint';
 import { describeRequest } from './request-spec';
-import { isoDateTime } from './schemas';
+import { isoCalendarDate, isoInstant } from './schemas';
+import { createSchema } from 'zod-openapi';
+import { Temporal } from 'temporal-polyfill';
 
-const itemSchema = z.object({ itemCode: z.string(), createdAt: isoDateTime() });
+const itemSchema = z.object({ itemCode: z.string(), createdAt: isoInstant() });
 
 const buildApp = (): Hono => {
   const app = new Hono();
@@ -171,5 +173,28 @@ describe('mountApiDocs', () => {
 
     expect((await app.request('/api/docs')).status).toBe(404);
     expect((await app.request('/api/docs/openapi.json')).status).toBe(404);
+  });
+});
+
+describe('Temporal response schemas', () => {
+  it('document instants and calendar dates as ISO strings and accept only Temporal values', () => {
+    const schema = z.object({ startsAt: isoInstant(), dueDate: isoCalendarDate() });
+    const { schema: json } = createSchema(schema, { schemaType: 'output' });
+
+    expect(json).toMatchObject({
+      properties: {
+        startsAt: { type: 'string', format: 'date-time' },
+        dueDate: { type: 'string', format: 'date' },
+      },
+    });
+    expect(
+      schema.safeParse({
+        startsAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+        dueDate: Temporal.PlainDate.from('2026-10-05'),
+      }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ startsAt: '2026-10-05T03:00:00Z', dueDate: '2026-10-05' }).success,
+    ).toBe(false);
   });
 });

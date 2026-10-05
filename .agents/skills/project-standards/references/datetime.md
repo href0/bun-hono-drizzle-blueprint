@@ -54,7 +54,7 @@ export const createMeetingSchema = z.object({
 ## 4. Responses
 
 - Temporal values serialize through their `toJSON()`; `camelToSnakeCase()` keeps class instances intact (it used to turn them into `{}`).
-- Today's columns are `Date` from the driver: document them with `isoDateTime()` (see [openapi.md](openapi.md)). Column helpers for instants and calendar dates arrive with plan step 2.2.
+- Columns built with `instant()` / `timestamps()` / `calendarDate()` (`src/database/schema/columns.ts`) give entities `Temporal.Instant` / `Temporal.PlainDate` values — no `Date` reaches services or responses. Document them with `isoInstant()` / `isoCalendarDate()` (see [openapi.md](openapi.md)).
 
 ---
 

@@ -110,6 +110,9 @@ src/
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
 │   └── schema/                  # Multi-Schema Table Definitions
+│       ├── schemas.ts           # appTable (public) & referenceSchema — satu-satunya pgTable/pgSchema
+│       ├── columns.ts           # Helper kolom: uuidPrimaryKey, timestamps, instant, softDelete, …
+│       ├── append-only-tables.ts # Allowlist tabel yang boleh memakai PK bigint
 │       ├── domain/              # Application Domain Schemas (Full CRUD & Migrated)
 │       └── reference/           # Reference Schemas (Read-Only, Shared DBs)
 │
@@ -333,13 +336,10 @@ Prefix path internal (`body.`, `query.`) otomatis dibersihkan dan nama field dik
 ## 5. Database & Declarative ACID Transactions
 
 ### 5.1 Isolasi Multi-Schema
-1. **Domain Schema (`src/database/schema/domain/`)**:
-   - Dikelola oleh schema Drizzle dalam schema PostgreSQL `app_domain`.
-   - Hak akses: Full CRUD.
-   - Didaftarkan di `drizzle.config.ts` untuk migrasi otomatis via `bun run db:generate`.
-2. **Reference Schema (`src/database/schema/reference/`)**:
-   - Hak akses: **READ-ONLY** (`.select()` saja).
-   - Dilarang menjalankan operasi mutasi (`insert`, `update`, `delete`).
+1. **Tabel di `public` (`appTable`, `src/database/schema/schemas.ts`)**: proyek memiliki database sendiri, jadi semua tabel berada di schema bawaan `public` — tidak ada schema bernama proyek. `pgTable(`/`pgSchema(` hanya boleh di `schemas.ts` (ESLint). Multi-tenant per schema (SaaS) adalah fitur opsional terpisah (backlog).
+2. **Helper kolom (`src/database/schema/columns.ts`)**: `uuidPrimaryKey()` (UUID v7 default), `sequentialPrimaryKey()` (hanya tabel di `APPEND_ONLY_TABLES`), `timestamps()`, `instant()`, `calendarDate()`, `auditColumns()`, `softDelete()`, `parentReference()`, `activeUniqueIndex()`. Di file schema, `timestamp(`/`date(`/`serial(`/`pgTable(`/`.defaultRandom()` ditolak ESLint.
+3. **Reference (opsional, `src/database/schema/reference/`)**: data milik sistem lain, dibaca lewat `referenceSchema.view(...).existing()` — tidak pernah dibuat/dimigrasi drizzle-kit, dan `insert` gagal saat kompilasi.
+4. Panduan lengkap: `.agents/skills/project-standards/references/database.md`.
 
 ### 5.2 Pola Declarative Transaction (`TransactionHost` & `@Transactional()`)
 
@@ -509,7 +509,7 @@ const user = await this.cache.getOrSet(
 
 Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
 
-1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dan re-export di `schema/index.ts`.
+1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dengan `appTable(...)` + helper kolom (`uuidPrimaryKey()`, `timestamps()`), lalu re-export di `schema/domain/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
 3. **DTO Zod**: Field waktu memakai `instantField` (`*_at`), `calendarDateField` (`*_date`), `timeZoneField` (`*_timezone`) dari `src/core/dto/datetime.dto.ts` — jangan `new Date(...)` (termasuk `new Date()` untuk "sekarang": pakai `nowInstant()` / `nowIsoUtc()` / `nowAsDate()`) maupun `Date.parse` (ditolak ESLint; panduan `references/datetime.md`). Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, tanggal memakai `isoDateTime()`); transformer memakai tipe `z.infer` dari schema response.
 4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` menggunakan `this.txHost.tx`.

@@ -1,3 +1,5 @@
+import { RENAMED_ENV_VARS } from '../../src/config/parse-env';
+
 /**
  * Preloaded before every test file (`bunfig.toml` → `[test] preload`). Bun loads the developer's
  * local env file into `bun test` too, so without this the unit and e2e suites would reach the real
@@ -16,3 +18,10 @@ export const HERMETIC_ENV = {
 } as const;
 
 Object.assign(process.env, HERMETIC_ENV);
+
+// A stale renamed/removed variable in the local env file must not break `bun test` — the startup
+// guard (assertNoRenamedVariables) is for running the app, and is unit-tested on its own.
+for (const name of Object.keys(RENAMED_ENV_VARS)) {
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- removing stale variables by name is the point
+  delete process.env[name];
+}

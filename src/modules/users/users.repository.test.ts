@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import { UsersRepository } from './users.repository';
 import type { TransactionHost } from '../../database/transaction-host';
 import type { User } from '../../database/schema';
@@ -10,8 +11,8 @@ describe('UsersRepository (Unit)', () => {
     fullName: 'Repo User',
     passwordHash: 'hash',
     isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: Temporal.Now.instant(),
+    updatedAt: Temporal.Now.instant(),
   };
 
   const mockTx = {

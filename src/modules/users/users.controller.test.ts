@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import { UsersController } from './users.controller';
 import type { UsersService } from './users.service';
 import type { User } from '../../database/schema';
@@ -10,8 +11,8 @@ describe('UsersController (Unit)', () => {
     fullName: 'Test User',
     passwordHash: 'hash',
     isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: Temporal.Now.instant(),
+    updatedAt: Temporal.Now.instant(),
   };
 
   const mockService: Partial<UsersService> = {

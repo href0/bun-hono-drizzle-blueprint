@@ -151,7 +151,14 @@ const main = (): void => {
         '.dependency-cruiser.cjs',
       ]) &&
       run('knip', ['bunx', 'knip']) &&
-      run('live request through createApp()', ['bun', '-e', LIVE_CHECK]);
+      // Hermetic like the test suite: no local env file values, no real database or Redis.
+      run('live request through createApp()', [
+        'bun',
+        '--preload',
+        './test/setup/hermetic-env.ts',
+        '-e',
+        LIVE_CHECK,
+      ]);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     ok = false;

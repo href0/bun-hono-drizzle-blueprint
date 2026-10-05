@@ -65,7 +65,41 @@ const DATETIME_SYNTAX_RULES = [
   },
 ];
 
-const SOURCE_SYNTAX_RULES = [...ERROR_CODE_SYNTAX_RULES, ...DATETIME_SYNTAX_RULES];
+/** PostgreSQL schemas and the table factory are declared once, in src/database/schema/schemas.ts (D14). */
+const SCHEMA_DECLARATION_RULES = [
+  {
+    selector: 'CallExpression[callee.name="pgSchema"]',
+    message:
+      'pgSchema() is only allowed in src/database/schema/schemas.ts. Tables use appTable(); reference views use referenceSchema.',
+  },
+];
+
+/**
+ * Inside schema files, ids, timestamps and tables come from the column helpers
+ * (src/database/schema/columns.ts) so every table follows the same conventions.
+ */
+const SCHEMA_FILE_RULES = [
+  {
+    selector: 'CallExpression[callee.name=/^(timestamp|date|serial|smallserial|bigserial)$/]',
+    message:
+      'Use the column helpers from ../columns: instant() / timestamps() / softDelete() for timestamps, calendarDate() for dates, uuidPrimaryKey() (or sequentialPrimaryKey() for APPEND_ONLY_TABLES) for ids.',
+  },
+  {
+    selector: 'CallExpression[callee.name="pgTable"]',
+    message: 'Declare tables with appTable(...) from ../schemas (the single table factory).',
+  },
+  {
+    selector: 'CallExpression[callee.property.name="defaultRandom"]',
+    message:
+      'defaultRandom() generates UUID v4 in the database. Primary keys use uuidPrimaryKey() (UUID v7 from the app).',
+  },
+];
+
+const SOURCE_SYNTAX_RULES = [
+  ...ERROR_CODE_SYNTAX_RULES,
+  ...DATETIME_SYNTAX_RULES,
+  ...SCHEMA_DECLARATION_RULES,
+];
 
 /** Domain modules only: business failures must be typed ApiErrors. */
 const MODULE_ERROR_RULES = [
@@ -274,7 +308,26 @@ export default tseslint.config(
     // The one module allowed to convert between text, Date and Temporal values.
     files: ['src/utils/datetime.util.ts'],
     rules: {
-      'no-restricted-syntax': ['error', ...ERROR_CODE_SYNTAX_RULES],
+      'no-restricted-syntax': ['error', ...ERROR_CODE_SYNTAX_RULES, ...SCHEMA_DECLARATION_RULES],
+    },
+  },
+  {
+    // The one file allowed to declare PostgreSQL schemas.
+    files: ['src/database/schema/schemas.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...ERROR_CODE_SYNTAX_RULES, ...DATETIME_SYNTAX_RULES],
+    },
+  },
+  {
+    // Schema files use the column helpers (columns.ts and schemas.ts define them).
+    files: ['src/database/schema/**/*.ts'],
+    ignores: [
+      'src/database/schema/columns.ts',
+      'src/database/schema/schemas.ts',
+      'src/database/schema/**/*.test.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': ['error', ...SOURCE_SYNTAX_RULES, ...SCHEMA_FILE_RULES],
     },
   },
   {
@@ -379,6 +432,16 @@ export default tseslint.config(
           format: ['camelCase', 'UPPER_CASE', 'snake_case'],
         },
       ],
+    },
+  },
+  {
+    // Column helpers return Drizzle builder chains (e.g. PgUUIDBuilderInitial<'id'> narrowed by
+    // .primaryKey().$defaultFn()); spelling them out would copy Drizzle internals and break on
+    // upgrades. The inferred types are what tables need.
+    files: ['src/database/schema/columns.ts'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
     },
   },
   {
