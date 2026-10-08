@@ -1,30 +1,10 @@
-import { describe, expect, it, mock } from 'bun:test';
-import { db } from './connection';
+import { describe, expect, it } from 'bun:test';
 import { defaultTxHost, transactionStorage } from './transaction-host';
 import { runInTransaction, Transactional } from './transactional.decorator';
+import { createSqlRecorder } from '../../test/helpers/sql-recorder';
 
 describe('Transactional (Unit)', () => {
   const mockTx = { isMockTransaction: true } as any;
-
-  it('runInTransaction should open a database transaction and expose it through TransactionHost', async () => {
-    // `db` may be the real Drizzle instance or a module mock from another test file:
-    // patch the method on the instance and restore it afterwards in both cases.
-    const target = db as unknown as Record<string, unknown>;
-    const hadOwnTransaction = Object.hasOwn(target, 'transaction');
-    const originalTransaction = target.transaction;
-    const transaction = mock((callback: (tx: unknown) => Promise<unknown>) => callback(mockTx));
-    target.transaction = transaction;
-
-    try {
-      const seen = await runInTransaction(() => Promise.resolve(defaultTxHost.tx));
-
-      expect(transaction).toHaveBeenCalledTimes(1);
-      expect(seen).toBe(mockTx);
-    } finally {
-      if (hadOwnTransaction) target.transaction = originalTransaction;
-      else delete target.transaction;
-    }
-  });
 
   it('runInTransaction should reuse the active transaction instead of opening a nested one', async () => {
     const seen = await transactionStorage.run(mockTx, () =>
@@ -32,6 +12,18 @@ describe('Transactional (Unit)', () => {
     );
 
     expect(seen).toBe(mockTx);
+  });
+
+  it('runInTransaction should join a transaction opened by any TransactionHost', async () => {
+    const recorder = createSqlRecorder();
+
+    await recorder.txHost.run(() => runInTransaction(() => recorder.txHost.tx.execute('select 1')));
+
+    expect(recorder.statements.map((statement) => statement.sql)).toEqual([
+      'BEGIN',
+      'select 1',
+      'COMMIT',
+    ]);
   });
 
   it('@Transactional() should run the method inside the active transaction and keep `this`', async () => {

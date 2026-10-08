@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.2 selesai (`main` @ `208a8d8`); tabel markdown dirapatkan (2026-10-08). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.2 selesai (`main` @ `e5aafa7`); Step 2.3 menunggu review (branch `test/data-layer-helpers`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `208a8d8` |
+| Basis kode | branch `main` @ `e5aafa7` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -329,6 +329,10 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-08 | Proses | Tabel markdown lama dirapatkan (permintaan user: padding Prettier membuat perubahan beberapa baris tampak ratusan baris di diff): 520 baris tabel di plan, blueprint, `init-project` SKILL & `redis-cache.md` → `\| a \| b \|` dan `\|---\|`; plan 226 KB → 126 KB. Hanya baris tabel di luar blok kode; isi sel diverifikasi identik per baris (skrip) dan lewat `git diff -w` (hanya pemisah yang berubah) | `docs/plans/from-nestjs-plan.md` sengaja dilewati — lihat baris berikut |
 | 2026-10-08 | Proses | **Kesalahan ditemukan**: `docs/plans/from-nestjs-plan.md` (referensi pribadi user, diputuskan tidak di-commit) ternyata ikut ter-commit di Step 1.3 (`bd6c74e`) karena `git add -A`. Menunggu keputusan user; ke depan agent memeriksa file untracked sebelum staging | Tidak dihapus/diubah tanpa keputusan user |
 | 2026-10-08 | Proses | Keputusan user: `docs/plans/from-nestjs-plan.md` dibiarkan ter-track untuk sementara; dihapus di akhir setelah pengembangan selesai (Step 7.3) | — |
+| 2026-10-08 | 2.3 | **Penyimpangan**: `createDrizzleChainMock`/`createTxHostMock`/`renderWhere` diganti perekam SQL `test/helpers/sql-recorder.ts` — Drizzle asli (driver `postgres-js` + schema produksi) di atas klien postgres.js palsu (`unsafe().values()`, `begin`, `savepoint`) yang merekam SQL + parameter dan mengembalikan baris antrean. Mock chain mengembalikan baris yang sama apa pun kondisinya: terbukti, `findByEmail` yang memfilter `id` lolos test lama. Driver `pg-proxy` dicoba lebih dulu: tidak mendukung transaksi | SQL tercatat utuh → `renderWhere` tidak diperlukan. Batas: membuktikan SQL yang dikirim, bukan perilaku PostgreSQL (constraint, partial index, lock → 6.1) |
+| 2026-10-08 | 2.3 | `TransactionHost(root = db)` (D20) + `run(fn)` (buka transaksi di root, join bila sudah ada); `runInTransaction` = `defaultTxHost.run`. Test `transactional.decorator` tidak lagi menambal `db.transaction` global | Prasyarat test rollback audit 2.4; `@Transactional()` tetap memakai `defaultTxHost` |
+| 2026-10-08 | 2.3 | Kolom Temporal teruji lewat jalur driver: teks `timestamptz` dari "DB" → `Temporal.Instant` (presisi mikrodetik) | `rowOf` memakai `mapToDriverValue` kolom |
+| 2026-10-08 | 2.3 | Template `scaffold-module`: Step 11 baru (test repository memakai perekam), test lain jadi Step 12; `verify:scaffold` menjalankan test hasil generate (dulu hanya dikompilasi/di-lint). Drift ditemukan & diperbaiki: Step 1 template masih menyebut schema `domain` (basi sejak D14), deskripsi skill "Drizzle multi-schema" | Dokumen: `references/transactions.md` §1 & §4 (contoh mock chain diganti), `references/testing.md`, struktur `test/` di project-standards |
 
 ---
 
@@ -369,7 +373,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.9 | Dokumentasi OpenAPI | ✅ | 1.5 | `ce62029` |
 | 2.1 | Standar tanggal & waktu (Temporal) | ✅ | 0.3 | `d1aa11a` |
 | 2.2 | Schema proyek, column helpers, UUID v7, schema referensi | ✅ | 2.1 | `208a8d8` |
-| 2.3 | Test helper data layer | ⬜ | 2.2 |  |
+| 2.3 | Test helper data layer | 👀 | 2.2 |  |
 | 2.4 | `record_changes` + `AuditedRepository` | ⬜ | 1.2, 2.3 |  |
 | 2.5 | `BaseRepository` + `ChildRepository` | ⬜ | 2.4 |  |
 | 2.6 | Penegakan aturan data layer | ⬜ | 2.5 |  |
@@ -697,9 +701,13 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Langkah**: `test/helpers/drizzle-mock.ts` — `createDrizzleChainMock(result)` (chain `select/from/where/limit/for/insert/values/returning/update/set` yang bisa di-assert), `createTxHostMock(chain)`, `renderWhere(condition)` (me-render SQL + params via `PgDialect`, untuk assertion kondisi persis, mis. `deleted_at is null`). Ls-lint mengizinkan `test/helpers/`.
 
+> **Diubah 2026-10-08 (lihat 4.1)**: mock chain + `renderWhere` diganti **perekam SQL** `test/helpers/sql-recorder.ts` (`createSqlRecorder()` → `db`, `txHost`, `statements`, `respondWith`, `reset`; `rowOf(table, entity)`): Drizzle asli (driver `postgres-js` + schema produksi) di atas klien postgres.js palsu. `TransactionHost(root = db)` + `run(fn)`; `runInTransaction` = `defaultTxHost.run`.
+
 **Acceptance criteria**
 
-- [ ] `users.repository.test.ts` memakai helper (tanpa mock chain manual).
+- [x] `users.repository.test.ts` memakai helper (tanpa mock chain manual) — SQL & parameter setiap method di-assert; chaos test: `findByEmail` memfilter `id` → test baru gagal (test lama tetap hijau).
+- [x] Transaksi teruji tanpa menambal `db` global: BEGIN/COMMIT, ROLLBACK + rethrow, join transaksi aktif, savepoint.
+- [x] Template `scaffold-module` punya test repository; `verify:scaffold` kini menjalankan test hasil generate (chaos test: SQL salah di template → gagal).
 
 ### Step 2.4 — `record_changes` + `AuditedRepository`
 

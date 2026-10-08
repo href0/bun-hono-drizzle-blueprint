@@ -1,6 +1,6 @@
 ---
 name: scaffold-module
-description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle multi-schema, Zod DTOs, TransactionHost Repository, and the coverage gate.
+description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle column helpers, Zod DTOs, TransactionHost Repository, and the coverage gate.
 ---
 
 # Scaffold Feature Module
@@ -38,7 +38,7 @@ src/database/schema/domain/
 ### Step 1: Define Module Identifiers
 - **Module Name**: `kebab-case` (e.g. `products`, `flight-schedules`).
 - **Route Prefix**: `<API_BASE_PATH>/v1/<kebab-case-plural>` (default `/api/v1/products`). The version is code: modules register on the `v1` router in `createApp()`, never with their own `/api/v1` prefix.
-- **Table Name**: Plural `snake_case` under schema `domain` (e.g. `domain.products`).
+- **Table Name**: Plural `snake_case` in PostgreSQL's `public` schema (e.g. `products`).
 - **Messages constant**: `UPPER_SNAKE` singular + `_MESSAGES` (e.g. `PRODUCT_MESSAGES`) — written `<UPPER_SINGULAR>_MESSAGES` below.
 
 ---
@@ -358,9 +358,85 @@ v1.route('/<name>', <camelPlural>Router);
 
 ---
 
-### Step 11: Create Co-Located Tests & Verify Quality Gate
+### Step 11: Create Repository Test (`src/modules/<name>/<name>.repository.test.ts`)
 
-Create unit tests covering repository, service, transformer, and controller.
+Repositories are tested with the SQL recorder (`test/helpers/sql-recorder.ts`): a real Drizzle instance whose fake driver records every statement and returns queued rows. Assert the SQL and parameters that are sent (filters, ordering, paging) — a hand-written mock of the call chain cannot tell `where id = …` from `where email = …`. `rowOf(table, entity)` turns an entity into a driver row.
+
+```typescript
+import { beforeEach, describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
+import { <PascalPlural>Repository } from './<name>.repository';
+import { <camelPlural>, type <PascalSingular> } from '../../database/schema';
+import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
+
+const COLUMNS = '"id", "name", "is_active", "created_at", "updated_at"';
+
+describe('<PascalPlural>Repository (Unit)', () => {
+  const sample: <PascalSingular> = {
+    id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
+    name: 'Sample',
+    isActive: true,
+    createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+    updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  };
+
+  const recorder = createSqlRecorder();
+  const repository = new <PascalPlural>Repository(recorder.txHost);
+
+  beforeEach(() => {
+    recorder.reset();
+  });
+
+  it('findById filters by id', async () => {
+    recorder.respondWith([rowOf(<camelPlural>, sample)]);
+
+    expect(await repository.findById(sample.id)).toEqual(sample);
+    expect(recorder.statements).toEqual([
+      {
+        sql: `select ${COLUMNS} from "<snake_plural>" where "<snake_plural>"."id" = $1 limit $2`,
+        params: [sample.id, 1],
+      },
+    ]);
+  });
+
+  it('findById returns null when no row matches', async () => {
+    expect(await repository.findById(sample.id)).toBeNull();
+  });
+
+  it('create returns the inserted row', async () => {
+    recorder.respondWith([rowOf(<camelPlural>, sample)]);
+
+    expect(await repository.create({ id: sample.id, name: sample.name })).toEqual(sample);
+    expect(recorder.statements.at(0)?.sql).toStartWith('insert into "<snake_plural>"');
+  });
+
+  it('create throws when INSERT … RETURNING yields no row', async () => {
+    expect(repository.create({ name: sample.name })).rejects.toThrow('INSERT returned no rows');
+  });
+
+  it('findAll pages with limit and offset', async () => {
+    recorder.respondWith([rowOf(<camelPlural>, sample)]);
+
+    expect(await repository.findAll(10, 20)).toEqual([sample]);
+    expect(recorder.statements).toEqual([
+      { sql: `select ${COLUMNS} from "<snake_plural>" limit $1 offset $2`, params: [10, 20] },
+    ]);
+  });
+
+  it('count returns the number of rows', async () => {
+    recorder.respondWith([[3]]);
+
+    expect(await repository.count()).toBe(3);
+    expect(recorder.statements.at(0)?.sql).toBe('select count(*) from "<snake_plural>"');
+  });
+});
+```
+
+---
+
+### Step 12: Create Remaining Tests & Verify Quality Gate
+
+Create unit tests covering service, transformer, and controller (see `.agents/skills/project-standards/references/testing.md`).
 
 This template is verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from these code blocks and runs every gate. After editing this file, or any core API the template uses, run it.
 

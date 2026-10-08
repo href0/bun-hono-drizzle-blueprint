@@ -5,7 +5,8 @@
  *
  * Materializes every code block of `.agents/skills/scaffold-module/SKILL.md` as a probe module
  * (`scaffold-probes`), registers it exactly as the template instructs, then runs prettier, tsc,
- * eslint, ls-lint, dependency-cruiser and knip, plus a live request through `createApp()`.
+ * eslint, ls-lint, dependency-cruiser, knip and the generated tests, plus a live request through
+ * `createApp()`.
  * Everything it creates or edits is restored afterwards — also on failure or Ctrl+C.
  *
  * Why: the template is documentation, so no other gate compiles it. It drifted from the code
@@ -151,6 +152,12 @@ const main = (): void => {
         '.dependency-cruiser.cjs',
       ]) &&
       run('knip', ['bunx', 'knip']) &&
+      // The template's tests must pass, not only compile (hermetic through bunfig.toml).
+      run('bun test (generated tests)', [
+        'bun',
+        'test',
+        ...generated.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
+      ]) &&
       // Hermetic like the test suite: no local env file values, no real database or Redis.
       run('live request through createApp()', [
         'bun',
