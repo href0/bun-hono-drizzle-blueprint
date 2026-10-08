@@ -121,7 +121,7 @@ Every UPDATE, soft delete, restore and hard delete of an audited table appends o
 
 No foreign keys and no other unique constraints: the audited row may be deleted, and a partitioned table needs the partition key in every unique index.
 
-`src/database/audited.repository.ts` — abstract base, composed by `BaseRepository` (step 2.5) into update / soft delete / restore / delete:
+`src/database/audited.repository.ts` — abstract base with the primitives that `BaseRepository` / `ChildRepository` (§6) compose into update / soft delete / restore / delete. Modules extend those two; extend `AuditedRepository` directly only for an unusual write path, like this:
 
 ```typescript
 class OrdersRepository extends AuditedRepository<typeof orders> {
@@ -148,3 +148,50 @@ class OrdersRepository extends AuditedRepository<typeof orders> {
 - Values are compared and stored in JSON form: `Temporal` values as ISO strings; `jsonb` objects with the same members in another key order are not a change.
 - Pure helpers: `diffRecords` / `snapshotRecord` in `src/utils/record-diff.util.ts`.
 - Tests use the SQL recorder: the audit `insert` and the change appear between the same `BEGIN` and `COMMIT` / `ROLLBACK` (`src/database/audited.repository.test.ts`). Real rollback against PostgreSQL: integration suite (step 6.1).
+
+---
+
+## 6. Table kinds & repositories (`src/database/*.repository.ts`)
+
+| Kind | Shape | Key columns | Repository |
+|---|---|---|---|
+| Standalone | Stands on its own | `uuidPrimaryKey` + `timestamps` + `auditColumns` + `softDelete` | `BaseRepository` |
+| Header | Standalone with details | same | `BaseRepository` + a `ChildRepository` for its details (same module) |
+| Detail | Only meaningful inside one header | `uuidPrimaryKey` + `parentReference` (indexed) + `timestamps` + `auditColumns`, **no** `softDelete` | `ChildRepository` |
+| Record | Log / history, append-only | `sequentialPrimaryKey` + `timestamps` (listed in `APPEND_ONLY_TABLES`) | `AppendOnlyRepository` |
+| Reference | Owned by another system | view `.existing()` | `ReadOnlyRepository` |
+
+```typescript
+export class OrdersRepository extends BaseRepository<typeof orders> {
+  constructor(txHost: TransactionHost = defaultTxHost) {
+    super(orders, txHost, { redact: ['internalNote'] });
+  }
+  // domain-specific reads: build them on this.scoped(...) so deleted rows stay hidden
+}
+
+export class OrderLinesRepository extends ChildRepository<typeof orderLines, typeof orders> {
+  constructor(txHost: TransactionHost = defaultTxHost) {
+    super(orderLines, orders, orderLines.orderId, txHost);
+  }
+}
+```
+
+**`BaseRepository`** — `findById`, `findPage({ page, perPage, orderBy? })` (default `created_at DESC, id DESC`), `count`, `create`, `updateById`, `softDeleteById`, `restoreById`:
+- Reads see live rows only (`scoped()` = `deleted_at IS NULL` + your conditions); there is no hard delete.
+- `create` stamps `created_by` / `updated_by` with the request actor. Managed columns (`createdAt`, `createdBy`, `updatedAt`, `updatedBy`, `deletedAt`; `id` on update) are dropped from caller input, even when a DTO spread smuggles them in.
+- `updateById` locks the row, diffs, and writes only when something changed: `updated_at = now()` (database clock, set explicitly — drizzle binds `$onUpdate` results as parameters), `updated_by = actor`, plus the `record_changes` row. `null` = missing or soft-deleted; the unchanged row = nothing to write.
+- `softDeleteById` / `restoreById` set or clear `deleted_at` and audit `SOFT_DELETE` / `RESTORE`. A restore can hit an `activeUniqueIndex` conflict (a live row took the value meanwhile) — the service maps it to a `ConflictError`.
+
+**`ChildRepository`** — every method takes the header id first: `findAllForParent`, `findByIdForParent`, `createForParent`, `updateForParent`, `deleteForParent`, `syncForParent`:
+- A detail is reachable only through its own header: an id of another header's detail is `null` / `false` (no IDOR). A missing or soft-deleted header is `NotFoundError`.
+- Writes lock the live header first, then its details ordered by id — one lock order for every writer, so concurrent edits of one header queue instead of deadlocking. The detail's header reference cannot be changed through input.
+- Every detail change is audited with `parent_table` / `parent_id`, deletes are hard deletes with a snapshot, and the header's `updated_at` / `updated_by` are touched when something changed.
+- `syncForParent(headerId, items)` saves a form's complete list in one transaction: items with `id` are updated (when changed), items without are inserted, details missing from the list are deleted. An unknown `id` is `NotFoundError`, a repeated one `BadRequestError`.
+
+**`AppendOnlyRepository`** — `append`, `findPage({ page, perPage, where?, orderBy? })` (default `id DESC`), `count(where?)`. No update, no delete, nothing audited: the table is the record. Retention is an operational job (partitions), not application code.
+
+**`ReadOnlyRepository`** — `findPage({ page, perPage, where?, orderBy })` (order required: a view has no key) and `count(where?)` over a `.existing()` view. Writes are impossible twice over: no write method, and Drizzle rejects `insert` / `update` / `delete` on a view at compile time.
+
+Every module repository extends one of these four — enforced by ESLint from plan step 2.6; the one approved exception (`auth_refresh_tokens`, step 3.2) carries an `eslint-disable` with its reason. Custom reads inside a `BaseRepository` subclass must start from `this.scoped(...)` so deleted rows stay hidden `[review-only]`.
+
+Generic behaviour is tested once, with the SQL recorder and test-only tables (`test/helpers/repository-fixtures.ts`): `src/database/{base,child,append-only,read-only}.repository.test.ts`. Module repositories test only what they add.

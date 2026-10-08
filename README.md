@@ -69,6 +69,10 @@ src/
 ├── database/                    # Drizzle ORM Infrastructure
 │   ├── connection.ts            # PostgreSQL connection pool & Drizzle instance
 │   ├── audited.repository.ts    # AuditedRepository (audit trail record_changes)
+│   ├── base.repository.ts       # BaseRepository (soft delete, actor, update teraudit)
+│   ├── child.repository.ts      # ChildRepository (header/detail, anti IDOR)
+│   ├── append-only.repository.ts # AppendOnlyRepository (tabel pencatatan)
+│   ├── read-only.repository.ts  # ReadOnlyRepository (view referensi)
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transaction-host.test.ts # Co-located Unit Test
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
