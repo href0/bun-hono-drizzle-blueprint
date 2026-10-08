@@ -7,12 +7,12 @@ import {
   instantFromDate,
   instantToDate,
   isValidTimeZone,
-  nowAsDate,
   nowInstant,
   nowIsoUtc,
   parseCalendarDate,
   parseInstant,
   toIsoUtc,
+  toWireTime,
   wallTimeToInstant,
   type DateTimeErrorReason,
 } from './datetime.util';
@@ -41,15 +41,13 @@ describe('instants', () => {
     expect(reasonOf(() => parseInstant('yesterday'))).toBe('INVALID_INSTANT');
   });
 
-  it('gives "now" as an instant, as an ISO UTC string and as a Date for driver columns', () => {
+  it('gives "now" as an instant and as an ISO UTC string', () => {
     const before = Date.now();
     expect(nowInstant().epochMilliseconds).toBeGreaterThanOrEqual(before);
     expect(nowIsoUtc()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-    expect(nowAsDate()).toBeInstanceOf(Date);
-    expect(nowAsDate().getTime()).toBeGreaterThanOrEqual(before);
   });
 
-  it('converts to and from Date at the driver boundary without losing milliseconds', () => {
+  it('converts to and from Date (library boundary) without losing milliseconds', () => {
     const instant = parseInstant('2026-10-05T03:00:00.456Z');
     const roundTrip = instantFromDate(instantToDate(instant));
     expect(roundTrip.equals(instant)).toBe(true);
@@ -144,5 +142,30 @@ describe('formatWallClock', () => {
     expect(formatWallClock(instant, 'Asia/Jakarta')).toBe('2026-10-05 10:00:00.123 +07:00');
     expect(formatWallClock(instant, 'Asia/Jayapura')).toBe('2026-10-05 12:00:00.123 +09:00');
     expect(formatWallClock(instant, 'UTC')).toBe('2026-10-05 03:00:00.123 +00:00');
+  });
+});
+
+describe('toWireTime', () => {
+  it('writes every instant with millisecond precision, whatever the stored precision', () => {
+    expect(toWireTime(parseInstant('2026-10-05 10:00:00.123456+07'))).toBe(
+      '2026-10-05T03:00:00.123Z',
+    );
+    expect(toWireTime(parseInstant('2026-10-05 10:00:00+07'))).toBe('2026-10-05T03:00:00.000Z');
+  });
+
+  it('writes calendar dates as YYYY-MM-DD', () => {
+    expect(toWireTime(parseCalendarDate('2026-10-05'))).toBe('2026-10-05');
+  });
+
+  it('walks arrays and plain objects and leaves other values intact', () => {
+    const at = parseInstant('2026-10-05T03:00:00Z');
+    const other = new Map([['k', at]]);
+    expect(toWireTime({ list: [{ at }], name: 'x', count: 1, none: null, other })).toEqual({
+      list: [{ at: '2026-10-05T03:00:00.000Z' }],
+      name: 'x',
+      count: 1,
+      none: null,
+      other,
+    });
   });
 });

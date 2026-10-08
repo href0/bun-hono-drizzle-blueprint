@@ -51,7 +51,12 @@ const DATETIME_SYNTAX_RULES = [
   {
     selector: 'NewExpression[callee.name="Date"]',
     message:
-      'new Date(...) is only allowed in src/utils/datetime.util.ts. Use nowInstant() / nowIsoUtc() / nowAsDate() for "now", parseInstant() / parseCalendarDate() for text, instantToDate() at the driver boundary.',
+      'new Date(...) is only allowed in src/utils/datetime.util.ts. Use nowInstant() / nowIsoUtc() for "now", parseInstant() / parseCalendarDate() for text, instantFromDate() / instantToDate() for libraries that speak Date.',
+  },
+  {
+    selector: 'MemberExpression[object.name="Temporal"][property.name="Now"]',
+    message:
+      'Temporal.Now is only used in src/utils/datetime.util.ts. Use nowInstant() / nowIsoUtc().',
   },
   {
     selector: 'MemberExpression[object.name="Date"][property.name="parse"]',

@@ -118,6 +118,7 @@ describe('timestamps / auditColumns / softDelete / timeZoneColumn', () => {
     const updatedAt = column(details, 'updated_at');
     expect(createdAt.notNull).toBe(true);
     expect(createdAt.hasDefault).toBe(true);
+    // A value, not NOW: drizzle-orm binds $onUpdate results as parameters (see timestamps()).
     expect(updatedAt.onUpdateFn?.()).toBeInstanceOf(Temporal.Instant);
   });
 

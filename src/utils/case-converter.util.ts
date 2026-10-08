@@ -31,7 +31,7 @@ export function toSnakeCase(key: string): string {
  * `Date`, `RegExp`, Temporal values, buffers — are leaves: walking their own (often empty) keys
  * would silently turn e.g. a `Temporal.Instant` into `{}` in a response.
  */
-const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+export const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value) as unknown;
   return prototype === Object.prototype || prototype === null;

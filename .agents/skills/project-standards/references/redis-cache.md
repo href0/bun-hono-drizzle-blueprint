@@ -44,7 +44,7 @@ src/core/cache/
 - **`getOrSet`**: a fetcher error propagates and **nothing is cached** (e.g. `NotFoundError`). `undefined` is never cached; `null` is cached only when `negativeTtl` is given, stored as the sentinel `{"__nil":1}` and served back as `null`. Use `negativeTtl` (short, e.g. 30–60 s) for lookups keyed by **untrusted input** (API keys, tokens, slugs) so repeated misses cannot hammer the database.
 - **`setIfAbsent`**: `true` only for the first caller while the key lives — nonces, idempotency keys, simple locks. It fails open (`true`), so never rely on it as the _only_ replay defence for money-moving operations.
 - **`increment`**: fixed-window counter returning `{ count, ttlSeconds }`; the window starts at the first hit and later hits never extend it; a key without TTL gets one. The Lua script avoids `EXPIRE … NX` so it runs on any Redis ≥ 2.6. `ttlSeconds` feeds `Retry-After` / `RateLimit-Reset`.
-- Values are JSON: a cached `Date` comes back as an ISO string. Transformers must not rely on `instanceof Date` for cached entities.
+- Values are JSON: a cached `Temporal.Instant` / `PlainDate` (or `Date`) comes back as a string in `toJSON()` form — not the millisecond wire form `toWireTime()` gives entities. Cache the transformed response, or re-parse with `parseInstant()` / `parseCalendarDate()`; never rely on `instanceof` for cached values.
 
 ---
 

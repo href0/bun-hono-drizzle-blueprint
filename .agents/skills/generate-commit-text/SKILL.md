@@ -71,8 +71,9 @@ The allowed types are exactly `type-enum` in `commitlint.config.ts` (there is **
 #### Scope Mapping:
 - Feature domains: `users`, `health`, `[feature-name]`
 - Core components: `core/cache`, `core/context`, `core/dto`, `core/errors`, `core/http`, `core/i18n`, `core/logger`, `core/middlewares`, `core/openapi`, `core/response`
-- Database: `database/schema`, `database/tx-host`, `database/migrations`
+- Database: `database` (data-layer infrastructure: repositories, transactions), `database/schema`, `database/migrations`
 - Configuration: `config`
+- Utilities: `utils/<name>` (e.g. `utils/datetime`, `utils/record-diff`)
 - Integrations: `integrations/<vendor>`
 - Quality Gates / Tooling: `quality-gates`, `deps`, `lint`, `scripts`, `ci`
 - Agent rules & docs: `agents`, `plans`

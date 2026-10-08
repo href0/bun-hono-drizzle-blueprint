@@ -153,8 +153,8 @@ test/                            # End-to-End (E2E) & Blackbox API Tests
 | `src/config/` | Library (`zod`, `node:*`) | `src/core/`, `src/database/`, `src/modules/`, `src/integrations/`, `src/utils/` | Akar graf dependensi; mencegah siklus config ↔ logger (`strict-config-isolation`) |
 | `src/utils/` | External pure utilities | `src/modules/`, `src/core/`, `src/database/`, `src/integrations/` | Utils harus pure & side-effect free |
 | `src/core/` | Node/Bun libraries, `src/utils/`, `src/config/` | `src/modules/`, `src/database/`, `src/integrations/` | Mencegah coupling dari core ke domain, database & integrasi |
-| `src/database/schema/`| `drizzle-orm`, `drizzle-orm/pg-core` | `src/modules/`, `src/core/`, `src/config/`, `src/integrations/` | Schema DB tidak boleh bergantung pada aplikasi |
-| `src/database/` | `src/config/`, `src/utils/` | `src/modules/`, `src/integrations/` | Infra DB tidak boleh bergantung pada domain & integrasi |
+| `src/database/schema/`| `drizzle-orm`, `drizzle-orm/pg-core`, `src/utils/` | `src/modules/`, `src/core/`, `src/config/`, `src/integrations/` | Schema DB tidak boleh bergantung pada aplikasi (utils murni boleh, mis. parser waktu) |
+| `src/database/` | `src/config/`, `src/utils/`, `src/core/` (request context, errors) | `src/modules/`, `src/integrations/` | Infra DB tidak boleh bergantung pada domain & integrasi; actor audit dari request context |
 | `src/integrations/<vendor>`| `src/core/http/`, `src/config/`, `src/utils/` | `src/modules/`, `src/database/`, vendor integrasi lain | Outbound adapter murni; dilarang mengakses domain atau database |
 | `src/modules/<feature>`| `src/core/`, `src/database/` (abstraksi/types), `src/integrations/`, `src/config/` | `src/database/connection.ts`, `src/modules/<other>` | Modul dilarang sentuh raw connection DB dan dilarang cross-import liar |
 
@@ -336,7 +336,7 @@ Prefix path internal (`body.`, `query.`) otomatis dibersihkan dan nama field dik
 
 ## 5. Database & Declarative ACID Transactions
 
-### 5.1 Isolasi Multi-Schema
+### 5.1 Tabel, Helper Kolom & Audit
 1. **Tabel di `public` (`appTable`, `src/database/schema/schemas.ts`)**: proyek memiliki database sendiri, jadi semua tabel berada di schema bawaan `public` — tidak ada schema bernama proyek. `pgTable(`/`pgSchema(` hanya boleh di `schemas.ts` (ESLint). Multi-tenant per schema (SaaS) adalah fitur opsional terpisah (backlog).
 2. **Helper kolom (`src/database/schema/columns.ts`)**: `uuidPrimaryKey()` (UUID v7 default), `sequentialPrimaryKey()` (hanya tabel di `APPEND_ONLY_TABLES`), `timestamps()`, `instant()`, `calendarDate()`, `auditColumns()`, `softDelete()`, `parentReference()`, `activeUniqueIndex()`. Di file schema, `timestamp(`/`date(`/`serial(`/`pgTable(`/`.defaultRandom()` ditolak ESLint.
 3. **Reference (opsional, `src/database/schema/reference/`)**: data milik sistem lain, dibaca lewat `referenceSchema.view(...).existing()` — tidak pernah dibuat/dimigrasi drizzle-kit, dan `insert` gagal saat kompilasi.
@@ -512,7 +512,7 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
 
 1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dengan `appTable(...)` + helper kolom (`uuidPrimaryKey()`, `timestamps()`), lalu re-export di `schema/domain/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
-3. **DTO Zod**: Field waktu memakai `instantField` (`*_at`), `calendarDateField` (`*_date`), `timeZoneField` (`*_timezone`) dari `src/core/dto/datetime.dto.ts` — jangan `new Date(...)` (termasuk `new Date()` untuk "sekarang": pakai `nowInstant()` / `nowIsoUtc()` / `nowAsDate()`) maupun `Date.parse` (ditolak ESLint; panduan `references/datetime.md`). Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, tanggal memakai `isoDateTime()`); transformer memakai tipe `z.infer` dari schema response.
+3. **DTO Zod**: Field waktu memakai `instantField` (`*_at`), `calendarDateField` (`*_date`), `timeZoneField` (`*_timezone`) dari `src/core/dto/datetime.dto.ts` — jangan `new Date(...)` (termasuk `new Date()` untuk "sekarang": maupun `Temporal.Now`: pakai `nowInstant()` / `nowIsoUtc()`) maupun `Date.parse` (ditolak ESLint; panduan `references/datetime.md`). Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, waktu memakai `isoInstant()` / `isoCalendarDate()`); transformer memakai tipe `z.infer` dari schema response.
 4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` menggunakan `this.txHost.tx`.
 5. **Transformer**: Buat file `src/modules/<feature>/<feature>.transformer.ts` untuk membersihkan data.
 6. **Service**: Buat file `src/modules/<feature>/<feature>.service.ts` dengan `@Transactional()` pada operasi tulis.

@@ -2,7 +2,7 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.3 selesai (`main` @ `137295e`); Step 2.4 menunggu review (branch `feat/record-changes-audit`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.3 selesai (`main` @ `137295e`); Step 2.4 di-commit (`f2b0582`), perbaikan Review 6 menunggu review (branch `fix/review-2-1-2-4`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
 | Basis kode | branch `main` @ `137295e` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
@@ -339,6 +339,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-08 | 2.4 | Keputusan desain: kunci `changes` = **nama kolom DB** (`full_name`), bukan properti TS — jejak audit dibaca lewat SQL dan tetap stabil saat properti TS diganti nama. `updated_by` ikut tidak di-diff (plan: hanya `updatedAt`) — kapan & siapa sudah tercatat di baris audit (`changed_at`, `actor`) | Nilai dibandingkan & disimpan dalam bentuk JSON (`Temporal` → ISO); objek `jsonb` dengan urutan key berbeda bukan perubahan. Nama fungsi `snapshotRecord` (plan: `snapshot`) |
 | 2026-10-08 | 2.4 | Dokumen: `references/database.md` §5 baru (audit trail) + `sequentialId()` + penjaga migrasi; judul "Multi-Schema" yang basi sejak D14 diperbaiki di `database.md`, README & CONTRIBUTING; struktur folder (project-standards, README, CONTRIBUTING) | — |
 | 2026-10-08 | 2.4 | **Celah ditemukan user saat review**: `record_changes` tidak punya kolom parent (juga tidak ada di L6 maupun blueprint) → audit baris detail (`ChildRepository`, 2.5) tidak bisa dikumpulkan per header, terutama detail yang sudah di-hard-delete (id-nya hanya tersisa di dalam `changes`, tanpa index). Ditambahkan `parent_table`/`parent_id` (nullable, tanpa FK), CHECK keduanya terisi atau keduanya null, partial index `record_changes_parent_idx … WHERE parent_id IS NOT NULL`; `writeChange(…, parent?)`. L6 & langkah 2.5 diperbarui | Migrasi `0002` (ALTER), karena `0001` sudah dijalankan ke DB lokal user; dijalankan & diverifikasi read-only. Penjaga migrasi: CHECK parent ada, tidak ada FK/UNIQUE yang ditambahkan lewat ALTER |
+| 2026-10-08 | 2.4 | ✅ Di-commit (`f2b0582`) atas permintaan user; merge ditunda sampai perbaikan Review 6 selesai | — |
+| 2026-10-08 | Review 6 | Review ulang 2.1–2.4 atas permintaan user: 13 temuan, semua diperbaiki di branch `fix/review-2-1-2-4` (baris di bawah) | Gate hijau; perilaku baru dibuktikan test + chaos test |
+| 2026-10-08 | Review 6 | **Format waktu di response tidak konsisten**: entitas Temporal diserialisasi `toJSON()` → `…00Z` / `…00.123456Z` tergantung nilai, envelope `…00.000Z`, dokumen menjanjikan `.000Z`. `toWireTime()` (`datetime.util.ts`) dipakai `ApiResponse.toJSON()`: instant selalu milidetik UTC, tanggal `YYYY-MM-DD` | Chaos test: serializer dicabut → test `ApiResponse` gagal. Nilai dari cache tetap string `toJSON()` → didokumentasikan (cache hasil transformer) |
+| 2026-10-08 | Review 6 | `Temporal.Now` kini dilarang di luar `datetime.util.ts` (`DATETIME_SYNTAX_RULES`) — aturan "satu cara mendapatkan waktu sekarang" dari 2.1 bisa dilewati. `nowAsDate()` dihapus (tak dipakai sejak kolom memakai `customType` teks); `instantFromDate`/`instantToDate` dipertahankan untuk library yang hanya mengenal `Date` | Chaos test: `Temporal.Now` di modul & `core` → ditolak; L7 diperbarui |
+| 2026-10-08 | Review 6 | **Temuan saat memperbaiki jam `updated_at`**: `$onUpdate(() => NOW)` (NOW = `now()`) lolos `tsc`, tetapi drizzle-orm 0.40 membungkus hasil `$onUpdate` dengan `sql.param` saat UPDATE (`pg-core/dialect.js` `buildUpdateSet`) → parameter `"[object Object]"`, setiap UPDATE akan gagal di DB. Dibatalkan: `$onUpdate(nowInstant)` tetap sebagai fallback (jam aplikasi); jam DB untuk UPDATE dipindah ke `BaseRepository` (2.5: `updatedAt: NOW`). `NOW` di-export dari `columns.ts` (dipakai `timestamps()` & `record_changes.changed_at`) | Ditemukan lewat perekam SQL (2.3) sebelum sampai DB. Penjaga di `sql-recorder.test.ts`: `set({ updatedAt: NOW })` → `now()`, `$onUpdate` → parameter |
+| 2026-10-08 | Review 6 | Dokumen: `datetime.md` (jalur driver teks, `toWireTime`, `Temporal.Now`, cache), graf layer project-standards §3 + CONTRIBUTING (`database → core/utils/config`, `schema → utils`), aturan perintah DB (`database.md` §4 & DoD §14.1: default developer; agent hanya DB lokal dengan izin), `isoDateTime()` basi (project-standards Rule 11/12, CONTRIBUTING), README pilar 4 (data layer teraudit), `raw-queries.md` (`domain.users`, contoh `sql.raw('domain')` → `sql.identifier`), Rule 3 `defaultTxHost`, scope commit `database` & `utils/<name>`, plan 2.5/2.7/L7, judul CONTRIBUTING §5.1, `redis-cache.md`, `AGENTS.md` | — |
 
 ---
 
@@ -745,7 +751,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Langkah**
 
-1. `BaseRepository<TTable>`: `findById`, `findPage({ page, perPage, orderBy })` (default `ORDER BY created_at DESC, id DESC`), `count`, `create` (isi `createdBy`/`updatedBy` dari actor), `updateById(id, patch)` (lock → diff → update → audit), `softDeleteById`, `restoreById`; semua query ter-scope `deleted_at IS NULL` lewat `scoped()`; tanpa hard delete.
+1. `BaseRepository<TTable>`: `findById`, `findPage({ page, perPage, orderBy })` (default `ORDER BY created_at DESC, id DESC`), `count`, `create` (isi `createdBy`/`updatedBy` dari actor), `updateById(id, patch)` (lock → diff → update dengan `updatedAt: NOW` (jam DB — `$onUpdate` drizzle 0.40 tidak bisa `now()`) → audit), `softDeleteById`, `restoreById`; semua query ter-scope `deleted_at IS NULL` lewat `scoped()`; tanpa hard delete.
 2. `ChildRepository<TChild, TParent>`: setiap method menerima `parentId` (cegah IDOR); kunci header aktif dulu (urutan kunci konsisten), `createForParent`, `updateForParent`, `deleteForParent` (hard delete + snapshot), `syncForParent(parentId, items)` (insert/update/delete dalam satu transaksi), menyentuh `updated_at` header; setiap audit detail mencatat header di `parent_table`/`parent_id` (`writeChange(…, parent)`).
 
 **Acceptance criteria**
@@ -773,7 +779,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 ### Step 2.7 — Test konvensi schema
 
-**Langkah**: `src/database/schema/schema-conventions.test.ts` mengiterasi semua tabel yang diekspor (`getTableConfig`): setiap FK punya index dengan kolom awal yang sama; tabel di `appSchema` memakai `id` dari helper; `id` berurutan (`bigint` identity) hanya pada tabel di `APPEND_ONLY_TABLES` dan setiap entri allowlist benar-benar memakainya (tidak ada entri basi); tidak ada kolom `serial`/`bigserial`; tabel ber-`deleted_at` tidak punya `unique()` biasa (wajib `activeUniqueIndex`); `record_changes` PK `(id, changed_at)` tanpa FK/unique lain.
+**Langkah**: `src/database/schema/schema-conventions.test.ts` mengiterasi semua tabel yang diekspor (`getTableConfig`): setiap FK punya index dengan kolom awal yang sama; tabel domain memakai `id` dari helper; `id` berurutan (`bigint` identity) hanya pada tabel di `APPEND_ONLY_TABLES` dan setiap entri allowlist benar-benar memakainya (tidak ada entri basi); tidak ada kolom `serial`/`bigserial`; tabel ber-`deleted_at` tidak punya `unique()` biasa (wajib `activeUniqueIndex`); `record_changes` PK `(id, changed_at)` tanpa FK/unique lain dan CHECK pasangan `parent_table`/`parent_id`.
 
 **Acceptance criteria**
 
@@ -995,7 +1001,7 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 - [ ] Endpoint baru memakai `describeEndpoint()` dengan skema response di `<module>.dto.ts` (`test/openapi.e2e.test.ts` hijau).
 - [ ] Nilai yang membawa nama proyek → `IDENTITY_RULES`; `bun run setup demo --dry-run` lulus.
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
-- [ ] AI agent tidak mengeksekusi perintah ke database (migrasi di-generate; dijalankan developer).
+- [ ] Perintah ke database dijalankan developer; AI agent hanya ke DB **lokal** developer dengan izin eksplisit (migrasi, cek read-only), SQL destruktif / baris uji selalu ditanyakan dulu, tidak pernah DB bersama/production.
 - [ ] Tabel Progres (§5) dan Log (§4.1) diperbarui di commit step tersebut.
 - [ ] Perubahan dibiarkan di working tree + usulan pesan commit (skill `generate-commit-text`); commit & merge hanya setelah diminta user.
 
@@ -1256,7 +1262,7 @@ Selector yang direncanakan:
 | 1.3 | Literal error code di luar registry | `Literal[value=/^ERR_/]`, `TemplateElement[value.raw=/^ERR_/]` (kode yang dibangun dinamis) |
 | 1.3 | `throw new Error` / `throw Error` di modul | `ThrowStatement > :matches(NewExpression, CallExpression)[callee.name="Error"]` |
 | 1.4 | Pesan literal | `NewExpression[callee.name=/^(ApiResponse\|(?!InternalServerError$)[A-Za-z]+Error)$/] > :matches(Literal[raw=/^['"]/], TemplateLiteral)` + `Property[key.name="message"]` di dalam `new XError(...)` |
-| 2.1 | `new Date(arg)` / `Date.parse` | `NewExpression[callee.name="Date"][arguments.length>0]`, `MemberExpression[object.name="Date"][property.name="parse"]` |
+| 2.1 | `new Date(...)` (juga tanpa argumen — diperketat, lihat 4.1) / `Temporal.Now` / `Date.parse` | `NewExpression[callee.name="Date"]`, `MemberExpression[object.name="Temporal"][property.name="Now"]`, `MemberExpression[object.name="Date"][property.name="parse"]` |
 | 2.1 | Getter/formatter waktu lokal | `CallExpression[callee.property.name=/^(getHours\|getMinutes\|getDate\|getDay\|getMonth\|getFullYear\|getTimezoneOffset\|toLocaleString\|toLocaleDateString\|toLocaleTimeString)$/]` |
 | 2.6 | Tulis DB langsung di repository modul | `CallExpression[callee.property.name=/^(update\|delete)$/][callee.object.property.name="tx"]` |
 | 2.6 | Raw SQL tulis | `TaggedTemplateExpression[tag.name="sql"] TemplateElement[value.raw=/\b(update\|delete\s+from)\b/i]` |

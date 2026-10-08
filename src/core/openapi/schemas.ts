@@ -10,7 +10,7 @@ import { APP_ERROR_CODES, ERROR_TYPES } from '../errors/error-codes';
 
 /**
  * A `Temporal.Instant` (instant columns, plan step 2.2), documented as an ISO 8601 UTC string —
- * the shape its `toJSON()` puts on the wire.
+ * always with milliseconds on the wire (`toWireTime()` in `ApiResponse`).
  */
 export const isoInstant = (): z.ZodType<Temporal.Instant> =>
   z.instanceof(Temporal.Instant).openapi({ type: 'string', format: 'date-time' });
@@ -20,8 +20,7 @@ export const isoCalendarDate = (): z.ZodType<Temporal.PlainDate> =>
   z.instanceof(Temporal.PlainDate).openapi({ type: 'string', format: 'date' });
 
 /** A timestamp already serialized to an ISO 8601 UTC string (e.g. `nowIsoUtc()`). */
-export const isoDateTimeString = (): z.ZodString =>
-  z.string().openapi({ format: 'date-time', example: '2026-10-04T03:00:00.000Z' });
+export const isoDateTimeString = (): z.ZodString => z.string().openapi({ format: 'date-time' });
 
 type EnumValues<T extends Record<string, string>> = [T[keyof T], ...T[keyof T][]];
 

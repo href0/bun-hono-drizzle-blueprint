@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { Temporal } from 'temporal-polyfill';
 import { users, type User } from '../../src/database/schema';
+import { NOW } from '../../src/database/schema/columns';
 import { createSqlRecorder, rowOf } from './sql-recorder';
 
 const sampleUser: User = {
@@ -129,5 +130,20 @@ describe('rowOf', () => {
       '2026-10-05T03:00:00.123456Z',
       '2026-10-05T04:00:00Z',
     ]);
+  });
+});
+
+describe('database clock in updates (drizzle-orm behaviour this project relies on)', () => {
+  it('sends an explicit NOW in set() as now(), while $onUpdate values are bound as parameters', async () => {
+    const recorder = createSqlRecorder();
+
+    await recorder.db.update(users).set({ fullName: 'B' }).where(eq(users.id, 'x'));
+    await recorder.db.update(users).set({ fullName: 'B', updatedAt: NOW }).where(eq(users.id, 'x'));
+
+    // Fallback ($onUpdate): application clock, as a parameter.
+    expect(recorder.statements.at(0)?.sql).toContain('"updated_at" = $2');
+    expect(recorder.statements.at(0)?.params[1]).toMatch(/Z$/);
+    // Explicit NOW (what BaseRepository does): database clock.
+    expect(recorder.statements.at(1)?.sql).toContain('"updated_at" = now()');
   });
 });

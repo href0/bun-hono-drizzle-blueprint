@@ -1,4 +1,5 @@
 import { Temporal } from 'temporal-polyfill';
+import { isPlainObject } from './case-converter.util';
 
 /**
  * The only place that creates or converts time values (ESLint bans `new Date(...)` — even for
@@ -40,9 +41,6 @@ export const toIsoUtc = (instant: Temporal.Instant): string =>
   instant.toString({ fractionalSecondDigits: 3 });
 
 export const nowIsoUtc = (): string => toIsoUtc(nowInstant());
-
-/** "Now" for a `timestamptz` column the driver handles as `Date` (e.g. Drizzle `$onUpdate`). */
-export const nowAsDate = (): Date => instantToDate(nowInstant());
 
 /**
  * Parses an ISO 8601 instant. An offset (`Z` or `+07:00`) is mandatory: without it the moment
@@ -155,9 +153,28 @@ export const formatWallClock = (instant: Temporal.Instant, zone: string): string
   return `${local.toPlainDate().toString()} ${time} ${local.offset}`;
 };
 
-/** Driver boundary: the postgres driver reads and writes `timestamptz` as `Date`. */
+/**
+ * Boundary with libraries that only speak `Date`. Database columns do not need it: the
+ * column helpers read and write `timestamptz` as text (`src/database/schema/columns.ts`).
+ */
 export const instantFromDate = (date: Date): Temporal.Instant =>
   Temporal.Instant.fromEpochMilliseconds(date.getTime());
 
 export const instantToDate = (instant: Temporal.Instant): Date =>
   new Date(instant.epochMilliseconds);
+
+/**
+ * The API wire form of time values, applied to every response body (`ApiResponse.toJSON`):
+ * instants become `toIsoUtc` text — always UTC, always milliseconds, whatever precision the
+ * database returned — and calendar dates `YYYY-MM-DD`. Walks arrays and plain objects; other
+ * values are returned as they are.
+ */
+export const toWireTime = (value: unknown): unknown => {
+  if (value instanceof Temporal.Instant) return toIsoUtc(value);
+  if (value instanceof Temporal.PlainDate) return value.toString();
+  if (Array.isArray(value)) return value.map(toWireTime);
+  if (!isPlainObject(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, member]) => [key, toWireTime(member)]),
+  );
+};

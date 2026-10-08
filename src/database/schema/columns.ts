@@ -77,9 +77,19 @@ export const calendarDate = (name: string) => calendarDateColumn(name);
 /** The IANA zone a local schedule was planned in (`*_timezone`), validated by `timeZoneField`. */
 export const timeZoneColumn = (name: string) => varchar(name, { length: 64 });
 
-const NOW: SQL = sql`now()`;
+/**
+ * The database clock (`now()` = start of the current transaction). Every server-set time column
+ * uses it, so `created_at`, `updated_at` and `record_changes.changed_at` of one transaction agree
+ * and never depend on the application host's clock.
+ */
+export const NOW: SQL = sql`now()`;
 
-/** `created_at` / `updated_at`: set by the database on insert; `updated_at` refreshed on update. */
+/**
+ * `created_at` / `updated_at`: set by the database on insert. `$onUpdate` is only the fallback
+ * for an update that does not set `updated_at` (application clock): drizzle-orm 0.40 binds an
+ * `$onUpdate` result as a parameter, so it cannot be `NOW`. `BaseRepository` (plan step 2.5) — the
+ * only writer of updates — sets `updatedAt: NOW` explicitly, keeping updates on the database clock.
+ */
 export const timestamps = () => ({
   createdAt: instant('created_at').notNull().default(NOW),
   updatedAt: instant('updated_at').notNull().default(NOW).$onUpdate(nowInstant),

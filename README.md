@@ -9,7 +9,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 1. **Pure Controllers**: Controller adalah pure function yang mengembalikan `ApiResponse`. Response dibungkus otomatis oleh wrapper `asyncHandler` ke dalam envelope standar.
 2. **Strict Layer Isolation**: Alur data satu arah: `Route` -> `Controller` -> `Service` -> `Repository` -> `Database`. Diverifikasi otomatis oleh `dependency-cruiser`.
 3. **Declarative ACID Transactions**: Didukung oleh Bun native `AsyncLocalStorage`. Service menandai method dengan `@Transactional()`, dan Repository cukup memanggil `this.txHost.tx` tanpa perlu *parameter drilling* (`tx` tidak perlu dioper manual).
-4. **Multi-Schema PostgreSQL**: Isolasi antara domain schema (`app_domain`, dikelola dan dimigrasi oleh `drizzle-kit`) dan reference schema (tabel referensi pihak ketiga, *read-only*).
+4. **Data Layer Teraudit**: Tabel di `public` lewat `appTable` + helper kolom (UUID v7, `timestamps()` Temporal, soft delete), dimigrasi `drizzle-kit`; data milik sistem lain dibaca lewat view referensi *read-only*. Setiap UPDATE/DELETE tercatat di `record_changes` dalam transaksi yang sama (`AuditedRepository`).
 5. **Zero-Trust Configuration**: Konfigurasi divalidasi ketat dengan Zod saat aplikasi booting (`src/config/<group>.config.ts`, satu grup per file). Aplikasi *fail-fast* jika ada variabel wajib yang tidak valid. Dilarang mengakses `process.env` di luar direktori config.
 6. **Resilient Infrastructure**:
    - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
