@@ -33,11 +33,11 @@ bun run setup <project-name> --description "<description>" --dry-run
 
 Show the user the derived identity and the files that will change:
 
-| Identity    | Value                              |
-| ----------- | ---------------------------------- |
-| Package / `APP_NAME` / container prefix | `<project-name>`        |
-| Database    | `<project_name>_db`                |
-| README title | `<Project Name>`                  |
+| Identity | Value |
+|---|---|
+| Package / `APP_NAME` / container prefix | `<project-name>` |
+| Database | `<project_name>_db` |
+| README title | `<Project Name>` |
 
 Ask for confirmation before continuing.
 
@@ -70,7 +70,7 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
 Offer the choices and act only on an explicit answer:
 
 | Option | Commands | When |
-| --- | --- | --- |
+|---|---|---|
 | Keep history, track boilerplate upstream (recommended) | `git remote rename origin boilerplate` then the user adds their own `origin` | Wants to pull future boilerplate improvements |
 | Fresh history | delete `.git`, then `git init` and initial commit | Wants a clean repository |
 | Leave as is | — | Will handle git manually |
