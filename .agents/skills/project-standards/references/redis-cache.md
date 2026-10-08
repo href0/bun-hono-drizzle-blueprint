@@ -33,13 +33,13 @@ src/core/cache/
 
 ## 3. `CacheService` API
 
-| Method                                           | Redis                         | When Redis is unavailable           |
-| ------------------------------------------------ | ----------------------------- | ----------------------------------- |
-| `getOrSet(key, ttl, fetcher, { negativeTtl })`   | `GET`, then `SET … EX`        | runs `fetcher`, returns its result  |
-| `get(key)` / `set(key, value, ttl)` / `del(key)` | `GET` / `SET … EX` / `DEL`    | `null` / no-op / no-op              |
-| `setIfAbsent(key, value, ttl)`                   | `SET … EX … NX`               | `true` (claim granted) + `warn`     |
-| `increment(key, windowSeconds)`                  | Lua `INCR` + expire-if-no-TTL | `null` (caller must allow) + `warn` |
-| `isReady()`                                      | client `status === 'ready'`   | `false`                             |
+| Method | Redis | When Redis is unavailable |
+|---|---|---|
+| `getOrSet(key, ttl, fetcher, { negativeTtl })` | `GET`, then `SET … EX` | runs `fetcher`, returns its result |
+| `get(key)` / `set(key, value, ttl)` / `del(key)` | `GET` / `SET … EX` / `DEL` | `null` / no-op / no-op |
+| `setIfAbsent(key, value, ttl)` | `SET … EX … NX` | `true` (claim granted) + `warn` |
+| `increment(key, windowSeconds)` | Lua `INCR` + expire-if-no-TTL | `null` (caller must allow) + `warn` |
+| `isReady()` | client `status === 'ready'` | `false` |
 
 - **`getOrSet`**: a fetcher error propagates and **nothing is cached** (e.g. `NotFoundError`). `undefined` is never cached; `null` is cached only when `negativeTtl` is given, stored as the sentinel `{"__nil":1}` and served back as `null`. Use `negativeTtl` (short, e.g. 30–60 s) for lookups keyed by **untrusted input** (API keys, tokens, slugs) so repeated misses cannot hammer the database.
 - **`setIfAbsent`**: `true` only for the first caller while the key lives — nonces, idempotency keys, simple locks. It fails open (`true`), so never rely on it as the _only_ replay defence for money-moving operations.
@@ -50,14 +50,14 @@ src/core/cache/
 
 ## 4. Client Resilience (`redis.client.ts`, `REDIS_*` in `src/config/redis.config.ts`)
 
-| Concern            | Behaviour                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------ |
-| Reconnect          | Never gives up: `retryStrategy` backs off 500 ms × attempt, capped at 30 s                             |
-| Slow Redis         | `commandTimeout = REDIS_COMMAND_TIMEOUT_MS` (default 1000) — the command fails, the cache fails open   |
-| Disconnected       | `enableOfflineQueue: false`, `maxRetriesPerRequest: 0` — commands fail immediately instead of queueing |
-| Key prefix         | Always on: `REDIS_KEY_PREFIX` or, when empty, `<APP_NAME>:<NODE_ENV>` (+ `:`), applied by ioredis      |
-| Dangerous commands | `FLUSHALL`, `FLUSHDB`, `KEYS` are rejected by `SafeRedis.sendCommand` (methods, `call()`, pipelines)   |
-| Startup            | `lazyConnect`; `src/index.ts` connects and only warns when Redis is down — the app starts degraded     |
+| Concern | Behaviour |
+|---|---|
+| Reconnect | Never gives up: `retryStrategy` backs off 500 ms × attempt, capped at 30 s |
+| Slow Redis | `commandTimeout = REDIS_COMMAND_TIMEOUT_MS` (default 1000) — the command fails, the cache fails open |
+| Disconnected | `enableOfflineQueue: false`, `maxRetriesPerRequest: 0` — commands fail immediately instead of queueing |
+| Key prefix | Always on: `REDIS_KEY_PREFIX` or, when empty, `<APP_NAME>:<NODE_ENV>` (+ `:`), applied by ioredis |
+| Dangerous commands | `FLUSHALL`, `FLUSHDB`, `KEYS` are rejected by `SafeRedis.sendCommand` (methods, `call()`, pipelines) |
+| Startup | `lazyConnect`; `src/index.ts` connects and only warns when Redis is down — the app starts degraded |
 
 Use `SCAN` with a pattern or TTL expiry instead of `KEYS`; never wipe a database from application code.
 

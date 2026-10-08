@@ -7,14 +7,14 @@
 
 Dokumen ini menjelaskan **apa dan mengapa** setiap keputusan arsitektur. Detail implementasi, contoh kode lengkap, dan daftar aturan ada di sumbernya masing-masing — blueprint tidak menyalinnya agar tidak basi:
 
-| Topik                                             | Sumber detail                                                              |
-| ------------------------------------------------- | -------------------------------------------------------------------------- |
-| Aturan kode, contoh, aturan yang ditegakkan mesin | `CONTRIBUTING.md`                                                          |
+| Topik | Sumber detail |
+|---|---|
+| Aturan kode, contoh, aturan yang ditegakkan mesin | `CONTRIBUTING.md` |
 | Standar database (jenis tabel, repository, audit) | `.agents/skills/database-standards/` (+ CONTRIBUTING _Database & Drizzle_) |
-| Template modul                                    | `.agents/skills/scaffold-module/SKILL.md`                                  |
-| Kontrak partner (signing v1)                      | `docs/partner-integration-guide.md`                                        |
-| Operasional tabel audit                           | `docs/runbooks/partition-record-changes.md`                                |
-| Rencana & log keputusan                           | `docs/plans/2026-10-03-setup-hardening-plan.md`                            |
+| Template modul | `.agents/skills/scaffold-module/SKILL.md` |
+| Kontrak partner (signing v1) | `docs/partner-integration-guide.md` |
+| Operasional tabel audit | `docs/runbooks/partition-record-changes.md` |
+| Rencana & log keputusan | `docs/plans/2026-10-03-setup-hardening-plan.md` |
 
 ---
 
@@ -22,11 +22,11 @@ Dokumen ini menjelaskan **apa dan mengapa** setiap keputusan arsitektur. Detail 
 
 ### 1.1 PRD vs Architecture Blueprint
 
-| Dimensi     | Product Requirements Document (PRD)                          | Architecture Blueprint                                    |
-| ----------- | ------------------------------------------------------------ | --------------------------------------------------------- |
-| **Fokus**   | **WHAT** — apa yang dibangun untuk pengguna bisnis           | **HOW** — bagaimana sistem dibangun secara teknis         |
-| **Konten**  | User personas, user stories, acceptance criteria, wireframes | Layering, transaksi, kontrak API, keamanan, quality gates |
-| **Pemilik** | Product Manager / Business Analyst                           | Lead Architect / Tech Lead                                |
+| Dimensi | Product Requirements Document (PRD) | Architecture Blueprint |
+|---|---|---|
+| **Fokus** | **WHAT** — apa yang dibangun untuk pengguna bisnis | **HOW** — bagaimana sistem dibangun secara teknis |
+| **Konten** | User personas, user stories, acceptance criteria, wireframes | Layering, transaksi, kontrak API, keamanan, quality gates |
+| **Pemilik** | Product Manager / Business Analyst | Lead Architect / Tech Lead |
 
 ### 1.2 Pilar Arsitektur
 
@@ -43,20 +43,20 @@ Dokumen ini menjelaskan **apa dan mengapa** setiap keputusan arsitektur. Detail 
 
 ### 1.3 Tech Stack Baseline
 
-| Layer             | Teknologi                                      | Standar & Ketentuan                                               |
-| ----------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
-| **Runtime**       | Node.js >= 24                                  | TypeScript `nodenext` (import `.js`), output CommonJS             |
-| **Framework**     | NestJS 11                                      | Modular monolith, Express adapter                                 |
-| **Language**      | TypeScript 5                                   | `strict: true`, `noUnusedLocals`, `noImplicitReturns`             |
-| **ORM**           | Drizzle ORM                                    | Code-first schema, typed SQL                                      |
-| **Database**      | PostgreSQL 16                                  | Multi-schema, driver `postgres`, sesi `timezone=UTC`              |
-| **Date & Time**   | Temporal (`temporal-polyfill`) + runtime UTC   | Instant `timestamptz` / ISO UTC, tanggal `date`, zona IANA        |
-| **Cache & Locks** | DragonFly (protokol Redis, standalone)         | `ioredis`, fail-open, namespace otomatis                          |
-| **Auth**          | SSO INSW (token opaque, introspeksi) + HMAC v1 | Guard global; hasil introspeksi & ACL di-cache Redis              |
-| **Validation**    | Zod + `nestjs-zod`                             | DTO class via `createZodDto`                                      |
-| **Logger**        | `nestjs-pino`                                  | JSON (Grafana Loki), redaksi data sensitif, request ID            |
-| **HTTP Client**   | `@nestjs/axios`                                | `HttpClientService` terpusat, timeout wajib, error vendor di-mask |
-| **Quality Gates** | ESLint 9, ls-lint, depcruise, knip, SonarQube  | Coverage global 95 (branches 90), per file 90 (branches 80)       |
+| Layer | Teknologi | Standar & Ketentuan |
+|---|---|---|
+| **Runtime** | Node.js >= 24 | TypeScript `nodenext` (import `.js`), output CommonJS |
+| **Framework** | NestJS 11 | Modular monolith, Express adapter |
+| **Language** | TypeScript 5 | `strict: true`, `noUnusedLocals`, `noImplicitReturns` |
+| **ORM** | Drizzle ORM | Code-first schema, typed SQL |
+| **Database** | PostgreSQL 16 | Multi-schema, driver `postgres`, sesi `timezone=UTC` |
+| **Date & Time** | Temporal (`temporal-polyfill`) + runtime UTC | Instant `timestamptz` / ISO UTC, tanggal `date`, zona IANA |
+| **Cache & Locks** | DragonFly (protokol Redis, standalone) | `ioredis`, fail-open, namespace otomatis |
+| **Auth** | SSO INSW (token opaque, introspeksi) + HMAC v1 | Guard global; hasil introspeksi & ACL di-cache Redis |
+| **Validation** | Zod + `nestjs-zod` | DTO class via `createZodDto` |
+| **Logger** | `nestjs-pino` | JSON (Grafana Loki), redaksi data sensitif, request ID |
+| **HTTP Client** | `@nestjs/axios` | `HttpClientService` terpusat, timeout wajib, error vendor di-mask |
+| **Quality Gates** | ESLint 9, ls-lint, depcruise, knip, SonarQube | Coverage global 95 (branches 90), per file 90 (branches 80) |
 
 ---
 
@@ -114,19 +114,19 @@ Dokumen ini menjelaskan **apa dan mengapa** setiap keputusan arsitektur. Detail 
 
 ### 2.2 Batas Lapisan (dependency-cruiser, `npm run lint:arch`)
 
-| Aturan                       | Isi                                                                                |
-| ---------------------------- | ---------------------------------------------------------------------------------- |
-| `no-circular`                | Tidak ada dependensi melingkar                                                     |
-| `no-orphans`                 | Tidak ada file yatim (kode mati)                                                   |
-| `strict-utils-isolation`     | `src/utils/` tidak mengimpor `@nestjs/*`, `modules/`, `common/`, `database/`       |
-| `strict-common-isolation`    | `src/common/` tidak mengimpor `modules/`                                           |
-| `strict-schema-isolation`    | `database/schema/` tidak mengimpor `modules/`, `common/`, `config/`                |
+| Aturan | Isi |
+|---|---|
+| `no-circular` | Tidak ada dependensi melingkar |
+| `no-orphans` | Tidak ada file yatim (kode mati) |
+| `strict-utils-isolation` | `src/utils/` tidak mengimpor `@nestjs/*`, `modules/`, `common/`, `database/` |
+| `strict-common-isolation` | `src/common/` tidak mengimpor `modules/` |
+| `strict-schema-isolation` | `database/schema/` tidak mengimpor `modules/`, `common/`, `config/` |
 | `strict-constants-isolation` | `common/constants` & `common/i18n` hanya nilai murni (tanpa database/modules/Nest) |
-| `controller-no-db`           | Controller tidak mengimpor `src/database/**` atau `*.repository.ts`                |
-| `no-cross-module-repository` | Repository bersifat privat modul                                                   |
-| `no-cross-module-internals`  | Antar modul hanya lewat `*.module.ts` / `*.service.ts` / `*.decorator.ts`          |
-| `common-no-domain-schema`    | `common/` tidak bergantung pada tabel domain                                       |
-| `partner-no-import-external` | Modul inbound partner tidak terikat ke modul outbound `external-*`                 |
+| `controller-no-db` | Controller tidak mengimpor `src/database/**` atau `*.repository.ts` |
+| `no-cross-module-repository` | Repository bersifat privat modul |
+| `no-cross-module-internals` | Antar modul hanya lewat `*.module.ts` / `*.service.ts` / `*.decorator.ts` |
+| `common-no-domain-schema` | `common/` tidak bergantung pada tabel domain |
+| `partner-no-import-external` | Modul inbound partner tidak terikat ke modul outbound `external-*` |
 
 ### 2.3 Aturan Ekstensi Import (`moduleResolution: nodenext`)
 
@@ -203,16 +203,16 @@ Guard global (`AuthGuard`, `PartnerGuard`) dan `PartnerAuditInterceptor` didafta
 
 Exception bawaan NestJS / `HttpException` dilarang di luar `common/exceptions` & `filters` (ESLint). Pesan wajib dwibahasa (`I18N_MESSAGES` / `{ id, en }`).
 
-| Class                            | HTTP    | `error.type`             |
-| -------------------------------- | ------- | ------------------------ |
-| `AppBadRequestException`         | 400     | `BAD_REQUEST`            |
-| `AppUnauthorizedException`       | 401     | `UNAUTHORIZED`           |
-| `AppForbiddenException`          | 403     | `FORBIDDEN`              |
-| `AppNotFoundException`           | 404     | `NOT_FOUND`              |
-| `AppConflictException`           | 409     | `BAD_REQUEST`            |
-| `AppTooManyRequestsException`    | 429     | `TOO_MANY_REQUESTS`      |
-| `AppServiceUnavailableException` | 503     | `SERVICE_UNAVAILABLE`    |
-| `ExternalServiceException`       | 502/504 | `EXTERNAL_SERVICE_ERROR` |
+| Class | HTTP | `error.type` |
+|---|---|---|
+| `AppBadRequestException` | 400 | `BAD_REQUEST` |
+| `AppUnauthorizedException` | 401 | `UNAUTHORIZED` |
+| `AppForbiddenException` | 403 | `FORBIDDEN` |
+| `AppNotFoundException` | 404 | `NOT_FOUND` |
+| `AppConflictException` | 409 | `BAD_REQUEST` |
+| `AppTooManyRequestsException` | 429 | `TOO_MANY_REQUESTS` |
+| `AppServiceUnavailableException` | 503 | `SERVICE_UNAVAILABLE` |
+| `ExternalServiceException` | 502/504 | `EXTERNAL_SERVICE_ERROR` |
 
 ### 3.6 Input DTO
 
@@ -237,11 +237,11 @@ Tiga jenis, tidak dicampur: **instant** (`*_at`, `timestamptz`, API ISO 8601 UTC
 
 Dua jenis pemanggil, dua guard global — controller tidak menulis boilerplate auth:
 
-| Pemanggil            | Guard          | Mekanisme                                        | Actor (CLS)      |
-| -------------------- | -------------- | ------------------------------------------------ | ---------------- |
-| Pengguna (FE)        | `AuthGuard`    | Token SSO INSW **opaque** (bukan JWT) + ACL INSW | `user:<userId>`  |
-| Sistem K/L (inbound) | `PartnerGuard` | HMAC-SHA256 signing v1 (§9)                      | `partner:<code>` |
-| Tanpa request (job)  | —              | —                                                | `system`         |
+| Pemanggil | Guard | Mekanisme | Actor (CLS) |
+|---|---|---|---|
+| Pengguna (FE) | `AuthGuard` | Token SSO INSW **opaque** (bukan JWT) + ACL INSW | `user:<userId>` |
+| Sistem K/L (inbound) | `PartnerGuard` | HMAC-SHA256 signing v1 (§9) | `partner:<code>` |
+| Tanpa request (job) | — | — | `system` |
 
 ### 4.1 Alur `AuthGuard`
 
@@ -273,22 +273,22 @@ Sumber standar lengkap & template terverifikasi: skill **`database-standards`** 
 
 ### 5.1 Multi-Schema
 
-| Schema                      | Akses                 | Deklarasi                                     | Migrasi                      |
-| --------------------------- | --------------------- | --------------------------------------------- | ---------------------------- |
-| `pengangkut_udara`          | CRUD lewat repository | `pengangkutUdara.table(...)`                  | drizzle-kit (`schemaFilter`) |
-| `referensi`, `access_tools` | **Read-only**         | `.view(...).existing()` → tulis = error `tsc` | Tidak                        |
+| Schema | Akses | Deklarasi | Migrasi |
+|---|---|---|---|
+| `pengangkut_udara` | CRUD lewat repository | `pengangkutUdara.table(...)` | drizzle-kit (`schemaFilter`) |
+| `referensi`, `access_tools` | **Read-only** | `.view(...).existing()` → tulis = error `tsc` | Tidak |
 
 `pgSchema` hanya di `schema/schemas.ts`; kolom hanya lewat helper `schema/columns.ts`.
 
 ### 5.2 Jenis Tabel
 
-| Jenis      | Ciri                                   | Kolom kunci                                                               | Repository                                              |
-| ---------- | -------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Mandiri    | Berdiri sendiri                        | `uuidPrimaryKey` (UUID v7) + `timestamps` + `auditColumns` + `softDelete` | `BaseRepository`                                        |
-| Header     | Mandiri yang punya detail              | sama                                                                      | `BaseRepository` + `ChildRepository` di modul yang sama |
-| Detail     | Hanya bermakna di dalam satu header    | `parentReference` **+ index**, tanpa `softDelete`                         | `ChildRepository`                                       |
-| Pencatatan | Log/history, append-only, volume besar | `sequentialPrimaryKey` (bigint identity) + `timestamps`                   | Repository biasa (insert + select)                      |
-| Referensi  | Milik sistem lain                      | view `.existing()`                                                        | Tanpa repository (read-only service)                    |
+| Jenis | Ciri | Kolom kunci | Repository |
+|---|---|---|---|
+| Mandiri | Berdiri sendiri | `uuidPrimaryKey` (UUID v7) + `timestamps` + `auditColumns` + `softDelete` | `BaseRepository` |
+| Header | Mandiri yang punya detail | sama | `BaseRepository` + `ChildRepository` di modul yang sama |
+| Detail | Hanya bermakna di dalam satu header | `parentReference` **+ index**, tanpa `softDelete` | `ChildRepository` |
+| Pencatatan | Log/history, append-only, volume besar | `sequentialPrimaryKey` (bigint identity) + `timestamps` | Repository biasa (insert + select) |
+| Referensi | Milik sistem lain | view `.existing()` | Tanpa repository (read-only service) |
 
 Kolom waktu lain hanya `instant()` / `calendarDate()` / `timeZoneColumn()`; nilai unik yang boleh dipakai ulang setelah dihapus → `activeUniqueIndex()`.
 
@@ -365,11 +365,11 @@ return this.cache.getOrSet(CACHE_KEYS.userDetail(id), CACHE_TTL.USER_DETAIL, () 
 
 ### 7.5 Health
 
-| Endpoint                    | Untuk                | Perilaku                                                             |
-| --------------------------- | -------------------- | -------------------------------------------------------------------- |
-| `GET /api/health`           | Dashboard            | Selalu 200; status `UP` / `DEGRADED` (Redis down) / `DOWN` (DB down) |
-| `GET /api/health/readiness` | Kubernetes readiness | 503 hanya bila database down                                         |
-| `GET /api/health/liveness`  | Kubernetes liveness  | Proses hidup                                                         |
+| Endpoint | Untuk | Perilaku |
+|---|---|---|
+| `GET /api/health` | Dashboard | Selalu 200; status `UP` / `DEGRADED` (Redis down) / `DOWN` (DB down) |
+| `GET /api/health/readiness` | Kubernetes readiness | 503 hanya bila database down |
+| `GET /api/health/liveness` | Kubernetes liveness | Proses hidup |
 
 ### 7.6 Container
 
@@ -437,19 +437,19 @@ Sebelum pekerjaan dinyatakan selesai: `npm run validate:full` dan `npm run build
 
 ### 10.2 Ambang & Aturan
 
-| Parameter            | Ambang                                                                      |
-| -------------------- | --------------------------------------------------------------------------- |
+| Parameter | Ambang |
+|---|---|
 | Coverage (SSOT jest) | Global lines/functions/statements 95, branches 90; per file 90, branches 80 |
-| Duplikasi (Sonar)    | < 3%                                                                        |
-| Complexity           | Cognitive & cyclomatic ≤ 15                                                 |
-| Secret hardcoded     | 0                                                                           |
+| Duplikasi (Sonar) | < 3% |
+| Complexity | Cognitive & cyclomatic ≤ 15 |
+| Secret hardcoded | 0 |
 
 ### 10.3 Strategi Test
 
-| Layer       | Lokasi                           | Infrastruktur                                                                         | Status |
-| ----------- | -------------------------------- | ------------------------------------------------------------------------------------- | ------ |
-| Unit        | `src/**/*.spec.ts`               | Mock (`createDrizzleChainMock`, `createTxHostMock`, `renderWhere` me-render SQL asli) | Aktif  |
-| E2E         | `test/*.e2e-spec.ts`             | App lewat `configureApp`, infrastruktur di-override                                   | Aktif  |
+| Layer | Lokasi | Infrastruktur | Status |
+|---|---|---|---|
+| Unit | `src/**/*.spec.ts` | Mock (`createDrizzleChainMock`, `createTxHostMock`, `renderWhere` me-render SQL asli) | Aktif |
+| E2E | `test/*.e2e-spec.ts` | App lewat `configureApp`, infrastruktur di-override | Aktif |
 | Integration | `test/integration/*.int-spec.ts` | PostgreSQL 16 + DragonFly sekali pakai (CI `services:` / Testcontainers), SSO di-stub | Fase 6 |
 
 Perilaku generik (soft delete, audit, sync detail, konvensi schema) diuji sekali di `src/database/`; spec modul hanya menguji logikanya sendiri.
@@ -460,14 +460,14 @@ Perilaku generik (soft delete, audit, sync detail, konvensi schema) diuji sekali
 
 Aturan untuk AI coding agent adalah bagian dari arsitektur, bukan dokumentasi tambahan:
 
-| Komponen                                  | Peran                                                                                        |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `.agents/AGENTS.md` (diimpor `CLAUDE.md`) | Aturan MANDATORY: layering, database, tanggal, i18n, Swagger, proteksi `.env`, review gate   |
-| `skills/project-standards`                | Standar umum (struktur, kontrak, logging, cache, datetime)                                   |
-| `skills/database-standards`               | Satu-satunya sumber standar DB + template header/detail terverifikasi                        |
-| `skills/scaffold-module`                  | Template modul baru (lolos semua gate tanpa edit manual)                                     |
-| `skills/review-code`                      | Gate review sebelum pekerjaan dinyatakan selesai                                             |
-| `.claude/` (`settings.json`, hook)        | Wrapper skills untuk Claude Code; `permissions.deny` + hook memblokir pembacaan `.env` aktif |
+| Komponen | Peran |
+|---|---|
+| `.agents/AGENTS.md` (diimpor `CLAUDE.md`) | Aturan MANDATORY: layering, database, tanggal, i18n, Swagger, proteksi `.env`, review gate |
+| `skills/project-standards` | Standar umum (struktur, kontrak, logging, cache, datetime) |
+| `skills/database-standards` | Satu-satunya sumber standar DB + template header/detail terverifikasi |
+| `skills/scaffold-module` | Template modul baru (lolos semua gate tanpa edit manual) |
+| `skills/review-code` | Gate review sebelum pekerjaan dinyatakan selesai |
+| `.claude/` (`settings.json`, hook) | Wrapper skills untuk Claude Code; `permissions.deny` + hook memblokir pembacaan `.env` aktif |
 
 Agent tidak menjalankan perintah yang mengeksekusi ke database; eksekusi DB dilakukan developer.
 
@@ -493,20 +493,20 @@ Ikuti skill `scaffold-module` (dan `database-standards` untuk tabel): tentukan j
 
 Konfigurasi tooling **tidak disalin** ke dokumen ini. Sumber kebenaran adalah file di root repo; untuk proyek baru, salin apa adanya.
 
-| File                           | Menegakkan                                                                                                                                                             | Dijalankan oleh                                  |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `eslint.config.mjs`            | Grup rule `no-restricted-syntax`/`no-restricted-imports` per area (DTO, exception, i18n, tx, DB write, datetime, …), naming, complexity + `sonarjs`, `eslint-comments` | lint-staged, `npm run lint` (`--max-warnings 0`) |
-| `.dependency-cruiser.cjs`      | Batas lapisan (§2.2)                                                                                                                                                   | pre-push, `npm run lint:arch`                    |
-| `.ls-lint.yml`                 | kebab-case + **allowlist suffix** per folder (suffix lain ditolak)                                                                                                     | pre-commit, `npm run lint:ls`                    |
-| `knip.json`                    | File, export, dan dependency tidak terpakai                                                                                                                            | pre-push, `npm run lint:deps`                    |
-| `package.json` → `jest`        | Ambang coverage (SSOT), reporter JUnit + Cobertura, transform `temporal-polyfill`                                                                                      | `npm run test:cov` / `test:ci`                   |
-| `.husky/*`                     | pre-commit, commit-msg, pre-push (§10.1)                                                                                                                               | Git                                              |
-| `commitlint.config.cjs`        | Conventional Commits, `scope-case` kebab-case, panjang header/body                                                                                                     | commit-msg                                       |
-| `.validate-branch-namerc.json` | `<type>/<slug>`, `hotfix/vX.Y.Z`, branch environment                                                                                                                   | pre-push                                         |
-| `.prettierrc`, `.editorconfig` | Format & LF                                                                                                                                                            | lint-staged, `npm run format:check`              |
-| `tsconfig.json`                | `strict`, `nodenext` (import `.js`), output CommonJS, decorator metadata                                                                                               | `npm run typecheck`, build                       |
-| `sonar-project.properties`     | Sources vs tests, exclusions coverage selaras jest                                                                                                                     | SonarQube di pipeline template LNSW (D12)        |
-| `.gitlab-ci.yml`               | Job §10.1                                                                                                                                                              | GitLab CI                                        |
-| `drizzle.config.ts`            | `schemaFilter: ['pengangkut_udara']` — schema referensi tidak pernah masuk migrasi                                                                                     | `npm run db:generate`                            |
+| File | Menegakkan | Dijalankan oleh |
+|---|---|---|
+| `eslint.config.mjs` | Grup rule `no-restricted-syntax`/`no-restricted-imports` per area (DTO, exception, i18n, tx, DB write, datetime, …), naming, complexity + `sonarjs`, `eslint-comments` | lint-staged, `npm run lint` (`--max-warnings 0`) |
+| `.dependency-cruiser.cjs` | Batas lapisan (§2.2) | pre-push, `npm run lint:arch` |
+| `.ls-lint.yml` | kebab-case + **allowlist suffix** per folder (suffix lain ditolak) | pre-commit, `npm run lint:ls` |
+| `knip.json` | File, export, dan dependency tidak terpakai | pre-push, `npm run lint:deps` |
+| `package.json` → `jest` | Ambang coverage (SSOT), reporter JUnit + Cobertura, transform `temporal-polyfill` | `npm run test:cov` / `test:ci` |
+| `.husky/*` | pre-commit, commit-msg, pre-push (§10.1) | Git |
+| `commitlint.config.cjs` | Conventional Commits, `scope-case` kebab-case, panjang header/body | commit-msg |
+| `.validate-branch-namerc.json` | `<type>/<slug>`, `hotfix/vX.Y.Z`, branch environment | pre-push |
+| `.prettierrc`, `.editorconfig` | Format & LF | lint-staged, `npm run format:check` |
+| `tsconfig.json` | `strict`, `nodenext` (import `.js`), output CommonJS, decorator metadata | `npm run typecheck`, build |
+| `sonar-project.properties` | Sources vs tests, exclusions coverage selaras jest | SonarQube di pipeline template LNSW (D12) |
+| `.gitlab-ci.yml` | Job §10.1 | GitLab CI |
+| `drizzle.config.ts` | `schemaFilter: ['pengangkut_udara']` — schema referensi tidak pernah masuk migrasi | `npm run db:generate` |
 
 Daftar aturan beserta contoh pelanggaran: `CONTRIBUTING.md` — _Aturan yang Ditegakkan Mesin_ dan _Chaos Test_.
