@@ -37,8 +37,14 @@ export const uuidPrimaryKey = () =>
  * public resource id (sequential ids invite enumeration). `mode: 'number'` because a JS `bigint`
  * breaks `JSON.stringify`; safe up to 2^53.
  */
-export const sequentialPrimaryKey = () =>
-  bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity();
+export const sequentialPrimaryKey = () => sequentialId().primaryKey();
+
+/**
+ * The same `bigint` identity without a primary key, for append-only tables whose primary key also
+ * holds the partition key — `PRIMARY KEY (id, changed_at)` on `record_changes`, so the table can
+ * later be partitioned by time. Same `APPEND_ONLY_TABLES` restriction.
+ */
+export const sequentialId = () => bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity();
 
 // ---------------------------------------------------------------------------------------------
 // Time (plan D13 — see .agents/skills/project-standards/references/datetime.md)

@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.2 selesai (`main` @ `e5aafa7`); Step 2.3 menunggu review (branch `test/data-layer-helpers`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.3 selesai (`main` @ `137295e`); Step 2.4 menunggu review (branch `feat/record-changes-audit`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `e5aafa7` |
+| Basis kode | branch `main` @ `137295e` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -333,6 +333,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-08 | 2.3 | `TransactionHost(root = db)` (D20) + `run(fn)` (buka transaksi di root, join bila sudah ada); `runInTransaction` = `defaultTxHost.run`. Test `transactional.decorator` tidak lagi menambal `db.transaction` global | Prasyarat test rollback audit 2.4; `@Transactional()` tetap memakai `defaultTxHost` |
 | 2026-10-08 | 2.3 | Kolom Temporal teruji lewat jalur driver: teks `timestamptz` dari "DB" → `Temporal.Instant` (presisi mikrodetik) | `rowOf` memakai `mapToDriverValue` kolom |
 | 2026-10-08 | 2.3 | Template `scaffold-module`: Step 11 baru (test repository memakai perekam), test lain jadi Step 12; `verify:scaffold` menjalankan test hasil generate (dulu hanya dikompilasi/di-lint). Drift ditemukan & diperbaiki: Step 1 template masih menyebut schema `domain` (basi sejak D14), deskripsi skill "Drizzle multi-schema" | Dokumen: `references/transactions.md` §1 & §4 (contoh mock chain diganti), `references/testing.md`, struktur `test/` di project-standards |
+| 2026-10-08 | 2.3 | ✅ Di-commit (`137295e`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-08 | 2.4 | `record_changes` di `public` (`appTable`) sesuai L6: PK `(id, changed_at)`, index lookup, CHECK `action`, tanpa FK/unique lain. Helper baru `sequentialId()` (identity tanpa `PRIMARY KEY`; `sequentialPrimaryKey()` = `sequentialId().primaryKey()`) — PK komposit tidak bisa memakai `sequentialPrimaryKey()`. `APPEND_ONLY_TABLES` = `{ record_changes }`. Migrasi `0001` di-generate dan **dijalankan ke DB lokal user** (izin migrasi lokal); struktur diverifikasi read-only di PostgreSQL 17.6 (identity ALWAYS, PK, CHECK, index DESC) | Penjaga di `test/migrations.test.ts`: daftar CHECK = `RECORD_CHANGE_ACTIONS` (chaos test: aksi baru tanpa migrasi → gagal), PK `(id, changed_at)`, tanpa `REFERENCES`/`UNIQUE` |
+| 2026-10-08 | 2.4 | `AuditedRepository<TTable>` (`src/database/audited.repository.ts`): `inTransaction` (= `txHost.run`), `lockById` (`FOR UPDATE`), `diff`, `snapshot`, `writeChange`. Ditambahkan di luar rencana: `lockById`/`writeChange` **melempar** di luar transaksi (audit yang tidak atomik = celah), `writeChange` dengan change set kosong tidak menulis apa pun | Komposisi update/soft delete/restore/delete menyusul di `BaseRepository` (2.5); test memakai subclass contoh di file test |
+| 2026-10-08 | 2.4 | Keputusan desain: kunci `changes` = **nama kolom DB** (`full_name`), bukan properti TS — jejak audit dibaca lewat SQL dan tetap stabil saat properti TS diganti nama. `updated_by` ikut tidak di-diff (plan: hanya `updatedAt`) — kapan & siapa sudah tercatat di baris audit (`changed_at`, `actor`) | Nilai dibandingkan & disimpan dalam bentuk JSON (`Temporal` → ISO); objek `jsonb` dengan urutan key berbeda bukan perubahan. Nama fungsi `snapshotRecord` (plan: `snapshot`) |
+| 2026-10-08 | 2.4 | Dokumen: `references/database.md` §5 baru (audit trail) + `sequentialId()` + penjaga migrasi; judul "Multi-Schema" yang basi sejak D14 diperbaiki di `database.md`, README & CONTRIBUTING; struktur folder (project-standards, README, CONTRIBUTING) | — |
+| 2026-10-08 | 2.4 | **Celah ditemukan user saat review**: `record_changes` tidak punya kolom parent (juga tidak ada di L6 maupun blueprint) → audit baris detail (`ChildRepository`, 2.5) tidak bisa dikumpulkan per header, terutama detail yang sudah di-hard-delete (id-nya hanya tersisa di dalam `changes`, tanpa index). Ditambahkan `parent_table`/`parent_id` (nullable, tanpa FK), CHECK keduanya terisi atau keduanya null, partial index `record_changes_parent_idx … WHERE parent_id IS NOT NULL`; `writeChange(…, parent?)`. L6 & langkah 2.5 diperbarui | Migrasi `0002` (ALTER), karena `0001` sudah dijalankan ke DB lokal user; dijalankan & diverifikasi read-only. Penjaga migrasi: CHECK parent ada, tidak ada FK/UNIQUE yang ditambahkan lewat ALTER |
 
 ---
 
@@ -373,8 +379,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 1.9 | Dokumentasi OpenAPI | ✅ | 1.5 | `ce62029` |
 | 2.1 | Standar tanggal & waktu (Temporal) | ✅ | 0.3 | `d1aa11a` |
 | 2.2 | Schema proyek, column helpers, UUID v7, schema referensi | ✅ | 2.1 | `208a8d8` |
-| 2.3 | Test helper data layer | 👀 | 2.2 |  |
-| 2.4 | `record_changes` + `AuditedRepository` | ⬜ | 1.2, 2.3 |  |
+| 2.3 | Test helper data layer | ✅ | 2.2 | `137295e` |
+| 2.4 | `record_changes` + `AuditedRepository` | 👀 | 1.2, 2.3 |  |
 | 2.5 | `BaseRepository` + `ChildRepository` | ⬜ | 2.4 |  |
 | 2.6 | Penegakan aturan data layer | ⬜ | 2.5 |  |
 | 2.7 | Test konvensi schema | ⬜ | 2.5 |  |
@@ -715,15 +721,15 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Langkah**
 
-1. `schema/domain/record-changes.schema.ts` (di `appSchema`).
+1. `schema/domain/record-changes.schema.ts` (di `public` lewat `appTable` — D14 diubah).
 2. `src/utils/record-diff.util.ts` (murni): `diffRecords(before, after, { redact, ignore: ['updatedAt'] })` → hanya kolom berubah, nilai kolom `redact` → `'[REDACTED]'`; `snapshot(record, { redact })`.
 3. `src/database/audited.repository.ts` (abstract): `protected async lockById(id)` (`SELECT … FOR UPDATE` via `.for('update')`), `protected async writeChange(action, recordId, changes)` (actor & request ID dari context). Semua lewat `this.txHost.tx`; method publik turunan wajib berjalan di transaksi (`runInTransaction` internal bila belum ada).
 
 **Acceptance criteria**
 
-- [ ] UPDATE yang tidak mengubah apa pun → tidak menulis `record_changes`.
-- [ ] Error setelah update (dalam transaksi) → audit ikut rollback (test dengan txHost mock; diuji nyata di 6.1).
-- [ ] Kolom `redact` tercatat `[REDACTED]`.
+- [x] UPDATE yang tidak mengubah apa pun → tidak menulis `record_changes` (statement terekam: BEGIN, SELECT … FOR UPDATE, COMMIT).
+- [x] Error setelah update (dalam transaksi) → audit ikut rollback (perekam SQL: UPDATE + INSERT audit di antara BEGIN … ROLLBACK; diuji nyata di 6.1).
+- [x] Kolom `redact` tercatat `[REDACTED]` (UPDATE & snapshot DELETE).
 
 ### Step 2.5 — `BaseRepository` + `ChildRepository`
 
@@ -740,7 +746,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 **Langkah**
 
 1. `BaseRepository<TTable>`: `findById`, `findPage({ page, perPage, orderBy })` (default `ORDER BY created_at DESC, id DESC`), `count`, `create` (isi `createdBy`/`updatedBy` dari actor), `updateById(id, patch)` (lock → diff → update → audit), `softDeleteById`, `restoreById`; semua query ter-scope `deleted_at IS NULL` lewat `scoped()`; tanpa hard delete.
-2. `ChildRepository<TChild, TParent>`: setiap method menerima `parentId` (cegah IDOR); kunci header aktif dulu (urutan kunci konsisten), `createForParent`, `updateForParent`, `deleteForParent` (hard delete + snapshot), `syncForParent(parentId, items)` (insert/update/delete dalam satu transaksi), menyentuh `updated_at` header.
+2. `ChildRepository<TChild, TParent>`: setiap method menerima `parentId` (cegah IDOR); kunci header aktif dulu (urutan kunci konsisten), `createForParent`, `updateForParent`, `deleteForParent` (hard delete + snapshot), `syncForParent(parentId, items)` (insert/update/delete dalam satu transaksi), menyentuh `updated_at` header; setiap audit detail mencatat header di `parent_table`/`parent_id` (`writeChange(…, parent)`).
 
 **Acceptance criteria**
 
@@ -1208,7 +1214,7 @@ signature = hex(HMAC_SHA256(secret, canonical))
 ### 15.6 L6 — DDL `record_changes`
 
 ```sql
-CREATE TABLE "<app_schema>"."record_changes" (
+CREATE TABLE "record_changes" (
   "id"         bigint      GENERATED ALWAYS AS IDENTITY,
   "changed_at" timestamptz NOT NULL DEFAULT now(),
   "table_name" text        NOT NULL,
@@ -1217,9 +1223,13 @@ CREATE TABLE "<app_schema>"."record_changes" (
   "changes"    jsonb       NOT NULL,   -- UPDATE: {"col": {"from": x, "to": y}} · DELETE: snapshot
   "actor"      text        NOT NULL,   -- user:<id> | partner:<code> | system
   "request_id" text,
-  PRIMARY KEY ("id", "changed_at")     -- partition-ready: tanpa FK & unique lain
+  "parent_table" text,                 -- header dari baris detail (ChildRepository); keduanya terisi atau keduanya null
+  "parent_id"    text,
+  PRIMARY KEY ("id", "changed_at"),    -- partition-ready: tanpa FK & unique lain
+  CHECK (("parent_table" IS NULL) = ("parent_id" IS NULL))
 );
-CREATE INDEX "record_changes_lookup_idx" ON "<app_schema>"."record_changes" ("table_name", "record_id", "changed_at" DESC);
+CREATE INDEX "record_changes_lookup_idx" ON "record_changes" ("table_name", "record_id", "changed_at" DESC);
+CREATE INDEX "record_changes_parent_idx" ON "record_changes" ("parent_table", "parent_id", "changed_at" DESC) WHERE "parent_id" IS NOT NULL;
 ```
 
 ### 15.7 L7 — Snippet ESLint

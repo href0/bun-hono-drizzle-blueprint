@@ -14,6 +14,7 @@ import {
   timeZoneColumn,
   uuidPrimaryKey,
 } from './columns';
+import { recordChanges } from './domain/record-changes.schema';
 import { users } from './domain/users.schema';
 import { appTable } from './schemas';
 
@@ -63,8 +64,24 @@ describe('sequentialPrimaryKey', () => {
     expect(id?.dataType).toBe('number');
   });
 
-  it('is allowed only for tables listed in APPEND_ONLY_TABLES (filled from step 2.4)', () => {
-    expect(APPEND_ONLY_TABLES).toEqual({});
+  it('is allowed only for tables listed in APPEND_ONLY_TABLES, each with a reason', () => {
+    expect(Object.keys(APPEND_ONLY_TABLES)).toEqual(['record_changes']);
+    expect(Object.values(APPEND_ONLY_TABLES).every((reason) => reason.length > 0)).toBe(true);
+  });
+});
+
+describe('sequentialId', () => {
+  it('is the same bigint identity without a primary key (composite, partition-ready keys)', () => {
+    const id = getTableConfig(recordChanges).columns.find((candidate) => candidate.name === 'id');
+    expect(id?.getSQLType()).toBe('bigint');
+    expect(id?.primary).toBe(false);
+    expect(id?.generatedIdentity?.type).toBe('always');
+    expect(id?.dataType).toBe('number');
+    expect(
+      getTableConfig(recordChanges)
+        .primaryKeys.at(0)
+        ?.columns.map((c) => c.name),
+    ).toEqual(['id', 'changed_at']);
   });
 });
 
