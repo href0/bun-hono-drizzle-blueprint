@@ -91,7 +91,7 @@ Enforced by `.dependency-cruiser.cjs`:
 0. **Config Layer (`src/config/`)**: Root of the graph — libraries only (zod, node). Cannot import from any application layer (`core`, `database`, `modules`, `integrations`, `utils`). Rule `strict-config-isolation`.
 1. **Core Layer**: Cannot import from `src/modules`, `src/database`, or `src/integrations`.
 2. **Utils Layer**: Pure functions only. Cannot import from `src/core`, `src/database`, or `src/modules`.
-3. **Database Layer**: Cannot import from `src/modules` or `src/integrations`. Raw connection (`connection.ts`) cannot be imported by `src/modules`.
+3. **Database Layer**: Cannot import from `src/modules` or `src/integrations` (it may use `core` — request context for the audit actor, errors — `utils` and `config`). Schema files (`src/database/schema/`) may only use `utils` (`strict-schema-isolation`). Raw connection (`connection.ts`) cannot be imported by `src/modules`.
 4. **Modules Layer**: Inbound domain modules. Cannot cross-import other domain modules directly (use services or shared core).
 5. **Integrations Layer (`src/integrations/`)**: Outbound 3rd-party adapters (e.g. WhatsApp, Payment Gateways). Cannot import from `src/modules` or `src/database`. Cannot contain controllers or routes.
 
@@ -102,7 +102,8 @@ modules → integrations → core → utils
 modules → core → config
 modules → core → utils (pure leaf, zero deps)
 modules → database (via TransactionHost / health abstractions only; never connection.ts)
-database → config
+database → core (request context, errors), utils, config
+database/schema → utils (pure helpers only; never core, config, modules, integrations)
 config → (libraries only)
 ```
 Any import path not shown above is forbidden by `dependency-cruiser`.
@@ -167,7 +168,7 @@ router.get('/:id', validate({ params: uuidParamSchema }), usersController.getByI
 
 ### Rule 3: Decoupled Repositories (TransactionHost)
 - Repositories **MUST NOT** import `db` directly.
-- Repositories **MUST** receive `TransactionHost` in constructor (defaulting to singleton `txHost`).
+- Repositories **MUST** receive `TransactionHost` in constructor (defaulting to the singleton `defaultTxHost`); tests inject the SQL recorder's host (`test/helpers/sql-recorder.ts`).
 - All queries **MUST** execute against `this.txHost.tx`.
 - This ensures seamless transactional atomicity under `@Transactional()` or `runInTransaction()`.
 - Violation of this rule is blocked by ESLint `no-restricted-syntax` / `no-restricted-imports` (groups `MODULE_SYNTAX_RULES`, `MODULE_IMPORT_PATTERNS`) and dependency-cruiser `no-module-direct-db-connection`.
@@ -259,7 +260,7 @@ export class UsersService {
 ### Rule 11: Documented Endpoints (OpenAPI)
 - Every route carries `describeEndpoint({ tags, summary, response, errors })` from `src/core/openapi`: the success envelope (`data` or `paginatedItem`) and the **domain** errors it can return.
 - Never described by hand: the request body, query and path parameters, 400 and (with a body) 413 — `validate()` documents them from the same Zod schemas it enforces; 429 and 500 — added on every route; the common headers (`Accept-Language`, `X-Request-ID`, `Content-Language`, `RateLimit-*`, `Retry-After`) — added by the document builder.
-- Response schemas live in `<name>.dto.ts` (`<name>ResponseSchema`) and type the transformer (`z.infer`), so docs cannot drift from what the API returns. Dates use `isoDateTime()` (a `Date` in TypeScript, ISO 8601 on the wire).
+- Response schemas live in `<name>.dto.ts` (`<name>ResponseSchema`) and type the transformer (`z.infer`), so docs cannot drift from what the API returns. Time values use `isoInstant()` / `isoCalendarDate()` (`Temporal` in TypeScript; on the wire `…T03:00:00.000Z` / `YYYY-MM-DD` via `toWireTime()`).
 - Schemas are camelCase like DTOs; the published document is converted to snake_case by `toSnakeCaseOpenApi()`.
 - Served at `<API_BASE_PATH>/docs` (Scalar UI) and `<API_BASE_PATH>/docs/openapi.json` when `API_DOCS_ENABLED` (default on, off in production).
 - Enforced by `test/openapi.e2e.test.ts`: every route of `createApp()` is in the document with a `summary` and a 2xx response (so `validate()` alone is not enough), every schema property and query parameter is snake_case, validated routes document 400, every operation carries the common headers. Full guide: [openapi.md](references/openapi.md).
@@ -267,8 +268,8 @@ export class UsersService {
 ### Rule 12: Date & Time (Temporal, UTC)
 - Three kinds of time, never mixed: instant (`*_at`, `Temporal.Instant`, `timestamptz`, ISO 8601 UTC), calendar date (`*_date`, `Temporal.PlainDate`, `date`, `YYYY-MM-DD`), local schedule (instant + `*_timezone` IANA name).
 - All parsing and `Date` ⇄ Temporal conversion goes through `src/utils/datetime.util.ts`; request fields use `instantField` / `calendarDateField` / `timeZoneField` (`src/core/dto/datetime.dto.ts`). Requests without a UTC offset are rejected; DST-skipped or repeated wall times are rejected, never guessed.
-- The process (`TZ=UTC`) and the database session (`timezone=UTC`) run in UTC.
-- Enforced by ESLint `DATETIME_SYNTAX_RULES`: `new Date(...)` — even for "now" (use `nowInstant()` / `nowIsoUtc()` / `nowAsDate()`) — `Date.parse` and local-time getters/setters/formatters are rejected outside `datetime.util.ts`. Full guide: [datetime.md](references/datetime.md).
+- The process (`TZ=UTC`) and the database session (`timezone=UTC`) run in UTC. Responses write every instant with millisecond precision (`toWireTime()` in `ApiResponse`).
+- Enforced by ESLint `DATETIME_SYNTAX_RULES`: `new Date(...)` — even for "now" — and `Temporal.Now` (use `nowInstant()` / `nowIsoUtc()`), `Date.parse` and local-time getters/setters/formatters are rejected outside `datetime.util.ts`. Full guide: [datetime.md](references/datetime.md).
 
 ---
 

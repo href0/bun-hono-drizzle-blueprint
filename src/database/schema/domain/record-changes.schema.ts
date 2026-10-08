@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { check, index, jsonb, primaryKey, text } from 'drizzle-orm/pg-core';
-import { instant, sequentialId } from '../columns';
+import { instant, NOW, sequentialId } from '../columns';
 import { appTable } from '../schemas';
 
 /** What happened to the audited row (plan D16). INSERTs are not recorded: the row itself is the record. */
@@ -27,9 +27,7 @@ export const recordChanges = appTable(
   'record_changes',
   {
     id: sequentialId(),
-    changedAt: instant('changed_at')
-      .notNull()
-      .default(sql`now()`),
+    changedAt: instant('changed_at').notNull().default(NOW),
     tableName: text('table_name').notNull(),
     recordId: text('record_id').notNull(),
     action: text('action', { enum: RECORD_CHANGE_ACTIONS }).notNull(),

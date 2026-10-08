@@ -1,4 +1,5 @@
 import { camelToSnakeCase } from '../../utils/case-converter.util';
+import { toWireTime } from '../../utils/datetime.util';
 import { getLocale } from '../context/request-context';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { translate, type MessageInput } from '../i18n/translate';
@@ -22,9 +23,12 @@ export class ApiResponse<T = unknown> {
     this.success = statusCode < 400;
   }
 
-  /** Serializes to the snake_case envelope with the message in the request's language. */
+  /**
+   * Serializes to the snake_case envelope with the message in the request's language; time values
+   * take their wire form (`toWireTime`: instants always `…T03:00:00.000Z`).
+   */
   toJSON(): Record<string, unknown> {
-    const transformedData = camelToSnakeCase(this.data);
+    const transformedData = camelToSnakeCase(toWireTime(this.data));
     const transformedMeta = this.meta
       ? (camelToSnakeCase(this.meta) as Record<string, unknown>)
       : undefined;

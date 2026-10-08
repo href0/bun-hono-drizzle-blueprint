@@ -8,7 +8,7 @@ Read this file when: a field, column or query involves a date, a time, a duratio
 
 | Kind | Field name | TypeScript | Column | Wire format |
 |---|---|---|---|---|
-| Instant (an exact moment) | `*_at` | `Temporal.Instant` (driver: `Date`) | `timestamptz` | ISO 8601 UTC, e.g. `2026-10-05T03:00:00.000Z`; requests **must** carry an offset |
+| Instant (an exact moment) | `*_at` | `Temporal.Instant` | `timestamptz` | ISO 8601 UTC, always milliseconds: `2026-10-05T03:00:00.000Z`; requests **must** carry an offset |
 | Calendar date (a day, no zone) | `*_date` | `Temporal.PlainDate` | `date` | `YYYY-MM-DD` |
 | Local schedule | instant + `*_timezone` | `Temporal.Instant` + IANA name | `timestamptz` + `text` | instant + zone such as `Asia/Jakarta` |
 
@@ -20,15 +20,16 @@ A birthday or a due day is a calendar date — storing it as an instant shifts i
 
 | Function | Use |
 |---|---|
-| `nowInstant()` / `nowIsoUtc()` / `nowAsDate()` | Current moment as an instant / as `…Z` text (envelope `timestamp`, health) / as a `Date` for driver columns (`$onUpdate(nowAsDate)`) |
+| `nowInstant()` / `nowIsoUtc()` | Current moment (application clock) as an instant / as `…Z` text (envelope `timestamp`, health). Columns set by the server use the database clock instead (`NOW`, [database.md](database.md)) |
 | `parseInstant(text)` | ISO 8601 with offset → instant; no offset → `DateTimeError('MISSING_OFFSET')` |
 | `parseCalendarDate(text)` | Exactly `YYYY-MM-DD` → `PlainDate`; rejects `2026-02-30` |
 | `isValidTimeZone(zone)` | IANA names only; `+07:00` is not a zone |
 | `dayRangeInZone(date, zone)` | `[start, end)` instants of a day in a zone — query with `>= start AND < end`; DST-correct (23/25-hour days) |
 | `wallTimeToInstant(date, 'HH:mm', zone)` | Wall-clock time → instant; times skipped or repeated by DST are **rejected**, never guessed |
-| `instantFromDate(date)` / `instantToDate(instant)` | Driver boundary: postgres reads and writes `timestamptz` as `Date` |
+| `instantFromDate(date)` / `instantToDate(instant)` | Boundary with libraries that only speak `Date`. Not needed for columns: the column helpers read and write `timestamptz` / `date` as text |
 | `toIsoUtc(instant)` | `…T03:00:00.000Z` (same shape as `Date#toISOString`) |
 | `formatWallClock(instant, zone)` | Display only: `2026-10-05 10:00:00.123 +07:00` (offset always printed) |
+| `toWireTime(value)` | The API wire form, applied by `ApiResponse` to every response body: instants → `toIsoUtc`, calendar dates → `YYYY-MM-DD` (walks arrays and plain objects) |
 
 Errors are `DateTimeError` with a `reason` (`INVALID_INSTANT`, `MISSING_OFFSET`, `INVALID_DATE`, `INVALID_TIME`, `INVALID_TIME_ZONE`, `NONEXISTENT_LOCAL_TIME`, `AMBIGUOUS_LOCAL_TIME`) — services map them to a `BadRequestError` with a localized message when they come from user input.
 
@@ -53,7 +54,8 @@ export const createMeetingSchema = z.object({
 
 ## 4. Responses
 
-- Temporal values serialize through their `toJSON()`; `camelToSnakeCase()` keeps class instances intact (it used to turn them into `{}`).
+- `ApiResponse.toJSON()` writes time values through `toWireTime()`: every instant leaves as `…T03:00:00.000Z` — the database keeps microseconds, `toJSON()` alone would print `…00Z`, `…00.123Z` or `…00.123456Z` depending on the value. `camelToSnakeCase()` keeps class instances intact (it used to turn them into `{}`).
+- Values read back from the cache are plain JSON: a cached `Temporal.Instant` is a string in `toJSON()` precision. Cache the transformed response (or re-parse with `parseInstant()`), not raw entities, when the wire format matters.
 - Columns built with `instant()` / `timestamps()` / `calendarDate()` (`src/database/schema/columns.ts`) give entities `Temporal.Instant` / `Temporal.PlainDate` values — no `Date` reaches services or responses. Document them with `isoInstant()` / `isoCalendarDate()` (see [openapi.md](openapi.md)).
 
 ---
@@ -69,7 +71,7 @@ export const createMeetingSchema = z.object({
 
 ## 6. Enforcement (ESLint `DATETIME_SYNTAX_RULES`, everywhere in `src/` except `datetime.util.ts`)
 
-- `new Date(...)`, **including `new Date()` for "now"** — one way to obtain time values: `nowInstant()` / `nowIsoUtc()` / `nowAsDate()` (a `Date` for driver columns such as Drizzle `$onUpdate(nowAsDate)`), `parseInstant()` / `parseCalendarDate()` for text, `instantToDate()` at the driver boundary.
+- `new Date(...)`, **including `new Date()` for "now"**, and `Temporal.Now` — one way to obtain time values: `nowInstant()` / `nowIsoUtc()`, `parseInstant()` / `parseCalendarDate()` for text, `instantFromDate()` / `instantToDate()` for libraries that speak `Date`.
 - `Date.parse` — guesses the zone of strings without an offset.
 - Local getters/setters/formatters: `getHours`, `getDate`, `getMonth`, `getFullYear`, `getTimezoneOffset`, `setHours`, …, `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `toDateString`, `toTimeString`. UTC variants (`getUTCHours`, `toISOString`) are fine. Format numbers with `Intl.NumberFormat`.
 

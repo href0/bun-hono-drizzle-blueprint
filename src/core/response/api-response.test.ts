@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'bun:test';
 import { ApiResponse } from './api-response';
+import { parseCalendarDate, parseInstant } from '../../utils/datetime.util';
 
 describe('ApiResponse (Unit)', () => {
+  it('should write every instant in the same wire form, whatever its stored precision', () => {
+    const json = new ApiResponse({
+      createdAt: parseInstant('2026-10-05 10:00:00.123456+07'),
+      updatedAt: parseInstant('2026-10-05 10:00:00+07'),
+      items: [{ dueDate: parseCalendarDate('2026-10-06') }],
+    }).toJSON();
+
+    expect(JSON.parse(JSON.stringify(json)).data).toEqual({
+      created_at: '2026-10-05T03:00:00.123Z',
+      updated_at: '2026-10-05T03:00:00.000Z',
+      items: [{ due_date: '2026-10-06' }],
+    });
+  });
+
   it('should format standard success response and recursively convert data to snake_case', () => {
     const res = new ApiResponse(
       { id: 1, fullName: 'John Doe', userProfile: { accountStatus: 'active' } },
