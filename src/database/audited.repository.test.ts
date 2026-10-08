@@ -96,7 +96,9 @@ describe('AuditedRepository', () => {
       'insert into "record_changes"',
       'COMMIT',
     ]);
-    expect(recorder.statements.at(1)?.sql).toEndWith('where "users"."id" = $1 for update');
+    expect(recorder.statements.at(1)?.sql).toEndWith(
+      'where "users"."id" = $1 order by "users"."id" for update',
+    );
     expect(recorder.statements.at(3)).toEqual({
       sql: INSERT_AUDIT,
       params: [

@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.3 selesai (`main` @ `137295e`); Step 2.4 di-commit (`f2b0582`), perbaikan Review 6 menunggu review (branch `fix/review-2-1-2-4`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.4 selesai (`main` @ `029fa98`); Step 2.5 menunggu review (branch `feat/base-repositories`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `137295e` |
+| Basis kode | branch `main` @ `029fa98` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -345,6 +345,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-08 | Review 6 | `Temporal.Now` kini dilarang di luar `datetime.util.ts` (`DATETIME_SYNTAX_RULES`) — aturan "satu cara mendapatkan waktu sekarang" dari 2.1 bisa dilewati. `nowAsDate()` dihapus (tak dipakai sejak kolom memakai `customType` teks); `instantFromDate`/`instantToDate` dipertahankan untuk library yang hanya mengenal `Date` | Chaos test: `Temporal.Now` di modul & `core` → ditolak; L7 diperbarui |
 | 2026-10-08 | Review 6 | **Temuan saat memperbaiki jam `updated_at`**: `$onUpdate(() => NOW)` (NOW = `now()`) lolos `tsc`, tetapi drizzle-orm 0.40 membungkus hasil `$onUpdate` dengan `sql.param` saat UPDATE (`pg-core/dialect.js` `buildUpdateSet`) → parameter `"[object Object]"`, setiap UPDATE akan gagal di DB. Dibatalkan: `$onUpdate(nowInstant)` tetap sebagai fallback (jam aplikasi); jam DB untuk UPDATE dipindah ke `BaseRepository` (2.5: `updatedAt: NOW`). `NOW` di-export dari `columns.ts` (dipakai `timestamps()` & `record_changes.changed_at`) | Ditemukan lewat perekam SQL (2.3) sebelum sampai DB. Penjaga di `sql-recorder.test.ts`: `set({ updatedAt: NOW })` → `now()`, `$onUpdate` → parameter |
 | 2026-10-08 | Review 6 | Dokumen: `datetime.md` (jalur driver teks, `toWireTime`, `Temporal.Now`, cache), graf layer project-standards §3 + CONTRIBUTING (`database → core/utils/config`, `schema → utils`), aturan perintah DB (`database.md` §4 & DoD §14.1: default developer; agent hanya DB lokal dengan izin), `isoDateTime()` basi (project-standards Rule 11/12, CONTRIBUTING), README pilar 4 (data layer teraudit), `raw-queries.md` (`domain.users`, contoh `sql.raw('domain')` → `sql.identifier`), Rule 3 `defaultTxHost`, scope commit `database` & `utils/<name>`, plan 2.5/2.7/L7, judul CONTRIBUTING §5.1, `redis-cache.md`, `AGENTS.md` | — |
+| 2026-10-08 | Review 6 | ✅ Step 2.4 (`f2b0582`) + perbaikan Review 6 (`029fa98`) di-merge ke `main` atas permintaan user | — |
+| 2026-10-08 | 2.5 | `BaseRepository<TTable>` (`src/database/base.repository.ts`): `findById`, `findPage` (default `created_at DESC, id DESC`), `count`, `create`, `updateById`, `softDeleteById`, `restoreById`; `scoped()`; tanpa hard delete. `updated_at = now()` + `updated_by = actor` ditulis eksplisit di setiap UPDATE (jam DB, lihat Review 6). Kolom terkelola (`createdAt`, `createdBy`, `updatedAt`, `updatedBy`, `deletedAt`; `id` saat update) dibuang dari input pemanggil — juga saat DTO di-spread | `null` = tidak ada / sudah dihapus; baris tak berubah = tidak ada tulis & audit. Restore bisa bentrok `activeUniqueIndex` → service memetakan ke `ConflictError` (didokumentasikan) |
+| 2026-10-08 | 2.5 | `ChildRepository<TChild, TParent>` (`src/database/child.repository.ts`): `findAllForParent`, `findByIdForParent`, `createForParent`, `updateForParent`, `deleteForParent`, `syncForParent`. Detail hanya lewat header-nya (id header lain → `null`/`false`), header hilang/soft-deleted → `NotFoundError`; tulis mengunci header lalu detail (urut id), audit dengan `parent_table`/`parent_id`, hard delete + snapshot, header di-touch bila ada perubahan; referensi header tidak bisa diubah lewat input. `syncForParent`: id asing → `NotFoundError`, id ganda → `BadRequestError` | Ditambahkan di luar rencana: `findAllForParent`/`findByIdForParent` (baca lewat header yang hidup) dan `AuditedRepository.lockWhere()` (`FOR UPDATE` berurutan id — urutan kunci tetap); tabel detail mewajibkan `timestamps` + `auditColumns` |
+| 2026-10-08 | 2.5 | Dokumen: `references/database.md` §6 baru (jenis tabel, contoh, perilaku kedua repository), §5 (modul memakai Base/Child, bukan `AuditedRepository` langsung); struktur folder project-standards, README, CONTRIBUTING | Modul `users` & template scaffold pindah ke `BaseRepository` di 2.8 |
+| 2026-10-08 | 2.5 | **Atas permintaan user**: setiap repository modul wajib memakai base — ditambahkan `AppendOnlyRepository` (tabel pencatatan: `append`, `findPage` default `id DESC`, `count`; tanpa update/delete/audit) dan `ReadOnlyRepository` (view referensi `.existing()`: `findPage` dengan `orderBy` wajib, `count`). Aturan "wajib extend salah satu dari 4 base" dijadwalkan di 2.6 (pengecualian `auth_refresh_tokens` lewat `eslint-disable` + alasan); query baca kustom di subclass `BaseRepository` wajib dari `this.scoped(...)` → `[review-only]` | Test daftar method membuktikan kedua base tidak punya method ubah/hapus |
+| 2026-10-08 | Plan | **Atas permintaan user**: Step 2.9 baru — modul contoh `orders` + `order_lines` (header/detail) agar developer punya contoh nyata; `bun run setup` menghapus modul contoh secara default dan men-generate ulang migrasi dari awal (`--keep-examples` untuk mempertahankan) | Dipisah dari 2.8 agar setiap step tetap bisa direview mandiri |
 
 ---
 
@@ -386,11 +392,12 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.1 | Standar tanggal & waktu (Temporal) | ✅ | 0.3 | `d1aa11a` |
 | 2.2 | Schema proyek, column helpers, UUID v7, schema referensi | ✅ | 2.1 | `208a8d8` |
 | 2.3 | Test helper data layer | ✅ | 2.2 | `137295e` |
-| 2.4 | `record_changes` + `AuditedRepository` | 👀 | 1.2, 2.3 |  |
-| 2.5 | `BaseRepository` + `ChildRepository` | ⬜ | 2.4 |  |
+| 2.4 | `record_changes` + `AuditedRepository` | ✅ | 1.2, 2.3 | `f2b0582`, `029fa98` |
+| 2.5 | `BaseRepository` + `ChildRepository` | 👀 | 2.4 |  |
 | 2.6 | Penegakan aturan data layer | ⬜ | 2.5 |  |
 | 2.7 | Test konvensi schema | ⬜ | 2.5 |  |
 | 2.8 | Migrasi modul `users` + template scaffold | ⬜ | 2.6, 2.7 |  |
+| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ⬜ | 2.8 |  |
 | 3.1 | Primitif keamanan & config auth | ⬜ | 1.1 |  |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ⬜ | 2.8 |  |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ⬜ | 3.1, 3.2, 1.7 |  |
@@ -746,18 +753,20 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | Mandiri | Berdiri sendiri | `uuidPrimaryKey` + `timestamps` + `auditColumns` + `softDelete` | `BaseRepository` |
 | Header | Mandiri yang punya detail | sama | `BaseRepository` + `ChildRepository` (modul sama) |
 | Detail | Hanya bermakna di dalam satu header | `parentReference` (+ index), tanpa `softDelete` | `ChildRepository` |
-| Pencatatan | Log/history, append-only | `sequentialPrimaryKey` + `timestamps` | Repository biasa (insert + select) |
-| Referensi | Milik sistem lain | view `.existing()` | Tanpa repository |
+| Pencatatan | Log/history, append-only | `sequentialPrimaryKey` + `timestamps` | `AppendOnlyRepository` (insert + select) |
+| Referensi | Milik sistem lain | view `.existing()` | `ReadOnlyRepository` (select) |
 
 **Langkah**
 
 1. `BaseRepository<TTable>`: `findById`, `findPage({ page, perPage, orderBy })` (default `ORDER BY created_at DESC, id DESC`), `count`, `create` (isi `createdBy`/`updatedBy` dari actor), `updateById(id, patch)` (lock → diff → update dengan `updatedAt: NOW` (jam DB — `$onUpdate` drizzle 0.40 tidak bisa `now()`) → audit), `softDeleteById`, `restoreById`; semua query ter-scope `deleted_at IS NULL` lewat `scoped()`; tanpa hard delete.
 2. `ChildRepository<TChild, TParent>`: setiap method menerima `parentId` (cegah IDOR); kunci header aktif dulu (urutan kunci konsisten), `createForParent`, `updateForParent`, `deleteForParent` (hard delete + snapshot), `syncForParent(parentId, items)` (insert/update/delete dalam satu transaksi), menyentuh `updated_at` header; setiap audit detail mencatat header di `parent_table`/`parent_id` (`writeChange(…, parent)`).
+3. `AppendOnlyRepository<TTable>` (`append`, `findPage`, `count`; tanpa update/delete) dan `ReadOnlyRepository<TView>` (`findPage` dengan `orderBy` wajib, `count`) — ditambahkan 2026-10-08 atas permintaan user, agar **setiap** repository modul punya base (aturan di 2.6).
 
 **Acceptance criteria**
 
-- [ ] Perilaku generik diuji sekali di `src/database/*.test.ts` (scope soft delete, audit, IDOR ditolak, sync).
-- [ ] Header soft-deleted → operasi detail → `NotFoundError`.
+- [x] Perilaku generik diuji sekali di `src/database/*.test.ts` (scope soft delete, audit, IDOR ditolak, sync) — `base.repository.test.ts` & `child.repository.test.ts` dengan perekam SQL dan tabel uji `test/helpers/repository-fixtures.ts`; chaos test: scope soft delete dicabut, filter header dicabut, `updatedAt: NOW` dicabut → masing-masing gagal.
+- [x] Header soft-deleted → operasi detail → `NotFoundError` (baca & tulis; tulis di-rollback sebelum menyentuh detail).
+- [x] `AppendOnlyRepository` / `ReadOnlyRepository`: SQL & mapping teruji; tidak punya method ubah/hapus (test daftar method).
 
 ### Step 2.6 — Penegakan aturan data layer
 
@@ -765,6 +774,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 | Aturan | Penegak |
 |---|---|
+| Setiap class di `src/modules/**/*.repository.ts` wajib `extends` `BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository` (pengecualian: `eslint-disable` + alasan, mis. `auth_refresh_tokens`) | ESLint |
 | `.update(` / `.delete(` dilarang di `src/modules/**/*.repository.ts` | ESLint |
 | Penulisan DB (`.insert(`, `.update(`, `.delete(`) dilarang di luar `*.repository.ts` | ESLint |
 | Raw SQL `UPDATE` / `DELETE FROM` dalam `` sql`…` `` dilarang | ESLint (TemplateLiteral) |
@@ -798,6 +808,21 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 **Acceptance criteria**
 
 - [ ] Modul contoh header/detail dibuat dari template → lolos `validate:full` tanpa edit manual → dihapus (dicatat di 4.1).
+
+### Step 2.9 — Modul contoh header/detail + opsi hapus contoh di `init-project`
+
+**Tujuan** (ditambahkan 2026-10-08 atas permintaan user): developer yang meng-clone repo punya contoh nyata pola header/detail (lock header, anti-IDOR, `sync`), tanpa terbawa ke proyek yang tidak membutuhkannya.
+
+**Langkah**
+
+1. Modul `orders` (header, `BaseRepository`) + `order_lines` (detail, `ChildRepository`): CRUD header, soft delete/restore, CRUD detail di `/orders/:id/lines[/:lineId]`, `PUT /orders/:id/lines` (`syncForParent`); semua endpoint terdokumentasi (`describeEndpoint`); migrasi di-generate. Bersama `users` (mandiri) dan `record_changes` (pencatatan), setiap jenis tabel punya contoh.
+2. `bun run setup <nama>`: secara default **menghapus modul contoh** (file modul, schema, registrasi route, pesan, test) lalu **men-generate ulang migrasi dari awal** (proyek baru belum punya database); `--keep-examples` mempertahankannya. Daftar file contoh di satu registry (`EXAMPLE_MODULES` di `scripts/setup.ts`) + drift guard (file terdaftar hilang → abort).
+3. Skill `init-project` & README: apa yang dihapus, cara mempertahankannya.
+
+**Acceptance criteria**
+
+- [ ] Modul contoh lolos semua gate di repo boilerplate (e2e header/detail: IDOR → 404, header soft-deleted → 404, sync).
+- [ ] Uji di salinan repo: `bun run setup demo-app` → modul contoh & tabelnya hilang, migrasi baru tanpa tabel contoh, `validate:full` hijau; `--keep-examples` → modul tetap ada & hijau.
 
 ---
 
@@ -1370,12 +1395,12 @@ src/
 │   ├── response/  ApiResponse
 │   └── security/  jwt.ts, roles.ts, public-routes.ts
 ├── database/
-│   ├── audited.repository.ts · base.repository.ts · child.repository.ts
+│   ├── audited.repository.ts · base.repository.ts · child.repository.ts · append-only.repository.ts · read-only.repository.ts
 │   ├── connection.ts · transaction-host.ts · transactional.decorator.ts · health-probe.ts
 │   ├── schema/    schemas.ts · columns.ts · domain/ · reference/
 │   └── seeds/
 ├── integrations/  registry.ts · <vendor>/
-├── modules/       auth/ · users/ · partner-credentials/ · health/
+├── modules/       auth/ · users/ · partner-credentials/ · health/ · orders/ (contoh, dihapus init-project)
 └── utils/         datetime, crypto, secret-cipher, partner-signature, ip-match, route-match, record-diff, request-id, locale, case-converter
 ```
 

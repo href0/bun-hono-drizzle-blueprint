@@ -1,5 +1,6 @@
 import { eq, getTableColumns, getTableName } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import { getActor, getRequestContext } from '../core/context/request-context';
 import { InternalServerError } from '../core/errors';
 import { diffRecords, snapshotRecord } from '../utils/record-diff.util';
@@ -47,6 +48,11 @@ export abstract class AuditedRepository<TTable extends AuditedTable> {
     );
   }
 
+  /** The table's SQL name (`record_changes.table_name`, error messages). */
+  protected get tableName(): string {
+    return getTableName(this.table);
+  }
+
   /** Runs `fn` in a transaction on this repository's connection, or joins the active one. */
   protected async inTransaction<T>(fn: () => Promise<T>): Promise<T> {
     return this.txHost.run(fn);
@@ -55,14 +61,18 @@ export abstract class AuditedRepository<TTable extends AuditedTable> {
   /** `SELECT … FOR UPDATE` by id: the row as it is now, locked until the transaction ends. */
   protected async lockById(id: string): Promise<TTable['$inferSelect'] | null> {
     this.requireTransaction('lockById');
+    return (await this.lockWhere(eq(this.table.id, id))).at(0) ?? null;
+  }
+
+  /**
+   * `SELECT … FOR UPDATE` of every row matching `where`, ordered by id (a stable lock order, so
+   * concurrent transactions locking the same rows cannot deadlock each other).
+   */
+  protected async lockWhere(where: SQL | undefined): Promise<TTable['$inferSelect'][]> {
+    this.requireTransaction('lockWhere');
     // Widened: Drizzle's select typing cannot resolve a generic table parameter.
     const table: PgTable = this.table;
-    const rows = await this.txHost.tx
-      .select()
-      .from(table)
-      .where(eq(this.table.id, id))
-      .for('update');
-    return rows[0] ?? null;
+    return this.txHost.tx.select().from(table).where(where).orderBy(this.table.id).for('update');
   }
 
   /** Changed columns from `before` to `patch`, keyed by column name; `{}` when nothing changed. */
@@ -94,7 +104,7 @@ export abstract class AuditedRepository<TTable extends AuditedTable> {
     this.requireTransaction('writeChange');
     if (Object.keys(changes).length === 0) return false;
     await this.txHost.tx.insert(recordChanges).values({
-      tableName: getTableName(this.table),
+      tableName: this.tableName,
       recordId,
       action,
       changes,
@@ -115,7 +125,7 @@ export abstract class AuditedRepository<TTable extends AuditedTable> {
   private requireTransaction(operation: string): void {
     if (!transactionStorage.getStore()) {
       throw new InternalServerError(
-        `${getTableName(this.table)}: ${operation}() must run inside a transaction (use inTransaction())`,
+        `${this.tableName}: ${operation}() must run inside a transaction (use inTransaction())`,
       );
     }
   }

@@ -58,6 +58,10 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
 │   │   ├── audited.repository.ts # AuditedRepository: lock, diff, record_changes in the same transaction
+│   │   ├── base.repository.ts  # BaseRepository: soft delete scope, actor stamps, audited update/delete/restore
+│   │   ├── child.repository.ts # ChildRepository: details reachable only through their header, sync
+│   │   ├── append-only.repository.ts # AppendOnlyRepository: record tables (append + read)
+│   │   ├── read-only.repository.ts # ReadOnlyRepository: reference views (read only)
 │   │   ├── transaction-host.ts # TransactionHost (AsyncLocalStorage context resolver)
 │   │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
 │   │   └── schema/             # Drizzle definitions (see references/database.md)
@@ -80,7 +84,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │       ├── users.transformer.ts
 │   │       └── users.transformer.test.ts
 │   └── utils/                  # Pure utility functions (zero dependencies on core/modules)
-└── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder)
+└── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder, repository fixtures)
 ```
 
 ---
@@ -343,7 +347,7 @@ When implementing specific subsystems, consult the corresponding deep-dive refer
 | Subsystem | Reference Document | Key Topics |
 |---|---|---|
 | **Bootstrap & Lifecycle** | [bootstrap.md](references/bootstrap.md) | `createApp()`, `Bun.serve`, middleware pipeline sequence, graceful shutdown |
-| **Database & Schema** | [database.md](references/database.md) | Connection pool, tables in `public` vs optional reference views, column helpers, choosing a primary key, migrations, audit trail (`record_changes`) |
+| **Database & Schema** | [database.md](references/database.md) | Connection pool, tables in `public` vs optional reference views, column helpers, choosing a primary key, migrations, audit trail (`record_changes`), table kinds, `BaseRepository` / `ChildRepository` |
 | **Declarative Transactions** | [transactions.md](references/transactions.md) | `TransactionHost`, `AsyncLocalStorage`, `@Transactional()`, nested context |
 | **Structured Logging** | [logging.md](references/logging.md) | Pino logger, `requestId` correlation, automatic PII redaction |
 | **Redis Caching** | [redis-cache.md](references/redis-cache.md) | `CacheService`, `CACHE_KEYS` SSOT, fail-open resilience guarantee |

@@ -108,6 +108,10 @@ src/
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
 │   ├── connection.ts            # PostgreSQL connection pool via postgres driver
 │   ├── audited.repository.ts    # AuditedRepository: lock, diff, record_changes dalam transaksi yang sama
+│   ├── base.repository.ts       # BaseRepository: scope soft delete, cap actor, update/soft delete/restore teraudit
+│   ├── child.repository.ts      # ChildRepository: detail hanya lewat header-nya (anti IDOR), sync
+│   ├── append-only.repository.ts # AppendOnlyRepository: tabel pencatatan (tambah + baca)
+│   ├── read-only.repository.ts  # ReadOnlyRepository: view referensi (baca saja)
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
 │   └── schema/                  # Definisi tabel (public) & view referensi
