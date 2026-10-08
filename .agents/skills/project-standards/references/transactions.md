@@ -9,9 +9,9 @@ Read this file when: implementing atomic business operations, writing Repository
 Transaction propagation uses `AsyncLocalStorage` to store the active Drizzle transaction instance across async execution chains without manually threading client arguments through services.
 
 ```
-@Transactional() / runInTransaction()
+@Transactional() / runInTransaction()  =  defaultTxHost.run(fn)
   ├── Checks if transaction context already exists (Supports Nested Context)
-  ├── If root: opens db.transaction(async (tx) => ...)
+  ├── If root: opens root.transaction(async (tx) => ...)   (root = `db`, or the connection injected into `new TransactionHost(root)`)
   │     ├── Stores `tx` in AsyncLocalStorage
   │     ├── Executes service method
   │     └── If no error thrown → COMMIT
@@ -92,31 +92,41 @@ export class OrdersService {
 
 ---
 
-## 4. Unit Testing Repositories with Mock `TransactionHost`
+## 4. Unit Testing Repositories with the SQL Recorder
+
+Inject the recorder's `TransactionHost` (`test/helpers/sql-recorder.ts`) and assert the SQL that is sent. Its Drizzle instance is real (production driver and schema); only the network is fake, so filters, ordering, paging, column mapping (`Temporal`) and `BEGIN` / `COMMIT` / `ROLLBACK` are all visible. Do not hand-write mocks of the `select().from().where()` chain: they return the same rows whatever the condition.
 
 ```typescript
-import { describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { UsersRepository } from './users.repository';
-import type { TransactionHost } from '../../database';
+import { users } from '../../database/schema';
+import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
 
 describe('UsersRepository (Unit)', () => {
-  it('should query via txHost.tx', async () => {
-    const mockUser = { id: 'uuid-1', email: 'test@example.com' };
-    const mockTx = {
-      select: () => ({
-        from: () => ({
-          where: () => ({
-            limit: async () => [mockUser],
-          }),
-        }),
-      }),
-    };
+  const recorder = createSqlRecorder();
+  const repo = new UsersRepository(recorder.txHost);
 
-    const mockTxHost = { tx: mockTx } as unknown as TransactionHost;
-    const repo = new UsersRepository(mockTxHost);
+  beforeEach(() => {
+    recorder.reset();
+  });
 
-    const result = await repo.findById('uuid-1');
-    expect(result).toEqual(mockUser as any);
+  it('findByEmail filters by email', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)]); // one result set per upcoming query
+
+    expect(await repo.findByEmail(sampleUser.email)).toEqual(sampleUser);
+    expect(recorder.statements).toEqual([
+      { sql: 'select "id", … from "users" where "users"."email" = $1', params: [sampleUser.email] },
+    ]);
+  });
+
+  it('rolls back when the work fails', async () => {
+    await recorder.txHost.run(async () => { /* … */ throw failure; }).catch(() => undefined);
+
+    expect(recorder.statements.at(-1)?.sql).toBe('ROLLBACK');
   });
 });
 ```
+
+- A query with nothing queued gets no rows; partial selects take raw rows (`respondWith([[5]])` for a count).
+- The recorder proves what is **sent**, not how PostgreSQL reacts (constraints, partial indexes, `FOR UPDATE` locks) — that is the integration suite.
+- `@Transactional()` / `runInTransaction()` use `defaultTxHost` (the real pool). Code that must be tested transactionally opens its transaction through its injected host (`this.txHost.run(...)`); a repository call inside joins it.

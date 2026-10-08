@@ -1,94 +1,102 @@
-import { describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import { UsersRepository } from './users.repository';
-import type { TransactionHost } from '../../database/transaction-host';
-import type { User } from '../../database/schema';
+import { users, type User } from '../../database/schema';
+import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
+
+const SELECT_USER =
+  'select "id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at" from "users"';
 
 describe('UsersRepository (Unit)', () => {
   const sampleUser: User = {
-    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
     email: 'repo@example.com',
     fullName: 'Repo User',
     passwordHash: 'hash',
     isActive: true,
-    createdAt: Temporal.Now.instant(),
-    updatedAt: Temporal.Now.instant(),
+    createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+    updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
   };
 
-  const mockTx = {
-    select: () => ({
-      from: () => ({
-        where: () => Promise.resolve([sampleUser]),
-        limit: () => ({
-          offset: () => Promise.resolve([sampleUser]),
-        }),
-      }),
-    }),
-    insert: () => ({
-      values: () => ({
-        returning: () => Promise.resolve([sampleUser]),
-      }),
-    }),
-  };
+  const recorder = createSqlRecorder();
+  const repo = new UsersRepository(recorder.txHost);
 
-  const mockTxCount = {
-    select: () => ({
-      from: () => Promise.resolve([{ count: 5 }]),
-    }),
-  };
-
-  it('findById should query via txHost.tx', async () => {
-    const repo = new UsersRepository({ tx: mockTx } as unknown as TransactionHost);
-    const result = await repo.findById(sampleUser.id);
-    expect(result).toEqual(sampleUser);
+  beforeEach(() => {
+    recorder.reset();
   });
 
-  it('findByEmail should query via txHost.tx', async () => {
-    const repo = new UsersRepository({ tx: mockTx } as unknown as TransactionHost);
-    const result = await repo.findByEmail(sampleUser.email);
-    expect(result).toEqual(sampleUser);
+  it('findById filters by id', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)]);
+
+    expect(await repo.findById(sampleUser.id)).toEqual(sampleUser);
+    expect(recorder.statements).toEqual([
+      { sql: `${SELECT_USER} where "users"."id" = $1`, params: [sampleUser.id] },
+    ]);
   });
 
-  it('create should return created user on successful INSERT', async () => {
-    const repo = new UsersRepository({ tx: mockTx } as unknown as TransactionHost);
-    const result = await repo.create({
+  it('findById returns null when no row matches', async () => {
+    expect(await repo.findById(sampleUser.id)).toBeNull();
+  });
+
+  it('findByEmail filters by email', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)]);
+
+    expect(await repo.findByEmail(sampleUser.email)).toEqual(sampleUser);
+    expect(recorder.statements).toEqual([
+      { sql: `${SELECT_USER} where "users"."email" = $1`, params: [sampleUser.email] },
+    ]);
+  });
+
+  it('create inserts the row and returns it', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)]);
+
+    const created = await repo.create({
+      id: sampleUser.id,
       email: sampleUser.email,
       fullName: sampleUser.fullName,
       passwordHash: sampleUser.passwordHash,
       isActive: true,
     });
-    expect(result).toEqual(sampleUser);
+
+    expect(created).toEqual(sampleUser);
+    expect(recorder.statements.at(0)?.sql).toStartWith('insert into "users"');
+    expect(recorder.statements.at(0)?.sql).toEndWith(
+      'returning "id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at"',
+    );
+    expect(recorder.statements.at(0)?.params.slice(0, 5)).toEqual([
+      sampleUser.id,
+      sampleUser.email,
+      sampleUser.fullName,
+      sampleUser.passwordHash,
+      true,
+    ]);
   });
 
-  it('create should throw Error if INSERT returns empty array', async () => {
-    const emptyInsertTx = {
-      ...mockTx,
-      insert: () => ({
-        values: () => ({
-          returning: () => Promise.resolve([]),
-        }),
-      }),
-    };
-    const repo = new UsersRepository({ tx: emptyInsertTx } as unknown as TransactionHost);
+  it('create throws when INSERT … RETURNING yields no row', async () => {
     expect(
-      repo.create({
-        email: sampleUser.email,
-        fullName: sampleUser.fullName,
-        passwordHash: sampleUser.passwordHash,
-        isActive: true,
-      }),
+      repo.create({ email: sampleUser.email, fullName: sampleUser.fullName, passwordHash: 'hash' }),
     ).rejects.toThrow('INSERT INTO users returned no rows');
   });
 
-  it('findAll should query with limit and offset', async () => {
-    const repo = new UsersRepository({ tx: mockTx } as unknown as TransactionHost);
-    const result = await repo.findAll(10, 0);
-    expect(result).toEqual([sampleUser]);
+  it('findAll pages with limit and offset', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)]);
+
+    expect(await repo.findAll(10, 20)).toEqual([sampleUser]);
+    expect(recorder.statements).toEqual([
+      { sql: `${SELECT_USER} limit $1 offset $2`, params: [10, 20] },
+    ]);
   });
 
-  it('count should return integer count', async () => {
-    const repo = new UsersRepository({ tx: mockTxCount } as unknown as TransactionHost);
-    const total = await repo.count();
-    expect(total).toBe(5);
+  it('count returns the integer count', async () => {
+    recorder.respondWith([[5]]);
+
+    expect(await repo.count()).toBe(5);
+    expect(recorder.statements).toEqual([
+      { sql: 'select cast(count(*) as integer) from "users"', params: [] },
+    ]);
+  });
+
+  it('count returns 0 when the query yields no row', async () => {
+    expect(await repo.count()).toBe(0);
   });
 });

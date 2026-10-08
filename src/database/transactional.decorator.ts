@@ -1,17 +1,8 @@
-import { transactionStorage } from './transaction-host';
-import { db } from './connection';
+import { defaultTxHost } from './transaction-host';
 
-export const runInTransaction = async <T>(fn: () => Promise<T>): Promise<T> => {
-  const currentStore = transactionStorage.getStore();
-  // Support nested transactions: if already inside a transaction or mock context, reuse it
-  if (currentStore) {
-    return fn();
-  }
-
-  return db.transaction(async (tx) => {
-    return transactionStorage.run(tx, fn);
-  });
-};
+/** Runs `fn` in a transaction on the default connection; joins an active one (`TransactionHost.run`). */
+export const runInTransaction = async <T>(fn: () => Promise<T>): Promise<T> =>
+  defaultTxHost.run(fn);
 
 /**
  * Method decorator @Transactional() for Service layer methods.

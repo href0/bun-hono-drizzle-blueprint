@@ -79,7 +79,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │       ├── users.transformer.ts
 │   │       └── users.transformer.test.ts
 │   └── utils/                  # Pure utility functions (zero dependencies on core/modules)
-└── test/                       # E2E blackbox HTTP integration tests
+└── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder)
 ```
 
 ---
