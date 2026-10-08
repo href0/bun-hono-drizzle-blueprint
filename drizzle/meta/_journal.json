@@ -8,6 +8,20 @@
       "when": 1791178914147,
       "tag": "0000_shallow_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791429032508,
+      "tag": "0001_chemical_scarlet_spider",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791429847156,
+      "tag": "0002_flat_reptil",
+      "breakpoints": true
     }
   ]
 }

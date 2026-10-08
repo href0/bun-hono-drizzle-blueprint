@@ -5,7 +5,7 @@
  * append-only records — audit trails, logs, history — that are never addressed by id in a public
  * URL. The schema convention test (plan step 2.7) fails for an unlisted table using a sequential
  * key and for a listed table that does not use one (stale entry).
- *
- * `record_changes` (the audit trail) is added with plan step 2.4.
  */
-export const APPEND_ONLY_TABLES: Readonly<Record<string, string>> = {};
+export const APPEND_ONLY_TABLES: Readonly<Record<string, string>> = {
+  record_changes: 'audit trail: append-only, written in every audited transaction, partition-ready',
+};

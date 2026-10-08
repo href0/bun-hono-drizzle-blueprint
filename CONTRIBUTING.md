@@ -107,9 +107,10 @@ src/
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
 │   ├── connection.ts            # PostgreSQL connection pool via postgres driver
+│   ├── audited.repository.ts    # AuditedRepository: lock, diff, record_changes dalam transaksi yang sama
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
-│   └── schema/                  # Multi-Schema Table Definitions
+│   └── schema/                  # Definisi tabel (public) & view referensi
 │       ├── schemas.ts           # appTable (public) & referenceSchema — satu-satunya pgTable/pgSchema
 │       ├── columns.ts           # Helper kolom: uuidPrimaryKey, timestamps, instant, softDelete, …
 │       ├── append-only-tables.ts # Allowlist tabel yang boleh memakai PK bigint

@@ -68,13 +68,15 @@ src/
 │
 ├── database/                    # Drizzle ORM Infrastructure
 │   ├── connection.ts            # PostgreSQL connection pool & Drizzle instance
+│   ├── audited.repository.ts    # AuditedRepository (audit trail record_changes)
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transaction-host.test.ts # Co-located Unit Test
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
-│   └── schema/                  # Multi-Schema Definitions
+│   └── schema/                  # Table Definitions (public) & reference views
 │       ├── schemas.ts           # appTable (public) & referenceSchema (opsional)
 │       ├── columns.ts           # Helper kolom (UUID v7, timestamps Temporal, soft delete, …)
 │       ├── domain/              # Domain Schema (CRUD & Migrated)
+│       │   ├── record-changes.schema.ts # Audit trail (append-only)
 │       │   └── users.schema.ts
 │       └── reference/           # Reference Schema (Read-Only)
 │           └── ref-roles.schema.ts
