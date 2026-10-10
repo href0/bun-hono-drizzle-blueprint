@@ -1,39 +1,138 @@
 /**
- * Verifies the scaffold-module skill template against the real quality gates.
+ * Verifies the scaffold-module skill templates against the real quality gates.
  *
  * Usage: bun run verify:scaffold
  *
- * Materializes every code block of `.agents/skills/scaffold-module/SKILL.md` as a probe module
- * (`scaffold-probes`), registers it exactly as the template instructs, then runs prettier, tsc,
- * eslint, ls-lint, dependency-cruiser, knip and the generated tests, plus a live request through
- * `createApp()`.
+ * Materializes every code block of each template variant (`SKILL.md` = standalone,
+ * `references/header-detail.md`, `references/record.md`) as a probe module, registers it exactly
+ * as the template instructs, then runs prettier, tsc, eslint, ls-lint, dependency-cruiser, knip,
+ * the generated tests and the schema conventions, plus live requests through `createApp()`.
  * Everything it creates or edits is restored afterwards — also on failure or Ctrl+C.
  *
- * Why: the template is documentation, so no other gate compiles it. It drifted from the code
- * three times before this check existed (see the adoption plan log).
+ * Why: the templates are documentation, so no other gate compiles them. The standalone template
+ * drifted from the code three times before this check existed (see the adoption plan log).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-const SKILL_PATH = '.agents/skills/scaffold-module/SKILL.md';
+const SKILL_DIR = '.agents/skills/scaffold-module';
 const APP_PATH = 'src/app.ts';
 const SCHEMA_BARREL = 'src/database/schema/domain/index.ts';
-const MODULE_DIR = 'src/modules/scaffold-probes';
-const SCHEMA_FILE = 'src/database/schema/domain/scaffold-probes.schema.ts';
+const APPEND_ONLY_PATH = 'src/database/schema/append-only-tables.ts';
 
-/** Kebab-case name with a hyphen on purpose: exercises naming rules for multi-word modules. */
-const PLACEHOLDERS: [RegExp, string][] = [
-  [/<snake_plural>/g, 'scaffold_probes'],
-  [/<UPPER_SINGULAR>/g, 'SCAFFOLD_PROBE'],
-  [/<PascalPlural>/g, 'ScaffoldProbes'],
-  [/<camelPlural>/g, 'scaffoldProbes'],
-  [/<PascalSingular>/g, 'ScaffoldProbe'],
-  [/<camelSingular>/g, 'scaffoldProbe'],
-  [/<name>/g, 'scaffold-probes'],
+interface Names {
+  name: string;
+  snakePlural: string;
+  snakeSingular: string;
+  upperSingular: string;
+  pascalPlural: string;
+  camelPlural: string;
+  pascalSingular: string;
+  camelSingular: string;
+}
+
+interface Variant {
+  label: string;
+  template: string;
+  names: Names;
+  /** `[path, method]` that must be described with describeEndpoint(), relative to the base path. */
+  documented: [string, string][];
+  /** A request that must be rejected with 400 by validate(). */
+  invalid: { path: string; method: string };
+  appendOnly?: boolean;
+}
+
+/** Kebab-case names with a hyphen on purpose: exercises naming rules for multi-word modules. */
+const VARIANTS: Variant[] = [
+  {
+    label: 'standalone',
+    template: `${SKILL_DIR}/SKILL.md`,
+    names: {
+      name: 'scaffold-probes',
+      snakePlural: 'scaffold_probes',
+      snakeSingular: 'scaffold_probe',
+      upperSingular: 'SCAFFOLD_PROBE',
+      pascalPlural: 'ScaffoldProbes',
+      camelPlural: 'scaffoldProbes',
+      pascalSingular: 'ScaffoldProbe',
+      camelSingular: 'scaffoldProbe',
+    },
+    documented: [
+      ['/v1/scaffold-probes', 'post'],
+      ['/v1/scaffold-probes', 'get'],
+      ['/v1/scaffold-probes/{id}', 'get'],
+      ['/v1/scaffold-probes/{id}', 'patch'],
+      ['/v1/scaffold-probes/{id}', 'delete'],
+      ['/v1/scaffold-probes/{id}/restore', 'post'],
+    ],
+    invalid: { path: '/v1/scaffold-probes/not-a-uuid', method: 'GET' },
+  },
+  {
+    label: 'header-detail',
+    template: `${SKILL_DIR}/references/header-detail.md`,
+    names: {
+      name: 'probe-orders',
+      snakePlural: 'probe_orders',
+      snakeSingular: 'probe_order',
+      upperSingular: 'PROBE_ORDER',
+      pascalPlural: 'ProbeOrders',
+      camelPlural: 'probeOrders',
+      pascalSingular: 'ProbeOrder',
+      camelSingular: 'probeOrder',
+    },
+    documented: [
+      ['/v1/probe-orders', 'post'],
+      ['/v1/probe-orders/{id}', 'patch'],
+      ['/v1/probe-orders/{id}/restore', 'post'],
+      ['/v1/probe-orders/{id}/items', 'get'],
+      ['/v1/probe-orders/{id}/items', 'post'],
+      ['/v1/probe-orders/{id}/items', 'put'],
+      ['/v1/probe-orders/{id}/items/{childId}', 'patch'],
+      ['/v1/probe-orders/{id}/items/{childId}', 'delete'],
+    ],
+    invalid: {
+      path: '/v1/probe-orders/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/items/not-a-uuid',
+      method: 'DELETE',
+    },
+  },
+  {
+    label: 'record',
+    template: `${SKILL_DIR}/references/record.md`,
+    names: {
+      name: 'probe-events',
+      snakePlural: 'probe_events',
+      snakeSingular: 'probe_event',
+      upperSingular: 'PROBE_EVENT',
+      pascalPlural: 'ProbeEvents',
+      camelPlural: 'probeEvents',
+      pascalSingular: 'ProbeEvent',
+      camelSingular: 'probeEvent',
+    },
+    documented: [
+      ['/v1/probe-events', 'post'],
+      ['/v1/probe-events', 'get'],
+    ],
+    invalid: { path: '/v1/probe-events?per_page=1000', method: 'GET' },
+    appendOnly: true,
+  },
 ];
 
-const fill = (text: string): string =>
-  PLACEHOLDERS.reduce((result, [pattern, value]) => result.replace(pattern, value), text);
+const fill = (text: string, names: Names): string =>
+  (
+    [
+      [/<snake_plural>/g, names.snakePlural],
+      [/<snake_singular>/g, names.snakeSingular],
+      [/<UPPER_SINGULAR>/g, names.upperSingular],
+      [/<PascalPlural>/g, names.pascalPlural],
+      [/<camelPlural>/g, names.camelPlural],
+      [/<PascalSingular>/g, names.pascalSingular],
+      [/<camelSingular>/g, names.camelSingular],
+      [/<name>/g, names.name],
+    ] as [RegExp, string][]
+  ).reduce((result, [pattern, value]) => result.replace(pattern, value), text);
+
+const moduleDir = (names: Names): string => `src/modules/${names.name}`;
+const schemaFile = (names: Names): string => `src/database/schema/domain/${names.name}.schema.ts`;
 
 const originals = new Map<string, string>();
 let cleanedUp = false;
@@ -41,8 +140,10 @@ let cleanedUp = false;
 const cleanup = (): void => {
   if (cleanedUp) return;
   cleanedUp = true;
-  rmSync(MODULE_DIR, { recursive: true, force: true });
-  rmSync(SCHEMA_FILE, { force: true });
+  for (const { names } of VARIANTS) {
+    rmSync(moduleDir(names), { recursive: true, force: true });
+    rmSync(schemaFile(names), { force: true });
+  }
   for (const [path, content] of originals) writeFileSync(path, content);
 };
 
@@ -65,64 +166,75 @@ const run = (label: string, command: string[]): boolean => {
   return ok;
 };
 
-const generate = (): string[] => {
-  const skill = readFileSync(SKILL_PATH, 'utf-8');
+const generate = (variant: Variant): string[] => {
+  const { names } = variant;
+  const template = readFileSync(variant.template, 'utf-8');
   const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
   const generated: string[] = [];
 
-  for (const match of skill.matchAll(stepPattern)) {
-    const path = fill(match[1]);
+  for (const match of template.matchAll(stepPattern)) {
+    const path = fill(match[1], names);
     if (path === APP_PATH) continue;
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, fill(match[2]));
+    writeFileSync(path, fill(match[2], names));
     generated.push(path);
   }
-  if (generated.length === 0) throw new Error(`no templates found in ${SKILL_PATH}`);
+  if (generated.length === 0) throw new Error(`no templates found in ${variant.template}`);
 
-  editFile(SCHEMA_BARREL, (content) => `${content}export * from './scaffold-probes.schema';\n`);
+  editFile(SCHEMA_BARREL, (content) => `${content}export * from './${names.name}.schema';\n`);
+  if (variant.appendOnly) {
+    editFile(APPEND_ONLY_PATH, (content) =>
+      content.replace(
+        /(export const APPEND_ONLY_TABLES[^{]*\{\n)/,
+        `$1  ${names.snakePlural}: 'scaffold probe (verify:scaffold)',\n`,
+      ),
+    );
+  }
   editFile(APP_PATH, (content) =>
     content
       .replace(
         "import { userRoutes } from './modules/users/users.routes';",
-        "import { userRoutes } from './modules/users/users.routes';\nimport { scaffoldProbesRouter } from './modules/scaffold-probes/scaffold-probes.routes';",
+        `import { userRoutes } from './modules/users/users.routes';\nimport { ${names.camelPlural}Router } from './modules/${names.name}/${names.name}.routes';`,
       )
       .replace(
         "  v1.route('/users', userRoutes);",
-        "  v1.route('/users', userRoutes);\n  v1.route('/scaffold-probes', scaffoldProbesRouter);",
+        `  v1.route('/users', userRoutes);\n  v1.route('/${names.name}', ${names.camelPlural}Router);`,
       ),
   );
   return generated;
 };
 
-const LIVE_CHECK = `
+const liveCheck = (): string => `
 const { createApp } = await import('./src/app.ts');
 const { appConfig } = await import('./src/config/index.ts');
 const app = createApp();
 const base = appConfig.API_BASE_PATH;
-const res = await app.request(base + '/v1/scaffold-probes/not-a-uuid', { headers: { 'Accept-Language': 'en' } });
-const body = await res.json();
-if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
-  console.error('unexpected response', res.status, JSON.stringify(body));
-  process.exit(1);
-}
+const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid }) => ({ label, documented, invalid })))};
 const doc = await (await app.request(base + '/docs/openapi.json')).json();
-// Present with a summary and a 2xx response = described by describeEndpoint(), not only by validate().
-const documented = [
-  ['/v1/scaffold-probes', 'post'], ['/v1/scaffold-probes', 'get'], ['/v1/scaffold-probes/{id}', 'get'],
-  ['/v1/scaffold-probes/{id}', 'patch'], ['/v1/scaffold-probes/{id}', 'delete'], ['/v1/scaffold-probes/{id}/restore', 'post'],
-]
-  .every(([path, method]) => {
+for (const variant of variants) {
+  const res = await app.request(base + variant.invalid.path, { method: variant.invalid.method, headers: { 'Accept-Language': 'en' } });
+  const body = await res.json();
+  if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
+    console.error(variant.label + ': expected 400 ERR_INVALID_INPUT, got', res.status, JSON.stringify(body));
+    process.exit(1);
+  }
+  // Present with a summary and a 2xx response = described by describeEndpoint(), not only by validate().
+  const missing = variant.documented.filter(([path, method]) => {
     const op = doc.paths?.[base + path]?.[method];
-    return op?.summary && Object.keys(op.responses ?? {}).some((status) => status.startsWith('2'));
+    return !(op?.summary && Object.keys(op.responses ?? {}).some((status) => status.startsWith('2')));
   });
-if (!documented) {
-  console.error('scaffolded routes not described with describeEndpoint() in the OpenAPI document:', Object.keys(doc.paths ?? {}).join(', '));
-  process.exit(1);
+  if (missing.length > 0) {
+    console.error(variant.label + ': not described with describeEndpoint():', JSON.stringify(missing));
+    process.exit(1);
+  }
 }`;
 
 const main = (): void => {
-  if (existsSync(MODULE_DIR) || existsSync(SCHEMA_FILE)) {
-    console.error(`Refusing to run: ${MODULE_DIR} or ${SCHEMA_FILE} already exists.`);
+  const existing = VARIANTS.flatMap(({ names }) => [moduleDir(names), schemaFile(names)]).filter(
+    (path) => existsSync(path),
+  );
+  if (existing.length > 0) {
+    console.error(`Refusing to run: ${existing.join(', ')} already exist(s).`);
     process.exit(1);
   }
 
@@ -133,8 +245,13 @@ const main = (): void => {
 
   let ok = false;
   try {
-    const generated = generate();
-    console.log(`Generated ${String(generated.length)} files from ${SKILL_PATH}`);
+    const generated = VARIANTS.flatMap((variant) => {
+      const files = generate(variant);
+      console.log(
+        `Generated ${String(files.length)} files from ${variant.template} (${variant.label})`,
+      );
+      return files;
+    });
 
     // The templates are formatted for a short name; the skill instructs to format first.
     ok =
@@ -155,21 +272,21 @@ const main = (): void => {
         '.dependency-cruiser.cjs',
       ]) &&
       run('knip', ['bunx', 'knip']) &&
-      // The template's tests must pass, not only compile (hermetic through bunfig.toml).
+      // The templates' tests must pass, not only compile (hermetic through bunfig.toml).
       run('bun test (generated tests + schema conventions)', [
         'bun',
         'test',
         ...generated.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
-        // The generated table is exported from the schema barrel: it must pass the conventions.
+        // The generated tables are exported from the schema barrel: they must pass the conventions.
         './src/database/schema/schema-conventions.test.ts',
       ]) &&
       // Hermetic like the test suite: no local env file values, no real database or Redis.
-      run('live request through createApp()', [
+      run('live requests through createApp()', [
         'bun',
         '--preload',
         './test/setup/hermetic-env.ts',
         '-e',
-        LIVE_CHECK,
+        liveCheck(),
       ]);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
@@ -180,8 +297,8 @@ const main = (): void => {
 
   console.log(
     ok
-      ? 'SUCCESS: scaffold-module template passes every gate.'
-      : 'FAILURE: the scaffold-module template is out of sync with the codebase.',
+      ? 'SUCCESS: every scaffold-module template variant passes every gate.'
+      : 'FAILURE: a scaffold-module template is out of sync with the codebase.',
   );
   process.exit(ok ? 0 : 1);
 };

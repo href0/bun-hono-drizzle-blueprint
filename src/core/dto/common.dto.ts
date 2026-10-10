@@ -7,6 +7,14 @@ export const uuidParamSchema = z.object({
 
 export type UuidParamDto = z.infer<typeof uuidParamSchema>;
 
+/** `/:id/<details>/:childId` — a detail addressed through its header (both UUIDs). */
+export const uuidChildParamSchema = z.object({
+  id: z.string().uuid('Invalid UUID format'),
+  childId: z.string().uuid('Invalid UUID format'),
+});
+
+export type UuidChildParamDto = z.infer<typeof uuidChildParamSchema>;
+
 export const MAX_PER_PAGE = 100;
 
 /** `?page=&per_page=` (snake_case on the wire, camelCase after `validate()`). */

@@ -3,13 +3,24 @@
  *
  * Usage:
  *   bun run setup                                  # only create .env from .env.example
- *   bun run setup <project-name> [--description "..."] [--dry-run]
+ *   bun run setup <project-name> [--description "..."] [--keep-examples] [--dry-run]
  *
  * IDENTITY_RULES is the single registry of every place that carries the project identity.
  * When you add a new file/setting that hardcodes the project name, register it here.
  * Every required rule must match; a rule that matches nothing aborts the run (drift guard).
+ *
+ * EXAMPLE_MODULES lists the example code a new project starts without (default): its files and
+ * registrations are removed and the migrations are regenerated from scratch — a new project has
+ * no database yet, so its history starts clean. `--keep-examples` keeps them. Same drift guard.
  */
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 
 interface ProjectIdentity {
@@ -90,6 +101,111 @@ const IDENTITY_RULES: IdentityRule[] = [
   },
 ];
 
+interface ExampleModule {
+  label: string;
+  /** Files and directories that belong only to the example. */
+  paths: string[];
+  /** Registrations in shared files, removed line by line (exact text, any line ending). */
+  lines: { file: string; line: string }[];
+}
+
+const EXAMPLE_MODULES: ExampleModule[] = [
+  {
+    label: 'orders + order_items (header + detail example)',
+    paths: [
+      'src/modules/orders',
+      'src/database/schema/domain/orders.schema.ts',
+      'test/orders.e2e.test.ts',
+    ],
+    lines: [
+      { file: 'src/database/schema/domain/index.ts', line: "export * from './orders.schema';" },
+      {
+        file: 'src/app.ts',
+        line: '// Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.',
+      },
+      {
+        file: 'src/app.ts',
+        line: "import { ordersRouter } from './modules/orders/orders.routes';",
+      },
+      { file: 'src/app.ts', line: "  v1.route('/orders', ordersRouter);" },
+    ],
+  },
+];
+
+/** Removes one whole line, keeping the file's line endings (`core.autocrlf` checkouts use CRLF). */
+const withoutLine = (content: string, line: string): string | null => {
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const lines = content.split(eol);
+  const index = lines.indexOf(line);
+  if (index < 0) return null;
+  lines.splice(index, 1);
+  return lines.join(eol);
+};
+
+function removeExamples(rootDir: string, dryRun: boolean): void {
+  const pending = new Map<string, string>();
+  const failures: string[] = [];
+
+  for (const example of EXAMPLE_MODULES) {
+    for (const path of example.paths) {
+      if (!existsSync(resolve(rootDir, path)))
+        failures.push(`${path}: not found (${example.label})`);
+    }
+    for (const { file, line } of example.lines) {
+      const path = resolve(rootDir, file);
+      if (!existsSync(path)) {
+        failures.push(`${file}: file not found (${example.label})`);
+        continue;
+      }
+      const next = withoutLine(pending.get(file) ?? readFileSync(path, 'utf-8'), line);
+      if (next === null) failures.push(`${file}: line not found: ${line}`);
+      else pending.set(file, next);
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error('[Setup] Error: example modules out of sync with the codebase:');
+    failures.forEach((failure) => {
+      console.error(`  - ${failure}`);
+    });
+    console.error(
+      '[Setup] Fix EXAMPLE_MODULES in scripts/setup.ts (or use --keep-examples). No files were changed.',
+    );
+    process.exit(1);
+  }
+
+  for (const example of EXAMPLE_MODULES) {
+    console.log(`[Setup] ${dryRun ? 'Would remove' : 'Remove'} example: ${example.label}`);
+  }
+  console.log(
+    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} database migrations from scratch (drizzle/)`,
+  );
+  if (dryRun) return;
+
+  for (const example of EXAMPLE_MODULES) {
+    for (const path of example.paths)
+      rmSync(resolve(rootDir, path), { recursive: true, force: true });
+  }
+  for (const [file, content] of pending) writeFileSync(resolve(rootDir, file), content, 'utf-8');
+
+  const migrations = resolve(rootDir, 'drizzle');
+  for (const entry of existsSync(migrations) ? readdirSync(migrations) : []) {
+    rmSync(resolve(migrations, entry), { recursive: true, force: true });
+  }
+  const generate = Bun.spawnSync(['bunx', 'drizzle-kit', 'generate'], {
+    cwd: rootDir,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  if (generate.exitCode !== 0) {
+    console.error(generate.stdout.toString(), generate.stderr.toString());
+    console.error(
+      '[Setup] Error: drizzle-kit generate failed; run "bun run db:generate" after fixing it.',
+    );
+    process.exit(1);
+  }
+}
+
 function toIdentity(name: string, description?: string): ProjectIdentity {
   return {
     name,
@@ -102,14 +218,20 @@ function toIdentity(name: string, description?: string): ProjectIdentity {
   };
 }
 
-function parseArgs(argv: string[]): { name?: string; description?: string; dryRun: boolean } {
+function parseArgs(argv: string[]): {
+  name?: string;
+  description?: string;
+  dryRun: boolean;
+  keepExamples: boolean;
+} {
   const dryRun = argv.includes('--dry-run');
+  const keepExamples = argv.includes('--keep-examples');
   const descIndex = argv.indexOf('--description');
   const description = descIndex >= 0 ? argv[descIndex + 1]?.trim() : undefined;
   const name = argv.find(
     (arg, i) => !arg.startsWith('--') && (descIndex < 0 || i !== descIndex + 1),
   );
-  return { name: name?.trim(), description, dryRun };
+  return { name: name?.trim(), description, dryRun, keepExamples };
 }
 
 function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): void {
@@ -189,7 +311,7 @@ function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun:
 
 function runSetup(): void {
   const rootDir = process.cwd();
-  const { name, description, dryRun } = parseArgs(process.argv.slice(2));
+  const { name, description, dryRun, keepExamples } = parseArgs(process.argv.slice(2));
 
   console.log(`[Setup] Starting project initialization${dryRun ? ' (dry run)' : ''}...`);
 
@@ -207,6 +329,8 @@ function runSetup(): void {
     );
     // Rename first so a freshly created .env inherits the new identity from .env.example.
     applyIdentity(rootDir, identity, dryRun);
+    if (keepExamples) console.log('[Setup] Keeping the example modules (--keep-examples)');
+    else removeExamples(rootDir, dryRun);
   }
 
   ensureEnvFile(rootDir, identity, dryRun);
