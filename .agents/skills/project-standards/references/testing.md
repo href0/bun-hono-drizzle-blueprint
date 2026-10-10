@@ -84,6 +84,8 @@ describe('UsersService (Unit)', () => {
 ## 4. Contract Guards That Run With Every Test Suite
 
 - `test/openapi.e2e.test.ts` — every route of `createApp()` is documented (summary + 2xx via `describeEndpoint()`), snake_case everywhere, 400 on validated routes, common headers present. A new route without `describeEndpoint()` fails here; see [openapi.md](openapi.md).
+- `src/database/schema/schema-conventions.test.ts` — every exported table: indexed foreign keys, ids from the helpers, sequential ids only in `APPEND_ONLY_TABLES`, no `serial`, no plain unique on soft-deleted tables, partition-ready `record_changes`. See [database.md](database.md).
+- `test/migrations.test.ts` — the generated SQL: no `CREATE SCHEMA`, tables in `public`, no database UUID defaults, `record_changes` CHECKs match the code.
 - `test/platform.e2e.test.ts` — the `createApp()` pipeline: security headers, CORS off by default, 413 before the route, rate limit failing open.
 
 ## 5. Blackbox E2E HTTP Testing (`test/health.e2e.test.ts`)

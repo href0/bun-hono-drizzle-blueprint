@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.5 selesai (`main` @ `0454fa8`); Step 2.6 menunggu review (branch `feat/data-layer-enforcement`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.6 selesai (`main` @ `7ba1de9`); Step 2.7 menunggu review (branch `test/schema-conventions`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `0454fa8` |
+| Basis kode | branch `main` @ `7ba1de9` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -356,6 +356,10 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-10 | 2.6 | **Penyimpangan**: larangan import `recordChanges` & `TransactionHost` di modul utamanya lewat ESLint `no-restricted-imports` + `importNames` (plan: depcruise) — modul meng-import lewat barrel (`../../database`, `../../database/schema`) yang tidak bisa dibedakan depcruise per nama export; depcruise tetap dipasang untuk import jalur langsung. Larangan tulis "di luar `*.repository.ts`" dan raw query dibatasi pada objek `tx` (`this.txHost.tx`, variabel `tx`) agar `Map#delete` dll. tidak ikut tertangkap | Selector L7 diperbarui |
 | 2026-10-10 | 2.6 | Pengecualian sementara sampai 2.8 (tabel `users` belum punya kolom audit & soft delete): `users.repository.ts` dan template `scaffold-module` memakai `eslint-disable-next-line no-restricted-syntax -- …step 2.8`. Test modul boleh memakai transaction host (simulasi transaksi di `users.service.test.ts`); larangan import koneksi DB tetap berlaku | 2.8 menghapus kedua `eslint-disable` |
 | 2026-10-10 | 2.6 | Dokumen: CONTRIBUTING §5.3 baru (tabel aturan + pengecualian + `[review-only]`), `database.md` §6, `raw-queries.md` (`sql.raw`, `*.queries.ts` baca saja), `transactions.md` §3, project-standards Rule 3, `AGENTS.md` (daftar aturan AST) | — |
+| 2026-10-10 | 2.6 | ✅ Di-commit (`7ba1de9`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-10 | 2.7 | `src/database/schema/schema-conventions.test.ts`: pemeriksaan murni (`tableViolations`, `staleAllowlistEntries`) dijalankan pada setiap tabel yang diekspor barrel schema — FK sebagai awalan index (index, kolom unique, atau PK), `id` dari helper (UUID v7 tanpa default DB, atau identity `ALWAYS` di PK), id berurutan hanya di `APPEND_ONLY_TABLES` + tanpa entri basi, tanpa `serial`, tabel ber-`deleted_at` tanpa unique biasa, `record_changes` siap partisi (PK, tanpa FK/unique, 2 CHECK). Pesan: `<tabel>.<kolom>: <aturan>` | Bagian kedua file membuktikan setiap pemeriksaan menyala pada tabel sintetis yang melanggar (chaos test permanen) |
+| 2026-10-10 | 2.7 | Ditambahkan di luar rencana: FK juga dianggap ter-index bila menjadi awalan PK komposit atau kolom unique (PostgreSQL membuat index untuk keduanya); index yang **tidak diawali** FK tidak dihitung. Daftar tabel yang ditemukan dicek "minimal berisi `users` & `record_changes`", bukan daftar persis — menambah tabel tidak boleh memaksa mengubah test | Chaos test jalur nyata: tabel sementara diekspor dari barrel → 2 pelanggaran disebut dengan nama tabel & kolom; dipulihkan |
+| 2026-10-10 | 2.7 | Dokumen: `database.md` (subbagian konvensi schema), CONTRIBUTING §5.3, `testing.md` §4 (penjaga kontrak + `migrations.test.ts`); rujukan "step 2.7" di `columns.ts` & `append-only-tables.ts` diganti nama file test | — |
 
 ---
 
@@ -399,8 +403,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.3 | Test helper data layer | ✅ | 2.2 | `137295e` |
 | 2.4 | `record_changes` + `AuditedRepository` | ✅ | 1.2, 2.3 | `f2b0582`, `029fa98` |
 | 2.5 | `BaseRepository` + `ChildRepository` | ✅ | 2.4 | `0454fa8` |
-| 2.6 | Penegakan aturan data layer | 👀 | 2.5 |  |
-| 2.7 | Test konvensi schema | ⬜ | 2.5 |  |
+| 2.6 | Penegakan aturan data layer | ✅ | 2.5 | `7ba1de9` |
+| 2.7 | Test konvensi schema | 👀 | 2.5 |  |
 | 2.8 | Migrasi modul `users` + template scaffold | ⬜ | 2.6, 2.7 |  |
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ⬜ | 2.8 |  |
 | 3.1 | Primitif keamanan & config auth | ⬜ | 1.1 |  |
@@ -801,8 +805,9 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Acceptance criteria**
 
-- [ ] Menambah FK tanpa index → test gagal dengan nama tabel & kolom.
-- [ ] Tabel domain biasa memakai `sequentialPrimaryKey()` tanpa terdaftar di `APPEND_ONLY_TABLES` → test gagal menyebut nama tabel.
+- [x] Menambah FK tanpa index → test gagal dengan nama tabel & kolom (chaos test: tabel sementara diekspor dari barrel → `chaos_notes.author_id: foreign key without an index starting with it`).
+- [x] Tabel domain biasa memakai `sequentialPrimaryKey()` tanpa terdaftar di `APPEND_ONLY_TABLES` → test gagal menyebut nama tabel (`chaos_logs: sequential id but not listed in APPEND_ONLY_TABLES`).
+- [x] Setiap pemeriksaan juga dibuktikan permanen terhadap tabel sintetis yang sengaja melanggar (FK tanpa index / index yang tidak diawali FK, id bukan dari helper, `serial`, unique biasa di tabel soft delete, entri allowlist basi).
 
 ### Step 2.8 — Migrasi modul `users` + template scaffold
 
