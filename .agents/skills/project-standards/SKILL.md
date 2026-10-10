@@ -176,6 +176,7 @@ router.get('/:id', validate({ params: uuidParamSchema }), usersController.getByI
 - All queries **MUST** execute against `this.txHost.tx`.
 - This ensures seamless transactional atomicity under `@Transactional()` or `runInTransaction()`.
 - Violation of this rule is blocked by ESLint `no-restricted-syntax` / `no-restricted-imports` (groups `MODULE_SYNTAX_RULES`, `MODULE_IMPORT_PATTERNS`) and dependency-cruiser `no-module-direct-db-connection`.
+- Every module repository **extends** a base by table kind — `BaseRepository`, `ChildRepository`, `AppendOnlyRepository`, `ReadOnlyRepository` — and never writes around it (no `tx.update` / `tx.delete`, no raw `UPDATE` / `DELETE`); writes happen only in repositories, raw queries only in `*.queries.ts`, `@Transactional()` only in services. Full rule table: CONTRIBUTING §5.3; guide: [database.md §6](references/database.md).
 
 ```typescript
 // users.repository.ts

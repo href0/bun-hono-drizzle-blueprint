@@ -133,6 +133,7 @@ import { InternalServerError } from '../../core/errors';
 import { TransactionHost, defaultTxHost } from '../../database';
 import { <camelPlural>, type <PascalSingular>, type New<PascalSingular> } from '../../database/schema';
 
+// eslint-disable-next-line no-restricted-syntax -- temporary: the template moves to BaseRepository in plan step 2.8
 export class <PascalPlural>Repository {
   constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
 

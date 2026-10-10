@@ -55,6 +55,8 @@ export class UsersRepository {
 
 ## 3. Usage in Services: `@Transactional()` or `runInTransaction()`
 
+> **ESLint Guard** (`TRANSACTIONAL_RULES`, `TX_HOST_IMPORT_PATTERN`): `@Transactional()` is accepted only in `*.service.ts`; `TransactionHost` / `defaultTxHost` / `transactionStorage` only in repositories and `*.queries.ts` (module tests may use them).
+
 ### Decorator Pattern:
 ```typescript
 import { Transactional } from '../../database';

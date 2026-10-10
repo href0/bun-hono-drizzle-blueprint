@@ -134,6 +134,25 @@ module.exports = {
       to: { path: '(^src/core/cache/redis\.client\.ts$|node_modules/ioredis/)' },
     },
     {
+      name: 'record-changes-only-in-database',
+      severity: 'error',
+      comment:
+        'record_changes is written only by the repository bases in src/database (AuditedRepository). ESLint (no-restricted-imports importNames) also catches imports through the schema barrel.',
+      from: { path: '^src/', pathNot: '^src/database/' },
+      to: { path: '^src/database/schema/domain/record-changes\.schema\.ts$' },
+    },
+    {
+      name: 'transaction-host-only-in-repositories',
+      severity: 'error',
+      comment:
+        'In modules, only repositories and *.queries.ts use TransactionHost; services use repositories and @Transactional() / runInTransaction(). ESLint also catches barrel imports.',
+      from: {
+        path: '^src/modules/',
+        pathNot: '\.(repository|queries|test)\.ts$',
+      },
+      to: { path: '^src/database/transaction-host\.ts$' },
+    },
+    {
       name: 'no-module-direct-db-connection',
       severity: 'error',
       comment:
