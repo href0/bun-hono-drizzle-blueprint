@@ -7,6 +7,17 @@ description: Scaffold a new feature/domain module strictly adhering to Clean Arc
 
 Use this skill when asked to create, add, or scaffold a new domain/feature module under `src/modules/<module-name>/`.
 
+**Pick the variant by table kind** (see `.agents/skills/project-standards/references/database.md` §6):
+
+| Table kind | Template | Repository |
+|---|---|---|
+| Standalone (stands on its own) | Steps 2–11 below | `BaseRepository` |
+| Header with details (an order and its items) | [references/header-detail.md](references/header-detail.md) | `BaseRepository` + `ChildRepository` |
+| Record (append-only log / history) | [references/record.md](references/record.md) | `AppendOnlyRepository` |
+| Reference data owned by another system | no module template — a `.existing()` view + `ReadOnlyRepository` | `ReadOnlyRepository` |
+
+Every variant is generated and run through all gates by `bun run verify:scaffold` (CI). Working references in this repository: `src/modules/users` (standalone) and, until `bun run setup <name>` removes it, `src/modules/orders` (header + detail, generated from the header-detail template).
+
 ---
 
 ## 1. Mandatory File Structure
@@ -476,7 +487,7 @@ describe('<PascalPlural>Repository (Unit)', () => {
 
 Create unit tests covering service, transformer, and controller (see `.agents/skills/project-standards/references/testing.md`).
 
-This template is verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from these code blocks and runs every gate. After editing this file, or any core API the template uses, run it.
+These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from each variant (this file, `references/header-detail.md`, `references/record.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, or any core API they use, run it.
 
 The templates are formatted for a short module name; line wrapping changes with the name length, so always format before validating:
 ```bash

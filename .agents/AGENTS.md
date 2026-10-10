@@ -33,7 +33,7 @@ This project enforces strict automated Quality Gates powered by:
 - **Branch Naming Validation** (`validate-branch-name`)
 - **Hermetic tests** — `bunfig.toml` preloads `test/setup/hermetic-env.ts` (no real database/Redis from `bun test`); `mock.module()` is banned in tests (it leaks across files)
 - **Coverage gate** `scripts/check-coverage.ts` — the single source of coverage thresholds (source files only, global + per-file, every source file must be loaded by a test)
-- **Scaffold template verification** `bun run verify:scaffold` (CI) — generates a module from the `scaffold-module` skill and runs every gate; run it after changing the template or any core API it uses (errors, response, middlewares, dto, i18n, openapi, database)
+- **Scaffold template verification** `bun run verify:scaffold` (CI) — generates a module from every `scaffold-module` template variant (standalone, header-detail, record) and runs every gate, their tests and the schema conventions; run it after changing the template or any core API it uses (errors, response, middlewares, dto, i18n, openapi, database)
 
 Any code violating these standards will fail `bun run validate:full`, blocking commits/pushes locally via Husky and failing CI (`.github/workflows/ci.yml`).
 

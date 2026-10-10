@@ -534,12 +534,12 @@ const user = await this.cache.getOrSet(
 
 ## 10. Panduan Scaffolding Modul Fitur Baru
 
-Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`):
+Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). Template lengkap per jenis tabel ada di skill `scaffold-module`: mandiri (`SKILL.md`), header + detail (`references/header-detail.md`, contoh nyata `src/modules/orders`), pencatatan (`references/record.md`) — ketiganya diverifikasi `bun run verify:scaffold`.
 
 1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dengan `appTable(...)` + helper kolom (`uuidPrimaryKey()`, `timestamps()`), lalu re-export di `schema/domain/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
 3. **DTO Zod**: Field waktu memakai `instantField` (`*_at`), `calendarDateField` (`*_date`), `timeZoneField` (`*_timezone`) dari `src/core/dto/datetime.dto.ts` — jangan `new Date(...)` (termasuk `new Date()` untuk "sekarang": maupun `Temporal.Now`: pakai `nowInstant()` / `nowIsoUtc()`) maupun `Date.parse` (ditolak ESLint; panduan `references/datetime.md`). Buat file `src/modules/<feature>/<feature>.dto.ts` — schema request **dan** schema response (`<feature>ResponseSchema`, waktu memakai `isoInstant()` / `isoCalendarDate()`); transformer memakai tipe `z.infer` dari schema response.
-4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` menggunakan `this.txHost.tx`.
+4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` yang meng-extend base sesuai jenis tabel (`BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository`; §5.3).
 5. **Transformer**: Buat file `src/modules/<feature>/<feature>.transformer.ts` untuk membersihkan data.
 6. **Service**: Buat file `src/modules/<feature>/<feature>.service.ts` dengan `@Transactional()` pada operasi tulis.
 7. **Controller**: Buat file `src/modules/<feature>/<feature>.controller.ts` dibungkus `asyncHandler` dan me-return `ApiResponse`.

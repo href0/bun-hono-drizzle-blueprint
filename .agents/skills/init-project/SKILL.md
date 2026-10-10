@@ -39,14 +39,18 @@ Show the user the derived identity and the files that will change:
 | Database | `<project_name>_db` |
 | README title | `<Project Name>` |
 
+Also tell the user what happens to the **example module** (`src/modules/orders`: header + detail, with `order_items`): by default it is removed — files, registrations, its e2e test — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are).
+
 Ask for confirmation before continuing.
+
+If the dry run reports `example modules out of sync`, STOP: `EXAMPLE_MODULES` in `scripts/setup.ts` no longer matches the codebase (same handling as below), or run with `--keep-examples`.
 
 If the dry run reports `identity rules out of sync`, STOP: `IDENTITY_RULES` in `scripts/setup.ts` no longer matches the codebase. Report the failing rules to the user; fixing them is a boilerplate maintenance task, not part of init.
 
 ### 4. Apply
 
 ```bash
-bun run setup <project-name> --description "<description>"
+bun run setup <project-name> --description "<description>"   # add --keep-examples to keep src/modules/orders
 ```
 
 The script also creates `.env` from `.env.example` when missing. Do NOT read or edit `.env` yourself (`env-protection` skill). If the script says an existing `.env` was kept, tell the user to review `POSTGRES_DB` / `DATABASE_URL` in it manually.
@@ -64,6 +68,7 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.
+4. Without `--keep-examples`: `src/modules/orders` is gone and `drizzle/` holds a single `0000_*.sql` (users + record_changes).
 
 ### 7. Git History (Optional — Ask, Never Assume)
 

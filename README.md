@@ -87,6 +87,7 @@ src/
 │
 ├── modules/                     # Domain Feature Modules
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
+│   ├── orders/                  # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples
 │   └── users/                   # Modul referensi tabel mandiri (/api/v1/users: CRUD, soft delete, restore)
 │       ├── users.dto.ts         # Zod schemas (body, query, params)
 │       ├── users.repository.ts  # Database access via TransactionHost
@@ -121,6 +122,8 @@ git clone <repo_url> my-backend
 cd my-backend
 bun install
 bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk preview
+#    modul contoh orders (header + detail) dihapus & migrasi dibuat ulang dari awal;
+#    tambahkan --keep-examples untuk mempertahankannya sebagai referensi
 # atau via AI agent (Claude Code): /init-project my-backend
 
 # 2. Pastikan PostgreSQL & Redis berjalan, lalu sesuaikan DATABASE_URL / REDIS_* di file env

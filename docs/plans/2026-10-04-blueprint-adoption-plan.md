@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.7 selesai (`main` @ `43bfe53`); Step 2.8 menunggu review (branch `feat/users-base-repository`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.8 selesai (`main` @ `27d29dc`); Step 2.9 menunggu review (branch `feat/example-header-detail`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `43bfe53` |
+| Basis kode | branch `main` @ `27d29dc` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -366,6 +366,13 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-10 | 2.8 | Ditambahkan di luar rencana: `isUniqueViolation(error)` (`src/database/unique-violation.ts`, SQLSTATE 23505, juga di `cause`) — bentrok `activeUniqueIndex` saat restore (atau dua create bersamaan) jadi 409, bukan 500; barrel `src/database` kini juga mengekspor keempat base repository | Terbukti di PostgreSQL asli: restore user yang email-nya sudah dipakai user hidup → 409 |
 | 2026-10-10 | 2.8 | Migrasi `0003` (DROP unique lama, ADD `created_by`/`updated_by` NOT NULL, `deleted_at`, partial unique index) — tabel `users` lokal kosong (dicek dulu) lalu dijalankan. **Uji nyata ke DB lokal**: siklus lengkap lewat server sungguhan; `record_changes` benar (UPDATE, SOFT_DELETE, RESTORE; tanpa baris untuk patch kosong/restore gagal), `updated_at` = `changed_at` = `deleted_at` dalam satu transaksi (jam DB, Review 6), kolom Temporal terbaca/tertulis dengan presisi mikrodetik, partial index `WHERE (deleted_at IS NULL)` terpasang. 2 user + 4 baris audit uji dihapus setelahnya | Menutup 2 catatan lama: baca/tulis Temporal ke DB asli (2.2 → 6.1) dan predikat partial index di PostgreSQL asli (2.2) |
 | 2026-10-10 | 2.8 | **Penyimpangan ruang lingkup**: varian template header + detail dan pencatatan dipindah ke 2.9 (bersama modul contoh `orders` — kode yang sama). Template mandiri ditulis ulang (`BaseRepository`, update / soft delete / restore, test repository baru); `verify:scaffold` memeriksa 6 operasi terdokumentasi dan menjalankan test konvensi schema terhadap tabel hasil template | Chaos test: `.unique()` biasa di template → `verify:scaffold` gagal dengan pesan konvensi |
+| 2026-10-10 | 2.8 | ✅ Di-commit (`27d29dc`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-10 | 2.9 | Template varian di skill `scaffold-module`: `references/header-detail.md` (header `BaseRepository` + detail `ChildRepository`, rute `/<name>/:id/items[/:childId]`, `PUT …/items` = `syncForParent`) dan `references/record.md` (`AppendOnlyRepository`, list newest first + filter `kind`, wajib `APPEND_ONLY_TABLES`). `verify:scaffold` dibuat multi-varian: ketiga varian di-generate sekaligus (placeholder baru `<snake_singular>`), didaftarkan (barrel, `app.ts`, `APPEND_ONLY_TABLES`), lalu satu putaran gate + test hasil generate + konvensi schema + live request per varian (400 dari `validate()` & operasi terdokumentasi) | Chaos test: varian pencatatan tanpa `APPEND_ONLY_TABLES` → gagal; index detail di kolom lain (bukan FK) → `probe_order_items.probe_order_id: foreign key without an index…` |
+| 2026-10-10 | 2.9 | **Penyimpangan penamaan**: detail diturunkan dari header dengan akhiran tetap `items` (`orders` → `order_items`, rute `/:id/items`) agar template cukup satu placeholder tambahan — modul contoh menjadi `orders` + `order_items` (plan: `order_lines`); developer mengganti `items` dengan kata benda sebenarnya setelah generate. `uuidChildParamSchema` (`{ id, childId }`, ditunda sejak 1.5) dibuat di `core/dto/common.dto.ts` + test unit `common.dto.test.ts` (sebelumnya belum ada) | Modul contoh = keluaran template (skrip generate + pesan Indonesia "Pesanan"), sehingga contoh & template tidak bisa menyimpang |
+| 2026-10-10 | 2.9 | Migrasi `0004` (`orders`, `order_items`, FK `restrict`, index FK) dijalankan ke DB lokal; uji nyata pola header/detail lewat server sungguhan (IDOR, sync, sync id asing, header soft-deleted, restore) dan isi `record_changes` (DELETE snapshot & UPDATE detail dengan `parent_table`/`parent_id`; percobaan yang ditolak tidak meninggalkan jejak); 2 order, 2 item, 4 audit uji dihapus | — |
+| 2026-10-10 | 2.9 | `scripts/setup.ts`: `EXAMPLE_MODULES` (file + baris registrasi, drift guard sebelum menulis apa pun; penghapusan baris mengikuti akhir baris file — `core.autocrlf` membuat CRLF), default menghapus contoh lalu `drizzle/` dikosongkan dan `drizzle-kit generate` membuat satu `0000`; `--keep-examples` mempertahankan semuanya | **Temuan uji salinan**: setelah contoh dihapus, knip gagal (`UuidChildParamDto` tak terpakai) → diperbaiki dengan test unit skema bersama. Migrasi hasil regenerasi dijalankan ke database sementara `bp_setup_probe` (lalu di-drop): tabel `record_changes`, `users` |
+| 2026-10-10 | 2.9 | Hook proteksi env fail-closed memblokir perintah yang sekadar menyebut nama file env (untuk mengecualikannya saat menyalin repo) → logika penyalinan ditulis ke skrip lewat Write lalu dijalankan, sesuai header hook; skrip tidak membaca file env mana pun. Junction `node_modules` salinan dilepas dengan `rmdir` sebelum penghapusan (PowerShell 5.1 `Remove-Item -Recurse` bisa mengikuti junction) | `node_modules` repo diverifikasi utuh setelahnya |
+| 2026-10-10 | 2.9 | Dokumen: skill `scaffold-module` (tabel pilihan varian + rujukan), skill `init-project` (nasib modul contoh, `--keep-examples`, verifikasi), README (Quick Start, struktur), CONTRIBUTING §10, `AGENTS.md` (`verify:scaffold` multi-varian), `database.md` §6 (contoh `orders`) — **Fase 2 selesai** setelah step ini di-merge | — |
 
 ---
 
@@ -411,8 +418,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.5 | `BaseRepository` + `ChildRepository` | ✅ | 2.4 | `0454fa8` |
 | 2.6 | Penegakan aturan data layer | ✅ | 2.5 | `7ba1de9` |
 | 2.7 | Test konvensi schema | ✅ | 2.5 | `43bfe53` |
-| 2.8 | Migrasi modul `users` + template scaffold | 👀 | 2.6, 2.7 |  |
-| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ⬜ | 2.8 |  |
+| 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `27d29dc` |
+| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | 👀 | 2.8 |  |
 | 3.1 | Primitif keamanan & config auth | ⬜ | 1.1 |  |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ⬜ | 2.8 |  |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ⬜ | 3.1, 3.2, 1.7 |  |
@@ -840,14 +847,15 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 **Langkah**
 
 1. Template `scaffold-module`: varian **header + detail** (route `/headers/:id/details[/:childId]`, maks 2 level) dan **pencatatan** (`AppendOnlyRepository`), diverifikasi `verify:scaffold` per varian (dipindah dari 2.8).
-2. Modul `orders` (header, `BaseRepository`) + `order_lines` (detail, `ChildRepository`) — sebaiknya keluaran varian header/detail template: CRUD header, soft delete/restore, CRUD detail di `/orders/:id/lines[/:lineId]`, `PUT /orders/:id/lines` (`syncForParent`); semua endpoint terdokumentasi (`describeEndpoint`); migrasi di-generate. Bersama `users` (mandiri) dan `record_changes` (pencatatan), setiap jenis tabel punya contoh.
+2. Modul `orders` (header, `BaseRepository`) + `order_items` (detail, `ChildRepository`; plan awal: `order_lines` — lihat 4.1) — keluaran varian header/detail template: CRUD header, soft delete/restore, CRUD detail di `/orders/:id/lines[/:lineId]`, `PUT /orders/:id/lines` (`syncForParent`); semua endpoint terdokumentasi (`describeEndpoint`); migrasi di-generate. Bersama `users` (mandiri) dan `record_changes` (pencatatan), setiap jenis tabel punya contoh.
 3. `bun run setup <nama>`: secara default **menghapus modul contoh** (file modul, schema, registrasi route, pesan, test) lalu **men-generate ulang migrasi dari awal** (proyek baru belum punya database); `--keep-examples` mempertahankannya. Daftar file contoh di satu registry (`EXAMPLE_MODULES` di `scripts/setup.ts`) + drift guard (file terdaftar hilang → abort).
 4. Skill `init-project` & README: apa yang dihapus, cara mempertahankannya.
 
 **Acceptance criteria**
 
-- [ ] Modul contoh lolos semua gate di repo boilerplate (e2e header/detail: IDOR → 404, header soft-deleted → 404, sync).
-- [ ] Uji di salinan repo: `bun run setup demo-app` → modul contoh & tabelnya hilang, migrasi baru tanpa tabel contoh, `validate:full` hijau; `--keep-examples` → modul tetap ada & hijau.
+- [x] Varian template header + detail (`references/header-detail.md`) dan pencatatan (`references/record.md`) di-generate & diuji `verify:scaffold` bersama varian mandiri (chaos test: tabel pencatatan tanpa `APPEND_ONLY_TABLES` → gagal; FK detail tanpa index → gagal dengan nama tabel & kolom).
+- [x] Modul contoh `orders` + `order_items` (dihasilkan dari template header/detail) lolos semua gate; e2e kontrak (IDOR → 404, sync, validasi); **uji nyata ke DB lokal**: IDOR → 404, sync (simpan / hapus / tambah), sync dengan id asing → 404, header soft-deleted → 404 untuk baca & tulis detail, restore → detail tampil lagi; audit detail membawa `parent_table`/`parent_id`; baris uji dihapus.
+- [x] Uji di salinan repo (tanpa file env apa pun selain `.env.example`): `bun run setup demo-app` → modul contoh hilang, `drizzle/` = satu `0000` (users + record_changes) yang terbukti terpasang di database sementara; typecheck, lint, ls-lint, depcruise, knip, test:cov, verify:scaffold, build hijau. `--keep-examples` → modul & migrasi tetap, semua gate hijau.
 
 ---
 

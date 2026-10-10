@@ -29,6 +29,13 @@
       "when": 1791601213813,
       "tag": "0003_young_karnak",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791603650722,
+      "tag": "0004_overjoyed_hobgoblin",
+      "breakpoints": true
     }
   ]
 }

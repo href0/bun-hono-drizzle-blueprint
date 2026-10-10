@@ -19,6 +19,8 @@ import { describeEndpoint, mountApiDocs } from './core/openapi';
 import { ApiResponse } from './core/response';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
+// Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
+import { ordersRouter } from './modules/orders/orders.routes';
 
 const serviceInfoSchema = z.object({
   name: z.string(),
@@ -62,6 +64,7 @@ export const createApp = (): Hono => {
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
   const v1 = new Hono();
   v1.route('/users', userRoutes);
+  v1.route('/orders', ordersRouter);
   app.route(`${basePath}/v1`, v1);
 
   app.get(
