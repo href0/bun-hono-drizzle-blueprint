@@ -3,7 +3,7 @@
  *
  * Everything else uses `uuidPrimaryKey()` (UUID v7). Sequential ids are for high-volume,
  * append-only records — audit trails, logs, history — that are never addressed by id in a public
- * URL. The schema convention test (plan step 2.7) fails for an unlisted table using a sequential
+ * URL. The schema convention test (schema-conventions.test.ts) fails for an unlisted table using a sequential
  * key and for a listed table that does not use one (stale entry).
  */
 export const APPEND_ONLY_TABLES: Readonly<Record<string, string>> = {

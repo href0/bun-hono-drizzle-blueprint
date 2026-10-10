@@ -14,7 +14,7 @@ import { nowInstant, parseCalendarDate, parseInstant } from '../../utils/datetim
 /**
  * Column helpers — the only way tables declare ids, timestamps, audit and soft-delete columns
  * (ESLint bans raw `timestamp(` / `date(` / `serial(` / `pgTable(` in schema files; the schema
- * convention test of plan step 2.7 checks ids and indexes).
+ * convention test, schema-conventions.test.ts, checks ids and indexes).
  */
 
 // ---------------------------------------------------------------------------------------------
