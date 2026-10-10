@@ -27,6 +27,8 @@ const result = await this.txHost.tx.execute(
 
 ## 2. When `sql.raw()` IS Allowed
 
+> **ESLint Guard** (`SQL_RAW_RULES`): `sql.raw(` is rejected everywhere in `src/`. Prefer `sql.identifier()`; a static fragment needs `// eslint-disable-next-line no-restricted-syntax -- <reason>`.
+
 `sql.raw()` is ONLY permitted for static, trusted SQL identifiers, table names, or schema names where no user input is present:
 
 ```typescript
@@ -44,7 +46,7 @@ const direction = sql.raw('DESC');
 
 ## 3. Dedicated Queries Files (`*.queries.ts`)
 
-For complex raw SQL, extract queries into a separate file ending with `.queries.ts`:
+For complex raw SQL, extract queries into a separate file ending with `.queries.ts` — the only module files where `tx.execute(` is allowed (ESLint `RAW_QUERY_RULES`). They are read-only: `UPDATE` / `DELETE FROM` inside `` sql`…` `` is rejected in every module file (`RAW_WRITE_SQL_RULES`), and so are `tx.insert/update/delete` (`TX_WRITE_RULES`):
 - Domain-specific: `src/modules/<name>/<name>.queries.ts`
 - Shared cross-domain: `src/database/queries/<name>.queries.ts`
 

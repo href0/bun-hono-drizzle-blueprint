@@ -100,11 +100,80 @@ const SCHEMA_FILE_RULES = [
   },
 ];
 
+/** `sql.raw()` bypasses parameterization. Prefer `sql.identifier()`; a justified `eslint-disable` otherwise. */
+const SQL_RAW_RULES = [
+  {
+    selector: 'CallExpression[callee.object.name="sql"][callee.property.name="raw"]',
+    message:
+      'sql.raw() bypasses parameterization. Use sql`...` with interpolated values or sql.identifier() for names; if a static fragment is really needed, disable this line with the reason.',
+  },
+];
+
 const SOURCE_SYNTAX_RULES = [
   ...ERROR_CODE_SYNTAX_RULES,
   ...DATETIME_SYNTAX_RULES,
   ...SCHEMA_DECLARATION_RULES,
+  ...SQL_RAW_RULES,
 ];
+
+/*
+ * Data layer (plan step 2.6): every change of a domain row goes through the repository bases, which
+ * lock, scope soft-deleted rows, stamp the actor and write record_changes in the same transaction.
+ */
+const TX_OBJECT = ':matches([callee.object.property.name="tx"], [callee.object.name="tx"])';
+
+const RAW_WRITE_SQL_RULES = [
+  {
+    selector:
+      'TaggedTemplateExpression[tag.name="sql"] TemplateElement[value.raw=/\\b(update|delete\\s+from)\\b/i]',
+    message:
+      'Raw UPDATE / DELETE bypasses the audit trail (record_changes) and soft-delete scoping. Use the repository base methods (updateById, softDeleteById, ChildRepository …).',
+  },
+];
+
+/** Outside repositories: no database writes at all. */
+const TX_WRITE_RULES = [
+  {
+    selector: `CallExpression[callee.property.name=/^(insert|update|delete)$/]${TX_OBJECT}`,
+    message:
+      'Database writes belong in a *.repository.ts that extends a repository base (BaseRepository, ChildRepository, AppendOnlyRepository).',
+  },
+];
+
+/** Raw queries (`tx.execute`) live in *.queries.ts: pure, read-only functions. */
+const RAW_QUERY_RULES = [
+  {
+    selector: `CallExpression[callee.property.name="execute"]${TX_OBJECT}`,
+    message:
+      'Raw queries live in a <name>.queries.ts file (pure read-only functions); see references/raw-queries.md.',
+  },
+];
+
+/** @Transactional() marks a business operation: services only. */
+const TRANSACTIONAL_RULES = [
+  {
+    selector: 'Decorator[expression.callee.name="Transactional"]',
+    message:
+      '@Transactional() belongs on service methods (*.service.ts). Repositories join the caller\'s transaction through this.txHost.tx.',
+  },
+];
+
+/** Module repositories: one base per table kind, and no UPDATE / DELETE around it. */
+const REPOSITORY_SYNTAX_RULES = [
+  {
+    selector:
+      'ClassDeclaration:not([superClass.name=/^(BaseRepository|ChildRepository|AppendOnlyRepository|ReadOnlyRepository)$/])',
+    message:
+      'A module repository extends BaseRepository (standalone/header), ChildRepository (detail), AppendOnlyRepository (record) or ReadOnlyRepository (reference view); see references/database.md §6.',
+  },
+  {
+    selector: `CallExpression[callee.property.name=/^(update|delete)$/]${TX_OBJECT}`,
+    message:
+      'UPDATE / DELETE in a module repository bypasses locking and record_changes. Use the base methods (updateById, softDeleteById, restoreById, ChildRepository …).',
+  },
+];
+
+const MODULE_DATA_RULES = [...RAW_WRITE_SQL_RULES];
 
 /** Domain modules only: business failures must be typed ApiErrors. */
 const MODULE_ERROR_RULES = [
@@ -175,7 +244,21 @@ const MODULE_IMPORT_PATTERNS = [
       'Domain modules must never import from core/http directly. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
   },
   CACHE_CLIENT_IMPORT_PATTERN,
+  {
+    group: ['**/database', '**/database/**'],
+    importNames: ['recordChanges'],
+    message:
+      'record_changes is written only by the repository bases (AuditedRepository); modules never touch it directly.',
+  },
 ];
+
+/** Outside repositories and *.queries.ts: no transaction host (data access goes through repositories). */
+const TX_HOST_IMPORT_PATTERN = {
+  group: ['**/database', '**/database/**'],
+  importNames: ['TransactionHost', 'defaultTxHost', 'transactionStorage'],
+  message:
+    'TransactionHost is for repositories and *.queries.ts only. Services call repositories; use @Transactional() / runInTransaction() for transactions.',
+};
 
 export default tseslint.config(
   {
@@ -313,14 +396,24 @@ export default tseslint.config(
     // The one module allowed to convert between text, Date and Temporal values.
     files: ['src/utils/datetime.util.ts'],
     rules: {
-      'no-restricted-syntax': ['error', ...ERROR_CODE_SYNTAX_RULES, ...SCHEMA_DECLARATION_RULES],
+      'no-restricted-syntax': [
+        'error',
+        ...ERROR_CODE_SYNTAX_RULES,
+        ...SCHEMA_DECLARATION_RULES,
+        ...SQL_RAW_RULES,
+      ],
     },
   },
   {
     // The one file allowed to declare PostgreSQL schemas.
     files: ['src/database/schema/schemas.ts'],
     rules: {
-      'no-restricted-syntax': ['error', ...ERROR_CODE_SYNTAX_RULES, ...DATETIME_SYNTAX_RULES],
+      'no-restricted-syntax': [
+        'error',
+        ...ERROR_CODE_SYNTAX_RULES,
+        ...DATETIME_SYNTAX_RULES,
+        ...SQL_RAW_RULES,
+      ],
     },
   },
   {
@@ -347,13 +440,67 @@ export default tseslint.config(
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
         ...MODULE_ERROR_RULES,
+        ...MODULE_DATA_RULES,
+        ...TX_WRITE_RULES,
+        ...RAW_QUERY_RULES,
+        ...TRANSACTIONAL_RULES,
+      ],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...MODULE_IMPORT_PATTERNS, TX_HOST_IMPORT_PATTERN] },
+      ],
+    },
+  },
+  {
+    // Services: @Transactional() allowed. (Each block below composes every group it needs.)
+    files: ['src/modules/**/*.service.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...SOURCE_SYNTAX_RULES,
+        ...MODULE_SYNTAX_RULES,
+        ...MODULE_ERROR_RULES,
+        ...MODULE_DATA_RULES,
+        ...TX_WRITE_RULES,
+        ...RAW_QUERY_RULES,
+      ],
+    },
+  },
+  {
+    // Repositories: TransactionHost allowed; extend a base; inserts only (via the bases).
+    files: ['src/modules/**/*.repository.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...SOURCE_SYNTAX_RULES,
+        ...MODULE_SYNTAX_RULES,
+        ...MODULE_ERROR_RULES,
+        ...MODULE_DATA_RULES,
+        ...REPOSITORY_SYNTAX_RULES,
+        ...RAW_QUERY_RULES,
+        ...TRANSACTIONAL_RULES,
+      ],
+      'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
+    },
+  },
+  {
+    // Raw read queries: TransactionHost and tx.execute allowed, no writes.
+    files: ['src/modules/**/*.queries.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...SOURCE_SYNTAX_RULES,
+        ...MODULE_SYNTAX_RULES,
+        ...MODULE_ERROR_RULES,
+        ...MODULE_DATA_RULES,
+        ...TX_WRITE_RULES,
+        ...TRANSACTIONAL_RULES,
       ],
       'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
     },
   },
   {
     // AST architectural enforcement for Controllers: Pure Controllers only.
-    // Must come after the modules block and include its groups (see composition note at the top).
     files: ['src/modules/**/*.controller.ts'],
     rules: {
       'no-restricted-syntax': [
@@ -361,6 +508,10 @@ export default tseslint.config(
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
         ...MODULE_ERROR_RULES,
+        ...MODULE_DATA_RULES,
+        ...TX_WRITE_RULES,
+        ...RAW_QUERY_RULES,
+        ...TRANSACTIONAL_RULES,
         ...CONTROLLER_SYNTAX_RULES,
       ],
     },
@@ -479,10 +630,12 @@ export default tseslint.config(
     },
   },
   {
-    // Module tests still must not reach the database connection or the raw HTTP client.
+    // Module tests still must not reach the database connection or the raw HTTP client; they may
+    // use the transaction host to simulate a transaction.
     files: ['src/modules/**/*.test.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...MODULE_SYNTAX_RULES, ...TEST_SYNTAX_RULES],
+      'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
     },
   },
   {

@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.4 selesai (`main` @ `029fa98`); Step 2.5 menunggu review (branch `feat/base-repositories`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.5 selesai (`main` @ `0454fa8`); Step 2.6 menunggu review (branch `feat/data-layer-enforcement`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `029fa98` |
+| Basis kode | branch `main` @ `0454fa8` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -351,6 +351,11 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-08 | 2.5 | Dokumen: `references/database.md` §6 baru (jenis tabel, contoh, perilaku kedua repository), §5 (modul memakai Base/Child, bukan `AuditedRepository` langsung); struktur folder project-standards, README, CONTRIBUTING | Modul `users` & template scaffold pindah ke `BaseRepository` di 2.8 |
 | 2026-10-08 | 2.5 | **Atas permintaan user**: setiap repository modul wajib memakai base — ditambahkan `AppendOnlyRepository` (tabel pencatatan: `append`, `findPage` default `id DESC`, `count`; tanpa update/delete/audit) dan `ReadOnlyRepository` (view referensi `.existing()`: `findPage` dengan `orderBy` wajib, `count`). Aturan "wajib extend salah satu dari 4 base" dijadwalkan di 2.6 (pengecualian `auth_refresh_tokens` lewat `eslint-disable` + alasan); query baca kustom di subclass `BaseRepository` wajib dari `this.scoped(...)` → `[review-only]` | Test daftar method membuktikan kedua base tidak punya method ubah/hapus |
 | 2026-10-08 | Plan | **Atas permintaan user**: Step 2.9 baru — modul contoh `orders` + `order_lines` (header/detail) agar developer punya contoh nyata; `bun run setup` menghapus modul contoh secara default dan men-generate ulang migrasi dari awal (`--keep-examples` untuk mempertahankan) | Dipisah dari 2.8 agar setiap step tetap bisa direview mandiri |
+| 2026-10-10 | 2.5 | ✅ Di-commit (`0454fa8`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-10 | 2.6 | Grup ESLint baru di `eslint.config.mjs`: `REPOSITORY_SYNTAX_RULES` (wajib extend 1 dari 4 base + larangan `tx.update`/`tx.delete`), `TX_WRITE_RULES`, `RAW_WRITE_SQL_RULES`, `RAW_QUERY_RULES`, `TRANSACTIONAL_RULES`, `SQL_RAW_RULES` (masuk `SOURCE_SYNTAX_RULES`), pola import `TX_HOST_IMPORT_PATTERN` & `recordChanges` (`importNames`). Blok modul dipecah per jenis file (default, `*.service.ts`, `*.repository.ts`, `*.queries.ts`, `*.controller.ts`), masing-masing menyusun semua grup yang berlaku. depcruise: `record-changes-only-in-database`, `transaction-host-only-in-repositories` | Chaos test: 16 error ESLint + 2 error depcruise; kasus sah (`*.queries.ts`, `@Transactional()` di service) lolos |
+| 2026-10-10 | 2.6 | **Penyimpangan**: larangan import `recordChanges` & `TransactionHost` di modul utamanya lewat ESLint `no-restricted-imports` + `importNames` (plan: depcruise) — modul meng-import lewat barrel (`../../database`, `../../database/schema`) yang tidak bisa dibedakan depcruise per nama export; depcruise tetap dipasang untuk import jalur langsung. Larangan tulis "di luar `*.repository.ts`" dan raw query dibatasi pada objek `tx` (`this.txHost.tx`, variabel `tx`) agar `Map#delete` dll. tidak ikut tertangkap | Selector L7 diperbarui |
+| 2026-10-10 | 2.6 | Pengecualian sementara sampai 2.8 (tabel `users` belum punya kolom audit & soft delete): `users.repository.ts` dan template `scaffold-module` memakai `eslint-disable-next-line no-restricted-syntax -- …step 2.8`. Test modul boleh memakai transaction host (simulasi transaksi di `users.service.test.ts`); larangan import koneksi DB tetap berlaku | 2.8 menghapus kedua `eslint-disable` |
+| 2026-10-10 | 2.6 | Dokumen: CONTRIBUTING §5.3 baru (tabel aturan + pengecualian + `[review-only]`), `database.md` §6, `raw-queries.md` (`sql.raw`, `*.queries.ts` baca saja), `transactions.md` §3, project-standards Rule 3, `AGENTS.md` (daftar aturan AST) | — |
 
 ---
 
@@ -393,8 +398,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.2 | Schema proyek, column helpers, UUID v7, schema referensi | ✅ | 2.1 | `208a8d8` |
 | 2.3 | Test helper data layer | ✅ | 2.2 | `137295e` |
 | 2.4 | `record_changes` + `AuditedRepository` | ✅ | 1.2, 2.3 | `f2b0582`, `029fa98` |
-| 2.5 | `BaseRepository` + `ChildRepository` | 👀 | 2.4 |  |
-| 2.6 | Penegakan aturan data layer | ⬜ | 2.5 |  |
+| 2.5 | `BaseRepository` + `ChildRepository` | ✅ | 2.4 | `0454fa8` |
+| 2.6 | Penegakan aturan data layer | 👀 | 2.5 |  |
 | 2.7 | Test konvensi schema | ⬜ | 2.5 |  |
 | 2.8 | Migrasi modul `users` + template scaffold | ⬜ | 2.6, 2.7 |  |
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ⬜ | 2.8 |  |
@@ -785,7 +790,10 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | Raw query hanya di `*.queries.ts` (fungsi murni, baca saja) | ls-lint + ESLint |
 | Seeder (`src/database/seeds/**`) dikecualikan | override |
 
-**Acceptance criteria**: chaos test per baris tabel — pelanggaran dibuat sementara, terbukti gagal, didokumentasikan di `CONTRIBUTING.md` _Aturan yang Ditegakkan Mesin_.
+**Acceptance criteria**
+
+- [x] Chaos test per baris tabel — modul probe sementara: 16 pelanggaran ditolak ESLint (repository tanpa base, `tx.update`/`tx.delete` di repository, `@Transactional()` di repository, `tx.execute` di luar `*.queries.ts`, `tx.insert` di service, raw `UPDATE`/`DELETE FROM`, `TransactionHost`/`defaultTxHost`/`transactionStorage` & `recordChanges` lewat barrel maupun jalur langsung, `sql.raw` di `core`) + 2 import jalur langsung ditolak depcruise; `*.queries.ts` dengan `execute` + `TransactionHost` dan service dengan `@Transactional()` lolos; probe dihapus.
+- [x] Didokumentasikan di `CONTRIBUTING.md` §5.3 _Aturan Data Layer yang Ditegakkan Mesin_.
 
 ### Step 2.7 — Test konvensi schema
 
@@ -1289,7 +1297,10 @@ Selector yang direncanakan:
 | 1.4 | Pesan literal | `NewExpression[callee.name=/^(ApiResponse\|(?!InternalServerError$)[A-Za-z]+Error)$/] > :matches(Literal[raw=/^['"]/], TemplateLiteral)` + `Property[key.name="message"]` di dalam `new XError(...)` |
 | 2.1 | `new Date(...)` (juga tanpa argumen — diperketat, lihat 4.1) / `Temporal.Now` / `Date.parse` | `NewExpression[callee.name="Date"]`, `MemberExpression[object.name="Temporal"][property.name="Now"]`, `MemberExpression[object.name="Date"][property.name="parse"]` |
 | 2.1 | Getter/formatter waktu lokal | `CallExpression[callee.property.name=/^(getHours\|getMinutes\|getDate\|getDay\|getMonth\|getFullYear\|getTimezoneOffset\|toLocaleString\|toLocaleDateString\|toLocaleTimeString)$/]` |
-| 2.6 | Tulis DB langsung di repository modul | `CallExpression[callee.property.name=/^(update\|delete)$/][callee.object.property.name="tx"]` |
+| 2.6 | Tulis DB langsung di repository modul | `CallExpression[callee.property.name=/^(update\|delete)$/]` + objek `tx` (`this.txHost.tx` atau variabel `tx`) |
+| 2.6 | Repository modul tanpa base | `ClassDeclaration:not([superClass.name=/^(BaseRepository\|ChildRepository\|AppendOnlyRepository\|ReadOnlyRepository)$/])` |
+| 2.6 | `@Transactional()` di luar service | `Decorator[expression.callee.name="Transactional"]` |
+| 2.6 | Raw query di luar `*.queries.ts` | `CallExpression[callee.property.name="execute"]` + objek `tx` |
 | 2.6 | Raw SQL tulis | `TaggedTemplateExpression[tag.name="sql"] TemplateElement[value.raw=/\b(update\|delete\s+from)\b/i]` |
 | 2.6 | `sql.raw` | `CallExpression[callee.object.name="sql"][callee.property.name="raw"]` |
 | 4.1 | `fetch(` di luar `core/http` | `CallExpression[callee.name="fetch"]` |

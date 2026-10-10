@@ -3,6 +3,7 @@ import { InternalServerError } from '../../core/errors';
 import { TransactionHost, defaultTxHost } from '../../database/transaction-host';
 import { users, type User, type NewUser } from '../../database/schema';
 
+// eslint-disable-next-line no-restricted-syntax -- users has no audit/soft-delete columns yet; it moves to BaseRepository in plan step 2.8
 export class UsersRepository {
   constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
 

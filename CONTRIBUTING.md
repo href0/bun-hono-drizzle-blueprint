@@ -344,7 +344,8 @@ Prefix path internal (`body.`, `query.`) otomatis dibersihkan dan nama field dik
 1. **Tabel di `public` (`appTable`, `src/database/schema/schemas.ts`)**: proyek memiliki database sendiri, jadi semua tabel berada di schema bawaan `public` — tidak ada schema bernama proyek. `pgTable(`/`pgSchema(` hanya boleh di `schemas.ts` (ESLint). Multi-tenant per schema (SaaS) adalah fitur opsional terpisah (backlog).
 2. **Helper kolom (`src/database/schema/columns.ts`)**: `uuidPrimaryKey()` (UUID v7 default), `sequentialPrimaryKey()` (hanya tabel di `APPEND_ONLY_TABLES`), `timestamps()`, `instant()`, `calendarDate()`, `auditColumns()`, `softDelete()`, `parentReference()`, `activeUniqueIndex()`. Di file schema, `timestamp(`/`date(`/`serial(`/`pgTable(`/`.defaultRandom()` ditolak ESLint.
 3. **Reference (opsional, `src/database/schema/reference/`)**: data milik sistem lain, dibaca lewat `referenceSchema.view(...).existing()` — tidak pernah dibuat/dimigrasi drizzle-kit, dan `insert` gagal saat kompilasi.
-4. Panduan lengkap: `.agents/skills/project-standards/references/database.md`.
+4. **Repository**: setiap `*.repository.ts` modul meng-extend satu base sesuai jenis tabel — `BaseRepository` (mandiri/header), `ChildRepository` (detail), `AppendOnlyRepository` (pencatatan), `ReadOnlyRepository` (view referensi). Lihat §5.3.
+5. Panduan lengkap: `.agents/skills/project-standards/references/database.md`.
 
 ### 5.2 Pola Declarative Transaction (`TransactionHost` & `@Transactional()`)
 
@@ -394,6 +395,26 @@ export class UsersService {
   }
 }
 ```
+
+### 5.3 Aturan Data Layer yang Ditegakkan Mesin
+
+Setiap perubahan baris domain melewati base repository (kunci baris, scope soft delete, cap actor, `record_changes` dalam transaksi yang sama). Aturan berikut membuat jalan pintas gagal lint:
+
+| Aturan | Berlaku di | Penegak |
+|---|---|---|
+| Class repository wajib `extends` `BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository` | `src/modules/**/*.repository.ts` | ESLint `REPOSITORY_SYNTAX_RULES` |
+| `tx.update(` / `tx.delete(` dilarang (pakai `updateById`, `softDeleteById`, `ChildRepository` …) | repository modul | ESLint `REPOSITORY_SYNTAX_RULES` |
+| `tx.insert(` / `tx.update(` / `tx.delete(` dilarang | modul selain repository | ESLint `TX_WRITE_RULES` |
+| `UPDATE` / `DELETE FROM` di dalam `` sql`…` `` dilarang | semua file modul | ESLint `RAW_WRITE_SQL_RULES` |
+| `tx.execute(` (raw query) hanya di `<name>.queries.ts` (fungsi murni, baca saja) | modul | ESLint `RAW_QUERY_RULES` |
+| `@Transactional()` hanya di `*.service.ts` | modul | ESLint `TRANSACTIONAL_RULES` |
+| `TransactionHost` / `defaultTxHost` / `transactionStorage` hanya di repository & `*.queries.ts` (test modul boleh) | modul | ESLint `TX_HOST_IMPORT_PATTERN` + depcruise `transaction-host-only-in-repositories` |
+| `recordChanges` tidak di-import di luar `src/database/` | seluruh `src/` | ESLint (`importNames`, juga lewat barrel) + depcruise `record-changes-only-in-database` |
+| `sql.raw(` dilarang (pakai `sql.identifier()`; fragmen statis = `eslint-disable` + alasan) | seluruh `src/` | ESLint `SQL_RAW_RULES` |
+
+- Pengecualian yang disetujui: `auth_refresh_tokens` (Step 3.2) lewat `eslint-disable-next-line <rule> -- <alasan>`. Sementara sampai Step 2.8: `users.repository.ts` dan template `scaffold-module` (tabel `users` belum punya kolom audit & soft delete).
+- Seeder (`src/database/seeds/**`) berada di lapisan database, bukan modul: aturan modul di atas tidak berlaku untuknya.
+- `[review-only]`: query baca kustom di subclass `BaseRepository` wajib dimulai dari `this.scoped(...)` agar baris yang terhapus tetap tersembunyi.
 
 ---
 
