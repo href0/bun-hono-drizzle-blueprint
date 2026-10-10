@@ -10,6 +10,9 @@ const sampleUser: User = {
   email: 'recorder@example.com',
   fullName: 'Recorder',
   passwordHash: 'hash',
+  createdBy: 'system',
+  updatedBy: 'system',
+  deletedAt: null,
   isActive: true,
   createdAt: Temporal.Instant.from('2026-10-05T03:00:00.123456Z'),
   updatedAt: Temporal.Instant.from('2026-10-05T04:00:00Z'),
@@ -23,7 +26,7 @@ describe('createSqlRecorder', () => {
 
     expect(recorder.statements).toEqual([
       {
-        sql: 'select "id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at" from "users" where "users"."email" = $1 limit $2',
+        sql: 'select "id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at", "created_by", "updated_by", "deleted_at" from "users" where "users"."email" = $1 limit $2',
         params: ['a@b.c', 1],
       },
     ]);
@@ -129,6 +132,9 @@ describe('rowOf', () => {
       true,
       '2026-10-05T03:00:00.123456Z',
       '2026-10-05T04:00:00Z',
+      'system',
+      'system',
+      null,
     ]);
   });
 });

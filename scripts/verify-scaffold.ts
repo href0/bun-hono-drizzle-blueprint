@@ -107,7 +107,10 @@ if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
 }
 const doc = await (await app.request(base + '/docs/openapi.json')).json();
 // Present with a summary and a 2xx response = described by describeEndpoint(), not only by validate().
-const documented = [['/v1/scaffold-probes', 'post'], ['/v1/scaffold-probes', 'get'], ['/v1/scaffold-probes/{id}', 'get']]
+const documented = [
+  ['/v1/scaffold-probes', 'post'], ['/v1/scaffold-probes', 'get'], ['/v1/scaffold-probes/{id}', 'get'],
+  ['/v1/scaffold-probes/{id}', 'patch'], ['/v1/scaffold-probes/{id}', 'delete'], ['/v1/scaffold-probes/{id}/restore', 'post'],
+]
   .every(([path, method]) => {
     const op = doc.paths?.[base + path]?.[method];
     return op?.summary && Object.keys(op.responses ?? {}).some((status) => status.startsWith('2'));
@@ -153,10 +156,12 @@ const main = (): void => {
       ]) &&
       run('knip', ['bunx', 'knip']) &&
       // The template's tests must pass, not only compile (hermetic through bunfig.toml).
-      run('bun test (generated tests)', [
+      run('bun test (generated tests + schema conventions)', [
         'bun',
         'test',
         ...generated.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
+        // The generated table is exported from the schema barrel: it must pass the conventions.
+        './src/database/schema/schema-conventions.test.ts',
       ]) &&
       // Hermetic like the test suite: no local env file values, no real database or Redis.
       run('live request through createApp()', [

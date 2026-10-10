@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.6 selesai (`main` @ `7ba1de9`); Step 2.7 menunggu review (branch `test/schema-conventions`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.7 selesai (`main` @ `43bfe53`); Step 2.8 menunggu review (branch `feat/users-base-repository`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `7ba1de9` |
+| Basis kode | branch `main` @ `43bfe53` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -360,6 +360,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-10 | 2.7 | `src/database/schema/schema-conventions.test.ts`: pemeriksaan murni (`tableViolations`, `staleAllowlistEntries`) dijalankan pada setiap tabel yang diekspor barrel schema — FK sebagai awalan index (index, kolom unique, atau PK), `id` dari helper (UUID v7 tanpa default DB, atau identity `ALWAYS` di PK), id berurutan hanya di `APPEND_ONLY_TABLES` + tanpa entri basi, tanpa `serial`, tabel ber-`deleted_at` tanpa unique biasa, `record_changes` siap partisi (PK, tanpa FK/unique, 2 CHECK). Pesan: `<tabel>.<kolom>: <aturan>` | Bagian kedua file membuktikan setiap pemeriksaan menyala pada tabel sintetis yang melanggar (chaos test permanen) |
 | 2026-10-10 | 2.7 | Ditambahkan di luar rencana: FK juga dianggap ter-index bila menjadi awalan PK komposit atau kolom unique (PostgreSQL membuat index untuk keduanya); index yang **tidak diawali** FK tidak dihitung. Daftar tabel yang ditemukan dicek "minimal berisi `users` & `record_changes`", bukan daftar persis — menambah tabel tidak boleh memaksa mengubah test | Chaos test jalur nyata: tabel sementara diekspor dari barrel → 2 pelanggaran disebut dengan nama tabel & kolom; dipulihkan |
 | 2026-10-10 | 2.7 | Dokumen: `database.md` (subbagian konvensi schema), CONTRIBUTING §5.3, `testing.md` §4 (penjaga kontrak + `migrations.test.ts`); rujukan "step 2.7" di `columns.ts` & `append-only-tables.ts` diganti nama file test | — |
+| 2026-10-10 | 2.7 | ✅ Di-commit (`43bfe53`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-10 | Proses | Izin user diperluas: agent boleh menjalankan perintah apa pun ke DB **lokal** selama masa pengembangan (migrasi, baris uji, SQL destruktif); file env tetap tidak dibaca — koneksi lewat `src/database/connection.ts` | Aturan umum di plan (DoD §14.1) tetap: izin eksplisit, hanya DB lokal |
+| 2026-10-10 | 2.8 | `users`: `uuidPrimaryKey` + `timestamps` + `auditColumns` + `softDelete`, `email` unik lewat `activeUniqueIndex` (`users_email_unique` dihapus); `UsersRepository extends BaseRepository` (`redact: ['passwordHash']`, `findByEmail` di atas `scoped()`); service: `updateUser` / `deleteUser` / `restoreUser`, evict cache detail setelah setiap tulis, email bentrok → `ConflictError` (cek + `isUniqueViolation()` untuk balapan); endpoint `PATCH /:id`, `DELETE /:id` (soft), `POST /:id/restore`; list via `findPage` (G11) | `updateUserSchema` tanpa password (ganti password = alur Fase 3) |
+| 2026-10-10 | 2.8 | Ditambahkan di luar rencana: `isUniqueViolation(error)` (`src/database/unique-violation.ts`, SQLSTATE 23505, juga di `cause`) — bentrok `activeUniqueIndex` saat restore (atau dua create bersamaan) jadi 409, bukan 500; barrel `src/database` kini juga mengekspor keempat base repository | Terbukti di PostgreSQL asli: restore user yang email-nya sudah dipakai user hidup → 409 |
+| 2026-10-10 | 2.8 | Migrasi `0003` (DROP unique lama, ADD `created_by`/`updated_by` NOT NULL, `deleted_at`, partial unique index) — tabel `users` lokal kosong (dicek dulu) lalu dijalankan. **Uji nyata ke DB lokal**: siklus lengkap lewat server sungguhan; `record_changes` benar (UPDATE, SOFT_DELETE, RESTORE; tanpa baris untuk patch kosong/restore gagal), `updated_at` = `changed_at` = `deleted_at` dalam satu transaksi (jam DB, Review 6), kolom Temporal terbaca/tertulis dengan presisi mikrodetik, partial index `WHERE (deleted_at IS NULL)` terpasang. 2 user + 4 baris audit uji dihapus setelahnya | Menutup 2 catatan lama: baca/tulis Temporal ke DB asli (2.2 → 6.1) dan predikat partial index di PostgreSQL asli (2.2) |
+| 2026-10-10 | 2.8 | **Penyimpangan ruang lingkup**: varian template header + detail dan pencatatan dipindah ke 2.9 (bersama modul contoh `orders` — kode yang sama). Template mandiri ditulis ulang (`BaseRepository`, update / soft delete / restore, test repository baru); `verify:scaffold` memeriksa 6 operasi terdokumentasi dan menjalankan test konvensi schema terhadap tabel hasil template | Chaos test: `.unique()` biasa di template → `verify:scaffold` gagal dengan pesan konvensi |
 
 ---
 
@@ -404,8 +410,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.4 | `record_changes` + `AuditedRepository` | ✅ | 1.2, 2.3 | `f2b0582`, `029fa98` |
 | 2.5 | `BaseRepository` + `ChildRepository` | ✅ | 2.4 | `0454fa8` |
 | 2.6 | Penegakan aturan data layer | ✅ | 2.5 | `7ba1de9` |
-| 2.7 | Test konvensi schema | 👀 | 2.5 |  |
-| 2.8 | Migrasi modul `users` + template scaffold | ⬜ | 2.6, 2.7 |  |
+| 2.7 | Test konvensi schema | ✅ | 2.5 | `43bfe53` |
+| 2.8 | Migrasi modul `users` + template scaffold | 👀 | 2.6, 2.7 |  |
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ⬜ | 2.8 |  |
 | 3.1 | Primitif keamanan & config auth | ⬜ | 1.1 |  |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ⬜ | 2.8 |  |
@@ -818,9 +824,14 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 3. Template `scaffold-module` untuk **mandiri**, **header + detail** (route `/headers/:id/details[/:childId]`, maks 2 level), **pencatatan**.
 4. Migrasi di-generate; developer menjalankan.
 
+> **Diubah 2026-10-10 (lihat 4.1)**: varian template **header + detail** dan **pencatatan** dipindah ke Step 2.9, bersama modul contoh `orders` — keduanya kode yang sama (modul contoh = keluaran template), dan `verify:scaffold` perlu diperluas untuk beberapa varian sekaligus. Step 2.8 = `users` + template **mandiri**.
+
 **Acceptance criteria**
 
-- [ ] Modul contoh header/detail dibuat dari template → lolos `validate:full` tanpa edit manual → dihapus (dicatat di 4.1).
+- [x] `users` memakai `BaseRepository` (+ `activeUniqueIndex` email, kolom audit & soft delete), endpoint `PATCH` / `DELETE` (soft) / `POST /:id/restore`, list berurutan `created_at DESC, id DESC` (G11); `eslint-disable` sementara dari 2.6 dihapus.
+- [x] Migrasi `0003` di-generate dan dijalankan ke DB lokal; siklus create → duplikat 409 → patch → patch tanpa perubahan → delete → email dipakai ulang → restore 409 → restore 200 → list diuji lewat server nyata ke PostgreSQL & Redis lokal; `record_changes` berisi UPDATE / SOFT_DELETE / SOFT_DELETE / RESTORE (tanpa baris untuk patch kosong & restore gagal); baris uji dihapus lagi.
+- [x] Template mandiri (`BaseRepository`, update / soft delete / restore) lolos `verify:scaffold`, yang kini juga menjalankan test konvensi schema terhadap tabel hasil template (chaos test: `.unique()` biasa di template → gagal).
+- [ ] ~~Modul contoh header/detail dibuat dari template~~ → dipindah ke Step 2.9.
 
 ### Step 2.9 — Modul contoh header/detail + opsi hapus contoh di `init-project`
 
@@ -828,9 +839,10 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 **Langkah**
 
-1. Modul `orders` (header, `BaseRepository`) + `order_lines` (detail, `ChildRepository`): CRUD header, soft delete/restore, CRUD detail di `/orders/:id/lines[/:lineId]`, `PUT /orders/:id/lines` (`syncForParent`); semua endpoint terdokumentasi (`describeEndpoint`); migrasi di-generate. Bersama `users` (mandiri) dan `record_changes` (pencatatan), setiap jenis tabel punya contoh.
-2. `bun run setup <nama>`: secara default **menghapus modul contoh** (file modul, schema, registrasi route, pesan, test) lalu **men-generate ulang migrasi dari awal** (proyek baru belum punya database); `--keep-examples` mempertahankannya. Daftar file contoh di satu registry (`EXAMPLE_MODULES` di `scripts/setup.ts`) + drift guard (file terdaftar hilang → abort).
-3. Skill `init-project` & README: apa yang dihapus, cara mempertahankannya.
+1. Template `scaffold-module`: varian **header + detail** (route `/headers/:id/details[/:childId]`, maks 2 level) dan **pencatatan** (`AppendOnlyRepository`), diverifikasi `verify:scaffold` per varian (dipindah dari 2.8).
+2. Modul `orders` (header, `BaseRepository`) + `order_lines` (detail, `ChildRepository`) — sebaiknya keluaran varian header/detail template: CRUD header, soft delete/restore, CRUD detail di `/orders/:id/lines[/:lineId]`, `PUT /orders/:id/lines` (`syncForParent`); semua endpoint terdokumentasi (`describeEndpoint`); migrasi di-generate. Bersama `users` (mandiri) dan `record_changes` (pencatatan), setiap jenis tabel punya contoh.
+3. `bun run setup <nama>`: secara default **menghapus modul contoh** (file modul, schema, registrasi route, pesan, test) lalu **men-generate ulang migrasi dari awal** (proyek baru belum punya database); `--keep-examples` mempertahankannya. Daftar file contoh di satu registry (`EXAMPLE_MODULES` di `scripts/setup.ts`) + drift guard (file terdaftar hilang → abort).
+4. Skill `init-project` & README: apa yang dihapus, cara mempertahankannya.
 
 **Acceptance criteria**
 

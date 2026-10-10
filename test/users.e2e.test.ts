@@ -19,6 +19,9 @@ const mockUser: User = {
   email: 'test@example.com',
   fullName: 'Test User',
   passwordHash: '$argon2id$v=19$m=16,t=2,p=1$abc',
+  createdBy: 'system',
+  updatedBy: 'system',
+  deletedAt: null,
   isActive: true,
   createdAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
   updatedAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
@@ -287,5 +290,83 @@ describe('Users Module — E2E Contract Tests', () => {
       expect(Array.isArray(body.data)).toBe(true);
       expect(body.data[0]?.title).toBe('Sample Post');
     });
+  });
+});
+
+describe('Users Module — E2E: update, soft delete, restore', () => {
+  let app: Hono;
+  const spies: ReturnType<typeof spyOn>[] = [];
+  const otherId = 'b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a99';
+
+  beforeAll(() => {
+    spies.push(
+      spyOn(usersService, 'updateUser').mockImplementation(async (id, dto) => {
+        if (id !== mockUser.id) throw new NotFoundError('User not found');
+        return { ...mockUser, ...dto };
+      }),
+      spyOn(usersService, 'deleteUser').mockImplementation(async (id) => {
+        if (id !== mockUser.id) throw new NotFoundError('User not found');
+      }),
+      spyOn(usersService, 'restoreUser').mockImplementation(async (id) => {
+        if (id !== mockUser.id) throw new ConflictError('User with this email already exists');
+        return mockUser;
+      }),
+    );
+    app = createApp();
+  });
+
+  afterAll(() => {
+    for (const spy of spies) spy.mockRestore();
+  });
+
+  const patch = (id: string, body: unknown): Promise<Response> =>
+    Promise.resolve(
+      app.request(`/api/v1/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  it('PATCH /:id updates only the given fields (snake_case in and out)', async () => {
+    const res = await patch(mockUser.id, { full_name: 'Renamed', is_active: false });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as { data: { full_name: string; is_active: boolean } };
+    expect(body.data.full_name).toBe('Renamed');
+    expect(body.data.is_active).toBe(false);
+  });
+
+  it('PATCH /:id rejects an empty body, camelCase keys and an invalid email', async () => {
+    expect((await patch(mockUser.id, {})).status).toBe(400);
+
+    const camel = (await (await patch(mockUser.id, { fullName: 'x' })).json()) as {
+      error: { code: string };
+    };
+    expect(camel.error.code).toBe('ERR_NON_SNAKE_CASE_KEY');
+
+    expect((await patch(mockUser.id, { email: 'not-an-email' })).status).toBe(400);
+  });
+
+  it('PATCH /:id → 404 for an unknown user, 400 for a non-UUID id', async () => {
+    expect((await patch(otherId, { full_name: 'x' })).status).toBe(404);
+    expect((await patch('nope', { full_name: 'x' })).status).toBe(400);
+  });
+
+  it('DELETE /:id soft-deletes (200, data null) and 404s for an unknown user', async () => {
+    const res = await app.request(`/api/v1/users/${mockUser.id}`, { method: 'DELETE' });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { data: unknown }).data).toBeNull();
+
+    expect((await app.request(`/api/v1/users/${otherId}`, { method: 'DELETE' })).status).toBe(404);
+  });
+
+  it('POST /:id/restore returns the user, 409 when its email was taken meanwhile', async () => {
+    const res = await app.request(`/api/v1/users/${mockUser.id}/restore`, { method: 'POST' });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { data: { id: string } }).data.id).toBe(mockUser.id);
+
+    const conflict = await app.request(`/api/v1/users/${otherId}/restore`, { method: 'POST' });
+    expect(conflict.status).toBe(409);
   });
 });

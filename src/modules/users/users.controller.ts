@@ -8,7 +8,7 @@ import { ApiResponse } from '../../core/response';
 import { usersService, UsersService } from './users.service';
 import { toUserResponse, toUserListResponse } from './users.transformer';
 import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
-import type { CreateUserDto } from './users.dto';
+import type { CreateUserDto, UpdateUserDto } from './users.dto';
 import { USER_MESSAGES } from './users.messages';
 
 export class UsersController {
@@ -43,6 +43,28 @@ export class UsersController {
       totalItems: total,
       totalPages,
     });
+  });
+
+  update = asyncHandler(async (c) => {
+    const param = getValidatedParams<UuidParamDto>(c);
+    const dto = getValidatedBody<UpdateUserDto>(c);
+    const user = await this.service.updateUser(param.id, dto);
+
+    return new ApiResponse(toUserResponse(user), USER_MESSAGES.UPDATED, 200);
+  });
+
+  remove = asyncHandler(async (c) => {
+    const param = getValidatedParams<UuidParamDto>(c);
+    await this.service.deleteUser(param.id);
+
+    return new ApiResponse(null, USER_MESSAGES.DELETED, 200);
+  });
+
+  restore = asyncHandler(async (c) => {
+    const param = getValidatedParams<UuidParamDto>(c);
+    const user = await this.service.restoreUser(param.id);
+
+    return new ApiResponse(toUserResponse(user), USER_MESSAGES.RESTORED, 200);
   });
 
   getExternalPosts = asyncHandler(async (c) => {

@@ -4,6 +4,9 @@ export const USER_MESSAGES = {
   CREATED: { id: 'Pengguna berhasil dibuat', en: 'User created successfully' },
   RETRIEVED: { id: 'Data pengguna berhasil diambil', en: 'User retrieved successfully' },
   LIST_RETRIEVED: { id: 'Daftar pengguna berhasil diambil', en: 'Users retrieved successfully' },
+  UPDATED: { id: 'Pengguna berhasil diperbarui', en: 'User updated successfully' },
+  DELETED: { id: 'Pengguna berhasil dihapus', en: 'User deleted successfully' },
+  RESTORED: { id: 'Pengguna berhasil dipulihkan', en: 'User restored successfully' },
   EXTERNAL_POSTS_RETRIEVED: {
     id: 'Postingan eksternal pengguna berhasil diambil',
     en: 'User external posts retrieved successfully',

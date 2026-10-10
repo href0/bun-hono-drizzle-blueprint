@@ -211,4 +211,6 @@ export class OrderLinesRepository extends ChildRepository<typeof orderLines, typ
 
 Every module repository extends one of these four (ESLint `REPOSITORY_SYNTAX_RULES`), and module code never writes around them: no `tx.update` / `tx.delete` in repositories, no writes outside repositories, no raw `UPDATE` / `DELETE` SQL, `recordChanges` never imported outside `src/database/` (full table: CONTRIBUTING §5.3). The one approved exception (`auth_refresh_tokens`, step 3.2) carries an `eslint-disable` with its reason. Custom reads inside a `BaseRepository` subclass must start from `this.scoped(...)` so deleted rows stay hidden `[review-only]`.
 
+Reference implementation: `src/modules/users/` — `UsersRepository extends BaseRepository` (redacts `passwordHash`), the service maps `null` to `NotFoundError` and a unique violation (`isUniqueViolation()` from `src/database`, SQLSTATE 23505) to `ConflictError` on create, update and restore, and evicts the cached detail after every write.
+
 Generic behaviour is tested once, with the SQL recorder and test-only tables (`test/helpers/repository-fixtures.ts`): `src/database/{base,child,append-only,read-only}.repository.test.ts`. Module repositories test only what they add.

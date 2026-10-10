@@ -9,6 +9,20 @@ export const createUserSchema = z.object({
 
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 
+/** Partial update: only the given fields change (password changes get their own flow in phase 3). */
+export const updateUserSchema = z
+  .object({
+    email: z.string().email('Invalid email address format'),
+    fullName: z.string().min(1, 'Full name is required').max(255),
+    isActive: z.boolean(),
+  })
+  .partial()
+  .refine((dto) => Object.keys(dto).length > 0, {
+    message: 'At least one field must be provided',
+  });
+
+export type UpdateUserDto = z.infer<typeof updateUserSchema>;
+
 /** Response shape (camelCase here; snake_case on the wire). The transformer's return type. */
 export const userResponseSchema = z.object({
   id: z.string().uuid(),

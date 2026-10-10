@@ -87,7 +87,7 @@ src/
 │
 ├── modules/                     # Domain Feature Modules
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
-│   └── users/                   # Modul Referensi Produksi (/api/v1/users)
+│   └── users/                   # Modul referensi tabel mandiri (/api/v1/users: CRUD, soft delete, restore)
 │       ├── users.dto.ts         # Zod schemas (body, query, params)
 │       ├── users.repository.ts  # Database access via TransactionHost
 │       ├── users.service.ts     # Business logic + @Transactional()

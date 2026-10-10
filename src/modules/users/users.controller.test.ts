@@ -10,6 +10,9 @@ describe('UsersController (Unit)', () => {
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'hash',
+    createdBy: 'system',
+    updatedBy: 'system',
+    deletedAt: null,
     isActive: true,
     createdAt: Temporal.Now.instant(),
     updatedAt: Temporal.Now.instant(),
@@ -19,6 +22,9 @@ describe('UsersController (Unit)', () => {
     createUser: async () => mockUser,
     getUserById: async () => mockUser,
     listUsers: async () => ({ users: [mockUser], total: 1 }),
+    updateUser: async (_id, dto) => ({ ...mockUser, ...dto }),
+    deleteUser: async () => undefined,
+    restoreUser: async () => mockUser,
     getUserExternalPosts: async () => [
       { id: 1, userId: 1, title: 'Sample Post', body: 'Sample Body' },
     ],
@@ -75,6 +81,41 @@ describe('UsersController (Unit)', () => {
     expect(result.data.meta).toBeDefined();
     expect(result.data.meta?.current_page).toBe(1);
     expect(result.data.meta?.total_items).toBe(1);
+  });
+
+  const contextWith = (values: Record<string, unknown>): any => ({
+    get: (key: string) => values[key],
+    json: (data: unknown, status: number) => ({ data, status }),
+  });
+
+  it('update should return the updated user', async () => {
+    const result = (await controller.update(
+      contextWith({ validatedParams: { id: mockUser.id }, validatedBody: { fullName: 'New' } }),
+      mockNext,
+    )) as unknown as { status: number; data: { data: { full_name: string } } };
+
+    expect(result.status).toBe(200);
+    expect(result.data.data.full_name).toBe('New');
+  });
+
+  it('remove should return 200 with null data', async () => {
+    const result = (await controller.remove(
+      contextWith({ validatedParams: { id: mockUser.id } }),
+      mockNext,
+    )) as unknown as { status: number; data: { data: unknown } };
+
+    expect(result.status).toBe(200);
+    expect(result.data.data).toBeNull();
+  });
+
+  it('restore should return the restored user', async () => {
+    const result = (await controller.restore(
+      contextWith({ validatedParams: { id: mockUser.id } }),
+      mockNext,
+    )) as unknown as { status: number; data: { data: { id: string } } };
+
+    expect(result.status).toBe(200);
+    expect(result.data.data.id).toBe(mockUser.id);
   });
 
   it('getExternalPosts should return ApiResponse with status 200', async () => {
