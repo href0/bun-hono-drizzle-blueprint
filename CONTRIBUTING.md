@@ -412,7 +412,7 @@ Setiap perubahan baris domain melewati base repository (kunci baris, scope soft 
 | `recordChanges` tidak di-import di luar `src/database/` | seluruh `src/` | ESLint (`importNames`, juga lewat barrel) + depcruise `record-changes-only-in-database` |
 | `sql.raw(` dilarang (pakai `sql.identifier()`; fragmen statis = `eslint-disable` + alasan) | seluruh `src/` | ESLint `SQL_RAW_RULES` |
 
-- Pengecualian yang disetujui: `auth_refresh_tokens` (Step 3.2) lewat `eslint-disable-next-line <rule> -- <alasan>`. Sementara sampai Step 2.8: `users.repository.ts` dan template `scaffold-module` (tabel `users` belum punya kolom audit & soft delete).
+- Pengecualian yang disetujui: `auth_refresh_tokens` (Step 3.2) lewat `eslint-disable-next-line <rule> -- <alasan>`.
 - Seeder (`src/database/seeds/**`) berada di lapisan database, bukan modul: aturan modul di atas tidak berlaku untuknya.
 - Konvensi schema diuji di `src/database/schema/schema-conventions.test.ts` untuk setiap tabel yang diekspor: FK wajib ter-index, `id` dari helper, id berurutan hanya di `APPEND_ONLY_TABLES` (tanpa entri basi), tanpa `serial`, tabel soft delete tanpa unique biasa (`activeUniqueIndex()`), `record_changes` siap partisi. Pesan gagal menyebut tabel & kolom.
 - `[review-only]`: query baca kustom di subclass `BaseRepository` wajib dimulai dari `this.scoped(...)` agar baris yang terhapus tetap tersembunyi.

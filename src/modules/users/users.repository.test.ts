@@ -4,9 +4,10 @@ import { UsersRepository } from './users.repository';
 import { users, type User } from '../../database/schema';
 import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
 
-const SELECT_USER =
-  'select "id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at" from "users"';
+const COLUMNS =
+  '"id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at", "created_by", "updated_by", "deleted_at"';
 
+/** Generic behaviour (paging, audited update, soft delete, restore) is tested in base.repository.test.ts. */
 describe('UsersRepository (Unit)', () => {
   const sampleUser: User = {
     id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
@@ -16,6 +17,9 @@ describe('UsersRepository (Unit)', () => {
     isActive: true,
     createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
     updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deletedAt: null,
   };
 
   const recorder = createSqlRecorder();
@@ -25,78 +29,33 @@ describe('UsersRepository (Unit)', () => {
     recorder.reset();
   });
 
-  it('findById filters by id', async () => {
-    recorder.respondWith([rowOf(users, sampleUser)]);
-
-    expect(await repo.findById(sampleUser.id)).toEqual(sampleUser);
-    expect(recorder.statements).toEqual([
-      { sql: `${SELECT_USER} where "users"."id" = $1`, params: [sampleUser.id] },
-    ]);
-  });
-
-  it('findById returns null when no row matches', async () => {
-    expect(await repo.findById(sampleUser.id)).toBeNull();
-  });
-
-  it('findByEmail filters by email', async () => {
+  it('findByEmail looks up live users only', async () => {
     recorder.respondWith([rowOf(users, sampleUser)]);
 
     expect(await repo.findByEmail(sampleUser.email)).toEqual(sampleUser);
     expect(recorder.statements).toEqual([
-      { sql: `${SELECT_USER} where "users"."email" = $1`, params: [sampleUser.email] },
+      {
+        sql: `select ${COLUMNS} from "users" where ("users"."deleted_at" is null and "users"."email" = $1) limit $2`,
+        params: [sampleUser.email, 1],
+      },
     ]);
   });
 
-  it('create inserts the row and returns it', async () => {
-    recorder.respondWith([rowOf(users, sampleUser)]);
+  it('findByEmail returns null when no live user has the email', async () => {
+    expect(await repo.findByEmail(sampleUser.email)).toBeNull();
+  });
 
-    const created = await repo.create({
-      id: sampleUser.id,
-      email: sampleUser.email,
-      fullName: sampleUser.fullName,
-      passwordHash: sampleUser.passwordHash,
-      isActive: true,
-    });
+  it('redacts the password hash in record_changes', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)], [rowOf(users, sampleUser)]);
 
-    expect(created).toEqual(sampleUser);
-    expect(recorder.statements.at(0)?.sql).toStartWith('insert into "users"');
-    expect(recorder.statements.at(0)?.sql).toEndWith(
-      'returning "id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at"',
+    await repo.updateById(sampleUser.id, { passwordHash: 'new-hash' });
+
+    const audit = recorder.statements.find((statement) =>
+      statement.sql.startsWith('insert into "record_changes"'),
     );
-    expect(recorder.statements.at(0)?.params.slice(0, 5)).toEqual([
-      sampleUser.id,
-      sampleUser.email,
-      sampleUser.fullName,
-      sampleUser.passwordHash,
-      true,
-    ]);
-  });
-
-  it('create throws when INSERT … RETURNING yields no row', async () => {
-    expect(
-      repo.create({ email: sampleUser.email, fullName: sampleUser.fullName, passwordHash: 'hash' }),
-    ).rejects.toThrow('INSERT INTO users returned no rows');
-  });
-
-  it('findAll pages with limit and offset', async () => {
-    recorder.respondWith([rowOf(users, sampleUser)]);
-
-    expect(await repo.findAll(10, 20)).toEqual([sampleUser]);
-    expect(recorder.statements).toEqual([
-      { sql: `${SELECT_USER} limit $1 offset $2`, params: [10, 20] },
-    ]);
-  });
-
-  it('count returns the integer count', async () => {
-    recorder.respondWith([[5]]);
-
-    expect(await repo.count()).toBe(5);
-    expect(recorder.statements).toEqual([
-      { sql: 'select cast(count(*) as integer) from "users"', params: [] },
-    ]);
-  });
-
-  it('count returns 0 when the query yields no row', async () => {
-    expect(await repo.count()).toBe(0);
+    expect(audit?.params[3]).toBe(
+      JSON.stringify({ password_hash: { from: '[REDACTED]', to: '[REDACTED]' } }),
+    );
+    expect(JSON.stringify(audit)).not.toContain('new-hash');
   });
 });

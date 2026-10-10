@@ -4,7 +4,12 @@ import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dt
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { usersController } from './users.controller';
-import { createUserSchema, externalPostSchema, userResponseSchema } from './users.dto';
+import {
+  createUserSchema,
+  externalPostSchema,
+  updateUserSchema,
+  userResponseSchema,
+} from './users.dto';
 
 export const userRoutes = new Hono();
 
@@ -41,6 +46,39 @@ userRoutes.get(
   }),
   validate({ params: uuidParamSchema }),
   usersController.getById,
+);
+userRoutes.patch(
+  '/:id',
+  describeEndpoint({
+    tags,
+    summary: 'Update a user (only the given fields)',
+    response: { status: 200, description: 'The updated user', data: userResponseSchema },
+    errors: [404, 409],
+  }),
+  validate({ params: uuidParamSchema, body: updateUserSchema }),
+  usersController.update,
+);
+userRoutes.delete(
+  '/:id',
+  describeEndpoint({
+    tags,
+    summary: 'Delete a user (soft delete; restorable)',
+    response: { status: 200, description: 'User deleted', data: z.null() },
+    errors: [404],
+  }),
+  validate({ params: uuidParamSchema }),
+  usersController.remove,
+);
+userRoutes.post(
+  '/:id/restore',
+  describeEndpoint({
+    tags,
+    summary: 'Restore a soft-deleted user',
+    response: { status: 200, description: 'The restored user', data: userResponseSchema },
+    errors: [404, 409],
+  }),
+  validate({ params: uuidParamSchema }),
+  usersController.restore,
 );
 userRoutes.get(
   '/:id/external-posts',

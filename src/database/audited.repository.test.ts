@@ -59,6 +59,9 @@ const USER: User = {
   email: 'audit@example.com',
   fullName: 'Before',
   passwordHash: 'old-hash',
+  createdBy: 'system',
+  updatedBy: 'system',
+  deletedAt: null,
   isActive: true,
   createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
   updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
@@ -190,6 +193,9 @@ describe('AuditedRepository', () => {
       is_active: true,
       created_at: '2026-10-05T03:00:00Z',
       updated_at: '2026-10-05T03:00:00Z',
+      created_by: 'system',
+      updated_by: 'system',
+      deleted_at: null,
     });
     expect(recorder.statements.at(3)?.params[2]).toBe('DELETE');
   });
