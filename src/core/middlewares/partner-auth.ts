@@ -2,7 +2,7 @@ import type { MiddlewareHandler } from 'hono';
 import { partnerConfig } from '../../config';
 import { nowInstant } from '../../utils/datetime.util';
 import { matchesAnyIpRule } from '../../utils/ip-match.util';
-import { verifyV1 } from '../../utils/partner-signature.util';
+import { PARTNER_HEADERS, verifyV1 } from '../../utils/partner-signature.util';
 import { matchRoutePattern } from '../../utils/route-match.util';
 import type { SecretCipher } from '../../utils/secret-cipher.util';
 import { CACHE_KEYS, cacheService, type CacheService } from '../cache';
@@ -24,14 +24,6 @@ import { I18N_MESSAGES } from '../i18n/messages';
 import { logger } from '../logger';
 import { hashPartnerApiKey, partnerSecretCipher } from '../security/partner-credentials';
 import { UNKNOWN_CLIENT_IP } from './client-ip';
-
-/** Request headers of signing spec v1 (partner integration guide). */
-export const PARTNER_HEADERS = {
-  KEY: 'x-partner-key',
-  TIMESTAMP: 'x-partner-timestamp',
-  NONCE: 'x-partner-nonce',
-  SIGNATURE: 'x-partner-signature',
-} as const;
 
 const API_KEY_PATTERN = /^[\x21-\x7e]{1,256}$/;
 /** Unix epoch milliseconds. */

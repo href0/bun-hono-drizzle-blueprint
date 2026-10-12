@@ -12,6 +12,7 @@ import { CACHE_KEYS, cacheService } from '../src/core/cache';
 import { closeRedisClient, redisClient } from '../src/core/cache/redis.client';
 import { sqlClient } from '../src/database/connection';
 import { SeedAdminError, seedAdmin } from '../src/database/seeds/seed-admin';
+import { readHidden, readPipedLine } from './lib/read-secret';
 
 interface Args {
   email?: string;
@@ -36,40 +37,9 @@ const parseArgs = (argv: string[]): Args => {
   return args;
 };
 
-/** Reads one line from the terminal without echoing it. */
-const readHidden = (question: string): Promise<string> =>
-  new Promise((resolve) => {
-    process.stdout.write(question);
-    const stdin = process.stdin;
-    stdin.setRawMode(true);
-    stdin.resume();
-    let value = '';
-    const onData = (chunk: Buffer): void => {
-      for (const char of chunk.toString('utf8')) {
-        if (char === '\u0003') {
-          process.stdout.write('\n');
-          process.exit(130);
-        } else if (char === '\r' || char === '\n') {
-          stdin.setRawMode(false);
-          stdin.pause();
-          stdin.off('data', onData);
-          process.stdout.write('\n');
-          resolve(value);
-          return;
-        } else if (char === '\u007f' || char === '\b') {
-          value = value.slice(0, -1);
-        } else {
-          value += char;
-        }
-      }
-    };
-    stdin.on('data', onData);
-  });
-
 const readPassword = async (): Promise<string> => {
-  if (!process.stdin.isTTY) {
-    return (await Bun.stdin.text()).split(/\r?\n/)[0] ?? '';
-  }
+  const piped = await readPipedLine();
+  if (piped !== null) return piped;
   const password = await readHidden('Password for the new admin: ');
   const confirmation = await readHidden('Repeat the password: ');
   if (password !== confirmation) {

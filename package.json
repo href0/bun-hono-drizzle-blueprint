@@ -28,6 +28,7 @@
     "db:studio": "drizzle-kit studio",
     "seed:admin": "bun scripts/seed-admin.ts",
     "auth:purge-tokens": "bun scripts/purge-refresh-tokens.ts",
+    "partner:sign": "bun scripts/partner-sign.ts",
     "prepare": "husky"
   },
   "dependencies": {

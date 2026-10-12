@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.2 selesai** (`main` @ `2ba2423`); 5.3 menunggu review (branch `feat/partner-auth`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.3 selesai** (`main` @ `85e7c2a`); 5.4 menunggu review (branch `docs/partner-guide`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `2ba2423` |
+| Basis kode | branch `main` @ `85e7c2a` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -24,7 +24,7 @@
 8. [Fase 2 — Data Layer](#fase-2--data-layer)
 9. [Fase 3 — Auth JWT](#fase-3--auth-jwt)
 10. [Fase 4 — Integrasi Outbound](#fase-4--integrasi-outbound)
-11. [Fase 5 — Gateway Partner Inbound](#fase-5--gateway-partner-inbound)
+11. [Fase 5 — Inbound: Partner & Webhook Vendor](#fase-5--inbound-partner--webhook-vendor)
 12. [Fase 6 — Integration Test](#fase-6--integration-test)
 13. [Fase 7 — Dokumentasi, Skills & Release](#fase-7--dokumentasi-skills--release)
 14. [Definition of Done, Template Review & Risiko](#14-definition-of-done-template-review--risiko)
@@ -144,6 +144,12 @@ Semua keputusan **ACCEPTED** pada 2026-10-04 (Step 0.2). Perubahan berikutnya di
 | D20 | DI | container · singleton default param | **Singleton + default constructor param** | Sederhana, mudah di-mock | — |
 | D21 | Gateway partner | penanda per route · prefix terpisah | **Prefix `/api/v1/partner/*`** + `partnerAuth()`, modul `partner-credentials` | Tidak tercampur dengan route JWT | 5.x |
 | D22 | Redis | — | Reconnect tanpa batas (backoff ≤ 30 dtk), offline queue mati, `commandTimeout`, prefix otomatis `<APP_NAME>:<NODE_ENV>:`, `FLUSHALL`/`FLUSHDB`/`KEYS` diblokir | Resilien & aman dipakai bersama | 1.6 |
+| D23 | Kanal inbound | satu jalur `/partner` · jalur terpisah per pemilik kontrak | **Dua kanal**: Partner API `<base>/v1/partner/*` (kontrak kita, `partnerAuth()`) dan webhook vendor `<base>/webhooks/<vendor>` (kontrak vendor, **di luar `/v1`**, verifier per vendor, fail-closed) | Vendor tidak akan mengikuti signing v1 kita; melonggarkan `partnerAuth()` melemahkan semua partner. Ditetapkan 2026-10-12 (diskusi 5.4) | 5.5, 5.6 |
+| D24 | Penamaan file modul | prefix kanal di nama (`partner-*`) · subfolder per kanal · segmen tengah | **`<modul>[.<kanal>].<peran>[.test].ts`**, kanal `partner` / `webhook`, akhiran = peran | Aturan ESLint & depcruise membaca **akhiran** (`.routes.ts`, …): `x.partner-routes.ts` akan lolos dari semuanya. Ditegakkan ls-lint / test struktur | 5.5 |
+| D25 | Penamaan integrasi | prefix `integration-*` · folder lapisan | **`src/integrations/<vendor>/<vendor>.<peran>.ts`** (`service`, `dto`, `webhook`, `webhook.dto`, `index.ts`) — folder lapisan sudah penandanya | Konsisten dengan `jsonplaceholder`; semua pengetahuan vendor (outbound, webhook, config, registry) di satu tempat | 5.5, 5.6 |
+| D26 | Nama modul | nama vendor · nama domain | **Domain** (mis. `messaging`, bukan `wahref`); vendor hanya di `integrations/` | Ganti vendor = adapter baru, modul tetap. Ditegakkan test struktur | 5.5 |
+| D27 | Endpoint khusus satu partner | hanya `allowed_routes` · + penjaga di kode | **`requirePartner(...codes)`** di route, selain `allowed_routes` | Salah konfigurasi `allowed_routes` oleh admin tidak membuka endpoint ke partner lain | 5.5 |
+| D28 | Idempotensi inbound | opsional · wajib | **Wajib**: webhook → `webhook_events` unique (vendor, event ID); endpoint partner yang menulis → unique (`partner_code`, `partner_reference`) | Nonce partner dan Redis fail-open tidak menjamin "sekali proses"; vendor mengirim ulang event yang sama | 5.5, 5.6 |
 
 ### 4.1 Log Keputusan & Progres
 
@@ -468,13 +474,19 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 5.3 | Trade-off Redis didokumentasikan (`redis-cache.md`, CONTRIBUTING §4.3): nonce dan rate limit partner **fail-open** — saat Redis mati, replay di dalam jendela timestamp dan kelebihan rate tidak tertahan (log `warn` dari CacheService), partner tidak pernah terkunci karena cache; lookup jatuh ke database. Operasi yang tidak boleh berjalan dua kali tetap butuh idempotency key di domain | Unit test: `CacheService` dengan client tidak siap → request yang sama 2× lolos + 2 `warn` (`setIfAbsent` / `increment` failing open) |
 | 2026-10-12 | 5.3 | **Chaos test** (14, semua tertangkap): `authenticate()` melewati route partner tanpa partner terverifikasi, `partnerAuth()` tidak di-mount, jendela timestamp tidak dicek, partner nonaktif diterima, IP whitelist diabaikan, ACL route diabaikan, signature tidak ditegakkan, nonce tidak ditegakkan, rate limit tidak ditegakkan, body dibaca melewati cache Hono (`c.req.raw`), hash API key lama tetap di cache setelah rotasi, deaktivasi tidak menghapus cache, lookup melihat credential terhapus, OpenAPI tidak menandai route partner | — |
 | 2026-10-12 | 5.3 | Probe layanan asli (Postgres + Redis lokal, server port 3999, keyring dari file env lokal user): credential dibuat lewat admin API; `GET /partner/ping` bertanda tangan → 200 sebagai partner + header `RateLimit-*`; `POST /partner/echo?x=1&a=2` dengan body → 200 (body dibaca handler); nonce sama → 401 replay (Redis asli); secret salah → 401 signature; header partner ke `/users` → 401 `ERR_UNAUTHORIZED`; lookup ter-cache di Redis; ubah `allowed_routes` → 403 seketika; rotasi API key → key lama 401 seketika, key baru 200; rate limit 6/menit → 429; deactivate → 401 seketika; 15 baris log audit tanpa key/secret. Baris DB + key Redis uji dibersihkan. **Tidak diuji asli:** Redis dimatikan (Redis lokal user tidak dihentikan; dicakup unit test) | 15/15 OK |
+| 2026-10-12 | 5.3 | ✅ di-commit (`85e7c2a`) dan di-merge ke `main` | — |
+| 2026-10-12 | 5.4 | `docs/partner-integration-guide.md` (bahasa Indonesia, pola `docs/auth-guide.md`): kredensial dari admin API (arti `partner_code`, `ip_whitelist`, `allowed_routes` relatif `/partner`, `rate_limit_rpm`, key/secret sekali tampil), header, canonical string + aturan rinci (path persis, query RFC 3986 terurut, hash byte body, secret UTF-8), contoh **TypeScript** (Node 18+/Bun, tanpa dependensi) dan **Python** (stdlib — tambahan di luar plan, untuk partner non-JS) dan curl via script, endpoint uji ping/echo, 3 vektor uji + canonical string lengkap, tabel kode error + tindakan partner (retry selalu dengan nonce & timestamp baru, idempotensi), rotasi (secret, API key, nonaktif, keyring server), catatan operasional (NTP, `TRUST_PROXY_HOPS` vs whitelist, Redis fail-open, log audit, cache), dan cara backend menambah endpoint partner | Blok kode TS & Python **diekstrak dari file `.md`** lalu dijalankan: cocok dengan 3 vektor; ke server lokal (port 3999, Postgres + Redis asli) `GET ping` ber-query + `POST echo` ber-body → 200 untuk keduanya |
+| 2026-10-12 | 5.4 | `scripts/partner-sign.ts` (`bun run partner:sign --key --url [--method --body/--body-file] [--send]`): mencetak 4 header + perintah curl siap pakai (sekali pakai), atau mengirim langsung. Secret hanya dari prompt tersembunyi / baris pertama stdin (pola `seed-admin`): pembaca bersama dipindah ke `scripts/lib/read-secret.ts`, `seed-admin.ts` memakainya (tanpa duplikasi). Helper murni `partnerSignatureHeaders()` + konstanta `PARTNER_HEADERS` dipindah ke `partner-signature.util.ts` (dipakai script, test, dan `partnerAuth()`) | Probe: `--send` dengan secret di-pipe → `HTTP 200`; curl yang dicetak → 200 lalu `ERR_PARTNER_REPLAY_REJECTED` saat diulang; curl ber-body dengan tanda kutip tunggal → 200; secret tidak pernah tercetak. Prompt TTY (`readHidden`) tidak diuji otomatis (sama seperti `seed:admin`) |
+| 2026-10-12 | 5.4 | **Penjaga dokumen** (tambahan): vektor signing dipindah ke `test/helpers/partner-signing-vectors.ts` (satu sumber untuk unit test dan panduan); `test/partner-guide.test.ts` menuntut panduan memuat vektor (secret, signature, nonce, canonical query, canonical string #3), satu baris tabel per header `x-partner-*`, setiap kode `ERR_PARTNER_*` dari registry, dan script `partner:sign` yang terdaftar | **Chaos test** (7, semua tertangkap): signature vektor #2 di panduan diubah, canonical query diubah, canonical string #3 diubah, kode `ERR_PARTNER_*` hilang dari panduan, nama header hilang dari tabel (awalnya **lolos** karena header juga disebut di ringkasan → cek diperketat ke baris tabel), script `partner:sign` tidak terdaftar, `partnerSignatureHeaders` mengabaikan query |
+| 2026-10-12 | 5.4 | Panduan partner ditambah **§9 Checklist onboarding** (prasyarat production: keyring baru & dicadangkan, `TRUST_PROXY_HOPS`, Redis + NTP; 8 langkah per partner sampai go-live; sesudahnya); bagian developer menjadi §10 | `test/partner-guide.test.ts` tetap hijau |
+| 2026-10-12 | 5.4 | **Keputusan baru D23–D28** (diskusi user saat review 5.4: partner khusus vs webhook vendor, penamaan, standar industri): dua kanal inbound terpisah (webhook vendor di luar `/v1`), penamaan `<modul>[.<kanal>].<peran>.ts` dan `<vendor>.<peran>.ts`, modul bernama domain, `requirePartner()`, idempotensi wajib. Syarat user: setiap keputusan **ditegakkan lint / dependency-cruiser / test** dan tertulis di skills & rules, agar tetap terjaga tanpa agent AI. Fase 5 diganti nama "Inbound: Partner & Webhook Vendor"; ditambah **Step 5.5** (konvensi kanal + penegakan) dan **Step 5.6** (webhook vendor); 6.1 kini bergantung pada 5.6 | — |
 
 ---
 
 ## 5. Roadmap & Progres
 
 ```
-F0 Fondasi ──► F1 Platform & Kontrak ──► F2 Data Layer ──► F3 Auth JWT ──► F5 Partner ──► F6 Integration ──► F7 Docs & Release
+F0 Fondasi ──► F1 Platform & Kontrak ──► F2 Data Layer ──► F3 Auth JWT ──► F5 Inbound ──► F6 Integration ──► F7 Docs & Release
                      │                                         ▲
                      └──► F4 Outbound (boleh paralel setelah 1.3) ┘
 ```
@@ -486,7 +498,7 @@ F0 Fondasi ──► F1 Platform & Kontrak ──► F2 Data Layer ──► F3 
 | F2 | Data layer | `feat/<step-slug>` per step | F0, 1.2 | L |
 | F3 | Auth JWT | `feat/<step-slug>` per step | F1, F2 | L |
 | F4 | Integrasi outbound | `feat/http-client-hardening` | 1.3 | S |
-| F5 | Gateway partner | `feat/<step-slug>` per step | F2, F3 | M |
+| F5 | Inbound: partner & webhook vendor | `feat/<step-slug>` per step | F2, F3, F4 (5.6) | L |
 | F6 | Integration test | `test/integration-suite` | F3, F5 | M |
 | F7 | Dokumentasi, skills, release | `docs/<slug>` | F0–F6 | M |
 
@@ -524,9 +536,11 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `6ff27d1` |
 | 5.1 | Utilitas kripto & signing partner | ✅ | 0.3 | `614e9d1` |
 | 5.2 | Kredensial partner (schema + admin API) | ✅ | 5.1, 2.8, 3.4 | `2ba2423` |
-| 5.3 | Middleware `partnerAuth()` | 👀 | 5.2, 1.6 |  |
-| 5.4 | Panduan integrasi partner | ⬜ | 5.3 |  |
-| 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.3 |  |
+| 5.3 | Middleware `partnerAuth()` | ✅ | 5.2, 1.6 | `85e7c2a` |
+| 5.4 | Panduan integrasi partner | 👀 | 5.3 |  |
+| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ⬜ | 5.4 |  |
+| 5.6 | Webhook vendor inbound | ⬜ | 5.5, 4.2 |  |
+| 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.6 |  |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
 | 7.2 | Finalisasi skills AI | ⬜ | 7.1 |  |
 | 7.3 | Release check boilerplate v1.0.0 | ⬜ | 7.2 |  |
@@ -1066,9 +1080,9 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 ---
 
-## Fase 5 — Gateway Partner Inbound
+## Fase 5 — Inbound: Partner & Webhook Vendor
 
-Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
+Spesifikasi signing di [L5](#155-l5--signing-partner-v1). Dua kanal inbound (D23): Partner API (5.1–5.5) dan webhook vendor (5.6).
 
 ### Step 5.1 — Utilitas kripto & signing
 
@@ -1104,6 +1118,47 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 ### Step 5.4 — Panduan integrasi partner
 
 **Langkah**: `docs/partner-integration-guide.md` (generik: header, canonical string, contoh curl + TypeScript, daftar error code, rotasi kredensial); `scripts/partner-sign.ts` untuk uji manual.
+
+### Step 5.5 — Konvensi kanal inbound & penegakannya
+
+Keputusan D23–D28. Tujuan: konvensi kanal (biasa, partner, webhook) dan penamaan file **ditegakkan mesin**, sehingga tetap terjaga tanpa agent AI.
+
+**Langkah**
+
+1. Penamaan file modul (D24): `<modul>[.<kanal>].<peran>[.test].ts` — kanal `partner` | `webhook`, peran `routes` | `controller` | `service` | `repository` | `queries` | `dto` | `transformer` | `messages`, diawali nama folder modul. Ditegakkan **ls-lint** (regex per folder) dan bila ls-lint tidak bisa merujuk nama folder, oleh **test struktur** `test/structure.test.ts` yang membaca seluruh pohon `src/`; akhiran "nyaris benar" (`payments.partner-routes.ts`, yang lolos dari aturan arsitektur berbasis akhiran) ditolak.
+2. Penamaan integrasi (D25): `src/integrations/<vendor>/<vendor>.<peran>.ts` — peran `service` | `dto` | `webhook` | `webhook.dto`, plus `index.ts`; ditegakkan dengan cara yang sama.
+3. Modul dinamai domain, bukan vendor (D26): test struktur menolak folder `src/modules/<x>` yang sama dengan folder `src/integrations/<x>`.
+4. Kanal terpasang di tempatnya: test struktur memastikan router dari `*.partner.routes.ts` hanya muncul di bawah `<API_BASE_PATH>/v1/partner`, router dari `*.webhook.routes.ts` hanya di `<API_BASE_PATH>/webhooks/<vendor>` (dipakai 5.6), dan route di bawah prefix itu tidak berasal dari file kanal lain.
+5. ESLint per kanal (`no-restricted-syntax`, digabung ke grup aturan bersama): `*.partner.*` dilarang `requireRole` / `requireSelfOrRole` / `currentUser`; file non-partner dilarang `currentPartner` / `requirePartner`; `*.webhook.*` dilarang keduanya.
+6. `requirePartner(...codes)` (D27): endpoint khusus satu partner → 403 `ERR_PARTNER_ROUTE_FORBIDDEN` untuk partner lain walau `allowed_routes` salah konfigurasi; terdokumentasi di OpenAPI seperti `requireRole()`.
+7. Varian template `scaffold-module` "endpoint partner" (`<modul>.partner.routes.ts`, `currentPartner()`, kolom `partner_code` + `partner_reference` unik untuk idempotensi (D28), test kontrak bertanda tangan); ikut `bun run verify:scaffold`.
+8. Rules & skills: invariant baru "Inbound Channels" di `.agents/AGENTS.md`, aturan + tabel penamaan di `project-standards` (SKILL + referensi), CONTRIBUTING (pohon, tabel penamaan, cara menambah endpoint partner), panduan partner §10.
+
+**Acceptance criteria**
+
+- [ ] Setiap aturan di langkah 1–6 dibuktikan dengan chaos test (nama file salah, modul bernama vendor, router partner dipasang di luar `/partner`, `currentUser` di route partner, `currentPartner` di route biasa, `requirePartner` dilewati).
+- [ ] `bun run verify:scaffold` menghasilkan varian partner yang lolos semua gate.
+- [ ] Seluruh file yang ada sekarang lolos konvensi baru tanpa pengecualian (atau pengecualian tercatat dengan alasan).
+
+### Step 5.6 — Webhook vendor inbound
+
+Keputusan D23, D25, D28. Kontrak milik vendor; kita hanya memverifikasi dan menyimpan event secara idempoten.
+
+**Langkah**
+
+1. `webhookAuth({ vendor, verify })` di `src/core/middlewares/`: membaca body mentah sekali (cache Hono), memanggil `verify(rawBody, headers)` milik vendor (timing-safe), menolak 401 dengan kode `ERR_WEBHOOK_SIGNATURE_INVALID` (registry + i18n), satu log audit per request (`audit: 'webhook'`), actor `webhook:<vendor>` (tipe `Actor` diperluas).
+2. Prefix **`<API_BASE_PATH>/webhooks/<vendor>`, di luar `/v1`** (D23): versi kontrak webhook milik vendor. Rute di luar `/v1` saat ini publik secara desain, maka prefix ini dijaga fail-closed: setiap route di bawah `/webhooks/*` wajib lewat `webhookAuth()`; `test/default-deny.e2e.test.ts` menuntut 401 tanpa signature valid, termasuk untuk route webhook yang lupa dipasang verifier.
+3. Vendor contoh dummy di `src/integrations/<vendor>/`: `<vendor>.webhook.ts` (verifikasi HMAC-SHA256 atas body, header vendor), `<vendor>.webhook.dto.ts` (schema payload vendor, divalidasi Zod tanpa aturan snake_case request), `src/config/<vendor>.config.ts` (`<VENDOR>_WEBHOOK_SECRET`), entri `INTEGRATION_REGISTRY`. Wiring verifier di `createApp()` (seperti lookup partner); dependency-cruiser: `*.webhook.ts` integrasi tidak boleh diimpor controller/route modul.
+4. Tabel `webhook_events` (append-only, `AppendOnlyRepository`): `vendor`, `event_id`, `event_type`, `payload` (jsonb), `received_at`; unique `(vendor, event_id)` → event yang dikirim ulang vendor dijawab 2xx tanpa duplikat (D28). Pemrosesan tetap sinkron (simpan → 200); job queue tetap di backlog.
+5. Modul contoh bernama domain (D26), mis. `src/modules/<domain>/<domain>.webhook.routes.ts` + controller + service; test struktur (5.5) menjaga pemasangannya.
+6. OpenAPI: operasi webhook ditandai tag "Webhooks" + skema keamanan signature vendor + 401; `test/openapi.e2e.test.ts` diperluas.
+7. Varian template `scaffold-module` "webhook" + varian integrasi `<vendor>.webhook.ts`; ikut `verify:scaffold`. Dokumentasi: skill (`project-standards`, `integrations.md`), CONTRIBUTING, panduan menambah vendor webhook.
+
+**Acceptance criteria**
+
+- [ ] Signature salah / header hilang → 401; event dengan `event_id` sama dua kali → dua-duanya 2xx, satu baris di `webhook_events`.
+- [ ] Route di bawah `/webhooks/*` tanpa `webhookAuth()` membuat test default-deny gagal (chaos test).
+- [ ] Probe asli (Postgres + Redis lokal): webhook vendor dummy diterima, duplikat diabaikan, signature salah ditolak.
 
 ---
 
@@ -1560,6 +1615,8 @@ src/
 - OpenTelemetry tracing + metrics `/metrics`
 - Job queue / scheduler dengan actor `system`
 - Re-enkripsi secret partner ke active key baru tanpa mengganti secret (job / perintah, `needsReEncryption()` sudah ada di `secret-cipher.util.ts`) — kini rotasi keyring = rotasi secret per partner (Step 5.2)
+- Webhook **keluar** (kita mengirim event ke partner: signing, retry, dead-letter) dan pemrosesan webhook masuk secara async (butuh job queue)
+- Gateway partner di API gateway eksternal (Kong / Apigee / AWS API Gateway) atau subdomain terpisah untuk skala besar — `partnerAuth()` sudah terisolasi di satu middleware
 - Validasi production: partner wajib `ip_whitelist` (setelah `TRUST_PROXY_HOPS` diukur per environment)
 - Migrasi Zod 3 → 4 (`z.email()`, kode issue baru `invalid_value`, `issue.received` hilang → `describeIssue` di `parse-env.ts`, pemetaan issue di `validate()`); `hono-openapi` tetap kompatibel
 - Multi-tenant (SaaS), opsional: schema per tenant (`search_path` per request/transaksi, migrasi dijalankan ke setiap schema tenant, onboarding tenant = buat schema + migrasi) atau `tenant_id` + Row-Level Security — dipilih saat dibutuhkan, setelah semua fase selesai

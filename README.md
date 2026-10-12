@@ -79,6 +79,7 @@ Server berjalan secara default di `http://localhost:3000` (URL juga dicatat di l
 - Dokumentasi API (Scalar): `http://localhost:3000/api/docs` · JSON: `/api/docs/openapi.json`
 - Health: `http://localhost:3000/api/health` (`UP` / `DEGRADED` / `DOWN`)
 - Login: `POST http://localhost:3000/api/v1/auth/login` dengan akun admin tadi; endpoint lain di `/api/v1/*` wajib `Authorization: Bearer <access_token>`. Panduan integrasi frontend (token, refresh, cookie, CSRF, domain): [docs/auth-guide.md](docs/auth-guide.md)
+- Partner (server-to-server): kredensial dibuat admin di `/api/v1/partner-credentials`, request ke `/api/v1/partner/*` ditandatangani HMAC — panduan: [docs/partner-integration-guide.md](docs/partner-integration-guide.md); uji manual: `bun run partner:sign --key <pk_…> --url http://localhost:3000/api/v1/partner/ping --send`
 
 #### Alternatif: Full Containerized Development (Zero Host Install)
 Jika Anda tidak ingin menginstall Bun di host OS:
