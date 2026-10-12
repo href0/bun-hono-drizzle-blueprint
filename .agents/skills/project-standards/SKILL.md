@@ -43,7 +43,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   ├── config/                 # Environment validation, one Zod group per file (fail-fast)
 │   │   ├── env-source.ts       # The only reader of process.env (+ missing .env guard)
 │   │   ├── parse-env.ts        # parseEnv(): lists every invalid var, never prints values; RENAMED_ENV_VARS guard
-│   │   ├── <group>.config.ts   # app, auth, database, redis, http, integrations → `<group>Config`
+│   │   ├── <group>.config.ts   # app, auth, database, redis, http, one per vendor (jsonplaceholder, …) → `<group>Config`
 │   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
@@ -268,7 +268,9 @@ export class UsersService {
 - Integrations **MUST NOT** contain routes, controllers, or database calls.
 - Enforced deterministically via ESLint AST (`no-restricted-syntax`, `no-restricted-imports`) and Dependency Cruiser (`http-client-only-in-integrations`, `strict-integrations-isolation`, `controller-no-integrations`).
 - **No raw outbound HTTP**: `fetch(` (also `globalThis.fetch` / `Bun.fetch`) and imports of `axios`, `node:http(s)`, `undici`, `node-fetch`, `got`, `ky`, `superagent` are rejected by ESLint everywhere in `src/` except `src/core/http/**` (tests may call `fetch` against local test servers).
-- **One registry entry per vendor**: `INTEGRATION_REGISTRY` (`src/integrations/registry.ts`, key = code) — `new HttpClientService({ integration: INTEGRATION_REGISTRY.<CODE>, baseURL, timeoutMs })`. `timeoutMs` is required (no silent default; take it from `integrationsConfig`).
+- **One registry entry and one config group per vendor**: `INTEGRATION_REGISTRY` (`src/integrations/registry.ts`, key = code) and `src/config/<vendor>.config.ts` — `new HttpClientService({ integration: INTEGRATION_REGISTRY.<CODE>, baseURL, timeoutMs })`. `timeoutMs` is required (no silent default; take it from the vendor config).
+- **Vendor bodies are validated**: `this.http.parse(schema, body)` (keys → camelCase, Zod) before data leaves the adapter; a mismatch is 502 `ERR_EXT_ERROR`.
+- **Login-based vendors** use `AccessTokenCache` (`src/core/http`): token reused until `expires_in − 60 s`, one shared login for concurrent callers (single-flight), `withToken()` re-logs in once on a vendor 401 (`ExternalServiceError.vendorStatus`, never serialized). Template: `scaffold-module/references/integration.md`; guide: [integrations.md](references/integrations.md).
 - **What `HttpClientService` guarantees**: timeout → 504 `ERR_EXT_TIMEOUT`, no response → 502 `ERR_EXT_UNREACHABLE`, vendor 4xx/5xx → 502 `ERR_EXT_ERROR` (never the vendor's status); the client gets `error.origin` (code), `error.institution` (name) and a generic localized detail — **never** the vendor's body. The vendor body is only logged (`vendorBody`: secret-looking keys redacted at any depth, at most 2048 characters); request headers and query strings are never logged. The inbound request ID is sent as `X-Request-ID` (unless the call sets its own), so both sides can correlate logs.
 
 
@@ -382,4 +384,5 @@ When implementing specific subsystems, consult the corresponding deep-dive refer
 | **Date & Time** | [datetime.md](references/datetime.md) | Instant vs calendar date vs local schedule, `datetime.util.ts`, DTO fields, UTC runtime/session, DST rules |
 | **API Documentation** | [openapi.md](references/openapi.md) | `describeEndpoint`, response schemas in DTOs, what is generated automatically, `/api/docs`, enforcement |
 | **Testing Standards** | [testing.md](references/testing.md) | `bun:test` controller/service/repo mocking, blackbox E2E HTTP testing |
+| **Outbound Integrations** | [integrations.md](references/integrations.md) | Registry, per-vendor config, `HttpClientService` guarantees, `parse()`, `AccessTokenCache` (single-flight vendor login), fake-vendor tests |
 

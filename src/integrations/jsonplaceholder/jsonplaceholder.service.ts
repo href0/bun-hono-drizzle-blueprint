@@ -1,11 +1,11 @@
-import { integrationsConfig } from '../../config';
+import { jsonPlaceholderConfig } from '../../config';
 import { HttpClientService } from '../../core/http';
 import { INTEGRATION_REGISTRY } from '../registry';
 import type { JsonPlaceholderPost } from './jsonplaceholder.dto';
 
 export const defaultJsonPlaceholderHttpClient = new HttpClientService({
-  baseURL: integrationsConfig.JSONPLACEHOLDER_BASE_URL,
-  timeoutMs: integrationsConfig.JSONPLACEHOLDER_TIMEOUT_MS,
+  baseURL: jsonPlaceholderConfig.JSONPLACEHOLDER_BASE_URL,
+  timeoutMs: jsonPlaceholderConfig.JSONPLACEHOLDER_TIMEOUT_MS,
   integration: INTEGRATION_REGISTRY.JSONPLACEHOLDER,
 });
 

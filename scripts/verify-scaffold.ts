@@ -4,9 +4,10 @@
  * Usage: bun run verify:scaffold
  *
  * Materializes every code block of each template variant (`SKILL.md` = standalone,
- * `references/header-detail.md`, `references/record.md`) as a probe module, registers it exactly
- * as the template instructs, then runs prettier, tsc, eslint, ls-lint, dependency-cruiser, knip,
- * the generated tests and the schema conventions, plus live requests through `createApp()`.
+ * `references/header-detail.md`, `references/record.md`) as a probe module, and the outbound
+ * integration template (`references/integration.md`) as a probe vendor adapter; registers them
+ * exactly as the templates instruct, then runs prettier, tsc, eslint, ls-lint, dependency-cruiser,
+ * knip, the generated tests and the schema conventions, plus live requests through `createApp()`.
  * Everything it creates or edits is restored afterwards — also on failure or Ctrl+C.
  *
  * Why: the templates are documentation, so no other gate compiles them. The standalone template
@@ -19,6 +20,8 @@ const SKILL_DIR = '.agents/skills/scaffold-module';
 const APP_PATH = 'src/app.ts';
 const SCHEMA_BARREL = 'src/database/schema/domain/index.ts';
 const APPEND_ONLY_PATH = 'src/database/schema/append-only-tables.ts';
+const REGISTRY_PATH = 'src/integrations/registry.ts';
+const CONFIG_BARREL = 'src/config/index.ts';
 
 interface Names {
   name: string;
@@ -131,6 +134,24 @@ const fill = (text: string, names: Names): string =>
     ] as [RegExp, string][]
   ).reduce((result, [pattern, value]) => result.replace(pattern, value), text);
 
+/** Login-based vendor adapter (references/integration.md): only the singular names are used. */
+const INTEGRATION = {
+  label: 'integration',
+  template: `${SKILL_DIR}/references/integration.md`,
+  names: {
+    name: 'probe-vendor',
+    snakePlural: 'probe_vendors',
+    snakeSingular: 'probe_vendor',
+    upperSingular: 'PROBE_VENDOR',
+    pascalPlural: 'ProbeVendors',
+    camelPlural: 'probeVendors',
+    pascalSingular: 'ProbeVendor',
+    camelSingular: 'probeVendor',
+  } satisfies Names,
+};
+const integrationDir = `src/integrations/${INTEGRATION.names.name}`;
+const integrationConfig = `src/config/${INTEGRATION.names.name}.config.ts`;
+
 const moduleDir = (names: Names): string => `src/modules/${names.name}`;
 const schemaFile = (names: Names): string => `src/database/schema/domain/${names.name}.schema.ts`;
 
@@ -144,6 +165,8 @@ const cleanup = (): void => {
     rmSync(moduleDir(names), { recursive: true, force: true });
     rmSync(schemaFile(names), { force: true });
   }
+  rmSync(integrationDir, { recursive: true, force: true });
+  rmSync(integrationConfig, { force: true });
   for (const [path, content] of originals) writeFileSync(path, content);
 };
 
@@ -166,20 +189,39 @@ const run = (label: string, command: string[]): boolean => {
   return ok;
 };
 
-const generate = (variant: Variant): string[] => {
-  const { names } = variant;
-  const template = readFileSync(variant.template, 'utf-8');
+/** Writes the code block under every `### Step N: … (path)` heading, except registration edits. */
+const materialize = (templatePath: string, names: Names, registrations: string[]): string[] => {
+  const template = readFileSync(templatePath, 'utf-8');
   const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
   const generated: string[] = [];
 
   for (const match of template.matchAll(stepPattern)) {
     const path = fill(match[1], names);
-    if (path === APP_PATH) continue;
+    if (registrations.includes(path)) continue;
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, fill(match[2], names));
     generated.push(path);
   }
-  if (generated.length === 0) throw new Error(`no templates found in ${variant.template}`);
+  if (generated.length === 0) throw new Error(`no templates found in ${templatePath}`);
+  return generated;
+};
+
+const generateIntegration = (): string[] => {
+  const { names } = INTEGRATION;
+  const generated = materialize(INTEGRATION.template, names, [REGISTRY_PATH, CONFIG_BARREL]);
+  editFile(REGISTRY_PATH, (content) =>
+    content.replace(
+      /(export const INTEGRATION_REGISTRY = \{\n)/,
+      `$1  ${names.upperSingular}: { code: '${names.upperSingular}', institution: 'Probe Vendor (verify:scaffold)' },\n`,
+    ),
+  );
+  editFile(CONFIG_BARREL, (content) => `${content}export * from './${names.name}.config';\n`);
+  return generated;
+};
+
+const generate = (variant: Variant): string[] => {
+  const { names } = variant;
+  const generated = materialize(variant.template, names, [APP_PATH]);
 
   editFile(SCHEMA_BARREL, (content) => `${content}export * from './${names.name}.schema';\n`);
   if (variant.appendOnly) {
@@ -239,9 +281,11 @@ for (const variant of variants) {
 }`;
 
 const main = (): void => {
-  const existing = VARIANTS.flatMap(({ names }) => [moduleDir(names), schemaFile(names)]).filter(
-    (path) => existsSync(path),
-  );
+  const existing = [
+    ...VARIANTS.flatMap(({ names }) => [moduleDir(names), schemaFile(names)]),
+    integrationDir,
+    integrationConfig,
+  ].filter((path) => existsSync(path));
   if (existing.length > 0) {
     console.error(`Refusing to run: ${existing.join(', ')} already exist(s).`);
     process.exit(1);
@@ -261,6 +305,11 @@ const main = (): void => {
       );
       return files;
     });
+    const integrationFiles = generateIntegration();
+    console.log(
+      `Generated ${String(integrationFiles.length)} files from ${INTEGRATION.template} (${INTEGRATION.label})`,
+    );
+    generated.push(...integrationFiles);
 
     // The templates are formatted for a short name; the skill instructs to format first.
     ok =
@@ -271,7 +320,16 @@ const main = (): void => {
         ...generated,
       ]) &&
       run('tsc --noEmit', ['bunx', 'tsc', '--noEmit']) &&
-      run('eslint', ['bunx', 'eslint', '--max-warnings', '0', ...generated, APP_PATH]) &&
+      run('eslint', [
+        'bunx',
+        'eslint',
+        '--max-warnings',
+        '0',
+        ...generated,
+        APP_PATH,
+        REGISTRY_PATH,
+        CONFIG_BARREL,
+      ]) &&
       run('ls-lint', ['bunx', 'ls-lint']) &&
       run('dependency-cruiser', [
         'bunx',
@@ -306,7 +364,7 @@ const main = (): void => {
 
   console.log(
     ok
-      ? 'SUCCESS: every scaffold-module template variant passes every gate.'
+      ? 'SUCCESS: every scaffold-module template (modules + integration) passes every gate.'
       : 'FAILURE: a scaffold-module template is out of sync with the codebase.',
   );
   process.exit(ok ? 0 : 1);

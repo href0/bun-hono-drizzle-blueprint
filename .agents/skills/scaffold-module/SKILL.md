@@ -1,6 +1,6 @@
 ---
 name: scaffold-module
-description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle column helpers, Zod DTOs, TransactionHost Repository, and the coverage gate.
+description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle column helpers, Zod DTOs, TransactionHost Repository, and the coverage gate — or an outbound vendor integration adapter (registry, config, token cache).
 ---
 
 # Scaffold Feature Module
@@ -15,8 +15,9 @@ Use this skill when asked to create, add, or scaffold a new domain/feature modul
 | Header with details (an order and its items) | [references/header-detail.md](references/header-detail.md) | `BaseRepository` + `ChildRepository` |
 | Record (append-only log / history) | [references/record.md](references/record.md) | `AppendOnlyRepository` |
 | Reference data owned by another system | no module template — a `.existing()` view + `ReadOnlyRepository` | `ReadOnlyRepository` |
+| Outbound vendor adapter (not a module) | [references/integration.md](references/integration.md) — login-based vendor under `src/integrations/<name>/` | — (`HttpClientService` + `AccessTokenCache`) |
 
-Every variant is generated and run through all gates by `bun run verify:scaffold` (CI). Working references in this repository: `src/modules/users` (standalone) and, until `bun run setup <name>` removes it, `src/modules/orders` (header + detail, generated from the header-detail template).
+Every variant, the integration template included, is generated and run through all gates by `bun run verify:scaffold` (CI). Working references in this repository: `src/modules/users` (standalone) and, until `bun run setup <name>` removes it, `src/modules/orders` (header + detail, generated from the header-detail template).
 
 ---
 

@@ -22,6 +22,8 @@ const FAILURES: Record<ExternalFailureKind, { statusCode: number; code: AppError
 export interface ExternalServiceErrorOptions extends Omit<ApiErrorOptions, 'code' | 'origin'> {
   /** The external system that failed: its code becomes `error.origin`, its name `error.institution`. */
   integration: IntegrationIdentity;
+  /** The vendor's HTTP status, for decisions in the adapter (e.g. log in again on 401). Never sent. */
+  vendorStatus?: number;
 }
 
 export class ExternalServiceError extends ApiError {
@@ -30,15 +32,17 @@ export class ExternalServiceError extends ApiError {
   protected readonly defaultCode: AppErrorCode;
   readonly kind: ExternalFailureKind;
   readonly institution: string;
+  readonly vendorStatus?: number;
 
   constructor(
     kind: ExternalFailureKind,
     message: MessageInput,
-    { integration, ...options }: ExternalServiceErrorOptions,
+    { integration, vendorStatus, ...options }: ExternalServiceErrorOptions,
   ) {
     super(message, { ...options, origin: integration.code });
     this.kind = kind;
     this.institution = integration.institution;
+    this.vendorStatus = vendorStatus;
     this.statusCode = FAILURES[kind].statusCode;
     this.defaultCode = FAILURES[kind].code;
   }

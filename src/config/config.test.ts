@@ -3,7 +3,7 @@ import { buildAppConfig } from './app.config';
 import { buildAuthConfig } from './auth.config';
 import { buildDatabaseConfig } from './database.config';
 import { buildHttpConfig } from './http.config';
-import { buildIntegrationsConfig } from './integrations.config';
+import { buildJsonPlaceholderConfig } from './jsonplaceholder.config';
 import { buildRedisConfig } from './redis.config';
 
 describe('Configuration groups (Unit)', () => {
@@ -191,9 +191,9 @@ describe('Configuration groups (Unit)', () => {
     expect(message).not.toContain(leak);
   });
 
-  it('integrations: should reject an invalid base URL', () => {
-    expect(buildIntegrationsConfig({}).JSONPLACEHOLDER_TIMEOUT_MS).toBe(10000);
-    expect(() => buildIntegrationsConfig({ JSONPLACEHOLDER_BASE_URL: 'not-a-url' })).toThrow(
+  it('jsonplaceholder: should reject an invalid base URL', () => {
+    expect(buildJsonPlaceholderConfig({}).JSONPLACEHOLDER_TIMEOUT_MS).toBe(10000);
+    expect(() => buildJsonPlaceholderConfig({ JSONPLACEHOLDER_BASE_URL: 'not-a-url' })).toThrow(
       'JSONPLACEHOLDER_BASE_URL',
     );
   });

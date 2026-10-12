@@ -1,6 +1,8 @@
 import http from 'node:http';
 import https from 'node:https';
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import type { z } from 'zod';
+import { snakeToCamelCase } from '../../utils/case-converter.util';
 import { getRequestContext } from '../context/request-context';
 import { logger } from '../logger/logger';
 import {
@@ -123,7 +125,33 @@ export class HttpClientService {
 
     return new ExternalServiceError(kind, I18N_MESSAGES.EXTERNAL_SERVICE_FAILED, {
       integration: this.integration,
+      vendorStatus: axiosError?.response?.status,
       details: [{ message: CLIENT_DETAIL[kind] }],
+    });
+  }
+
+  /**
+   * Validates a vendor body against the adapter's Zod schema (keys converted to camelCase first,
+   * so schemas stay camelCase like DTOs). A body that does not match is the vendor's failure:
+   * 502 `ERR_EXT_ERROR`, with only the issue paths and codes logged — never the values.
+   */
+  parse<S extends z.ZodTypeAny>(schema: S, body: unknown): z.infer<S> {
+    const parsed = schema.safeParse(snakeToCamelCase(body));
+    if (parsed.success) return parsed.data as z.infer<S>;
+
+    logger.error(
+      {
+        integration: this.integration.code,
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          code: issue.code,
+        })),
+      },
+      'Outbound HTTP response rejected',
+    );
+    throw new ExternalServiceError('ERROR', I18N_MESSAGES.EXTERNAL_SERVICE_FAILED, {
+      integration: this.integration,
+      details: [{ message: CLIENT_DETAIL.ERROR }],
     });
   }
 

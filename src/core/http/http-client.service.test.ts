@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, spyOn } from 'bun:test';
+import { z } from 'zod';
 import { HttpClientService, OUTBOUND_REQUEST_ID_HEADER } from './http-client.service';
 import { VENDOR_BODY_LOG_LIMIT } from './vendor-body';
 import { runWithRequestContext } from '../context/request-context';
@@ -81,6 +82,7 @@ describe('HttpClientService (Unit)', () => {
     ]);
     expect(error.details).toEqual([{ message: I18N_MESSAGES.EXTERNAL_ERROR_DETAIL }]);
     expect(JSON.stringify(error.details)).not.toContain('invalid_client');
+    expect(error.vendorStatus).toBe(401); // for the adapter (re-login), never in the envelope
 
     // The vendor's answer is kept for operators — in the log, redacted, without the query string.
     expect(logs).toEqual([
@@ -144,6 +146,39 @@ describe('HttpClientService (Unit)', () => {
 
     expect([error.kind, error.statusCode]).toEqual(['ERROR', 502]);
     expect(logs.at(0)?.at(0)).toMatchObject({ err: 'cannot parse vendor payload' });
+  });
+
+  it('should parse a vendor body into camelCase, and reject a mismatch as ERROR (502) logging only paths', async () => {
+    const logs = captureErrorLogs();
+    const client = clientFor('http://127.0.0.1:59999');
+    const schema = z.object({ accessToken: z.string(), expiresIn: z.number() });
+
+    expect(client.parse(schema, { access_token: 't-1', expires_in: 3600 })).toEqual({
+      accessToken: 't-1',
+      expiresIn: 3600,
+    });
+
+    let error: unknown;
+    try {
+      client.parse(schema, { access_token: 'vendor-secret-value', expires_in: 'soon' });
+    } catch (err: unknown) {
+      error = err;
+    }
+    expect(error).toBeInstanceOf(ExternalServiceError);
+    const failure = error as ExternalServiceError;
+    expect([failure.statusCode, failure.errorCode, failure.origin]).toEqual([
+      502,
+      'ERR_EXT_ERROR',
+      'TEST_VENDOR',
+    ]);
+    expect(failure.details).toEqual([{ message: I18N_MESSAGES.EXTERNAL_ERROR_DETAIL }]);
+    expect(logs).toEqual([
+      [
+        { integration: 'TEST_VENDOR', issues: [{ path: 'expiresIn', code: 'invalid_type' }] },
+        'Outbound HTTP response rejected',
+      ],
+    ]);
+    expect(JSON.stringify(logs)).not.toContain('vendor-secret-value');
   });
 
   it('should send the inbound request ID to the vendor', async () => {
