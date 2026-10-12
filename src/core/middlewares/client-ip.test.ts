@@ -1,17 +1,8 @@
 import { afterAll, describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { getClientIp } from '../context/request-context';
-import { normalizeIp, selectClientIp, UNKNOWN_CLIENT_IP } from './client-ip';
+import { selectClientIp, UNKNOWN_CLIENT_IP } from './client-ip';
 import { requestContextMiddleware } from './request-context';
-
-describe('normalizeIp', () => {
-  it('unmaps IPv4-mapped IPv6 and lowercases IPv6', () => {
-    expect(normalizeIp('::ffff:203.0.113.7')).toBe('203.0.113.7');
-    expect(normalizeIp('::FFFF:203.0.113.7')).toBe('203.0.113.7');
-    expect(normalizeIp('2001:DB8::1')).toBe('2001:db8::1');
-    expect(normalizeIp(' 198.51.100.4 ')).toBe('198.51.100.4');
-  });
-});
 
 describe('selectClientIp', () => {
   it('uses the socket address and ignores X-Forwarded-For when no proxy is trusted', () => {

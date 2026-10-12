@@ -1,20 +1,10 @@
 import type { Context } from 'hono';
 import { getConnInfo } from 'hono/bun';
 import { isIP } from 'node:net';
+import { normalizeIp } from '../../utils/ip-match.util';
 
 /** Socket address unknown: `app.request()` in tests, or a runtime without `requestIP`. */
 export const UNKNOWN_CLIENT_IP = 'unknown';
-
-const IPV4_MAPPED_PREFIX = '::ffff:';
-
-/** `::ffff:203.0.113.7` → `203.0.113.7`, so one client never counts as two. */
-export const normalizeIp = (ip: string): string => {
-  const lower = ip.trim().toLowerCase();
-  const unmapped = lower.startsWith(IPV4_MAPPED_PREFIX)
-    ? lower.slice(IPV4_MAPPED_PREFIX.length)
-    : lower;
-  return isIP(unmapped) === 4 ? unmapped : lower;
-};
 
 /**
  * Picks the client IP without trusting anything the client can forge.
