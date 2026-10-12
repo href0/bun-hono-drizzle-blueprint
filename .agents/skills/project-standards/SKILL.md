@@ -57,7 +57,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │   ├── http/               # HttpClientService (pool, required timeout, X-Request-ID, vendor masking, parse()), AccessTokenCache, vendor-body redaction
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, …
+│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, requireRole, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   ├── response/           # ApiResponse standardized JSON envelope
 │   │   └── security/           # Access token (JWT HS256), ROLES, PUBLIC_ROUTES (default-deny allowlist), partner API keys + secret cipher
@@ -86,6 +86,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │   ├── health/             # Healthcheck probes
 │   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)
 │   │   ├── partner-credentials/ # Admin-only API for inbound partner credentials (key + secret shown once)
+│   │   ├── partner-gateway/    # Example signed partner endpoints: GET /partner/ping, POST /partner/echo
 │   │   └── users/              # Reference feature domain (standalone table): users.{routes,controller,service,
 │   │                           #   repository,transformer,dto,messages}.ts + co-located tests for repository,
 │   │                           #   service, transformer and controller
@@ -302,7 +303,8 @@ export class UsersService {
 - `authenticate()` guards everything under `<API_BASE_PATH>/v1`: a request needs `Authorization: Bearer <access token>` unless its method + path is in `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`). A new route is protected without doing anything; making one public is an explicit, reviewed entry in that list.
 - Roles: `requireRole('admin')` on the route (after `describeEndpoint()`, before `validate()`) → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI automatically. A user's own resource: `requireSelfOrRole('id', 'admin')` (the `:id` parameter must equal the caller's id, else the role must match — the same 403 whether the resource exists or not). `ROLES` / `Role` live in `src/core/security/roles.ts`.
 - The caller: `currentUser()` (`{ id, role }`) in controllers; services receive the id as an argument or read `getActor()` (`user:<id>`, used for audit columns).
-- Enforced by `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones do not).
+- Enforced by `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public; partner routes → 401 `ERR_PARTNER_HEADERS_MISSING` without partner headers, also with a bearer token) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, partner operations the four partner header schemes + 401/403, public ones nothing).
+- **Partner routes** (`<API_BASE_PATH>/v1/partner/*`) are not bearer routes: `partnerAuth()` (mounted before `authenticate()`) verifies a request signed per spec v1 (`x-partner-key`, `x-partner-timestamp`, `x-partner-nonce`, `x-partner-signature`; `partner-signature.util.ts`), then the credential's IP whitelist, `allowed_routes` (relative to `/partner`), nonce and per-partner rate limit; refusals use the `ERR_PARTNER_*` codes. Handlers read `currentPartner()` (actor `partner:<code>`) and can still read the body (`validate()`). `authenticate()` lets a partner route through only after `partnerAuth()` verified the partner — without it the route needs a bearer token (fail-closed). The credential lookup (`findForGateway`, cached by API key hash, misses too) is injected from the `partner-credentials` module; every change to a credential drops its cache entry.
 - Tests of a module's contract call `authorize(createApp(), role, userId?)` (`test/helpers/authorized-app.ts`) so requests carry a token.
 - Access tokens are not re-checked against the database: role changes, deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); refresh already refuses / re-reads the role. A password change (`POST /auth/change-password`, admin `PUT /users/:id/password`) sets `users.password_changed_at`, and refresh refuses token families started before it — no cross-module call needed.
 - Request emails use `emailField` (trimmed, lower-cased); new passwords `newPasswordField`. An admin cannot delete, deactivate or demote their own account (403 `ERR_SELF_LOCKOUT_FORBIDDEN`).

@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 + 5.1 selesai** (`main` @ `614e9d1`); 5.2 menunggu review (branch `feat/partner-credentials`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.2 selesai** (`main` @ `2ba2423`); 5.3 menunggu review (branch `feat/partner-auth`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `614e9d1` |
+| Basis kode | branch `main` @ `2ba2423` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -460,6 +460,14 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 5.2 | Modul `partner-credentials` (admin saja, `requireRole('admin')` di setiap route): create, list, detail, `PATCH` (nama, IP whitelist, route, rate limit; kode permanen), `POST /:id/activate` / `deactivate`, `POST /:id/secret-rotations`, `POST /:id/api-key-rotations`, `DELETE` (soft), `POST /:id/restore` (**tambahan**: pola standar template; aman karena kode tidak pernah dipakai ulang). API key / secret plaintext hanya di respons create / rotasi (201). Validasi: kode `^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$`; IP whitelist lewat `isValidIpRule` (trim + lowercase, duplikat dibuang, maks 100, kosong = semua); `allowed_routes` minimal 1, pola **relatif terhadap `<API_BASE_PATH>/v1/partner`** (`/orders`, `/orders/:id`, `/orders/*`, `/*`; tanpa query, `.`/`..`, segmen kosong, `*` di tengah); `rate_limit_rpm` 1–100000 (default 60). Kode yang sudah pernah dipakai (termasuk terhapus) → 409 lewat `isUniqueViolation` | **Chaos test** (11, semua tertangkap): `adminOnly` dihapus dari route rotasi, transformer membocorkan `apiKeyHash`, redaksi `record_changes` dihapus, entri allowlist unique permanen hilang, `partner_code` jadi `activeUniqueIndex` (entri basi), active key tidak dicek terhadap keyring, ID key ganda diterima, secret disimpan plaintext, validasi IP rule dimatikan, validasi pola route dilonggarkan, unique violation tidak dipetakan ke 409 |
 | 2026-10-12 | 5.2 | Probe layanan asli (Postgres lokal, server port 3999, keyring `p1` lewat env proses): create 201 → DB berisi `sha256(api key)` dan secret terenkripsi `v1.p1.…` yang didekripsi independen (`node:crypto`) ke secret yang diterbitkan; list/detail tanpa hash/secret/key; non-admin 403; patch; rotasi secret & API key mengubah DB; deactivate/activate; delete → 404; kode credential terhapus dipakai ulang → 409 `ERR_CONFLICT`; restore; `record_changes` (5× UPDATE, SOFT_DELETE, RESTORE) tanpa materi key (`[REDACTED]`). Baris uji dihapus | 18/18 OK |
 | 2026-10-12 | 5.2 | **Ditunda ke 5.3:** cache lookup partner + invalidasi saat update / rotasi / deactivate / delete; lookup `findByApiKeyHash` disuntikkan ke `partnerAuth()` dari modul (core tidak boleh mengimpor modul). **Backlog (L12):** re-enkripsi semua secret ke active key baru tanpa mengganti secret partner — sampai ada, rotasi keyring = tambah key baru + rotasi secret per partner sebelum key lama dibuang (`.env.example`) | — |
+| 2026-10-12 | 5.2 | ✅ di-commit (`2ba2423`) dan di-merge ke `main` | — |
+| 2026-10-12 | 5.3 | `partnerAuth({ basePath, lookup })` (`src/core/middlewares/partner-auth.ts`) di-mount di `<API_BASE_PATH>/v1/partner/*` sebelum `authenticate()` (L10 langkah 8). Urutan sesuai plan, dengan penegasan: header wajib (format dicek: timestamp `^\d{1,16}$`, nonce `^[A-Za-z0-9_-]{16,64}$`, signature 64 hex) → 401 `ERR_PARTNER_HEADERS_MISSING`; drift timestamp → 401 `ERR_PARTNER_REPLAY_REJECTED`; lookup `sha256(api key)` → 401 `ERR_PARTNER_INVALID_KEY` (**nonaktif = jawaban sama** dengan key tak dikenal); IP whitelist → 403 `ERR_PARTNER_IP_FORBIDDEN`; `allowed_routes` relatif terhadap mount → 403 `ERR_PARTNER_ROUTE_FORBIDDEN`; body mentah dibaca sekali lewat `c.req.arrayBuffer()` (cache Hono → `validate()` tetap bisa membaca JSON); signature atas path persis + query kanonik → 401 `ERR_PARTNER_SIGNATURE_INVALID`; nonce `setIfAbsent` **setelah** signature (request tak bertanda tangan tidak bisa menghabiskan nonce partner), TTL 2× toleransi; rate limit per partner (`increment`, jendela 60 s, header `RateLimit-*`) → 429; lalu `setAuthenticatedPartner` (actor `partner:<code>`, `currentPartner()` untuk handler). Secret yang tidak bisa didekripsi (key hilang dari keyring) = 500 `ERR_INTERNAL`, bukan penolakan partner. Satu log audit per request di `finally` (`info` allowed / `warn` rejected + `reason`), tanpa nilai key/nonce/signature. 6 kode `ERR_PARTNER_*` (L2) masuk `APP_ERROR_CODES` + pesan i18n | — |
+| 2026-10-12 | 5.3 | `authenticate()` melewati `/partner/*` **hanya bila `partnerAuth()` sudah memverifikasi partner** (`getAuthenticatedPartner()`), bukan sekadar karena prefix — tanpa `partnerAuth()` route partner butuh bearer token (fail-closed). `PARTNER_ROUTE_PREFIX` + `isPartnerRoute()` di `public-routes.ts` (batas segmen: `/partnership` bukan route partner). OpenAPI: operasi partner diberi 4 security scheme header partner (`x-partner-*`, wajib bersama) + 401/403, bukan `bearerAuth`. `test/default-deny.e2e.test.ts`: setiap route partner → 401 `ERR_PARTNER_HEADERS_MISSING` tanpa header partner, juga dengan bearer token admin | — |
+| 2026-10-12 | 5.3 | Lookup disuntikkan dari modul (`partnerCredentialsService.findForGateway`, core tidak boleh mengimpor modul): `getOrSet` di Redis (`CACHE_KEYS.partnerCredential(hash)`, TTL 60 s, miss 15 s via `negativeTtl`, entri di-*revive* dengan Zod — entri rusak = miss); **setiap** perubahan (create, update, activate/deactivate, rotasi secret, rotasi API key — hash lama **dan** baru, delete, restore) menghapus entri cache. `findByApiKeyHash` di repository (`this.scoped`, credential terhapus tidak pernah cocok). Modul contoh `partner-gateway`: `GET /partner/ping`, `POST /partner/echo` (untuk partner menguji implementasi signing-nya; dipertahankan oleh `setup`) | — |
+| 2026-10-12 | 5.3 | **Ditemukan saat implementasi:** `bun test` ikut memuat file env lokal developer, sehingga keyring partner asli (setelah user menambahkannya) menimpa default test — test cipher gagal. Preload hermetik kini juga mengunci `PARTNER_SECRET_KEYS` / `PARTNER_SECRET_ACTIVE_KEY_ID` ke nilai test (`test/hermetic-env.test.ts` menjaganya): test tidak pernah memakai key yang mengenkripsi secret partner sungguhan | `hermetic-env.test.ts` hijau dengan keyring asli di file env lokal |
+| 2026-10-12 | 5.3 | Trade-off Redis didokumentasikan (`redis-cache.md`, CONTRIBUTING §4.3): nonce dan rate limit partner **fail-open** — saat Redis mati, replay di dalam jendela timestamp dan kelebihan rate tidak tertahan (log `warn` dari CacheService), partner tidak pernah terkunci karena cache; lookup jatuh ke database. Operasi yang tidak boleh berjalan dua kali tetap butuh idempotency key di domain | Unit test: `CacheService` dengan client tidak siap → request yang sama 2× lolos + 2 `warn` (`setIfAbsent` / `increment` failing open) |
+| 2026-10-12 | 5.3 | **Chaos test** (14, semua tertangkap): `authenticate()` melewati route partner tanpa partner terverifikasi, `partnerAuth()` tidak di-mount, jendela timestamp tidak dicek, partner nonaktif diterima, IP whitelist diabaikan, ACL route diabaikan, signature tidak ditegakkan, nonce tidak ditegakkan, rate limit tidak ditegakkan, body dibaca melewati cache Hono (`c.req.raw`), hash API key lama tetap di cache setelah rotasi, deaktivasi tidak menghapus cache, lookup melihat credential terhapus, OpenAPI tidak menandai route partner | — |
+| 2026-10-12 | 5.3 | Probe layanan asli (Postgres + Redis lokal, server port 3999, keyring dari file env lokal user): credential dibuat lewat admin API; `GET /partner/ping` bertanda tangan → 200 sebagai partner + header `RateLimit-*`; `POST /partner/echo?x=1&a=2` dengan body → 200 (body dibaca handler); nonce sama → 401 replay (Redis asli); secret salah → 401 signature; header partner ke `/users` → 401 `ERR_UNAUTHORIZED`; lookup ter-cache di Redis; ubah `allowed_routes` → 403 seketika; rotasi API key → key lama 401 seketika, key baru 200; rate limit 6/menit → 429; deactivate → 401 seketika; 15 baris log audit tanpa key/secret. Baris DB + key Redis uji dibersihkan. **Tidak diuji asli:** Redis dimatikan (Redis lokal user tidak dihentikan; dicakup unit test) | 15/15 OK |
 
 ---
 
@@ -515,8 +523,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `b317346` |
 | 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `6ff27d1` |
 | 5.1 | Utilitas kripto & signing partner | ✅ | 0.3 | `614e9d1` |
-| 5.2 | Kredensial partner (schema + admin API) | 👀 | 5.1, 2.8, 3.4 |  |
-| 5.3 | Middleware `partnerAuth()` | ⬜ | 5.2, 1.6 |  |
+| 5.2 | Kredensial partner (schema + admin API) | ✅ | 5.1, 2.8, 3.4 | `2ba2423` |
+| 5.3 | Middleware `partnerAuth()` | 👀 | 5.2, 1.6 |  |
 | 5.4 | Panduan integrasi partner | ⬜ | 5.3 |  |
 | 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.3 |  |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
@@ -1089,9 +1097,9 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 
 **Acceptance criteria**
 
-- [ ] Test per cabang penolakan dengan code di L2; replay (nonce sama) → 401 `ERR_PARTNER_REPLAY_REJECTED`; query diubah → 401 signature.
-- [ ] Handler tetap bisa membaca body JSON setelah verifikasi signature.
-- [ ] Redis mati → nonce & rate limit fail-open + log `warn` (trade-off didokumentasikan).
+- [x] Test per cabang penolakan dengan code di L2; replay (nonce sama) → 401 `ERR_PARTNER_REPLAY_REJECTED`; query diubah → 401 signature.
+- [x] Handler tetap bisa membaca body JSON setelah verifikasi signature.
+- [x] Redis mati → nonce & rate limit fail-open + log `warn` (trade-off didokumentasikan).
 
 ### Step 5.4 — Panduan integrasi partner
 
@@ -1327,7 +1335,7 @@ COMMIT
 
 ### 15.4 L4 — `PUBLIC_ROUTES` & test default-deny
 
-> **Diubah di Step 3.4 (lihat 4.1)**: `PUBLIC_ROUTES` relatif terhadap `<API_BASE_PATH>/v1` dan hanya berisi `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register`; health, docs dan `/` publik karena berada di luar `/v1`. Pengecualian `/partner/*` ditambahkan di 5.3. Implementasi: `src/core/security/public-routes.ts`, `test/default-deny.e2e.test.ts`. Snippet di bawah adalah rancangan awal.
+> **Diubah di Step 3.4 (lihat 4.1)**: `PUBLIC_ROUTES` relatif terhadap `<API_BASE_PATH>/v1` dan hanya berisi `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register`; health, docs dan `/` publik karena berada di luar `/v1`. Pengecualian `/partner/*` ditambahkan di 5.3 — `authenticate()` melewatinya hanya setelah `partnerAuth()` memverifikasi partner (fail-closed); test default-deny menuntut 401 `ERR_PARTNER_HEADERS_MISSING` untuk route partner. Implementasi: `src/core/security/public-routes.ts`, `test/default-deny.e2e.test.ts`. Snippet di bawah adalah rancangan awal.
 
 ```ts
 // src/core/security/public-routes.ts

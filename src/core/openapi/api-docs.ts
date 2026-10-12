@@ -27,16 +27,55 @@ interface SecuredOperation {
   responses?: Record<string, unknown>;
 }
 
-/** Marks every operation that `authenticate()` protects: `bearerAuth` and a documented 401. */
+/** The four signing headers of a partner request (spec v1), all required together. */
+const PARTNER_SECURITY_SCHEMES = {
+  partnerKey: { type: 'apiKey', in: 'header', name: 'x-partner-key' },
+  partnerTimestamp: {
+    type: 'apiKey',
+    in: 'header',
+    name: 'x-partner-timestamp',
+    description: 'Unix epoch milliseconds',
+  },
+  partnerNonce: {
+    type: 'apiKey',
+    in: 'header',
+    name: 'x-partner-nonce',
+    description: '16-64 of [A-Za-z0-9_-], single use',
+  },
+  partnerSignature: {
+    type: 'apiKey',
+    in: 'header',
+    name: 'x-partner-signature',
+    description: 'HMAC-SHA256 hex of the canonical request (signing spec v1)',
+  },
+} as const;
+
+const PARTNER_REQUIREMENT = Object.fromEntries(
+  Object.keys(PARTNER_SECURITY_SCHEMES).map((name) => [name, []]),
+);
+
+/**
+ * Marks every operation that `authenticate()` protects (`bearerAuth` + 401) and every one behind
+ * `partnerAuth()` (the partner signing headers + 401, 403).
+ */
 const addSecurity = (
   document: OpenApiDocument,
   requiresAuthentication: RequiresAuthentication,
+  requiresPartnerSignature: RequiresAuthentication,
 ): OpenApiDocument => {
   for (const [path, item] of Object.entries(document.paths)) {
     for (const [method, operation] of Object.entries(item as Record<string, SecuredOperation>)) {
-      if (!requiresAuthentication(method.toUpperCase(), path)) continue;
-      operation.security = [{ bearerAuth: [] }];
-      operation.responses = { ...operation.responses, 401: errorResponse(401) };
+      if (requiresPartnerSignature(method.toUpperCase(), path)) {
+        operation.security = [PARTNER_REQUIREMENT];
+        operation.responses = {
+          ...operation.responses,
+          401: errorResponse(401),
+          403: errorResponse(403),
+        };
+      } else if (requiresAuthentication(method.toUpperCase(), path)) {
+        operation.security = [{ bearerAuth: [] }];
+        operation.responses = { ...operation.responses, 401: errorResponse(401) };
+      }
     }
   }
   return document;
@@ -50,6 +89,7 @@ export const buildOpenApiDocument = async (
   app: Hono,
   info: ApiDocsInfo,
   requiresAuthentication: RequiresAuthentication = () => false,
+  requiresPartnerSignature: RequiresAuthentication = () => false,
 ): Promise<OpenApiDocument> => {
   const document = await generateSpecs(app, {
     documentation: {
@@ -57,11 +97,14 @@ export const buildOpenApiDocument = async (
       components: {
         securitySchemes: {
           bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+          ...PARTNER_SECURITY_SCHEMES,
         },
       },
     },
   });
-  return toSnakeCaseOpenApi(addCommonHeaders(addSecurity(document, requiresAuthentication)));
+  return toSnakeCaseOpenApi(
+    addCommonHeaders(addSecurity(document, requiresAuthentication, requiresPartnerSignature)),
+  );
 };
 
 /**
@@ -76,6 +119,8 @@ export const mountApiDocs = (
     enabled: boolean;
     info: ApiDocsInfo;
     requiresAuthentication?: RequiresAuthentication;
+    /** Operations behind `partnerAuth()`: documented with the partner signing headers instead. */
+    requiresPartnerSignature?: RequiresAuthentication;
   },
 ): void => {
   if (!options.enabled) return;
@@ -84,7 +129,12 @@ export const mountApiDocs = (
   let document: Promise<OpenApiDocument> | undefined;
 
   app.get(specPath, async (c) => {
-    document ??= buildOpenApiDocument(app, options.info, options.requiresAuthentication);
+    document ??= buildOpenApiDocument(
+      app,
+      options.info,
+      options.requiresAuthentication,
+      options.requiresPartnerSignature,
+    );
     return c.json(await document);
   });
   app.get(

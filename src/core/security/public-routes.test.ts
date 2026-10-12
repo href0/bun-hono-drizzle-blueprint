@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { isPublicRoute, PUBLIC_ROUTES } from './public-routes';
+import { isPartnerRoute, isPublicRoute, PUBLIC_ROUTES } from './public-routes';
 
 describe('PUBLIC_ROUTES', () => {
   it('holds only the token-issuing / cookie endpoints of auth (keep this list short)', () => {
@@ -25,5 +25,17 @@ describe('PUBLIC_ROUTES', () => {
     expect(isPublicRoute('HEAD', '/status', routes)).toBe(true);
     expect(isPublicRoute('POST', '/status', routes)).toBe(false);
     expect(isPublicRoute('HEAD', '/auth/login')).toBe(false);
+  });
+});
+
+describe('isPartnerRoute', () => {
+  it('is /partner and everything below it, on segment boundaries', () => {
+    expect(isPartnerRoute('/partner')).toBe(true);
+    expect(isPartnerRoute('/partner/ping')).toBe(true);
+    expect(isPartnerRoute('/partner/orders/42')).toBe(true);
+    expect(isPartnerRoute('/partners')).toBe(false);
+    expect(isPartnerRoute('/partner-credentials')).toBe(false);
+    expect(isPartnerRoute('/users/partner')).toBe(false);
+    expect(isPartnerRoute('/partner/../users')).toBe(false);
   });
 });

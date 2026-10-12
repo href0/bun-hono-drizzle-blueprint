@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp } from '../src/app';
 import { appConfig, buildAppConfig } from '../src/config';
-import { isPublicRoute } from '../src/core/security/public-routes';
+import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
 import { isSnakeCaseKey } from '../src/utils/case-converter.util';
 
 interface Operation {
@@ -121,6 +121,7 @@ describe('OpenAPI document (createApp)', () => {
     const wrong = Object.entries((await loadDocument()).paths).flatMap(([path, item]) =>
       Object.entries(item).flatMap(([method, operation]) => {
         const routePath = path.slice(v1.length).replace(/\{(\w+)\}/g, ':$1');
+        if (path.startsWith(`${v1}/`) && isPartnerRoute(routePath)) return [];
         const protectedRoute =
           path.startsWith(`${v1}/`) && !isPublicRoute(method.toUpperCase(), routePath);
         const documented =
@@ -132,6 +133,30 @@ describe('OpenAPI document (createApp)', () => {
     );
 
     expect(wrong).toEqual([]);
+  });
+
+  it('marks partner routes with the four signing headers (not bearerAuth), 401 and 403', async () => {
+    const document = await loadDocument();
+    const v1 = `${appConfig.API_BASE_PATH}/v1`;
+    const schemes = (document.components as { securitySchemes?: Record<string, { name?: string }> })
+      .securitySchemes;
+    const partnerSchemes = Object.entries(schemes ?? {})
+      .filter(([, scheme]) => scheme.name?.startsWith('x-partner-'))
+      .map(([name]) => name);
+    expect(
+      partnerSchemes.map((name) => new Map(Object.entries(schemes ?? {})).get(name)?.name).sort(),
+    ).toEqual(['x-partner-key', 'x-partner-nonce', 'x-partner-signature', 'x-partner-timestamp']);
+
+    const partnerOperations = Object.entries(document.paths)
+      .filter(([path]) => path.startsWith(`${v1}/partner/`))
+      .flatMap(([path, item]) =>
+        Object.entries(item).map(([method, op]) => ({ path, method, op })),
+      );
+    expect(partnerOperations.length).toBeGreaterThan(0);
+    for (const { op } of partnerOperations) {
+      expect(op.security).toEqual([Object.fromEntries(partnerSchemes.map((name) => [name, []]))]);
+      expect(Object.keys(op.responses)).toEqual(expect.arrayContaining(['401', '403']));
+    }
   });
 
   it('serves the reference UI', async () => {

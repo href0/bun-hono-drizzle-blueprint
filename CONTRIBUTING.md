@@ -100,7 +100,7 @@ src/
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # HttpClientService (keep-alive pool, timeout wajib, X-Request-ID, masking error vendor), vendor-body.ts (redaksi body vendor untuk log), access-token-cache.ts (token vendor single-flight)
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, dll.)
+│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, requireRole, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Response Envelope (ApiResponse)
 │   └── security/                # Access token JWT HS256, ROLES, PUBLIC_ROUTES (allowlist default-deny), API key & cipher secret partner
@@ -139,6 +139,7 @@ src/
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
 │   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)
 │   ├── partner-credentials/     # Admin API kredensial partner inbound (/api/v1/partner-credentials, admin saja)
+│   ├── partner-gateway/         # Contoh endpoint partner bertanda tangan (/api/v1/partner/ping, /echo)
 │   └── users/                   # Modul referensi tabel mandiri (/api/v1/users)
 │       ├── users.dto.ts         # Zod schemas (create, update, query, params)
 │       ├── users.repository.ts  # Database access via this.txHost.tx
@@ -156,7 +157,7 @@ src/
 test/                            # End-to-End (E2E) & Blackbox API Tests
 ├── setup/hermetic-env.ts        # Preload: tanpa database/Redis asli di `bun test`
 ├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji)
-├── *.e2e.test.ts                # health, auth, users, orders (contoh), openapi, platform, default-deny, outbound
+├── *.e2e.test.ts                # health, auth, users, orders (contoh), partner-credentials, partner-gateway, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Penjaga preload hermetik
 └── migrations.test.ts           # Penjaga SQL migrasi hasil generate
 
@@ -367,12 +368,15 @@ Semua route di bawah `/api/v1` **wajib access token** (`Authorization: Bearer <t
 | Resource milik user sendiri (`/users/:id`) | `requireSelfOrRole('id', 'admin')` — pemilik atau role tersebut; selain itu 403 yang sama, baik resource ada maupun tidak |
 | Siapa pemanggilnya (di controller) | `currentUser()` → `{ id, role }`; service menerima id sebagai argumen atau membaca `getActor()` (`user:<id>`) |
 | Route publik baru | Tambahkan ke `PUBLIC_ROUTES` (review wajib) — jangan membuat "skip auth" per route |
+| Endpoint untuk sistem partner (server-to-server) | Daftarkan di modul yang di-mount di `/api/v1/partner/...`: dilindungi `partnerAuth()` (request bertanda tangan HMAC, bukan access token), lalu tambahkan polanya ke `allowed_routes` kredensial partner (relatif terhadap `/partner`). Partner pemanggil: `currentPartner()` → `{ code }`, actor `partner:<code>` |
 | Test kontrak modul | `authorize(createApp(), role, userId?)` dari `test/helpers/authorized-app.ts` |
 | Admin pertama | `bun run seed:admin --email <email>` (password dari prompt tersembunyi / stdin) |
 | Ganti password | User sendiri: `POST /auth/change-password`. Admin: `PUT /users/:id/password`. Keduanya mengisi `users.password_changed_at` → semua sesi lama berakhir |
 | Bersihkan token kedaluwarsa | `bun run auth:purge-tokens [--days 7]`, jadwalkan harian |
 
-Penegak: `test/default-deny.e2e.test.ts` (setiap route `createApp()` → 401 tanpa token kecuali publik) dan `test/openapi.e2e.test.ts` (operasi terlindungi bertanda `bearerAuth` + 401).
+Penegak: `test/default-deny.e2e.test.ts` (setiap route `createApp()` → 401 tanpa token kecuali publik; route partner → 401 `ERR_PARTNER_HEADERS_MISSING` tanpa header partner, juga bila membawa bearer token) dan `test/openapi.e2e.test.ts` (operasi terlindungi bertanda `bearerAuth` + 401, operasi partner bertanda empat header partner + 401/403).
+
+Urutan pemeriksaan `partnerAuth()` (penolakan masing-masing): header lengkap → 401 `ERR_PARTNER_HEADERS_MISSING`; timestamp dalam `PARTNER_HMAC_TOLERANCE_MS` → 401 `ERR_PARTNER_REPLAY_REJECTED`; API key dikenal & aktif → 401 `ERR_PARTNER_INVALID_KEY`; IP whitelist → 403 `ERR_PARTNER_IP_FORBIDDEN`; `allowed_routes` → 403 `ERR_PARTNER_ROUTE_FORBIDDEN`; signature → 401 `ERR_PARTNER_SIGNATURE_INVALID`; nonce belum dipakai → 401 `ERR_PARTNER_REPLAY_REJECTED`; rate limit per partner → 429. Nonce dan rate limit memakai Redis dan **fail-open**: saat Redis mati, replay di dalam jendela timestamp dan kelebihan rate tidak tertahan (dicatat `warn`) — gateway tetap tersedia, perlindungan tersisa adalah jendela timestamp. Setiap request partner menghasilkan satu log audit `audit: partner` (allowed / rejected + alasan) tanpa nilai key, nonce, atau signature.
 
 Yang perlu diketahui:
 

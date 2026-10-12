@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
+import { CACHE_KEYS, CACHE_TTL, type CacheService } from '../../core/cache';
 import { ConflictError, NotFoundError } from '../../core/errors';
 import { hashPartnerApiKey } from '../../core/security/partner-credentials';
 import type { NewPartnerCredential, PartnerCredential } from '../../database/schema';
@@ -168,5 +169,124 @@ describe('PartnerCredentialsService (Unit)', () => {
       apiKeyPrefix: apiKey.slice(0, 11),
     });
     expect(credential.apiKeyHash).not.toBe(stored.apiKeyHash);
+  });
+});
+
+describe('PartnerCredentialsService — gateway lookup cache', () => {
+  /** Records cache traffic; `getOrSet` always misses (the CacheService itself is tested elsewhere). */
+  const recordingCache = () => {
+    const calls: { getOrSet: { key: string; ttl: number; negativeTtl?: number }[]; del: string[] } =
+      { getOrSet: [], del: [] };
+    const cache = {
+      getOrSet: async <T>(
+        key: string,
+        ttl: number,
+        fetcher: () => Promise<T>,
+        options: { negativeTtl?: number; revive?: (raw: unknown) => T } = {},
+      ): Promise<T> => {
+        calls.getOrSet.push({ key, ttl, negativeTtl: options.negativeTtl });
+        const value: unknown = await fetcher();
+        // Round-trip like Redis JSON, then revive.
+        if (value === null || !options.revive) return value as T;
+        return options.revive(JSON.parse(JSON.stringify(value)));
+      },
+      del: async (key: string) => {
+        calls.del.push(key);
+      },
+    };
+    return { cache: cache as unknown as CacheService, calls };
+  };
+
+  const serviceWith = (overrides: Partial<PartnerCredentialsRepository> = {}) => {
+    const { cache, calls } = recordingCache();
+    const repo: Partial<PartnerCredentialsRepository> = {
+      findByApiKeyHash: async (hash) => (hash === stored.apiKeyHash ? stored : null),
+      findById: async () => stored,
+      create: async (values) => ({ ...stored, ...values }),
+      updateById: async (_id, patch) => ({ ...stored, ...patch }),
+      softDeleteById: async () => stored,
+      restoreById: async () => stored,
+      ...overrides,
+    };
+    return {
+      service: new PartnerCredentialsService(repo as PartnerCredentialsRepository, cipher, cache),
+      calls,
+    };
+  };
+  const keyOf = (hash: string): string => CACHE_KEYS.partnerCredential(hash);
+
+  it('returns the gateway view of a live credential, cached, unknown keys negatively cached', async () => {
+    const { service, calls } = serviceWith();
+
+    expect(await service.findForGateway(stored.apiKeyHash)).toEqual({
+      partnerCode: stored.partnerCode,
+      encryptedSecret: stored.encryptedSecret,
+      ipWhitelist: stored.ipWhitelist,
+      allowedRoutes: stored.allowedRoutes,
+      rateLimitRpm: stored.rateLimitRpm,
+      isActive: stored.isActive,
+    });
+    expect(await service.findForGateway('f'.repeat(64))).toBeNull();
+    expect(calls.getOrSet).toEqual([
+      {
+        key: keyOf(stored.apiKeyHash),
+        ttl: CACHE_TTL.PARTNER_CREDENTIAL,
+        negativeTtl: CACHE_TTL.PARTNER_CREDENTIAL_MISS,
+      },
+      {
+        key: keyOf('f'.repeat(64)),
+        ttl: CACHE_TTL.PARTNER_CREDENTIAL,
+        negativeTtl: CACHE_TTL.PARTNER_CREDENTIAL_MISS,
+      },
+    ]);
+  });
+
+  it('drops the cached view on every change, the old key hash on an API key rotation', async () => {
+    const { service, calls } = serviceWith();
+
+    await service.updateCredential(ID, { rateLimitRpm: 1 });
+    await service.setActive(ID, false);
+    await service.rotateSecret(ID);
+    await service.deleteCredential(ID);
+    await service.restoreCredential(ID);
+    expect(calls.del).toEqual(Array.from({ length: 5 }, () => keyOf(stored.apiKeyHash)));
+
+    calls.del.length = 0;
+    const { apiKey } = await service.rotateApiKey(ID);
+    // The new hash (written) and the old one (must stop matching at once).
+    expect(calls.del).toEqual([keyOf(hashPartnerApiKey(apiKey)), keyOf(stored.apiKeyHash)]);
+
+    calls.del.length = 0;
+    const issued = await service.createCredential({
+      partnerCode: 'new',
+      partnerName: 'New',
+      ipWhitelist: [],
+      allowedRoutes: ['/*'],
+      rateLimitRpm: 60,
+    });
+    expect(calls.del).toEqual([keyOf(hashPartnerApiKey(issued.apiKey))]);
+  });
+
+  it('revives only well-formed cached entries (a malformed one is a miss)', async () => {
+    let revive: ((raw: unknown) => unknown) | undefined;
+    const cache = {
+      getOrSet: async <T>(
+        _key: string,
+        _ttl: number,
+        fetcher: () => Promise<T>,
+        options: { revive?: (raw: unknown) => unknown } = {},
+      ): Promise<T> => {
+        revive = options.revive;
+        return fetcher();
+      },
+    } as unknown as CacheService;
+    const repo = {
+      findByApiKeyHash: async () => stored,
+    } as unknown as PartnerCredentialsRepository;
+    const service = new PartnerCredentialsService(repo, cipher, cache);
+
+    const view = await service.findForGateway(stored.apiKeyHash);
+    expect(revive?.(JSON.parse(JSON.stringify(view)))).toEqual(view);
+    expect(() => revive?.({ partnerCode: 'acme' })).toThrow();
   });
 });
