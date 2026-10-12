@@ -84,4 +84,4 @@ Deleting `.git` is irreversible: confirm explicitly right before running it.
 
 ### 8. Report
 
-Summarize the changed files, the verification result, and the next steps printed by the script (`docker compose up -d` → `bun run db:migrate` → `bun run dev`).
+Summarize the changed files, the verification result, and the next steps printed by the script (`docker compose up -d` → `bun run db:migrate` → `bun run seed:admin --email <email>` → `bun run dev`).

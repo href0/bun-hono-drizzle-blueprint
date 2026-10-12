@@ -366,7 +366,8 @@ function runSetup(): void {
   console.log('Next steps:');
   console.log('  1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)');
   console.log('  2. Apply database migrations: bun run db:migrate');
-  console.log('  3. Start development server:  bun run dev');
+  console.log('  3. Create the first admin:     bun run seed:admin --email <email>');
+  console.log('  4. Start development server:  bun run dev');
   console.log('----------------------------------------------------');
 }
 

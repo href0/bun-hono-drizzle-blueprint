@@ -373,3 +373,86 @@ describe('Users Module — E2E: update, soft delete, restore', () => {
     expect(conflict.status).toBe(409);
   });
 });
+
+describe('Users Module — E2E: who may do what (admin, owner, other users)', () => {
+  const otherId = 'b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a99';
+  const spies: { mockRestore: () => void }[] = [];
+  const createdWith: unknown[] = [];
+  let admin: Hono;
+  let owner: Hono;
+
+  beforeAll(async () => {
+    spies.push(
+      spyOn(usersService, 'getUserById').mockImplementation(async () => mockUser),
+      spyOn(usersService, 'getUserExternalPosts').mockImplementation(async () => []),
+      spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
+        createdWith.push(dto);
+        return { ...mockUser, role: dto.role ?? 'user' };
+      }),
+    );
+    admin = await authorize(createApp(), 'admin');
+    // A regular user whose own record is mockUser.
+    owner = await authorize(createApp(), 'user', mockUser.id);
+  });
+
+  afterAll(() => {
+    for (const spy of spies) spy.mockRestore();
+  });
+
+  const send = (app: Hono, method: string, path: string, body?: unknown): Promise<Response> =>
+    Promise.resolve(
+      app.request(`/api/v1/users${path}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      }),
+    );
+
+  const codeOf = async (res: Response): Promise<string> =>
+    `${String(res.status)} ${((await res.json()) as { error?: { code: string } }).error?.code ?? 'ok'}`;
+
+  it('a non-admin cannot create, list, update, delete or restore users (403 ERR_ROLE_FORBIDDEN)', async () => {
+    const attempts = [
+      ['POST', '', { email: 'x@example.com', full_name: 'X', password: 'password123' }],
+      ['GET', ''],
+      ['PATCH', `/${mockUser.id}`, { full_name: 'Self-promoted', role: 'admin' }],
+      ['DELETE', `/${mockUser.id}`],
+      ['POST', `/${mockUser.id}/restore`],
+    ] as const;
+
+    for (const [method, path, body] of attempts) {
+      expect(await codeOf(await send(owner, method, path, body))).toBe('403 ERR_ROLE_FORBIDDEN');
+    }
+  });
+
+  it('a user sees their own record and its external posts, nobody else’s (403, existing or not)', async () => {
+    expect((await send(owner, 'GET', `/${mockUser.id}`)).status).toBe(200);
+    expect((await send(owner, 'GET', `/${mockUser.id}/external-posts`)).status).toBe(200);
+    expect(await codeOf(await send(owner, 'GET', `/${otherId}`))).toBe('403 ERR_ROLE_FORBIDDEN');
+    expect(await codeOf(await send(owner, 'GET', `/${otherId}/external-posts`))).toBe(
+      '403 ERR_ROLE_FORBIDDEN',
+    );
+  });
+
+  it('an admin sees anyone and may create users with a role from ROLES', async () => {
+    expect((await send(admin, 'GET', `/${otherId}`)).status).toBe(200);
+
+    const created = await send(admin, 'POST', '', {
+      email: 'ops@example.com',
+      full_name: 'Ops',
+      password: 'password123',
+      role: 'admin',
+    });
+    expect(created.status).toBe(201);
+    expect(((await created.json()) as { data: { role: string } }).data.role).toBe('admin');
+    expect(createdWith.at(-1)).toMatchObject({ role: 'admin' });
+
+    const invalid = await send(admin, 'POST', '', {
+      email: 'root@example.com',
+      full_name: 'Root',
+      password: 'password123',
+      role: 'root',
+    });
+    expect(invalid.status).toBe(400);
+  });
+});

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
-import { validate } from '../../core/middlewares';
+import { requireRole, requireSelfOrRole, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { usersController } from './users.controller';
 import {
@@ -15,6 +15,10 @@ export const userRoutes = new Hono();
 
 const tags = ['Users'];
 
+/** User management is for admins; a user may read their own record (`/users/:id`, own id). */
+const adminOnly = requireRole('admin');
+const selfOrAdmin = requireSelfOrRole('id', 'admin');
+
 userRoutes.post(
   '/',
   describeEndpoint({
@@ -23,6 +27,7 @@ userRoutes.post(
     response: { status: 201, description: 'User created', data: userResponseSchema },
     errors: [409],
   }),
+  adminOnly,
   validate({ body: createUserSchema }),
   usersController.create,
 );
@@ -33,6 +38,7 @@ userRoutes.get(
     summary: 'List users (paginated)',
     response: { status: 200, description: 'A page of users', paginatedItem: userResponseSchema },
   }),
+  adminOnly,
   validate({ query: paginationQuerySchema }),
   usersController.list,
 );
@@ -44,6 +50,7 @@ userRoutes.get(
     response: { status: 200, description: 'The user', data: userResponseSchema },
     errors: [404],
   }),
+  selfOrAdmin,
   validate({ params: uuidParamSchema }),
   usersController.getById,
 );
@@ -55,6 +62,7 @@ userRoutes.patch(
     response: { status: 200, description: 'The updated user', data: userResponseSchema },
     errors: [404, 409],
   }),
+  adminOnly,
   validate({ params: uuidParamSchema, body: updateUserSchema }),
   usersController.update,
 );
@@ -66,6 +74,7 @@ userRoutes.delete(
     response: { status: 200, description: 'User deleted', data: z.null() },
     errors: [404],
   }),
+  adminOnly,
   validate({ params: uuidParamSchema }),
   usersController.remove,
 );
@@ -77,6 +86,7 @@ userRoutes.post(
     response: { status: 200, description: 'The restored user', data: userResponseSchema },
     errors: [404, 409],
   }),
+  adminOnly,
   validate({ params: uuidParamSchema }),
   usersController.restore,
 );
@@ -88,6 +98,7 @@ userRoutes.get(
     response: { status: 200, description: 'External posts', data: z.array(externalPostSchema) },
     errors: [502, 504],
   }),
+  selfOrAdmin,
   validate({ params: uuidParamSchema }),
   usersController.getExternalPosts,
 );

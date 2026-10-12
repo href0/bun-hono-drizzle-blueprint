@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–2 selesai**, Fase 3: 3.1–3.3 selesai (`main` @ `11087c7`), 3.4 menunggu review (branch `feat/default-deny-auth`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–2 selesai**, Fase 3: 3.1–3.4 selesai (`main` @ `5491544`), 3.5 menunggu review (branch `feat/protect-users-seed-admin`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `11087c7` |
+| Basis kode | branch `main` @ `5491544` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -407,6 +407,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 3.4 | Dokumen OpenAPI: `buildOpenApiDocument(app, info, requiresAuthentication)` menandai setiap operasi yang dilindungi `authenticate()` dengan `security: bearerAuth` + 401 dari aturan yang sama (`isPublicRoute`); opsi `describeEndpoint({ auth: 'bearer' })` dari 3.3 dihapus (tidak bisa lagi lupa/menyimpang). `test/openapi.e2e.test.ts` memeriksa **setiap** operasi: dilindungi ⇔ bertanda `bearerAuth` | Chaos test: penanda dimatikan → test gagal. Uji server nyata: `/api/v1/users` 401, `/api/v1/nope` 401, `/auth/login` publik (400 validasi), health & docs 200; dokumen: `users`/`me` ber-`bearerAuth`, `login` tidak |
 | 2026-10-12 | 3.4 | Test: `test/default-deny.e2e.test.ts` (L4) mengenumerasi `app.routes` — setiap route `/v1` non-publik → 401 `ERR_UNAUTHORIZED`, route publik tidak pernah 401 karena token, route yang ditambahkan **setelah** `createApp()` otomatis terlindungi; helper `authorize(app, role)` (`test/helpers/authorized-app.ts`) untuk test kontrak modul (users, orders, validate, health); `verify:scaffold` kini memastikan route hasil template 401 tanpa token lalu 400 dengan token | — |
 | 2026-10-12 | 3.4 | Dokumen: `AGENTS.md` invariant #15 _Default-Deny Authentication_, project-standards Rule 13 + daftar middleware, `bootstrap.md` (tabel pipeline langkah 9; salinan `app.ts` disinkronkan — **tertinggal sejak 3.3**, route `auth` belum tercantum), `openapi.md`, skill `scaffold-module` (route terlindungi, `requireRole`, `authorize()`), CONTRIBUTING, README | — |
+| 2026-10-12 | 3.4 | ✅ Di-commit (`5491544`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-12 | 3.5 | `users`: create, **list**, update, delete, restore → `requireRole('admin')`; `GET /:id` dan `GET /:id/external-posts` → admin atau pemilik lewat `requireSelfOrRole('id', 'admin')` (core, generik: parameter route = id pemanggil, selain itu role harus cocok; 403 yang sama baik resource ada maupun tidak — tidak membocorkan user lain; 403 terdokumentasi otomatis). Penyimpangan: plan hanya menyebut POST/PATCH/DELETE — list semua user dan data eksternal per user juga dibatasi | Chaos test: `adminOnly` dicabut dari POST / list / PATCH, `GET /:id` dibuka untuk semua role, cek pemilik diabaikan → masing-masing test gagal |
+| 2026-10-12 | 3.5 | DTO `users`: `role` opsional `z.enum(ROLES)` di create (default kolom `user`) dan update; respons tetap `role: string` (kolom `varchar`, transformer murni tidak boleh melempar/memaksa tipe). User biasa tidak bisa menaikkan role-nya sendiri (PATCH khusus admin) | e2e: role `root` → 400; admin membuat user ber-role `admin` → 201 |
+| 2026-10-12 | 3.5 | Seed admin: logika di `src/database/seeds/seed-admin.ts` (lapisan database, teruji perekam SQL; tulis lewat `BaseRepository` → actor `system`, promosi teraudit), CLI `scripts/seed-admin.ts` (`bun run seed:admin --email <email> [--name] [--promote]`): password dari prompt tersembunyi (raw mode, diminta dua kali) atau baris pertama stdin bila di-pipe — tidak pernah dari argumen/env. Ditambahkan di luar rencana: idempoten (admin aktif = tidak berubah), user yang sudah ada **tidak** disentuh tanpa `--promote` (password tidak pernah ditimpa), `--promote` = jadikan admin aktif. Langkah `seed:admin` ditambahkan ke keluaran `bun run setup`, skill `init-project` dan README Quick Start | Prompt tersembunyi (TTY) **belum diuji** — shell agent bukan TTY; jalur stdin diuji ke DB lokal |
+| 2026-10-12 | 3.5 | `docs/auth-guide.md` (FE, Bahasa Indonesia): endpoint & cookie, access token di memori (bukan `localStorage`) + refresh saat aplikasi dibuka, `credentials: 'include'`, refresh **single-flight di tab + Web Locks lintas tab** (dua refresh bersamaan dengan cookie sama = reuse → logout), contoh klien `fetch`, logout / logout-all, tabel kode error, serta hasil diskusi user: kenapa CSRF tetap perlu (cookie, bukan form), `SameSite` = site (eTLD+1) sehingga subdomain lain tidak tertahan dan hanya cek `Origin` yang menahan, pilihan penempatan FE/API, pengembangan lokal (`localhost` beda port = satu site), klien non-browser (`Content-Type: application/json`), risiko cookie tossing | — |
+| 2026-10-12 | 3.5 | **Uji nyata** (PostgreSQL + Redis lokal, server port 3999): `seed:admin` via stdin → admin dibuat; dijalankan ulang → tidak berubah; password pendek / argumen salah → ditolak (exit 1). Admin login → list 200, buat user 201; user biasa → list 403, buat 403, PATCH role sendiri 403, lihat admin 403, lihat diri sendiri 200; `--promote` → user jadi admin (list 200), `record_changes`: `UPDATE role user→admin` oleh `system`; `created_by`: seed = `system`, user buatan admin = `user:<id admin>`. Semua data uji dihapus (0 tersisa) | **Fase 3 selesai** setelah step ini di-merge |
 
 ---
 
@@ -457,8 +463,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.1 | Primitif keamanan & config auth | ✅ | 1.1 | `c49fe51` |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ✅ | 2.8 | `f50a2f8` |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `11087c7` |
-| 3.4 | `authenticate()` default-deny + `requireRole()` | 👀 | 3.3 |  |
-| 3.5 | Proteksi `users`, seed admin, panduan FE | ⬜ | 3.4 |  |
+| 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `5491544` |
+| 3.5 | Proteksi `users`, seed admin, panduan FE | 👀 | 3.4 |  |
 | 4.1 | Hardening `HttpClientService` | ⬜ | 1.3 |  |
 | 4.2 | Template integrasi & cache token vendor | ⬜ | 4.1 |  |
 | 5.1 | Utilitas kripto & signing partner | ⬜ | 0.3 |  |
@@ -966,7 +972,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Acceptance criteria**
 
-- [ ] Non-admin tidak bisa membuat user; pemilik bisa melihat profilnya sendiri.
+- [x] Non-admin tidak bisa membuat user; pemilik bisa melihat profilnya sendiri.
 
 ---
 

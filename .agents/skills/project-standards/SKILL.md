@@ -35,6 +35,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 ├── drizzle/                    # Auto-generated SQL migrations (drizzle-kit)
 ├── scripts/
 │   ├── check-coverage.ts       # Coverage gate: thresholds (SSOT), per-file check, untested-file detection
+│   ├── seed-admin.ts           # `bun run seed:admin --email` — first admin (password from a hidden prompt / stdin)
 │   └── setup.ts                # Project initializer (init-project skill, IDENTITY_RULES)
 ├── src/
 │   ├── app.ts                  # Hono application factory & global middleware pipeline
@@ -66,6 +67,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── unique-violation.ts # isUniqueViolation(): SQLSTATE 23505 → services throw ConflictError
 │   │   ├── transaction-host.ts # TransactionHost (AsyncLocalStorage context resolver)
 │   │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
+│   │   ├── seeds/              # Seeders (database layer; module data rules do not apply): seed-admin.ts
 │   │   └── schema/             # Drizzle definitions (see references/database.md)
 │   │       ├── schemas.ts      # appTable (public) + referenceSchema — the only pgTable()/pgSchema()
 │   │       ├── columns.ts      # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …
@@ -289,10 +291,11 @@ export class UsersService {
 
 ### Rule 13: Default-Deny Authentication (JWT)
 - `authenticate()` guards everything under `<API_BASE_PATH>/v1`: a request needs `Authorization: Bearer <access token>` unless its method + path is in `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`). A new route is protected without doing anything; making one public is an explicit, reviewed entry in that list.
-- Roles: `requireRole('admin')` on the route (after `describeEndpoint()`, before `validate()`) → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI automatically. `ROLES` / `Role` live in `src/core/security/roles.ts`.
+- Roles: `requireRole('admin')` on the route (after `describeEndpoint()`, before `validate()`) → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI automatically. A user's own resource: `requireSelfOrRole('id', 'admin')` (the `:id` parameter must equal the caller's id, else the role must match — the same 403 whether the resource exists or not). `ROLES` / `Role` live in `src/core/security/roles.ts`.
 - The caller: `currentUser()` (`{ id, role }`) in controllers; services receive the id as an argument or read `getActor()` (`user:<id>`, used for audit columns).
 - Enforced by `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones do not).
-- Tests of a module's contract call `authorize(createApp(), role)` (`test/helpers/authorized-app.ts`) so requests carry a token.
+- Tests of a module's contract call `authorize(createApp(), role, userId?)` (`test/helpers/authorized-app.ts`) so requests carry a token.
+- Frontend integration (token storage, single-flight refresh across tabs, cookie, CSRF, SameSite vs subdomains): `docs/auth-guide.md`. First admin: `bun run seed:admin --email <email>`.
 
 ---
 

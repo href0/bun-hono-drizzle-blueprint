@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isoInstant } from '../../core/openapi';
+import { ROLES } from '../../core/security/roles';
 import type { User } from '../../database/schema';
 
 /** A user without secrets — what the detail cache holds and what getUserById returns. */
@@ -8,7 +9,9 @@ export type PublicUser = Omit<User, 'passwordHash'>;
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email address format'),
   fullName: z.string().min(1, 'Full name is required').max(255),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(1024),
+  /** Default `user` (the column default); only admins reach this endpoint. */
+  role: z.enum(ROLES).optional(),
 });
 
 export type CreateUserDto = z.infer<typeof createUserSchema>;
@@ -18,6 +21,7 @@ export const updateUserSchema = z
   .object({
     email: z.string().email('Invalid email address format'),
     fullName: z.string().min(1, 'Full name is required').max(255),
+    role: z.enum(ROLES),
     isActive: z.boolean(),
   })
   .partial()
@@ -32,6 +36,7 @@ export const userResponseSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   fullName: z.string(),
+  /** One of ROLES (stored as varchar; validated on the way in). */
   role: z.string(),
   isActive: z.boolean(),
   createdAt: isoInstant(),
