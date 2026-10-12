@@ -87,7 +87,8 @@ describe('UsersService (Unit)', () => {
 - `src/database/schema/schema-conventions.test.ts` — every exported table: indexed foreign keys, ids from the helpers, sequential ids only in `APPEND_ONLY_TABLES`, no `serial`, no plain unique on soft-deleted tables, partition-ready `record_changes`. See [database.md](database.md).
 - `test/migrations.test.ts` — the generated SQL: no `CREATE SCHEMA`, tables in `public`, no database UUID defaults, `record_changes` CHECKs match the code.
 - `test/platform.e2e.test.ts` — the `createApp()` pipeline: security headers, CORS off by default, 413 before the route, rate limit failing open.
-- `test/default-deny.e2e.test.ts` — every route of `createApp()` under `<API_BASE_PATH>/v1` answers 401 without a token unless it is in `PUBLIC_ROUTES`.
+- `test/default-deny.e2e.test.ts` — every route of `createApp()` under `<API_BASE_PATH>/v1` answers 401 without a token unless it is in `PUBLIC_ROUTES`; partner routes answer 401 `ERR_PARTNER_HEADERS_MISSING` without partner headers, even with a bearer token.
+- `test/partner-gateway.e2e.test.ts` — signed partner requests through `createApp()` (credential lookup spied); every refusal branch of `partnerAuth()` is unit-tested in `src/core/middlewares/partner-auth.test.ts` with an in-memory nonce/counter cache.
 - `test/hermetic-env.test.ts` — the preload points the database and Redis at a closed port, whatever the local env file says.
 - `test/outbound.e2e.test.ts` — the outbound contract end to end: a vendor 401 becomes 502 without the vendor's body, and the inbound `X-Request-ID` reaches the vendor. Adapter tests run against a local fake vendor (`Bun.serve`); see [integrations.md](integrations.md).
 

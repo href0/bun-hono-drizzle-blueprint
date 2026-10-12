@@ -12,16 +12,19 @@ import {
   loggerMiddleware,
   notFoundHandler,
   isUnderPath,
+  partnerAuth,
   rateLimit,
   requestContextMiddleware,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
-import { isPublicRoute } from './core/security/public-routes';
+import { isPartnerRoute, isPublicRoute } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
+import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
+import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.routes';
 import { userRoutes } from './modules/users/users.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
 import { ordersRouter } from './modules/orders/orders.routes';
@@ -65,8 +68,19 @@ export const createApp = (): Hono => {
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
 
-  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES
+  // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
   const v1Path = `${basePath}/v1`;
+  const partnerPath = `${v1Path}/partner`;
+  app.use(
+    `${partnerPath}/*`,
+    partnerAuth({
+      basePath: partnerPath,
+      lookup: (apiKeyHash) => partnerCredentialsService.findForGateway(apiKeyHash),
+    }),
+  );
+
+  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES and
+  //    partner routes that partnerAuth() verified
   app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
 
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
@@ -74,6 +88,7 @@ export const createApp = (): Hono => {
   v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
   v1.route('/partner-credentials', partnerCredentialRoutes);
+  v1.route('/partner', partnerGatewayRoutes);
   v1.route('/orders', ordersRouter);
   app.route(v1Path, v1);
 
@@ -103,10 +118,13 @@ export const createApp = (): Hono => {
   mountApiDocs(app, {
     basePath,
     enabled: appConfig.API_DOCS_ENABLED,
-    // Same rule as authenticate(): documents bearerAuth + 401 on every protected operation
+    // Same rules as authenticate() and partnerAuth(): bearerAuth or the partner signing headers
     requiresAuthentication: (method, path) =>
       path.startsWith(`${v1Path}/`) &&
       !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+    requiresPartnerSignature: (_method, path) =>
+      path.startsWith(`${v1Path}/`) &&
+      isPartnerRoute(path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
     info: {
       title: appConfig.APP_NAME,
       version: packageJson.version,

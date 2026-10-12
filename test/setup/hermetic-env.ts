@@ -15,6 +15,9 @@ export const HERMETIC_ENV = {
   REDIS_HOST: '127.0.0.1',
   REDIS_PORT: '1',
   REDIS_PASSWORD: '',
+  // Tests never use the developer's real partner keyring (it encrypts real partner secrets).
+  PARTNER_SECRET_KEYS: `test:${'0'.repeat(64)}`,
+  PARTNER_SECRET_ACTIVE_KEY_ID: 'test',
 } as const;
 
 Object.assign(process.env, HERMETIC_ENV);

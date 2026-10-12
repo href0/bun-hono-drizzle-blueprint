@@ -10,4 +10,5 @@ export * from './validate';
 export * from './async-handler';
 export * from './csrf';
 export * from './authenticate';
+export * from './partner-auth';
 export * from './require-role';

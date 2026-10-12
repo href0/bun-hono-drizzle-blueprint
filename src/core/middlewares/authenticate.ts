@@ -1,12 +1,13 @@
 import type { MiddlewareHandler } from 'hono';
 import {
+  getAuthenticatedPartner,
   getAuthenticatedUser,
   setAuthenticatedUser,
   type AuthenticatedUser,
 } from '../context/request-context';
 import { UnauthorizedError } from '../errors';
 import { verifyAccessToken, type VerifiedAccessToken } from '../security/jwt';
-import { isPublicRoute } from '../security/public-routes';
+import { isPartnerRoute, isPublicRoute } from '../security/public-routes';
 
 const BEARER = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/;
 
@@ -23,6 +24,10 @@ export interface AuthenticateOptions {
  * token>`, which is verified (`verifyAccessToken`) and recorded in the request context — actor
  * `user:<id>` and role. Missing or malformed header → 401 `ERR_UNAUTHORIZED`; a rejected token →
  * 401 `ERR_AUTH_TOKEN_EXPIRED` / `ERR_AUTH_TOKEN_INVALID`.
+ *
+ * Partner routes (`/partner/*`) are left to `partnerAuth()`, mounted before this middleware — but
+ * only once it has verified the partner: without it a partner route needs a bearer token like any
+ * other, so a missing `partnerAuth()` closes those routes instead of opening them.
  */
 export const authenticate = ({
   basePath,
@@ -31,7 +36,10 @@ export const authenticate = ({
 }: AuthenticateOptions): MiddlewareHandler => {
   return async (c, next) => {
     const path = c.req.path.startsWith(basePath) ? c.req.path.slice(basePath.length) : c.req.path;
-    if (isPublic(c.req.method, path || '/')) {
+    if (
+      isPublic(c.req.method, path || '/') ||
+      (isPartnerRoute(path) && getAuthenticatedPartner())
+    ) {
       await next();
       return;
     }

@@ -36,7 +36,28 @@ export const I18N_MESSAGES = {
     en: 'Access token has expired. Please refresh it',
   },
   AUTH_TOKEN_INVALID: { id: 'Token akses tidak valid', en: 'Invalid access token' },
+  PARTNER_HEADERS_MISSING: {
+    id: 'Header partner tidak lengkap atau tidak valid (x-partner-key, x-partner-timestamp, x-partner-nonce, x-partner-signature)',
+    en: 'Partner headers missing or malformed (x-partner-key, x-partner-timestamp, x-partner-nonce, x-partner-signature)',
+  },
+  PARTNER_INVALID_KEY: { id: 'API key partner tidak valid', en: 'Invalid partner API key' },
+  PARTNER_REPLAY_REJECTED: {
+    id: 'Permintaan ditolak: timestamp di luar batas waktu atau nonce sudah dipakai',
+    en: 'Request rejected: timestamp outside the allowed window or nonce already used',
+  },
+  PARTNER_SIGNATURE_INVALID: {
+    id: 'Signature partner tidak valid',
+    en: 'Invalid partner signature',
+  },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },
+  PARTNER_IP_FORBIDDEN: {
+    id: 'Alamat IP tidak diizinkan untuk partner ini',
+    en: 'IP address not allowed for this partner',
+  },
+  PARTNER_ROUTE_FORBIDDEN: {
+    id: 'Route ini tidak diizinkan untuk partner ini',
+    en: 'This route is not allowed for this partner',
+  },
   ROLE_FORBIDDEN: {
     id: 'Peran Anda tidak memiliki akses ke fitur ini',
     en: 'Your role is not allowed to use this feature',

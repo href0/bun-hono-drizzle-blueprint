@@ -73,8 +73,19 @@ export const createApp = (): Hono => {
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
 
-  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES
+  // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
   const v1Path = `${basePath}/v1`;
+  const partnerPath = `${v1Path}/partner`;
+  app.use(
+    `${partnerPath}/*`,
+    partnerAuth({
+      basePath: partnerPath,
+      lookup: (apiKeyHash) => partnerCredentialsService.findForGateway(apiKeyHash),
+    }),
+  );
+
+  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES and
+  //    partner routes that partnerAuth() verified
   app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
 
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
@@ -239,7 +250,8 @@ if (import.meta.main) {
 | 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
 | 6 | `rateLimit({ keyPrefix: 'global' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped |
 | 7 | Routes | `<API_BASE_PATH>/health` (unversioned, public) |
-| 9 | `authenticate({ basePath: '<API_BASE_PATH>/v1' })` | **Default-deny**: every versioned route needs `Authorization: Bearer <access token>` except `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`); sets actor `user:<id>` + role. Unversioned routes (health, docs, `/`) are public by design (asserted by `test/default-deny.e2e.test.ts`). Partner HMAC (`/v1/partner/*`) joins in phase 5 |
+| 8 | `partnerAuth({ basePath: '<API_BASE_PATH>/v1/partner', lookup })` | Partner gateway: request signed per spec v1 (headers, timestamp window, API key → active credential, IP whitelist, `allowed_routes`, signature over the raw body read once, nonce, per-partner rate limit); actor `partner:<code>`; one audit log line per request. Lookup injected from the `partner-credentials` module |
+| 9 | `authenticate({ basePath: '<API_BASE_PATH>/v1' })` | **Default-deny**: every versioned route needs `Authorization: Bearer <access token>` except `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`); sets actor `user:<id>` + role. Unversioned routes (health, docs, `/`) are public by design (asserted by `test/default-deny.e2e.test.ts`). Partner routes (`/v1/partner/*`) pass only once `partnerAuth()` verified the partner (fail-closed) |
 | 10 | Routes | The versioned router `<API_BASE_PATH>/v1` holding the domain modules (`v1.route('/users', …)`; `validate()` and `requireRole()` per route, controllers return `ApiResponse`). The version is code, not env: a new version is a new router |
 | — | `mountApiDocs()` | `<API_BASE_PATH>/docs` (Scalar UI) + `/docs/openapi.json`, mounted after every route so the document sees them all; not mounted when `API_DOCS_ENABLED` is false (production default) |
 | 11 | `app.onError(globalErrorHandler)` · `app.notFound(notFoundHandler)` | Standard error envelope; `ApiError` status, `HTTPException` mapping, internal 500 details never exposed |

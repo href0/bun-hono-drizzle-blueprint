@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp } from '../src/app';
 import { appConfig } from '../src/config';
-import { isPublicRoute } from '../src/core/security/public-routes';
+import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
 import { authorize } from './helpers/authorized-app';
 
 /**
@@ -37,6 +37,8 @@ const routes = [
 const versioned = routes.filter(({ path }) => path.startsWith(`${v1}/`));
 const isPublic = (method: string, path: string): boolean =>
   isPublicRoute(method, path.slice(v1.length));
+/** Partner routes are guarded by partnerAuth() (signed requests), not by access tokens. */
+const isPartner = (path: string): boolean => isPartnerRoute(path.slice(v1.length));
 
 describe('default-deny authentication (every route of createApp)', () => {
   it('finds the routes (guards the enumeration itself)', () => {
@@ -57,11 +59,33 @@ describe('default-deny authentication (every route of createApp)', () => {
   it('every versioned route not in PUBLIC_ROUTES answers 401 ERR_UNAUTHORIZED without a token', async () => {
     const open: string[] = [];
     for (const { method, path, concrete } of versioned) {
-      if (isPublic(method, path)) continue;
+      if (isPublic(method, path) || isPartner(path)) continue;
       const res = await app.request(concrete, { method });
       const body = (await res.json()) as { error?: { code: string } };
       if (res.status !== 401 || body.error?.code !== 'ERR_UNAUTHORIZED') {
         open.push(`${method} ${path} → ${String(res.status)}`);
+      }
+    }
+
+    expect(open).toEqual([]);
+  });
+
+  it('every partner route answers 401 ERR_PARTNER_HEADERS_MISSING without partner headers — also with a valid access token', async () => {
+    const partnerRoutes = versioned.filter(({ path }) => isPartner(path));
+    expect(partnerRoutes.length).toBeGreaterThan(0);
+    const withToken = await authorize(createApp(), 'admin');
+
+    const open: string[] = [];
+    for (const { method, path, concrete } of partnerRoutes) {
+      for (const [label, target] of [
+        ['no credentials', app],
+        ['bearer token', withToken],
+      ] as const) {
+        const res = await target.request(concrete, { method });
+        const body = (await res.json()) as { error?: { code: string } };
+        if (res.status !== 401 || body.error?.code !== 'ERR_PARTNER_HEADERS_MISSING') {
+          open.push(`${method} ${path} (${label}) → ${String(res.status)}`);
+        }
       }
     }
 

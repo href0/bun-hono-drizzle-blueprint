@@ -46,6 +46,22 @@ describe('PartnerCredentialsRepository (Unit)', () => {
     ]);
   });
 
+  it('findByApiKeyHash looks up live credentials only (the gateway lookup)', async () => {
+    recorder.respondWith([rowOf(partnerCredentials, sample)]);
+
+    expect(await repo.findByApiKeyHash(sample.apiKeyHash)).toEqual(sample);
+    expect(recorder.statements).toEqual([
+      {
+        sql: `select ${COLUMNS} from "partner_credentials" where ("partner_credentials"."deleted_at" is null and "partner_credentials"."api_key_hash" = $1) limit $2`,
+        params: [sample.apiKeyHash, 1],
+      },
+    ]);
+  });
+
+  it('findByApiKeyHash returns null for an unknown hash', async () => {
+    expect(await repo.findByApiKeyHash('f'.repeat(64))).toBeNull();
+  });
+
   it('redacts the API key hash and the encrypted secret in record_changes', async () => {
     recorder.respondWith([rowOf(partnerCredentials, sample)], [rowOf(partnerCredentials, sample)]);
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { Hono, type Context } from 'hono';
-import { getActor, getAuthenticatedUser } from '../context/request-context';
+import {
+  getActor,
+  getAuthenticatedUser,
+  setAuthenticatedPartner,
+} from '../context/request-context';
 import { UnauthorizedError } from '../errors';
 import { signAccessToken } from '../security/jwt';
 import { authenticate, currentUser, type AuthenticateOptions } from './authenticate';
@@ -103,5 +107,35 @@ describe('authenticate (default-deny)', () => {
 
     expect(res.status).toBe(401);
     expect(await errorCode(res)).toBe('ERR_UNAUTHORIZED');
+  });
+});
+
+describe('authenticate — partner routes', () => {
+  it('leaves /partner/* to partnerAuth() only once a partner is verified (fail-closed)', async () => {
+    const app = new Hono();
+    app.use('*', requestContextMiddleware());
+    // Stand-in for partnerAuth(): marks the request as coming from a verified partner on demand.
+    app.use(`${BASE}/partner/*`, async (c, next) => {
+      if (c.req.header('x-test-partner')) setAuthenticatedPartner({ code: 'acme' });
+      await next();
+    });
+    app.use(`${BASE}/*`, authenticate({ basePath: BASE }));
+    app.get(`${BASE}/partner/ping`, (c) => c.json({ actor: getActor() }));
+    app.get(`${BASE}/partnership`, (c) => c.text('not a partner route'));
+    app.onError(globalErrorHandler);
+
+    const verified = await app.request(`${BASE}/partner/ping`, {
+      headers: { 'x-test-partner': '1' },
+    });
+    expect(await verified.json()).toEqual({ actor: 'partner:acme' });
+
+    // No verified partner (e.g. partnerAuth() not mounted): the route needs a bearer token.
+    expect(await errorCode(await app.request(`${BASE}/partner/ping`))).toBe('ERR_UNAUTHORIZED');
+    // Segment boundary: /partnership is not a partner route.
+    expect(
+      await errorCode(
+        await app.request(`${BASE}/partnership`, { headers: { 'x-test-partner': '1' } }),
+      ),
+    ).toBe('ERR_UNAUTHORIZED');
   });
 });
