@@ -55,7 +55,7 @@ export const createMeetingSchema = z.object({
 ## 4. Responses
 
 - `ApiResponse.toJSON()` writes time values through `toWireTime()`: every instant leaves as `…T03:00:00.000Z` — the database keeps microseconds, `toJSON()` alone would print `…00Z`, `…00.123Z` or `…00.123456Z` depending on the value. `camelToSnakeCase()` keeps class instances intact (it used to turn them into `{}`).
-- Values read back from the cache are plain JSON: a cached `Temporal.Instant` is a string in `toJSON()` precision. Cache the transformed response (or re-parse with `parseInstant()`), not raw entities, when the wire format matters.
+- Values read back from the cache are plain JSON: a cached `Temporal.Instant` is a string. Revive them on a hit (`getOrSet(…, { revive })`, see [redis-cache.md](redis-cache.md)) so cached and fresh values look the same on the wire.
 - Columns built with `instant()` / `timestamps()` / `calendarDate()` (`src/database/schema/columns.ts`) give entities `Temporal.Instant` / `Temporal.PlainDate` values — no `Date` reaches services or responses. Document them with `isoInstant()` / `isoCalendarDate()` (see [openapi.md](openapi.md)).
 
 ---

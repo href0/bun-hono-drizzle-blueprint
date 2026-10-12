@@ -145,6 +145,44 @@ describe('CacheService', () => {
     });
   });
 
+  describe('getOrSet revive', () => {
+    const revive = (raw: unknown): { at: Date } => {
+      const value = raw as { at: string };
+      if (typeof value.at !== 'string') throw new Error('bad shape');
+      return { at: new Date(value.at) };
+    };
+
+    it('rebuilds the cached JSON on a hit, so hit and miss have the same types', async () => {
+      const service = new CacheService(fakeClient());
+      const fetcher = mock(async () => ({ at: new Date('2026-10-05T03:00:00.000Z') }));
+
+      const miss = await service.getOrSet('k', 60, fetcher, { revive });
+      const hit = await service.getOrSet('k', 60, fetcher, { revive });
+
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(hit.at).toBeInstanceOf(Date);
+      expect(hit).toEqual(miss);
+    });
+
+    it('treats a value the reviver rejects as a miss (fail-open)', async () => {
+      const client = fakeClient();
+      client.store.set('k', { value: JSON.stringify({ at: 42 }), ttl: 60 });
+      const service = new CacheService(client);
+      const fresh = { at: new Date('2026-10-05T03:00:00.000Z') };
+
+      expect(await service.getOrSet('k', 60, async () => fresh, { revive })).toBe(fresh);
+    });
+
+    it('does not call the reviver for a cached null', async () => {
+      const service = new CacheService(fakeClient());
+      const reviver = mock(revive);
+      await service.getOrSet('k', 60, async () => null, { negativeTtl: 15, revive: reviver });
+
+      expect(await service.getOrSet('k', 60, async () => null, { revive: reviver })).toBeNull();
+      expect(reviver).not.toHaveBeenCalled();
+    });
+  });
+
   describe('get / set / del', () => {
     it('round-trips a value and deletes it', async () => {
       const service = new CacheService(fakeClient());

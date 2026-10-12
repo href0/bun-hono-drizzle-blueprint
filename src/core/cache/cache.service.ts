@@ -5,9 +5,15 @@ import { logger } from '../logger/logger';
 /** The slice of the Redis client the cache uses — injectable so tests need no live Redis. */
 export type CacheClient = Pick<Redis, 'status' | 'get' | 'set' | 'del' | 'eval'>;
 
-export interface GetOrSetOptions {
+export interface GetOrSetOptions<T> {
   /** Cache a `null` fetcher result for this many seconds (absent = never cache `null`). */
   negativeTtl?: number;
+  /**
+   * Rebuilds a cached value from its JSON form on a hit — e.g. ISO strings back into
+   * `Temporal.Instant` (`parseInstant`), so a hit has the same types as a miss. A reviver that
+   * throws turns the hit into a miss (fail-open). Not called for a cached `null`.
+   */
+  revive?: (raw: unknown) => T;
 }
 
 export interface CounterState {
@@ -56,14 +62,17 @@ export class CacheService {
     key: string,
     ttlSeconds: number,
     fetcher: () => Promise<T>,
-    options: GetOrSetOptions = {},
+    options: GetOrSetOptions<T> = {},
   ): Promise<T> {
     const cached = await this.readRaw(key);
     if (cached !== null) {
       const hit = this.decode(key, cached);
       if (hit.ok) {
-        logger.debug({ key }, 'Cache hit');
-        return hit.value as T;
+        const value = this.revive(key, hit.value, options.revive);
+        if (value.ok) {
+          logger.debug({ key }, 'Cache hit');
+          return value.value as T;
+        }
       }
     }
 
@@ -79,6 +88,23 @@ export class CacheService {
     }
 
     return fresh;
+  }
+
+  private revive(
+    key: string,
+    raw: unknown,
+    reviver: ((raw: unknown) => unknown) | undefined,
+  ): { ok: true; value: unknown } | { ok: false } {
+    if (reviver === undefined || raw === null) return { ok: true, value: raw };
+    try {
+      return { ok: true, value: reviver(raw) };
+    } catch (error) {
+      logger.warn(
+        { key, err: error instanceof Error ? error.message : String(error) },
+        'Cached value could not be revived',
+      );
+      return { ok: false };
+    }
   }
 
   async get<T>(key: string): Promise<T | null> {

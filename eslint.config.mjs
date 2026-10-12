@@ -173,7 +173,30 @@ const REPOSITORY_SYNTAX_RULES = [
   },
 ];
 
-const MODULE_DATA_RULES = [...RAW_WRITE_SQL_RULES];
+/**
+ * The write rules above recognize the transaction by name (`this.txHost.tx`, `tx`). Keeping it in a
+ * variable under another name (`const db = this.txHost.tx`, `const { tx: db } = this.txHost`) would
+ * hide writes from them, so modules use `this.txHost.tx` directly.
+ */
+const TX_ALIAS_RULES = [
+  {
+    selector: 'VariableDeclarator[init.type="MemberExpression"][init.property.name="tx"]',
+    message:
+      'Use this.txHost.tx directly instead of keeping the transaction in a variable (keeps every write visible to the data-layer rules).',
+  },
+  {
+    selector: 'VariableDeclarator > ObjectPattern > Property[key.name="tx"]',
+    message:
+      'Use this.txHost.tx directly instead of destructuring the transaction (keeps every write visible to the data-layer rules).',
+  },
+  {
+    selector: 'AssignmentExpression[right.type="MemberExpression"][right.property.name="tx"]',
+    message:
+      'Use this.txHost.tx directly instead of assigning the transaction to a variable (keeps every write visible to the data-layer rules).',
+  },
+];
+
+const MODULE_DATA_RULES = [...RAW_WRITE_SQL_RULES, ...TX_ALIAS_RULES];
 
 /** Domain modules only: business failures must be typed ApiErrors. */
 const MODULE_ERROR_RULES = [

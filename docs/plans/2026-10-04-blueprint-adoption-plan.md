@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — Fase 0–1 + Step 2.1–2.8 selesai (`main` @ `27d29dc`); Step 2.9 menunggu review (branch `feat/example-header-detail`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–2 selesai** (`main` @ `a29524f`); perbaikan Review 7 menunggu review (branch `fix/review-phase-2`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `27d29dc` |
+| Basis kode | branch `main` @ `a29524f` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -373,6 +373,13 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-10 | 2.9 | `scripts/setup.ts`: `EXAMPLE_MODULES` (file + baris registrasi, drift guard sebelum menulis apa pun; penghapusan baris mengikuti akhir baris file — `core.autocrlf` membuat CRLF), default menghapus contoh lalu `drizzle/` dikosongkan dan `drizzle-kit generate` membuat satu `0000`; `--keep-examples` mempertahankan semuanya | **Temuan uji salinan**: setelah contoh dihapus, knip gagal (`UuidChildParamDto` tak terpakai) → diperbaiki dengan test unit skema bersama. Migrasi hasil regenerasi dijalankan ke database sementara `bp_setup_probe` (lalu di-drop): tabel `record_changes`, `users` |
 | 2026-10-10 | 2.9 | Hook proteksi env fail-closed memblokir perintah yang sekadar menyebut nama file env (untuk mengecualikannya saat menyalin repo) → logika penyalinan ditulis ke skrip lewat Write lalu dijalankan, sesuai header hook; skrip tidak membaca file env mana pun. Junction `node_modules` salinan dilepas dengan `rmdir` sebelum penghapusan (PowerShell 5.1 `Remove-Item -Recurse` bisa mengikuti junction) | `node_modules` repo diverifikasi utuh setelahnya |
 | 2026-10-10 | 2.9 | Dokumen: skill `scaffold-module` (tabel pilihan varian + rujukan), skill `init-project` (nasib modul contoh, `--keep-examples`, verifikasi), README (Quick Start, struktur), CONTRIBUTING §10, `AGENTS.md` (`verify:scaffold` multi-varian), `database.md` §6 (contoh `orders`) — **Fase 2 selesai** setelah step ini di-merge | — |
+| 2026-10-10 | 2.9 | ✅ Di-commit (`a29524f`) dan di-merge ke `main` atas permintaan user — **Fase 2 selesai** | — |
+| 2026-10-10 | Review 7 | Review menyeluruh Fase 2 (2.1–2.9) atas permintaan user: 10 temuan, semua diperbaiki di branch `fix/review-phase-2` (baris di bawah) | Gate hijau; perilaku baru dibuktikan test + chaos test |
+| 2026-10-10 | Review 7 | **Cache detail user**: entitas di-cache sebagai JSON → saat hit, `created_at` keluar `…24.434195Z` (miss: `…24.434Z`; `toWireTime` Review 6 terlewati), tipe `Temporal` ternyata `string`, dan **`passwordHash` tersimpan di Redis**. `CacheService.getOrSet(…, { revive })` (reviver yang melempar = miss, tidak dipanggil untuk `null`); `getUserById` meng-cache `PublicUser` (tanpa hash, tipe di `users.dto.ts`) dan menghidupkannya lagi lewat skema Zod `instantField` | Terbukti lewat probe `getOrSet` → `ApiResponse`; chaos test: reviver dicabut → 2 test gagal |
+| 2026-10-10 | Review 7 | **Celah ESLint**: `const db = this.txHost.tx; db.delete(…)` lolos aturan tulis 2.6 (dikenali lewat nama `tx`). `TX_ALIAS_RULES` (masuk `MODULE_DATA_RULES`): `tx` tidak boleh disimpan di variabel, didestrukturisasi, atau di-assign di modul | Chaos test: 4 pelanggaran (variabel, destrukturisasi, `let` + assignment) ditolak |
+| 2026-10-10 | Review 7 | Contoh repository basi di 4 dokumen (`transactions.md` §2, project-standards Rule 3, CONTRIBUTING §5.2, README §4) — tanpa base + `tx.insert`, gagal lint bila ditiru — diganti contoh `BaseRepository` + lookup `this.scoped()`. README §4 (tutorial `products` yang juga melanggar invariant 4 & 12) diganti tabel varian template yang diverifikasi mesin + urutan langkah; aturan `@Transactional()` di CONTRIBUTING diperbarui (base repository sudah transaksional) | — |
+| 2026-10-10 | Review 7 | `AGENTS.md` invariant #14 _Audited Data Layer_; modul contoh `orders` mendapat `orders.controller.test.ts` & `orders.transformer.test.ts` (struktur wajib skill scaffold); `lint:setup` (`setup registry-check --dry-run`) di `validate` & CI — `IDENTITY_RULES`/`EXAMPLE_MODULES` yang basi gagal sekarang, bukan saat proyek baru diinisialisasi; baris `orders/` README ikut `EXAMPLE_MODULES` | Chaos test: baris README dihapus → `lint:setup` gagal menyebut barisnya |
+| 2026-10-10 | Review 7 | Dokumen: pohon struktur (project-standards, CONTRIBUTING, README: `unique-violation.ts`, `orders/`, `test/helpers`), `testing.md` §5 baru (e2e modul dengan `spyOn`, `repository-fixtures.ts`), `redis-cache.md` & `datetime.md` (`revive`, jangan cache rahasia), L11, komentar `audited.repository.test.ts` | — |
 
 ---
 
@@ -419,7 +426,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.6 | Penegakan aturan data layer | ✅ | 2.5 | `7ba1de9` |
 | 2.7 | Test konvensi schema | ✅ | 2.5 | `43bfe53` |
 | 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `27d29dc` |
-| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | 👀 | 2.8 |  |
+| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `a29524f` |
 | 3.1 | Primitif keamanan & config auth | ⬜ | 1.1 |  |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ⬜ | 2.8 |  |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ⬜ | 3.1, 3.2, 1.7 |  |
@@ -1432,7 +1439,7 @@ src/
 │   └── security/  jwt.ts, roles.ts, public-routes.ts
 ├── database/
 │   ├── audited.repository.ts · base.repository.ts · child.repository.ts · append-only.repository.ts · read-only.repository.ts
-│   ├── connection.ts · transaction-host.ts · transactional.decorator.ts · health-probe.ts
+│   ├── connection.ts · transaction-host.ts · transactional.decorator.ts · health-probe.ts · unique-violation.ts
 │   ├── schema/    schemas.ts · columns.ts · domain/ · reference/
 │   └── seeds/
 ├── integrations/  registry.ts · <vendor>/

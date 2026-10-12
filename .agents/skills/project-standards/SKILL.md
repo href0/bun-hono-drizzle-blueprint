@@ -62,6 +62,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── child.repository.ts # ChildRepository: details reachable only through their header, sync
 │   │   ├── append-only.repository.ts # AppendOnlyRepository: record tables (append + read)
 │   │   ├── read-only.repository.ts # ReadOnlyRepository: reference views (read only)
+│   │   ├── unique-violation.ts # isUniqueViolation(): SQLSTATE 23505 → services throw ConflictError
 │   │   ├── transaction-host.ts # TransactionHost (AsyncLocalStorage context resolver)
 │   │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
 │   │   └── schema/             # Drizzle definitions (see references/database.md)
@@ -72,7 +73,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │       └── reference/      # Shared reference tables (Read-Only)
 │   ├── modules/                # Feature domains (business capabilities)
 │   │   ├── health/             # Healthcheck probes
-│   │   └── users/              # Reference feature domain
+│   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)
+│   │   └── users/              # Reference feature domain (standalone table)
 │   │       ├── users.controller.ts
 │   │       ├── users.controller.test.ts
 │   │       ├── users.dto.ts
@@ -180,16 +182,23 @@ router.get('/:id', validate({ params: uuidParamSchema }), usersController.getByI
 
 ```typescript
 // users.repository.ts
-export class UsersRepository {
-  constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
+import { eq } from 'drizzle-orm';
+import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
+import { users, type User } from '../../database/schema';
 
-  async findById(id: string): Promise<User | null> {
-    const [user] = await this.txHost.tx
+export class UsersRepository extends BaseRepository<typeof users> {
+  constructor(txHost: TransactionHost = defaultTxHost) {
+    super(users, txHost, { redact: ['passwordHash'] });
+  }
+
+  // findById, findPage, count, create, updateById, softDeleteById, restoreById come from the base.
+  async findByEmail(email: string): Promise<User | null> {
+    const rows = await this.txHost.tx
       .select()
       .from(users)
-      .where(eq(users.id, id))
+      .where(this.scoped(eq(users.email, email))) // live rows only
       .limit(1);
-    return user ?? null;
+    return rows.at(0) ?? null;
   }
 }
 ```

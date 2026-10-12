@@ -1,7 +1,7 @@
 import type { User } from '../../database/schema';
-import type { UserResponse } from './users.dto';
+import type { PublicUser, UserResponse } from './users.dto';
 
-export const toUserResponse = (user: User): UserResponse => ({
+export const toUserResponse = (user: PublicUser): UserResponse => ({
   id: user.id,
   email: user.email,
   fullName: user.fullName,

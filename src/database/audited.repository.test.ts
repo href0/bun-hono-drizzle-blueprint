@@ -8,7 +8,7 @@ import type { TransactionHost } from './transaction-host';
 import { createSqlRecorder, rowOf } from '../../test/helpers/sql-recorder';
 
 /**
- * The primitives composed the way BaseRepository (plan step 2.5) will: lock → diff → update →
+ * The primitives composed the way BaseRepository / ChildRepository do: lock → diff → update →
  * audit, and lock → snapshot → delete → audit.
  */
 class AuditedUsers extends AuditedRepository<typeof users> {

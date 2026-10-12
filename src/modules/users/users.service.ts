@@ -1,5 +1,7 @@
+import { z } from 'zod';
 import { UsersRepository, usersRepository } from './users.repository';
 import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../../core/cache';
+import { instantField } from '../../core/dto/datetime.dto';
 import { ConflictError, NotFoundError } from '../../core/errors';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { Transactional } from '../../database/transactional.decorator';
@@ -9,9 +11,29 @@ import {
   type JsonPlaceholderPost,
 } from '../../integrations/jsonplaceholder';
 import type { PaginationQueryDto } from '../../core/dto/common.dto';
-import type { CreateUserDto, UpdateUserDto } from './users.dto';
+import type { CreateUserDto, PublicUser, UpdateUserDto } from './users.dto';
 import { USER_MESSAGES, userNotFoundMessage } from './users.messages';
 import type { User } from '../../database/schema';
+
+const toPublicUser = ({ passwordHash: _passwordHash, ...user }: User): PublicUser => user;
+
+/**
+ * Cached users are JSON: instants come back as ISO strings. Parsing them back keeps a cache hit
+ * identical to a miss (types and the millisecond wire format); a malformed entry is a miss.
+ */
+const cachedUserSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  fullName: z.string(),
+  isActive: z.boolean(),
+  createdAt: instantField,
+  updatedAt: instantField,
+  createdBy: z.string(),
+  updatedBy: z.string(),
+  deletedAt: instantField.nullable(),
+});
+
+const reviveCachedUser = (raw: unknown): PublicUser => cachedUserSchema.parse(raw);
 
 const emailTaken = (): ConflictError =>
   new ConflictError(USER_MESSAGES.EMAIL_TAKEN, {
@@ -46,16 +68,22 @@ export class UsersService {
     }
   }
 
-  async getUserById(id: string): Promise<User> {
+  /** Cached without the password hash; a hit is revived to the same types as a miss. */
+  async getUserById(id: string): Promise<PublicUser> {
     const cacheKey = CACHE_KEYS.userDetail(id);
 
-    return this.cache.getOrSet(cacheKey, CACHE_TTL.USER_DETAIL, async () => {
-      const user = await this.repo.findById(id);
-      if (!user) {
-        throw new NotFoundError(userNotFoundMessage(id));
-      }
-      return user;
-    });
+    return this.cache.getOrSet(
+      cacheKey,
+      CACHE_TTL.USER_DETAIL,
+      async () => {
+        const user = await this.repo.findById(id);
+        if (!user) {
+          throw new NotFoundError(userNotFoundMessage(id));
+        }
+        return toPublicUser(user);
+      },
+      { revive: reviveCachedUser },
+    );
   }
 
   /** Live users, newest first (stable order: created_at DESC, id DESC). */

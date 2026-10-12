@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { isoInstant } from '../../core/openapi';
+import type { User } from '../../database/schema';
+
+/** A user without secrets — what the detail cache holds and what getUserById returns. */
+export type PublicUser = Omit<User, 'passwordHash'>;
 
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email address format'),

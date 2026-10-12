@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "setup": "bun scripts/setup.ts",
+    "lint:setup": "bun scripts/setup.ts registry-check --dry-run",
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
@@ -20,7 +21,7 @@
     "verify:scaffold": "bun scripts/verify-scaffold.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
-    "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:branch",
+    "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:setup && bun run lint:branch",
     "validate:full": "bun run validate && bun run test:cov",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

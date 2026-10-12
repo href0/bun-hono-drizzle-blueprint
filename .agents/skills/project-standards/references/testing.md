@@ -88,7 +88,23 @@ describe('UsersService (Unit)', () => {
 - `test/migrations.test.ts` — the generated SQL: no `CREATE SCHEMA`, tables in `public`, no database UUID defaults, `record_changes` CHECKs match the code.
 - `test/platform.e2e.test.ts` — the `createApp()` pipeline: security headers, CORS off by default, 413 before the route, rate limit failing open.
 
-## 5. Blackbox E2E HTTP Testing (`test/health.e2e.test.ts`)
+## 5. Module E2E Tests (`test/<name>.e2e.test.ts`)
+
+A module's HTTP contract is tested through `createApp()` with its service stubbed by `spyOn` on the exported singleton — never `mock.module()`, which leaks into later files. Restore every spy in `afterAll`. See `test/users.e2e.test.ts` (standalone) and `test/orders.e2e.test.ts` (header + detail: IDOR → 404, sync, nested snake_case keys).
+
+```typescript
+beforeAll(() => {
+  spies.push(spyOn(ordersService, 'listItems').mockImplementation(async (id) => { … }));
+  app = createApp();
+});
+afterAll(() => {
+  for (const spy of spies) spy.mockRestore();
+});
+```
+
+Repository behaviour is not re-tested per module: the bases are tested once (`src/database/*.repository.test.ts`) against test-only tables in `test/helpers/repository-fixtures.ts` (`test_orders` header, `test_order_lines` detail, `test_events` record); a module repository test checks only what the module adds.
+
+## 6. Blackbox E2E HTTP Testing (`test/health.e2e.test.ts`)
 
 Instantiate fresh `createApp()` and dispatch requests via `app.request()`:
 
