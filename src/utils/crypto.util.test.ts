@@ -29,6 +29,14 @@ describe('sha256Hex', () => {
     expect(sha256Hex('é')).toBe(sha256Hex('é'));
     expect(sha256Hex('é')).not.toBe(sha256Hex('é'));
   });
+
+  it('hashes raw bytes, the same as the UTF-8 string they encode', () => {
+    expect(sha256Hex(new Uint8Array())).toBe(sha256Hex(''));
+    expect(sha256Hex(new TextEncoder().encode('abc'))).toBe(sha256Hex('abc'));
+    expect(sha256Hex(new Uint8Array([0xff, 0x00]))).toBe(
+      'ea5dbf9596d187e9500f23e9a680109475341cf4e81f7e043f7d97152c10772f',
+    );
+  });
 });
 
 describe('timingSafeEqualHex', () => {

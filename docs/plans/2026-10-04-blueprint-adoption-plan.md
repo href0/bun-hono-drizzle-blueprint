@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 selesai** (`main` @ `6ff27d1`); perbaikan Review 9 menunggu review (branch `fix/review-phase-4`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 selesai** (`main` @ `840e24b`); 5.1 menunggu review (branch `feat/partner-signing-utils`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `6ff27d1` |
+| Basis kode | branch `main` @ `840e24b` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -449,6 +449,10 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | Review 9 | Deskripsi frontmatter `.agents/skills/*` disamakan dengan wrapper `.claude` (teks pemicu). Ditambahkan di luar rekomendasi: `test/agent-skills.test.ts` menjaga setiap skill punya tepat satu wrapper dengan `name` + `description` sama dan menunjuk file sumbernya (dicatat di CLAUDE.md) | **Chaos test** (5, semua tertangkap): deskripsi sumber berbeda, wrapper tidak menunjuk sumber, `name` wrapper berbeda, skill sumber tanpa wrapper; baris `orders/` di pohon CONTRIBUTING berubah → `lint:setup` gagal |
 | 2026-10-12 | Review 9 | `bun.lock`: nama root workspace `backend-boilerplate` → `bun-hono-starter` (= `package.json`; `IDENTITY_RULES` menimpa keduanya saat setup) | `bun install --frozen-lockfile` tanpa perubahan |
 | 2026-10-12 | Review 9 | **Insiden saat review**: `grep -rn` rekursif di root repo ikut membaca file env lokal (gitignored) dan menampilkan 3 barisnya, termasuk password DB lokal — hook tidak menahan karena nama file tidak muncul di perintah. Dilaporkan ke user; pencarian berikutnya hanya lewat `git grep` (file ter-track) | User disarankan mengganti password DB lokal bila dipakai di tempat lain |
+| 2026-10-12 | Review 9 | ✅ di-commit (`840e24b`) dan di-merge ke `main` | — |
+| 2026-10-12 | 5.1 | `secret-cipher.util.ts`: `createSecretCipher({ activeKeyId, keys })` (hex 64 per key) → `encrypt` / `decrypt` / `needsReEncryption`; AES-256-GCM, IV 12 byte acak, tag 16 byte, format `v1.<keyId>.<iv>.<tag>.<ciphertext>` (base64url). **Tambahan di luar plan:** `v1.<keyId>` dipakai sebagai AAD (payload tidak bisa dilabel ulang ke key lain); base64url harus kanonik (Buffer diam-diam membuang karakter asing / bit padding); keyring tidak valid → `SecretCipherError` saat dibuat (fail fast), pesan tidak pernah memuat materi key. Config (5.2) tidak boleh mengimpor `utils` (`strict-config-isolation`) → parsing `PARTNER_SECRET_KEYS` tetap di `partner.config.ts`, util memvalidasi ulang | Vektor tetap: payload disegel `node:crypto` langsung dengan key lama `k0` tetap terbaca setelah active key → `k1`; tamper ciphertext/tag/IV/label key → gagal |
+| 2026-10-12 | 5.1 | `partner-signature.util.ts`: `canonicalQuery`, `buildCanonicalString`, `signV1`, `verifyV1` (timing-safe via `timingSafeEqualHex`) sesuai L5. Keputusan yang melengkapi L5: query di-decode seperti router (`+` = spasi, `a` = `a=`, pasangan kosong dibuang), di-encode ulang RFC 3986 (hex kapital, `!'()*` ikut di-encode), urut key lalu value dalam urutan code unit; metode di-uppercase; huruf besar/kecil hex signature tidak signifikan. `sha256Hex` kini menerima `Uint8Array` (body mentah) | 3 vektor tetap dihitung **independen** dengan Python (`hmac`/`hashlib`/`urllib.parse`) — juga contoh untuk panduan partner (5.4) |
+| 2026-10-12 | 5.1 | `ip-match.util.ts`: `isValidIpRule`, `matchesIpRule`, `matchesAnyIpRule` (IPv4/IPv6, CIDR, `::`, ekor IPv4). Alamat klien IPv4-mapped (`::ffff:a.b.c.d` / `::ffff:cb00:7107`) dibaca sebagai IPv4; aturan ditolak bila bit host di bawah prefix terisi (`10.0.0.5/24`), ditulis IPv4-mapped, atau ber-zone ID. `normalizeIp` **dipindah** dari `core/middlewares/client-ip.ts` ke util ini (core memakainya, tidak diduplikasi). `route-match.util.ts` sudah ada sejak 3.4 (tidak diubah) | **Chaos test** (13, semua tertangkap): query tidak diurutkan, `!'()*` tidak di-encode, metode tidak di-uppercase, `verifyV1` selalu benar, AAD dihapus (enkripsi / dekripsi), cek base64url kanonik dihapus, `needsReEncryption` selalu salah, active key tidak diwajibkan, bit host diterima, IPv4-mapped tidak di-unmap, keluarga IP dicampur, aturan IPv4-mapped diterima |
 
 ---
 
@@ -503,7 +507,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
 | 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `b317346` |
 | 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `6ff27d1` |
-| 5.1 | Utilitas kripto & signing partner | ⬜ | 0.3 |  |
+| 5.1 | Utilitas kripto & signing partner | 👀 | 0.3 |  |
 | 5.2 | Kredensial partner (schema + admin API) | ⬜ | 5.1, 2.8, 3.4 |  |
 | 5.3 | Middleware `partnerAuth()` | ⬜ | 5.2, 1.6 |  |
 | 5.4 | Panduan integrasi partner | ⬜ | 5.3 |  |
@@ -1057,7 +1061,7 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 
 **Acceptance criteria**
 
-- [ ] Vektor uji signing tetap (fixture) lulus; ciphertext key lama tetap bisa didekripsi setelah rotasi active key.
+- [x] Vektor uji signing tetap (fixture) lulus; ciphertext key lama tetap bisa didekripsi setelah rotasi active key.
 
 ### Step 5.2 — Kredensial partner
 

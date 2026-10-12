@@ -9,9 +9,12 @@ const HEX_PATTERN = /^(?:[0-9a-f]{2})*$/i;
 export const generateOpaqueToken = (byteLength = 32): string =>
   randomBytes(byteLength).toString('base64url');
 
-/** SHA-256 of a UTF-8 string as 64 lowercase hex characters. */
-export const sha256Hex = (value: string): string =>
-  createHash('sha256').update(value, 'utf8').digest('hex');
+/** SHA-256 of a UTF-8 string (or raw bytes) as 64 lowercase hex characters. */
+export const sha256Hex = (value: string | Uint8Array): string =>
+  (typeof value === 'string'
+    ? createHash('sha256').update(value, 'utf8')
+    : createHash('sha256').update(value)
+  ).digest('hex');
 
 /**
  * Compares two hex digests in constant time. Malformed hex or different lengths return `false`
