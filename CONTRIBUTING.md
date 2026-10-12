@@ -77,6 +77,7 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 | `bun run lint:setup` | Memastikan setiap `IDENTITY_RULES` (`scripts/setup.ts`) masih cocok dengan file-nya | Saat mengubah nilai yang membawa nama proyek |
 | `bun run verify:scaffold` | Men-generate modul contoh dari setiap template skill `scaffold-module` (mandiri, header-detail, pencatatan) **dan** adapter vendor dari template integrasi, lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, test hasil generate, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, openapi, database, http) atau template itu sendiri |
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
+| `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Menandatangani request partner (signing v1) lalu mencetak header + perintah curl, atau langsung mengirimnya; secret dari prompt tersembunyi / stdin | Saat menguji endpoint `/api/v1/partner/*` atau membantu partner mencocokkan signature |
 | `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
 | **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** (juga dijalankan hook pre-push) | **Wajib sebelum membuat Pull/Merge Request** |
 
@@ -156,9 +157,10 @@ src/
 
 test/                            # End-to-End (E2E) & Blackbox API Tests
 ├── setup/hermetic-env.ts        # Preload: tanpa database/Redis asli di `bun test`
-├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji)
+├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji), partner-signing-vectors.ts (vektor signing yang dipublikasikan)
 ├── *.e2e.test.ts                # health, auth, users, orders (contoh), partner-credentials, partner-gateway, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Penjaga preload hermetik
+├── partner-guide.test.ts        # docs/partner-integration-guide.md tetap sama dengan kode (vektor, header, kode error)
 └── migrations.test.ts           # Penjaga SQL migrasi hasil generate
 
 scripts/
@@ -166,6 +168,8 @@ scripts/
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = satu-satunya sumber ambang)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: template scaffold-module lewat semua gate
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
+├── partner-sign.ts              # `bun run partner:sign`: menandatangani request partner untuk uji manual
+├── lib/read-secret.ts           # Input rahasia CLI: prompt tersembunyi / stdin, tidak pernah argumen atau env
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
 
@@ -368,7 +372,7 @@ Semua route di bawah `/api/v1` **wajib access token** (`Authorization: Bearer <t
 | Resource milik user sendiri (`/users/:id`) | `requireSelfOrRole('id', 'admin')` — pemilik atau role tersebut; selain itu 403 yang sama, baik resource ada maupun tidak |
 | Siapa pemanggilnya (di controller) | `currentUser()` → `{ id, role }`; service menerima id sebagai argumen atau membaca `getActor()` (`user:<id>`) |
 | Route publik baru | Tambahkan ke `PUBLIC_ROUTES` (review wajib) — jangan membuat "skip auth" per route |
-| Endpoint untuk sistem partner (server-to-server) | Daftarkan di modul yang di-mount di `/api/v1/partner/...`: dilindungi `partnerAuth()` (request bertanda tangan HMAC, bukan access token), lalu tambahkan polanya ke `allowed_routes` kredensial partner (relatif terhadap `/partner`). Partner pemanggil: `currentPartner()` → `{ code }`, actor `partner:<code>` |
+| Endpoint untuk sistem partner (server-to-server) | Daftarkan di modul yang di-mount di `/api/v1/partner/...`: dilindungi `partnerAuth()` (request bertanda tangan HMAC, bukan access token), lalu tambahkan polanya ke `allowed_routes` kredensial partner (relatif terhadap `/partner`). Partner pemanggil: `currentPartner()` → `{ code }`, actor `partner:<code>`. Panduan untuk partner (signing, contoh kode, vektor uji, error, rotasi): [docs/partner-integration-guide.md](docs/partner-integration-guide.md) |
 | Test kontrak modul | `authorize(createApp(), role, userId?)` dari `test/helpers/authorized-app.ts` |
 | Admin pertama | `bun run seed:admin --email <email>` (password dari prompt tersembunyi / stdin) |
 | Ganti password | User sendiri: `POST /auth/change-password`. Admin: `PUT /users/:id/password`. Keduanya mengisi `users.password_changed_at` → semua sesi lama berakhir |

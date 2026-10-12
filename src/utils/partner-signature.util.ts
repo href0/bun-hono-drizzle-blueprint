@@ -4,6 +4,14 @@ import { sha256Hex, timingSafeEqualHex } from './crypto.util';
 /** First line of the canonical string; a future scheme gets a new version, never a changed v1. */
 export const PARTNER_SIGNATURE_VERSION = 'v1';
 
+/** Request headers of signing spec v1 (docs/partner-integration-guide.md). */
+export const PARTNER_HEADERS = {
+  KEY: 'x-partner-key',
+  TIMESTAMP: 'x-partner-timestamp',
+  NONCE: 'x-partner-nonce',
+  SIGNATURE: 'x-partner-signature',
+} as const;
+
 /** What a partner request is signed over (header values exactly as sent). */
 export interface PartnerSignatureInput {
   /** `x-partner-timestamp`: Unix epoch milliseconds, as sent. */
@@ -77,3 +85,35 @@ export const verifyV1 = (
   input: PartnerSignatureInput,
   signature: string,
 ): boolean => timingSafeEqualHex(signV1(secret, input), signature);
+
+export interface PartnerRequestToSign {
+  apiKey: string;
+  secret: string;
+  method: string;
+  /** Absolute URL, or a path with its query (`/api/v1/partner/echo?x=1`), exactly as it is sent. */
+  url: string;
+  /** The exact body bytes sent (`''` for none). */
+  body?: string | Uint8Array;
+  /** Unix epoch milliseconds, as a string. */
+  timestamp: string;
+  /** Single use: `^[A-Za-z0-9_-]{16,64}$`. */
+  nonce: string;
+}
+
+/** The four `x-partner-*` headers of a request signed per spec v1 (clients, tools and tests). */
+export const partnerSignatureHeaders = (request: PartnerRequestToSign): Record<string, string> => {
+  const { pathname, search } = new URL(request.url, 'http://partner.invalid');
+  return {
+    [PARTNER_HEADERS.KEY]: request.apiKey,
+    [PARTNER_HEADERS.TIMESTAMP]: request.timestamp,
+    [PARTNER_HEADERS.NONCE]: request.nonce,
+    [PARTNER_HEADERS.SIGNATURE]: signV1(request.secret, {
+      timestamp: request.timestamp,
+      nonce: request.nonce,
+      method: request.method,
+      path: pathname,
+      query: search,
+      body: request.body ?? '',
+    }),
+  };
+};
