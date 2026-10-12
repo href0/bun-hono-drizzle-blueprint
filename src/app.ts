@@ -21,6 +21,7 @@ import { isPublicRoute } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
+import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
 import { userRoutes } from './modules/users/users.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
 import { ordersRouter } from './modules/orders/orders.routes';
@@ -72,6 +73,7 @@ export const createApp = (): Hono => {
   const v1 = new Hono();
   v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
+  v1.route('/partner-credentials', partnerCredentialRoutes);
   v1.route('/orders', ordersRouter);
   app.route(v1Path, v1);
 

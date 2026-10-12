@@ -91,7 +91,7 @@ src/
 ├── config/                      # Zero-Trust Zod Configuration (fail-fast on startup)
 │   ├── env-source.ts            # Satu-satunya pembaca process.env
 │   ├── parse-env.ts             # Validasi per grup; error berisi nama variabel, tanpa nilai
-│   ├── <group>.config.ts        # app, auth, database, redis, http, satu file per vendor (jsonplaceholder, …)
+│   ├── <group>.config.ts        # app, auth, database, redis, http, partner, satu file per vendor (jsonplaceholder, …)
 │   └── index.ts                 # Barrel
 │
 ├── core/                        # Cross-Cutting Core Framework (Agnostik Domain)
@@ -103,7 +103,7 @@ src/
 │   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Response Envelope (ApiResponse)
-│   └── security/                # Access token JWT HS256, ROLES, PUBLIC_ROUTES (allowlist default-deny)
+│   └── security/                # Access token JWT HS256, ROLES, PUBLIC_ROUTES (allowlist default-deny), API key & cipher secret partner
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
 │   ├── connection.ts            # PostgreSQL connection pool via postgres driver
@@ -122,6 +122,7 @@ src/
 │       ├── schemas.ts           # appTable (public) & referenceSchema — satu-satunya pgTable/pgSchema
 │       ├── columns.ts           # Helper kolom: uuidPrimaryKey, timestamps, instant, softDelete, …
 │       ├── append-only-tables.ts # Allowlist tabel yang boleh memakai PK bigint
+│       ├── permanent-unique-indexes.ts # Allowlist unique permanen di tabel soft delete (nilai tidak pernah dipakai ulang)
 │       ├── domain/              # Application Domain Schemas (Full CRUD & Migrated)
 │       └── reference/           # Reference Schemas (Read-Only, Shared DBs)
 │
@@ -137,6 +138,7 @@ src/
 │   ├── auth/                    # Login, rotasi refresh token (cookie HttpOnly), logout, /me (/api/v1/auth)
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
 │   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)
+│   ├── partner-credentials/     # Admin API kredensial partner inbound (/api/v1/partner-credentials, admin saja)
 │   └── users/                   # Modul referensi tabel mandiri (/api/v1/users)
 │       ├── users.dto.ts         # Zod schemas (create, update, query, params)
 │       ├── users.repository.ts  # Database access via this.txHost.tx
@@ -469,7 +471,7 @@ Setiap perubahan baris domain melewati base repository (kunci baris, scope soft 
 
 - Satu-satunya pengecualian yang disetujui (log 4.1, 2026-10-04): repository refresh token `src/modules/auth/auth.repository.ts` — override satu file di `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`). File itu tidak wajib `extends` base dan boleh `tx.update(authRefreshTokens)` (mencabut token); `tx.update` ke tabel lain dan `tx.delete` tetap ditolak. Tabel `auth_refresh_tokens` tidak punya kolom audit / soft delete: jejaknya adalah `revoked_at` + `replaced_by_id`.
 - Seeder (`src/database/seeds/**`) berada di lapisan database, bukan modul: aturan modul di atas tidak berlaku untuknya. Tetap menulis lewat base repository (actor `system`, audit). Contoh: `seed-admin.ts` (`bun run seed:admin --email <email>`, password dari prompt tersembunyi / stdin, tidak pernah dari argumen atau env).
-- Konvensi schema diuji di `src/database/schema/schema-conventions.test.ts` untuk setiap tabel yang diekspor: FK wajib ter-index, `id` dari helper, id berurutan hanya di `APPEND_ONLY_TABLES` (tanpa entri basi), tanpa `serial`, tabel soft delete tanpa unique biasa (`activeUniqueIndex()`), `record_changes` siap partisi, `auth_refresh_tokens` ter-index di `user_id` & `family_id` dan dicari lewat `token_hash` unik. Pesan gagal menyebut tabel & kolom. `users.role` dicocokkan dengan `ROLES` (`src/core/security/roles.ts`) oleh `src/database/roles-column.test.ts`.
+- Konvensi schema diuji di `src/database/schema/schema-conventions.test.ts` untuk setiap tabel yang diekspor: FK wajib ter-index, `id` dari helper, id berurutan hanya di `APPEND_ONLY_TABLES` (tanpa entri basi), tanpa `serial`, tabel soft delete tanpa unique biasa (`activeUniqueIndex()`; pengecualian hanya index bernama di `PERMANENT_UNIQUE_INDEXES` beserta alasannya, tanpa entri basi), `record_changes` siap partisi, `auth_refresh_tokens` ter-index di `user_id` & `family_id` dan dicari lewat `token_hash` unik. Pesan gagal menyebut tabel & kolom. `users.role` dicocokkan dengan `ROLES` (`src/core/security/roles.ts`) oleh `src/database/roles-column.test.ts`.
 - `[review-only]`: query baca kustom di subclass `BaseRepository` wajib dimulai dari `this.scoped(...)` agar baris yang terhapus tetap tersembunyi.
 
 ---

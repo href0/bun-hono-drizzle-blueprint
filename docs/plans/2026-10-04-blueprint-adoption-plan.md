@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 selesai** (`main` @ `840e24b`); 5.1 menunggu review (branch `feat/partner-signing-utils`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 + 5.1 selesai** (`main` @ `614e9d1`); 5.2 menunggu review (branch `feat/partner-credentials`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `840e24b` |
+| Basis kode | branch `main` @ `614e9d1` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -453,6 +453,13 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 5.1 | `secret-cipher.util.ts`: `createSecretCipher({ activeKeyId, keys })` (hex 64 per key) → `encrypt` / `decrypt` / `needsReEncryption`; AES-256-GCM, IV 12 byte acak, tag 16 byte, format `v1.<keyId>.<iv>.<tag>.<ciphertext>` (base64url). **Tambahan di luar plan:** `v1.<keyId>` dipakai sebagai AAD (payload tidak bisa dilabel ulang ke key lain); base64url harus kanonik (Buffer diam-diam membuang karakter asing / bit padding); keyring tidak valid → `SecretCipherError` saat dibuat (fail fast), pesan tidak pernah memuat materi key. Config (5.2) tidak boleh mengimpor `utils` (`strict-config-isolation`) → parsing `PARTNER_SECRET_KEYS` tetap di `partner.config.ts`, util memvalidasi ulang | Vektor tetap: payload disegel `node:crypto` langsung dengan key lama `k0` tetap terbaca setelah active key → `k1`; tamper ciphertext/tag/IV/label key → gagal |
 | 2026-10-12 | 5.1 | `partner-signature.util.ts`: `canonicalQuery`, `buildCanonicalString`, `signV1`, `verifyV1` (timing-safe via `timingSafeEqualHex`) sesuai L5. Keputusan yang melengkapi L5: query di-decode seperti router (`+` = spasi, `a` = `a=`, pasangan kosong dibuang), di-encode ulang RFC 3986 (hex kapital, `!'()*` ikut di-encode), urut key lalu value dalam urutan code unit; metode di-uppercase; huruf besar/kecil hex signature tidak signifikan. `sha256Hex` kini menerima `Uint8Array` (body mentah) | 3 vektor tetap dihitung **independen** dengan Python (`hmac`/`hashlib`/`urllib.parse`) — juga contoh untuk panduan partner (5.4) |
 | 2026-10-12 | 5.1 | `ip-match.util.ts`: `isValidIpRule`, `matchesIpRule`, `matchesAnyIpRule` (IPv4/IPv6, CIDR, `::`, ekor IPv4). Alamat klien IPv4-mapped (`::ffff:a.b.c.d` / `::ffff:cb00:7107`) dibaca sebagai IPv4; aturan ditolak bila bit host di bawah prefix terisi (`10.0.0.5/24`), ditulis IPv4-mapped, atau ber-zone ID. `normalizeIp` **dipindah** dari `core/middlewares/client-ip.ts` ke util ini (core memakainya, tidak diduplikasi). `route-match.util.ts` sudah ada sejak 3.4 (tidak diubah) | **Chaos test** (13, semua tertangkap): query tidak diurutkan, `!'()*` tidak di-encode, metode tidak di-uppercase, `verifyV1` selalu benar, AAD dihapus (enkripsi / dekripsi), cek base64url kanonik dihapus, `needsReEncryption` selalu salah, active key tidak diwajibkan, bit host diterima, IPv4-mapped tidak di-unmap, keluarga IP dicampur, aturan IPv4-mapped diterima |
+| 2026-10-12 | 5.1 | ✅ di-commit (`614e9d1`) dan di-merge ke `main` | — |
+| 2026-10-12 | 5.2 | `partner.config.ts`: `PARTNER_SECRET_KEYS` di-parse jadi `{ <id>: <hex> }` (format `id:<64 hex>`, ID ganda / hex salah / entri tanpa ID ditolak per entri tanpa mencetak nilai), `PARTNER_SECRET_ACTIVE_KEY_ID` wajib ada di keyring, `PARTNER_HMAC_TOLERANCE_MS` default 300000. Wajib di luar test (default khusus test). `bun run setup` kini mengisi `PARTNER_SECRET_KEYS` (`k1:<random>`) + `PARTNER_SECRET_ACTIVE_KEY_ID=k1` di file env lokal seperti `JWT_SECRET` (`GENERATED_SECRETS`, nilai yang sudah ada tidak pernah diganti / dicetak). `.env.example` + L1 | Probe: tanpa keyring proses berhenti dengan `PARTNER_SECRET_KEYS: is required` (tanpa nilai); `setup demo --dry-run` → "Would generate PARTNER_SECRET_KEYS, PARTNER_SECRET_ACTIVE_KEY_ID" |
+| 2026-10-12 | 5.2 | Tabel `partner_credentials` (migrasi `0007`), standalone + `BaseRepository` dengan `redact: ['apiKeyHash', 'encryptedSecret']`; `ip_whitelist` / `allowed_routes` = `text[]`. **Penyimpangan konvensi (disengaja, ditegakkan mesin):** `partner_code` unik permanen (juga terhadap baris terhapus, karena menjadi actor audit `partner:<code>`) = `uniqueIndex` biasa di tabel soft delete — konvensi 2.7 melarangnya, maka ditambah allowlist bernama `PERMANENT_UNIQUE_INDEXES` (`src/database/schema/permanent-unique-indexes.ts`, wajib alasan) + cek entri basi di `schema-conventions.test.ts`, mirip `APPEND_ONLY_TABLES`. `api_key_hash` tetap `activeUniqueIndex` | — |
+| 2026-10-12 | 5.2 | Helper bersama di `src/core/security/partner-credentials.ts` (dipakai admin API sekarang dan `partnerAuth()` di 5.3 — core tidak boleh mengimpor modul): `issuePartnerApiKey()` (`pk_` + 32 byte acak; disimpan hanya `sha256` + prefix 11 karakter), `issuePartnerSecret()` (32 byte acak), `hashPartnerApiKey()`, instance `partnerSecretCipher` dari keyring config | — |
+| 2026-10-12 | 5.2 | Modul `partner-credentials` (admin saja, `requireRole('admin')` di setiap route): create, list, detail, `PATCH` (nama, IP whitelist, route, rate limit; kode permanen), `POST /:id/activate` / `deactivate`, `POST /:id/secret-rotations`, `POST /:id/api-key-rotations`, `DELETE` (soft), `POST /:id/restore` (**tambahan**: pola standar template; aman karena kode tidak pernah dipakai ulang). API key / secret plaintext hanya di respons create / rotasi (201). Validasi: kode `^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$`; IP whitelist lewat `isValidIpRule` (trim + lowercase, duplikat dibuang, maks 100, kosong = semua); `allowed_routes` minimal 1, pola **relatif terhadap `<API_BASE_PATH>/v1/partner`** (`/orders`, `/orders/:id`, `/orders/*`, `/*`; tanpa query, `.`/`..`, segmen kosong, `*` di tengah); `rate_limit_rpm` 1–100000 (default 60). Kode yang sudah pernah dipakai (termasuk terhapus) → 409 lewat `isUniqueViolation` | **Chaos test** (11, semua tertangkap): `adminOnly` dihapus dari route rotasi, transformer membocorkan `apiKeyHash`, redaksi `record_changes` dihapus, entri allowlist unique permanen hilang, `partner_code` jadi `activeUniqueIndex` (entri basi), active key tidak dicek terhadap keyring, ID key ganda diterima, secret disimpan plaintext, validasi IP rule dimatikan, validasi pola route dilonggarkan, unique violation tidak dipetakan ke 409 |
+| 2026-10-12 | 5.2 | Probe layanan asli (Postgres lokal, server port 3999, keyring `p1` lewat env proses): create 201 → DB berisi `sha256(api key)` dan secret terenkripsi `v1.p1.…` yang didekripsi independen (`node:crypto`) ke secret yang diterbitkan; list/detail tanpa hash/secret/key; non-admin 403; patch; rotasi secret & API key mengubah DB; deactivate/activate; delete → 404; kode credential terhapus dipakai ulang → 409 `ERR_CONFLICT`; restore; `record_changes` (5× UPDATE, SOFT_DELETE, RESTORE) tanpa materi key (`[REDACTED]`). Baris uji dihapus | 18/18 OK |
+| 2026-10-12 | 5.2 | **Ditunda ke 5.3:** cache lookup partner + invalidasi saat update / rotasi / deactivate / delete; lookup `findByApiKeyHash` disuntikkan ke `partnerAuth()` dari modul (core tidak boleh mengimpor modul). **Backlog (L12):** re-enkripsi semua secret ke active key baru tanpa mengganti secret partner — sampai ada, rotasi keyring = tambah key baru + rotasi secret per partner sebelum key lama dibuang (`.env.example`) | — |
 
 ---
 
@@ -507,8 +514,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
 | 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `b317346` |
 | 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `6ff27d1` |
-| 5.1 | Utilitas kripto & signing partner | 👀 | 0.3 |  |
-| 5.2 | Kredensial partner (schema + admin API) | ⬜ | 5.1, 2.8, 3.4 |  |
+| 5.1 | Utilitas kripto & signing partner | ✅ | 0.3 | `614e9d1` |
+| 5.2 | Kredensial partner (schema + admin API) | 👀 | 5.1, 2.8, 3.4 |  |
 | 5.3 | Middleware `partnerAuth()` | ⬜ | 5.2, 1.6 |  |
 | 5.4 | Panduan integrasi partner | ⬜ | 5.3 |  |
 | 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.3 |  |
@@ -1073,8 +1080,8 @@ Spesifikasi signing di [L5](#155-l5--signing-partner-v1).
 
 **Acceptance criteria**
 
-- [ ] Respons list/detail tidak memuat `api_key_hash`, `encrypted_secret`.
-- [ ] Non-admin → 403.
+- [x] Respons list/detail tidak memuat `api_key_hash`, `encrypted_secret`.
+- [x] Non-admin → 403.
 
 ### Step 5.3 — Middleware `partnerAuth()`
 
@@ -1208,8 +1215,8 @@ Catatan   : <hal yang perlu perhatian reviewer>
 | `AUTH_LOGIN_MAX_ATTEMPTS` | 3.1 | `5` | per `(email, ip)` |
 | `AUTH_LOGIN_LOCK_SECONDS` | 3.1 | `900` |  |
 | `PARTNER_HMAC_TOLERANCE_MS` | 5.2 | `300000` |  |
-| `PARTNER_SECRET_KEYS` | 5.2 | — | `k1:<64hex>[,k0:<64hex>]` |
-| `PARTNER_SECRET_ACTIVE_KEY_ID` | 5.2 | — | harus ada di keyring |
+| `PARTNER_SECRET_KEYS` | 5.2 | — | `k1:<64hex>[,k0:<64hex>]`; diisi `bun run setup` di env lokal |
+| `PARTNER_SECRET_ACTIVE_KEY_ID` | 5.2 | — | harus ada di keyring; diisi `bun run setup` (`k1`) |
 | `JSONPLACEHOLDER_BASE_URL` / `TIMEOUT_MS` | ada | contoh | contoh integrasi |
 | `EXTERNAL_VENDOR_*` | 1.1 | — | **dihapus** di 1.1 (tidak pernah dipakai kode) |
 
@@ -1544,6 +1551,7 @@ src/
 - SonarQube & template CI GitLab
 - OpenTelemetry tracing + metrics `/metrics`
 - Job queue / scheduler dengan actor `system`
+- Re-enkripsi secret partner ke active key baru tanpa mengganti secret (job / perintah, `needsReEncryption()` sudah ada di `secret-cipher.util.ts`) — kini rotasi keyring = rotasi secret per partner (Step 5.2)
 - Validasi production: partner wajib `ip_whitelist` (setelah `TRUST_PROXY_HOPS` diukur per environment)
 - Migrasi Zod 3 → 4 (`z.email()`, kode issue baru `invalid_value`, `issue.received` hilang → `describeIssue` di `parse-env.ts`, pemetaan issue di `validate()`); `hono-openapi` tetap kompatibel
 - Multi-tenant (SaaS), opsional: schema per tenant (`search_path` per request/transaksi, migrasi dijalankan ke setiap schema tenant, onboarding tenant = buat schema + migrasi) atau `tenant_id` + Row-Level Security — dipilih saat dibutuhkan, setelah semua fase selesai

@@ -17,6 +17,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import * as schema from './index';
 import { APPEND_ONLY_TABLES } from './append-only-tables';
+import { PERMANENT_UNIQUE_INDEXES } from './permanent-unique-indexes';
 import {
   activeUniqueIndex,
   parentReference,
@@ -59,6 +60,7 @@ const idKind = (table: PgTable): IdKind => {
 const tableViolations = (
   table: PgTable,
   appendOnly: Readonly<Record<string, string>> = APPEND_ONLY_TABLES,
+  permanentUniques: Readonly<Record<string, string>> = PERMANENT_UNIQUE_INDEXES,
 ): string[] => {
   const config = getTableConfig(table);
   const violations: string[] = [];
@@ -97,13 +99,15 @@ const tableViolations = (
     }
   }
 
-  // 5. Soft-deleted tables: uniqueness only among live rows (activeUniqueIndex).
+  // 5. Soft-deleted tables: uniqueness only among live rows (activeUniqueIndex), except the
+  //    named indexes in PERMANENT_UNIQUE_INDEXES.
   if (config.columns.some((column) => column.name === 'deleted_at')) {
     const plainUniques = [
       ...config.columns.filter((column) => column.isUnique).map((column) => column.name),
       ...config.uniqueConstraints.map((constraint) => columnNames(constraint.columns).join(',')),
       ...config.indexes
         .filter((index) => index.config.unique && index.config.where === undefined)
+        .filter((index) => !Object.hasOwn(permanentUniques, index.config.name ?? ''))
         .map((index) => index.config.name ?? columnNames(index.config.columns).join(',')),
     ];
     for (const unique of plainUniques) {
@@ -130,6 +134,29 @@ const staleAllowlistEntries = (
       (name) => `APPEND_ONLY_TABLES.${name}: stale entry (no exported table with a sequential id)`,
     );
 
+/** Names of the plain unique indexes on soft-deleted tables (what the allowlist may name). */
+const plainUniqueIndexNames = (tables: PgTable[]): string[] =>
+  tables
+    .map((table) => getTableConfig(table))
+    .filter((config) => config.columns.some((column) => column.name === 'deleted_at'))
+    .flatMap((config) => config.indexes)
+    .filter((index) => index.config.unique && index.config.where === undefined)
+    .map((index) => index.config.name ?? '');
+
+/** Allowlist entries must name a plain unique index of a soft-deleted exported table. */
+const stalePermanentUniqueEntries = (
+  tables: PgTable[],
+  permanentUniques: Readonly<Record<string, string>> = PERMANENT_UNIQUE_INDEXES,
+): string[] => {
+  const existing = plainUniqueIndexNames(tables);
+  return Object.keys(permanentUniques)
+    .filter((name) => !existing.includes(name))
+    .map(
+      (name) =>
+        `PERMANENT_UNIQUE_INDEXES.${name}: stale entry (no plain unique index of that name on a soft-deleted table)`,
+    );
+};
+
 describe('schema conventions (every exported table)', () => {
   it('finds the exported tables (guards the enumeration itself)', () => {
     expect(exportedTables.map((table) => getTableConfig(table).name)).toEqual(
@@ -143,6 +170,10 @@ describe('schema conventions (every exported table)', () => {
 
   it('keep APPEND_ONLY_TABLES free of stale entries', () => {
     expect(staleAllowlistEntries(exportedTables)).toEqual([]);
+  });
+
+  it('keep PERMANENT_UNIQUE_INDEXES free of stale entries', () => {
+    expect(stalePermanentUniqueEntries(exportedTables)).toEqual([]);
   });
 
   it('keep record_changes partition-ready', () => {
@@ -255,6 +286,32 @@ describe('the convention checks fire on broken tables', () => {
       'bad_soft: plain unique (code) on a soft-deleted table — use activeUniqueIndex()',
     ]);
     expect(tableViolations(active)).toEqual([]);
+  });
+
+  it('plain unique index on a soft-deleted table: exempt only when named in the allowlist', () => {
+    const table = appTable(
+      'perm_soft',
+      { id: uuidPrimaryKey(), code: varchar('code', { length: 10 }).notNull(), ...softDelete() },
+      (t) => [uniqueIndex('perm_soft_code_uq').on(t.code)],
+    );
+    const violation =
+      'perm_soft: plain unique (perm_soft_code_uq) on a soft-deleted table — use activeUniqueIndex()';
+
+    expect(tableViolations(table)).toEqual([violation]);
+    expect(tableViolations(table, APPEND_ONLY_TABLES, { perm_soft_code_uq: 'reason' })).toEqual([]);
+    expect(tableViolations(table, APPEND_ONLY_TABLES, { other_uq: 'reason' })).toEqual([violation]);
+  });
+
+  it('stale PERMANENT_UNIQUE_INDEXES entries', () => {
+    expect(
+      stalePermanentUniqueEntries(exportedTables, { ...PERMANENT_UNIQUE_INDEXES, gone_uq: 'x' }),
+    ).toEqual([
+      'PERMANENT_UNIQUE_INDEXES.gone_uq: stale entry (no plain unique index of that name on a soft-deleted table)',
+    ]);
+    // An activeUniqueIndex is not a plain unique, so listing one is stale too.
+    expect(stalePermanentUniqueEntries(exportedTables, { users_email_active_uq: 'x' })).toEqual([
+      'PERMANENT_UNIQUE_INDEXES.users_email_active_uq: stale entry (no plain unique index of that name on a soft-deleted table)',
+    ]);
   });
 
   it('stale APPEND_ONLY_TABLES entries', () => {

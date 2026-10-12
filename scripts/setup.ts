@@ -294,21 +294,36 @@ function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): v
 }
 
 /**
- * The app refuses to start without a JWT_SECRET of 32+ characters; a local .env gets a random one
- * when it has none (empty or missing line). An existing secret is never replaced or printed.
+ * Values the app refuses to start without, generated for a local .env: the JWT secret (32+
+ * characters) and the keyring that encrypts partner secrets (one 32-byte key, `k1`).
  */
-function ensureJwtSecret(envPath: string, dryRun: boolean): void {
-  const content = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
-  if (/^JWT_SECRET=\S/m.test(content)) return;
+const GENERATED_SECRETS: readonly { name: string; generate: () => string }[] = [
+  { name: 'JWT_SECRET', generate: () => randomBytes(48).toString('base64url') },
+  { name: 'PARTNER_SECRET_KEYS', generate: () => `k1:${randomBytes(32).toString('hex')}` },
+  { name: 'PARTNER_SECRET_ACTIVE_KEY_ID', generate: () => 'k1' },
+];
 
-  if (!dryRun) {
-    const line = `JWT_SECRET=${randomBytes(48).toString('base64url')}`;
-    const updated = /^JWT_SECRET=[ \t]*$/m.test(content)
-      ? content.replace(/^JWT_SECRET=[ \t]*$/m, () => line)
+/**
+ * Fills each GENERATED_SECRETS variable the .env does not set (empty or missing line). An existing
+ * value is never replaced or printed.
+ */
+function ensureGeneratedSecrets(envPath: string, dryRun: boolean): void {
+  let content = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
+  const generated: string[] = [];
+
+  for (const { name, generate } of GENERATED_SECRETS) {
+    if (new RegExp(`^${name}=\\S`, 'm').test(content)) continue;
+    const emptyLine = new RegExp(`^${name}=[ \\t]*$`, 'm');
+    const line = `${name}=${generate()}`;
+    content = emptyLine.test(content)
+      ? content.replace(emptyLine, () => line)
       : `${content.replace(/\n?$/, '\n')}${line}\n`;
-    writeFileSync(envPath, updated, 'utf-8');
+    generated.push(name);
   }
-  console.log(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} a random JWT_SECRET in .env`);
+
+  if (generated.length === 0) return;
+  if (!dryRun) writeFileSync(envPath, content, 'utf-8');
+  console.log(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} ${generated.join(', ')} in .env`);
 }
 
 function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun: boolean): void {
@@ -322,13 +337,13 @@ function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun:
     }
     if (!dryRun) copyFileSync(envExamplePath, envPath);
     console.log(`[Setup] ${dryRun ? 'Would create' : 'Created'} .env from .env.example`);
-    ensureJwtSecret(envPath, dryRun);
+    ensureGeneratedSecrets(envPath, dryRun);
     return;
   }
 
-  // Existing .env holds local secrets: only APP_NAME and a missing JWT_SECRET are touched, and no
-  // value is ever printed.
-  ensureJwtSecret(envPath, dryRun);
+  // Existing .env holds local secrets: only APP_NAME and missing GENERATED_SECRETS are touched,
+  // and no value is ever printed.
+  ensureGeneratedSecrets(envPath, dryRun);
   if (id) {
     if (!dryRun) {
       const content = readFileSync(envPath, 'utf-8');

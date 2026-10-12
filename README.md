@@ -19,6 +19,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
    - **Health Probes**: `GET /api/health` (selalu 200, `UP`/`DEGRADED`/`DOWN` + status komponen), `/api/health/readiness` (503 hanya bila database mati; Redis mati = `DEGRADED`), `/api/health/liveness` (tanpa cek dependency). Probe database dibatasi 2 detik.
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, `X-Request-ID` ke vendor, Pino logging (body vendor teredaksi, hanya di log), dan vendor error masking (`error.origin` + `error.institution` dari `INTEGRATION_REGISTRY`).
    - **Auth JWT + Refresh Token**: `POST /api/v1/auth/login` → access token JWT HS256 (15 menit) di body, refresh token opaque di cookie `HttpOnly; Secure; SameSite=Strict` (hanya hash SHA-256 yang disimpan). Setiap refresh merotasi token; token lama yang dipakai ulang mengakhiri seluruh sesi. Logout / logout semua perangkat, `GET /me`, batas percobaan login per (email, IP), proteksi CSRF (`Origin` ∈ `CORS_ORIGINS`). **Default-deny**: semua route `/api/v1/*` wajib `Authorization: Bearer` kecuali `PUBLIC_ROUTES` (login, refresh, logout, register); `requireRole('admin')` per route → 403. Ganti password (`POST /api/v1/auth/change-password`, reset admin `PUT /api/v1/users/:id/password`) mengakhiri sesi lama; `bun run auth:purge-tokens` membersihkan refresh token kedaluwarsa (jadwalkan harian).
+   - **Kredensial Partner (inbound)**: admin API `/api/v1/partner-credentials` — API key (`pk_…`, hanya hash SHA-256 disimpan) dan secret HMAC (terenkripsi AES-256-GCM dengan keyring `PARTNER_SECRET_KEYS`, bisa dirotasi) ditampilkan sekali saat dibuat / dirotasi; IP whitelist (IPv4/IPv6/CIDR), daftar route, rate limit per partner. Kode partner permanen (actor audit `partner:<kode>`).
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
 7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.
 8. **Kontrak snake_case Dua Arah**: Request (body & query) wajib `snake_case` — key casing lain ditolak 400 `ERR_NON_SNAKE_CASE_KEY` — lalu dikonversi ke DTO camelCase; response selalu `snake_case`.
@@ -36,7 +37,7 @@ src/
 ├── core/          # Lintas domain: cache, context, dto, errors, http (klien outbound), i18n, logger, middlewares, openapi, response, security
 ├── database/      # Koneksi, TransactionHost, repository base teraudit, schema, seeds/, maintenance/
 ├── integrations/  # Adapter vendor keluar (registry.ts + <vendor>/), tanpa route/controller
-├── modules/       # Modul domain: auth, health, users (referensi tabel mandiri)
+├── modules/       # Modul domain: auth, health, users (referensi tabel mandiri), partner-credentials
 │   └── orders/    # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples
 ├── utils/         # Fungsi murni (datetime, case converter, …)
 ├── app.ts         # createApp(): pipeline middleware & router versi

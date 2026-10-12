@@ -47,7 +47,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   ├── config/                 # Environment validation, one Zod group per file (fail-fast)
 │   │   ├── env-source.ts       # The only reader of process.env (+ missing .env guard)
 │   │   ├── parse-env.ts        # parseEnv(): lists every invalid var, never prints values; RENAMED_ENV_VARS guard
-│   │   ├── <group>.config.ts   # app, auth, database, redis, http, one per vendor (jsonplaceholder, …) → `<group>Config`
+│   │   ├── <group>.config.ts   # app, auth, database, redis, http, partner, one per vendor (jsonplaceholder, …) → `<group>Config`
 │   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
@@ -60,7 +60,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   ├── response/           # ApiResponse standardized JSON envelope
-│   │   └── security/           # Access token (JWT HS256), ROLES, PUBLIC_ROUTES (default-deny allowlist)
+│   │   └── security/           # Access token (JWT HS256), ROLES, PUBLIC_ROUTES (default-deny allowlist), partner API keys + secret cipher
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
 │   │   ├── audited.repository.ts # AuditedRepository: lock, diff, record_changes in the same transaction
@@ -78,12 +78,14 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │       ├── schemas.ts      # appTable (public) + referenceSchema — the only pgTable()/pgSchema()
 │   │       ├── columns.ts      # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …
 │   │       ├── append-only-tables.ts # The only tables allowed a sequential (bigint) key
+│   │       ├── permanent-unique-indexes.ts # The only plain uniques allowed on soft-deleted tables (never reused)
 │   │       ├── domain/         # Project tables (appTable)
 │   │       └── reference/      # Shared reference tables (Read-Only)
 │   ├── modules/                # Feature domains (business capabilities)
 │   │   ├── auth/               # Login, refresh-token rotation (HttpOnly cookie), logout, /me
 │   │   ├── health/             # Healthcheck probes
 │   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)
+│   │   ├── partner-credentials/ # Admin-only API for inbound partner credentials (key + secret shown once)
 │   │   └── users/              # Reference feature domain (standalone table): users.{routes,controller,service,
 │   │                           #   repository,transformer,dto,messages}.ts + co-located tests for repository,
 │   │                           #   service, transformer and controller
