@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'bun:test';
+import { afterEach, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { CacheService, CounterState } from '../../core/cache';
 import { runWithRequestContext } from '../../core/context/request-context';
 import {
@@ -8,7 +8,9 @@ import {
   InternalServerError,
   TooManyRequestsError,
   UnauthorizedError,
+  ValidationError,
 } from '../../core/errors';
+import { logger } from '../../core/logger';
 import { verifyAccessToken } from '../../core/security/jwt';
 import { transactionStorage } from '../../database/transaction-host';
 import type { User } from '../../database/schema';
@@ -347,5 +349,144 @@ describe('AuthService logout, profile, registration', () => {
         ),
       ),
     ).toBeInstanceOf(ConflictError);
+  });
+});
+
+describe('password changes end older sessions', () => {
+  it('refresh refuses (and revokes) a family started before password_changed_at', async () => {
+    const { service, tokens, users } = setup([{ ...ada }]);
+    const session = await inRequest(() => service.login({ email: ada.email, password: PASSWORD }));
+    Object.assign(users[0] ?? {}, { passwordChangedAt: nowInstant().add({ seconds: 1 }) });
+
+    expect(
+      (await rejection(inRequest(() => service.refresh(session.refreshToken)))).errorCode,
+    ).toBe(APP_ERROR_CODES.AUTH_REFRESH_INVALID);
+    expect(tokens.map((token) => token.revokedAt !== null)).toEqual([true]);
+  });
+
+  it('a family started at or after the change keeps working', async () => {
+    const { service, users } = setup([
+      { ...ada, passwordChangedAt: nowInstant().subtract({ seconds: 5 }) },
+    ]);
+    const session = await inRequest(() => service.login({ email: ada.email, password: PASSWORD }));
+
+    expect((await inRequest(() => service.refresh(session.refreshToken))).user.id).toBe(ada.id);
+    expect(users[0]?.passwordChangedAt).not.toBeNull();
+  });
+});
+
+describe('AuthService.changePassword', () => {
+  const NEW_PASSWORD = 'a brand new password';
+
+  it('replaces the hash, ends every session and starts a new one for this device', async () => {
+    const { service, tokens, users } = setup([{ ...ada }]);
+    const other = await inRequest(() => service.login({ email: ada.email, password: PASSWORD }));
+
+    const session = await inRequest(() =>
+      service.changePassword(ada.id, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD }),
+    );
+
+    const stored = users.at(0);
+    expect(await Bun.password.verify(NEW_PASSWORD, stored?.passwordHash ?? '')).toBe(true);
+    expect(stored?.passwordChangedAt).not.toBeNull();
+    expect(tokens.at(0)?.revokedAt).not.toBeNull();
+    expect(tokens.at(1)?.revokedAt).toBeNull();
+    expect((await rejection(inRequest(() => service.refresh(other.refreshToken)))).errorCode).toBe(
+      APP_ERROR_CODES.AUTH_REFRESH_INVALID,
+    );
+    expect((await inRequest(() => service.refresh(session.refreshToken))).user.id).toBe(ada.id);
+    expect(
+      (await inRequest(() => service.login({ email: ada.email, password: NEW_PASSWORD }))).user.id,
+    ).toBe(ada.id);
+  });
+
+  it('a wrong current password is a 400 on current_password and counts as a login attempt', async () => {
+    const { service, counters, users } = setup([{ ...ada }]);
+
+    const error = await rejection(
+      inRequest(() =>
+        service.changePassword(ada.id, { currentPassword: 'wrong', newPassword: NEW_PASSWORD }),
+      ),
+    );
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error.details).toEqual([{ field: 'currentPassword', message: expect.anything() }]);
+    expect([...counters.values()]).toEqual([1]);
+    expect(users[0]?.passwordHash).toBe(ada.passwordHash);
+    for (let i = 0; i < 2; i += 1) {
+      await rejection(
+        inRequest(() =>
+          service.changePassword(ada.id, { currentPassword: 'wrong', newPassword: NEW_PASSWORD }),
+        ),
+      );
+    }
+    expect(
+      await rejection(
+        inRequest(() =>
+          service.changePassword(ada.id, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD }),
+        ),
+      ),
+    ).toBeInstanceOf(TooManyRequestsError);
+  });
+
+  it('a deleted or deactivated caller gets 401', async () => {
+    const { service } = setup([{ ...ada, isActive: false }]);
+
+    expect(
+      (
+        await rejection(
+          inRequest(() =>
+            service.changePassword(ada.id, {
+              currentPassword: PASSWORD,
+              newPassword: NEW_PASSWORD,
+            }),
+          ),
+        )
+      ).errorCode,
+    ).toBe(APP_ERROR_CODES.AUTH_TOKEN_INVALID);
+  });
+});
+
+describe('security log events', () => {
+  const spies: { mockRestore: () => void }[] = [];
+  afterEach(() => {
+    for (const spy of spies.splice(0)) spy.mockRestore();
+  });
+
+  it('logs failures with a hashed email and a reason, successes and lockouts — never the email', async () => {
+    const warnings: unknown[][] = [];
+    const infos: unknown[][] = [];
+    spies.push(
+      spyOn(logger, 'warn').mockImplementation((...args: unknown[]) => {
+        warnings.push(args);
+      }),
+      spyOn(logger, 'info').mockImplementation((...args: unknown[]) => {
+        infos.push(args);
+      }),
+    );
+    const { service } = setup([{ ...ada }]);
+
+    await rejection(inRequest(() => service.login({ email: 'nobody@example.com', password: 'x' })));
+    await rejection(inRequest(() => service.login({ email: ada.email, password: 'wrong' })));
+    await inRequest(() => service.login({ email: ada.email, password: PASSWORD }));
+    await service.logoutAll(ada.id);
+    for (let i = 0; i < 4; i += 1) {
+      await rejection(inRequest(() => service.login({ email: ada.email, password: 'wrong' })));
+    }
+
+    const emailHash = sha256Hex(ada.email);
+    expect(warnings.slice(0, 2)).toEqual([
+      [{ emailHash: sha256Hex('nobody@example.com'), reason: 'unknown_email' }, 'Login failed'],
+      [{ emailHash, reason: 'wrong_password' }, 'Login failed'],
+    ]);
+    expect(warnings.at(-1)).toEqual([
+      { emailHash, attempts: 4 },
+      'Login locked: too many attempts',
+    ]);
+    expect(infos).toEqual([
+      [{ userId: ada.id }, 'Login succeeded'],
+      [{ userId: ada.id }, 'Logged out of every session'],
+    ]);
+    expect(JSON.stringify([...warnings, ...infos])).not.toContain(ada.email);
   });
 });

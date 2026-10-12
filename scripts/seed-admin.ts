@@ -8,6 +8,8 @@
  * The password is read from the terminal (hidden, asked twice) or from stdin when piped — never
  * from arguments or environment variables, which end up in shell history and process listings.
  */
+import { CACHE_KEYS, cacheService } from '../src/core/cache';
+import { closeRedisClient, redisClient } from '../src/core/cache/redis.client';
 import { sqlClient } from '../src/database/connection';
 import { SeedAdminError, seedAdmin } from '../src/database/seeds/seed-admin';
 
@@ -85,12 +87,17 @@ const main = async (): Promise<void> => {
   }
 
   try {
-    const result = await seedAdmin({
-      email: args.email,
-      fullName: args.name,
-      promote: args.promote,
-      password: args.promote ? undefined : await readPassword(),
-    });
+    const result = await seedAdmin(
+      {
+        email: args.email.trim().toLowerCase(),
+        fullName: args.name,
+        promote: args.promote,
+        password: args.promote ? undefined : await readPassword(),
+      },
+      undefined,
+      undefined,
+      (userId) => cacheService.del(CACHE_KEYS.userDetail(userId)),
+    );
     const messages = {
       created: 'Created admin',
       promoted: 'Promoted to active admin',
@@ -102,7 +109,7 @@ const main = async (): Promise<void> => {
     console.error(error.message);
     process.exitCode = 1;
   } finally {
-    await sqlClient.end();
+    await Promise.all([sqlClient.end(), closeRedisClient(redisClient)]);
   }
 };
 

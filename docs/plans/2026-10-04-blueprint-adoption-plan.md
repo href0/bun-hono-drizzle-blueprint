@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–2 selesai**, Fase 3: 3.1–3.4 selesai (`main` @ `5491544`), 3.5 menunggu review (branch `feat/protect-users-seed-admin`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–3 selesai** (`main` @ `17d8265`); perbaikan Review 8 menunggu review (branch `fix/review-phase-3`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `5491544` |
+| Basis kode | branch `main` @ `17d8265` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -413,6 +413,18 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 3.5 | Seed admin: logika di `src/database/seeds/seed-admin.ts` (lapisan database, teruji perekam SQL; tulis lewat `BaseRepository` → actor `system`, promosi teraudit), CLI `scripts/seed-admin.ts` (`bun run seed:admin --email <email> [--name] [--promote]`): password dari prompt tersembunyi (raw mode, diminta dua kali) atau baris pertama stdin bila di-pipe — tidak pernah dari argumen/env. Ditambahkan di luar rencana: idempoten (admin aktif = tidak berubah), user yang sudah ada **tidak** disentuh tanpa `--promote` (password tidak pernah ditimpa), `--promote` = jadikan admin aktif. Langkah `seed:admin` ditambahkan ke keluaran `bun run setup`, skill `init-project` dan README Quick Start | Prompt tersembunyi (TTY) **belum diuji** — shell agent bukan TTY; jalur stdin diuji ke DB lokal |
 | 2026-10-12 | 3.5 | `docs/auth-guide.md` (FE, Bahasa Indonesia): endpoint & cookie, access token di memori (bukan `localStorage`) + refresh saat aplikasi dibuka, `credentials: 'include'`, refresh **single-flight di tab + Web Locks lintas tab** (dua refresh bersamaan dengan cookie sama = reuse → logout), contoh klien `fetch`, logout / logout-all, tabel kode error, serta hasil diskusi user: kenapa CSRF tetap perlu (cookie, bukan form), `SameSite` = site (eTLD+1) sehingga subdomain lain tidak tertahan dan hanya cek `Origin` yang menahan, pilihan penempatan FE/API, pengembangan lokal (`localhost` beda port = satu site), klien non-browser (`Content-Type: application/json`), risiko cookie tossing | — |
 | 2026-10-12 | 3.5 | **Uji nyata** (PostgreSQL + Redis lokal, server port 3999): `seed:admin` via stdin → admin dibuat; dijalankan ulang → tidak berubah; password pendek / argumen salah → ditolak (exit 1). Admin login → list 200, buat user 201; user biasa → list 403, buat 403, PATCH role sendiri 403, lihat admin 403, lihat diri sendiri 200; `--promote` → user jadi admin (list 200), `record_changes`: `UPDATE role user→admin` oleh `system`; `created_by`: seed = `system`, user buatan admin = `user:<id admin>`. Semua data uji dihapus (0 tersisa) | **Fase 3 selesai** setelah step ini di-merge |
+| 2026-10-12 | 3.5 | ✅ Di-commit (`17d8265`) dan di-merge ke `main` atas permintaan user — **Fase 3 selesai** | — |
+| 2026-10-12 | Review 8 | Review menyeluruh Fase 3 (3.1–3.5) atas permintaan user: 15 temuan; user menyetujui semua rekomendasi, diperbaiki di branch `fix/review-phase-3` (baris di bawah) | Gate hijau; perilaku baru dibuktikan test + chaos test |
+| 2026-10-12 | Review 8 | **Email peka huruf besar/kecil**: `Ada@x.com` dan `ada@x.com` bisa menjadi dua akun, login dengan huruf berbeda gagal (kunci brute-force sudah lowercase, pencarian user tidak). `emailField` bersama (`core/dto/common.dto.ts`: trim + lowercase sebelum validasi) dipakai create/update user, login, register; `seed:admin` ikut menormalkan. `newPasswordField` (8–1024) menyatukan aturan password | e2e: login `'  ADA@Example.com'` → 200; create user dengan email campuran → disimpan lowercase |
+| 2026-10-12 | Review 8 | **Rate limit global**: default `RATE_LIMIT_MAX` 100 → **1000** per 15 menit per IP — 100 habis oleh satu SPA aktif, apalagi satu kantor di balik NAT. Opsi rate limit per user setelah login masuk backlog L12 | L1 diperbarui |
+| 2026-10-12 | Review 8 | **Ganti password (tidak ada sebelumnya)**: `POST /auth/change-password` (password lama wajib, percobaan dihitung seperti login → 429, salah → 400 `current_password`; hash baru + `password_changed_at`, semua sesi dicabut, sesi baru untuk perangkat ini — atomik) dan reset admin `PUT /users/:id/password`. Kolom baru `users.password_changed_at` (migrasi `0006`): refresh menolak family yang dimulai **sebelum** password terakhir diganti — mekanisme yang juga berlaku untuk reset admin dari modul `users` tanpa import lintas modul (menutup penyimpangan langkah 4 di 3.3). `PublicUser` dan cache detail tidak memuat kolom ini | Chaos test (lihat bawah) |
+| 2026-10-12 | Review 8 | `REFRESH_TOKEN_TTL_SECONDS` dibatasi ≤ 34.560.000 (400 hari): nilai lebih besar membuat **setiap login 500** — terbukti, Hono menolak cookie `Max-Age` > 400 hari | `config.test.ts` |
+| 2026-10-12 | Review 8 | Pembersihan token: `purgeRefreshTokens(retentionDays = 7)` di `src/database/maintenance/` (lapisan database; hapus baris yang **kedaluwarsa** lebih dari N hari — token kedaluwarsa tidak bisa dipakai lagi dan token yang dirotasi selalu kedaluwarsa sebelum penggantinya) + `bun run auth:purge-tokens [--days N]` untuk dijadwalkan harian. depcruise: `src/database/maintenance/` dikecualikan dari `no-orphans` seperti `seeds/` | Diuji ke DB lokal (lihat bawah) |
+| 2026-10-12 | Review 8 | Log keamanan (`emailHash` = sha256, email plaintext tidak pernah dicatat): `Login failed` (`reason`: `unknown_email` / `wrong_password` / `inactive`), `Login locked`, `Login succeeded`, `Logged out of every session`, `Password change refused`, `Password changed`, `Refresh refused` (`reason`: `inactive` / `password_changed`); sebelumnya hanya reuse yang tercatat | Test memastikan email tidak muncul di log |
+| 2026-10-12 | Review 8 | Admin tidak bisa menghapus, menonaktifkan, atau mencabut role admin **akunnya sendiri** → 403 `ERR_SELF_LOCKOUT_FORBIDDEN` (admin lain bisa; pemulihan: `seed:admin --promote`). `seed:admin --promote` kini membuang cache detail user (`onUserChanged`) dan menutup koneksi Redis | — |
+| 2026-10-12 | Review 8 | 401 dari `authenticate()` membawa `WWW-Authenticate: Bearer` / `Bearer error="invalid_token"` (RFC 6750 §3), diekspos lewat CORS. Hash dummy login dibuat saat modul dimuat (sebelumnya pada pemakaian pertama → login pertama dengan email tak dikenal sedikit lebih lambat). Komentar basi `requireAuth()` di `request-context.ts` diperbaiki | — |
+| 2026-10-12 | Review 8 | Dokumen: CONTRIBUTING §4.3 baru _Autentikasi & Otorisasi_ (route publik, `requireRole`, `requireSelfOrRole`, `currentUser`, test, seed, password, purge, latensi role 15 menit, log keamanan) + tabel error §3.3 dilengkapi kode auth + `emailField`/`newPasswordField` di §4.2; `auth-guide.md` (change-password, reset admin, perubahan role, email tak peka huruf, `WWW-Authenticate`, kode error baru); project-standards Rule 13; README; `database.md`; `.env.example`; L1, L3, L4 | — |
+| 2026-10-12 | Review 8 | **Chaos test** (11, semua tertangkap): email tidak di-lowercase, refresh mengabaikan `password_changed_at`, change-password tidak mencabut sesi lain / tidak dihitung sebagai percobaan, log memuat email plaintext, admin boleh menghapus diri sendiri, reset admin tanpa `password_changed_at`, tanpa `WWW-Authenticate`, TTL refresh tanpa batas, purge berdasarkan `created_at`, promosi seed tanpa membuang cache. **Uji nyata** (migrasi `0006` diterapkan ke DB lokal; server port 3999 + PostgreSQL + Redis): seed dengan email HURUF BESAR tersimpan lowercase; login dengan huruf campuran 200; duplikat beda huruf 409; change-password di perangkat B → perangkat A dan cookie lama B `ERR_AUTH_REFRESH_INVALID`, cookie baru B 200; password lama salah 400; reset admin → refresh perangkat lain ditolak, login dengan password baru 200; admin hapus / turunkan role diri sendiri → `ERR_SELF_LOCKOUT_FORBIDDEN`; `WWW-Authenticate` `Bearer` / `Bearer error="invalid_token"`; `auth:purge-tokens --days 7` menghapus 6 token yang dibuat kedaluwarsa 10 hari lalu. Semua data uji dihapus (0 tersisa) | Prompt TTY `seed:admin` masih belum teruji (shell agent bukan TTY) |
 
 ---
 
@@ -464,7 +476,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ✅ | 2.8 | `f50a2f8` |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `11087c7` |
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `5491544` |
-| 3.5 | Proteksi `users`, seed admin, panduan FE | 👀 | 3.4 |  |
+| 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
 | 4.1 | Hardening `HttpClientService` | ⬜ | 1.3 |  |
 | 4.2 | Template integrasi & cache token vendor | ⬜ | 4.1 |  |
 | 5.1 | Utilitas kripto & signing partner | ⬜ | 0.3 |  |
@@ -1155,13 +1167,13 @@ Catatan   : <hal yang perlu perhatian reviewer>
 | `TRUST_PROXY_HOPS` | 1.7 | `0` | `int().min(0)` |
 | `HTTP_BODY_LIMIT_BYTES` | 1.7 | `1048576` |  |
 | `RATE_LIMIT_WINDOW_SECONDS` | 1.7 | `900` | menggantikan `RATE_LIMIT_WINDOW_MS` |
-| `RATE_LIMIT_MAX` | ada | `100` |  |
+| `RATE_LIMIT_MAX` | ada | `1000` (Review 8; sebelumnya `100`) | per IP per jendela |
 | `DEFAULT_LOCALE` | 1.4 | `id` | `id \| en` |
 | `API_DOCS_ENABLED` | 1.9 | `true` kecuali production |  |
 | `JWT_SECRET` | 3.1 | — (test: nilai dummy) | `min(32)` |
 | `JWT_ISSUER` / `JWT_AUDIENCE` | 3.1 | `APP_NAME` |  |
 | `ACCESS_TOKEN_TTL_SECONDS` | 3.1 | `900` |  |
-| `REFRESH_TOKEN_TTL_SECONDS` | 3.1 | `604800` (7 hari) | sliding per rotasi |
+| `REFRESH_TOKEN_TTL_SECONDS` | 3.1 | `604800` (7 hari) | sliding per rotasi; maks `34560000` (400 hari, batas `Max-Age` cookie — Review 8) |
 | `REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS` | 3.1 | `2592000` (30 hari) | batas umur satu family |
 | `AUTH_COOKIE_SAMESITE` | 3.1 | `Strict` | `Strict \| Lax \| None` (`None` wajib HTTPS lintas situs) |
 | `AUTH_REGISTRATION_ENABLED` | 3.1 | `false` |  |
@@ -1239,6 +1251,8 @@ Envelope error (contoh):
 | `ip` | varchar(45) |  |
 | `created_at` | timestamptz |  |
 
+**Kolom `users.password_changed_at`** (Review 8, migrasi `0006`): diisi saat ganti password / reset admin; refresh menolak family dengan `family_started_at` < nilai ini.
+
 **Endpoint** (`/api/v1/auth`)
 
 | Endpoint | Auth | Request | Response `data` |
@@ -1248,6 +1262,7 @@ Envelope error (contoh):
 | `POST /logout` | cookie + csrf | — | `null` + cookie dihapus (idempoten) |
 | `POST /logout-all` | access token | — | `null` |
 | `GET /me` | access token | — | profil user |
+| `POST /change-password` | access token | `{ "current_password", "new_password" }` | `{ "access_token", "token_type", "expires_in" }` + `Set-Cookie` baru; sesi lain dicabut (Review 8) |
 | `POST /register` | publik, toggle | `{ "email", "full_name", "password" }` | 404 bila `AUTH_REGISTRATION_ENABLED=false` |
 
 **Cookie**: `Set-Cookie: refresh_token=<opaque>; Path=/api/v1/auth; Max-Age=<detik>; HttpOnly; Secure; SameSite=Strict`
@@ -1274,6 +1289,8 @@ COMMIT
 > **Diubah 2026-10-12 (lihat 4.1)**: `revoked_at IS NOT NULL` dibedakan — `replaced_by_id` terisi (token sudah dirotasi lalu dipakai lagi) = **reuse** (cabut family, `ERR_AUTH_REFRESH_REUSED`); tanpa pengganti (logout, logout-all, user nonaktif, family dicabut) = `ERR_AUTH_REFRESH_INVALID`.
 
 ### 15.4 L4 — `PUBLIC_ROUTES` & test default-deny
+
+> **Diubah di Step 3.4 (lihat 4.1)**: `PUBLIC_ROUTES` relatif terhadap `<API_BASE_PATH>/v1` dan hanya berisi `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register`; health, docs dan `/` publik karena berada di luar `/v1`. Pengecualian `/partner/*` ditambahkan di 5.3. Implementasi: `src/core/security/public-routes.ts`, `test/default-deny.e2e.test.ts`. Snippet di bawah adalah rancangan awal.
 
 ```ts
 // src/core/security/public-routes.ts
@@ -1489,6 +1506,8 @@ src/
 - MFA, reset password via email, verifikasi email
 - ACL berbasis permission granular
 - Retry dengan backoff & circuit breaker integrasi outbound
+- Rate limit per user setelah login (per IP hanya sebelum login) — Review 8 menaikkan default per IP sebagai langkah sederhana
+- Daftar & pencabutan sesi per perangkat (`GET /auth/sessions`)
 - Partisi bulanan `record_changes` + runbook retensi
 - SonarQube & template CI GitLab
 - OpenTelemetry tracing + metrics `/metrics`

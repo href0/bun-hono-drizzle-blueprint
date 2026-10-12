@@ -16,6 +16,14 @@ export const USER_MESSAGES = {
     en: 'User with this email already exists',
   },
   EMAIL_ALREADY_REGISTERED: { id: 'Email sudah terdaftar', en: 'Email is already registered' },
+  PASSWORD_SET: {
+    id: 'Password berhasil diganti; semua sesi pengguna diakhiri',
+    en: "Password changed; all of the user's sessions have ended",
+  },
+  SELF_LOCKOUT: {
+    id: 'Anda tidak dapat menghapus, menonaktifkan, atau mencabut peran admin akun Anda sendiri',
+    en: 'You cannot delete, deactivate or remove the admin role of your own account',
+  },
 } as const satisfies Record<string, LocalizedMessage>;
 
 export const userNotFoundMessage = (id: string): LocalizedMessage => ({

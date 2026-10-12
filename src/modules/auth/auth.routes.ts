@@ -7,6 +7,7 @@ import { authController } from './auth.controller';
 import {
   accessTokenSchema,
   authUserSchema,
+  changePasswordSchema,
   loginResponseSchema,
   loginSchema,
   registerSchema,
@@ -77,6 +78,19 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       response: { status: 200, description: 'All sessions ended', data: z.null() },
     }),
     authController.logoutAll,
+  );
+  routes.post(
+    '/change-password',
+    describeEndpoint({
+      tags,
+      summary: 'Change your own password (ends every other session)',
+      description:
+        'Requires the current password (attempts count like logins → 429). Returns a new access ' +
+        'token and sets a new refresh cookie for this device; every other session ends.',
+      response: { status: 200, description: 'Password changed', data: accessTokenSchema },
+    }),
+    validate({ body: changePasswordSchema }),
+    authController.changePassword,
   );
   routes.get(
     '/me',

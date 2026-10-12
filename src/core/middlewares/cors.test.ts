@@ -43,6 +43,7 @@ describe('corsMiddleware', () => {
     const res = await app.request('/data', { headers: { Origin: 'https://app.example.com' } });
     expect(res.headers.get('Access-Control-Expose-Headers')?.split(',')).toEqual([
       'X-Request-ID',
+      'WWW-Authenticate',
       'Retry-After',
       'RateLimit-Limit',
       'RateLimit-Remaining',

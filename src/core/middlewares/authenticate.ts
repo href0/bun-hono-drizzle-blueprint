@@ -36,11 +36,16 @@ export const authenticate = ({
       return;
     }
 
+    // RFC 6750 §3: a 401 for a bearer-protected resource names the scheme (kept on the error response).
     const token = BEARER.exec(c.req.header('authorization') ?? '')?.at(1);
     if (token === undefined) {
+      c.header('WWW-Authenticate', 'Bearer');
       throw new UnauthorizedError();
     }
-    const verified = await verify(token);
+    const verified = await verify(token).catch((error: unknown) => {
+      c.header('WWW-Authenticate', 'Bearer error="invalid_token"');
+      throw error;
+    });
     setAuthenticatedUser({ id: verified.userId, role: verified.role });
     await next();
   };

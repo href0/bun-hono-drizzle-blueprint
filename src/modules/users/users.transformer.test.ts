@@ -10,6 +10,7 @@ describe('UsersTransformer (Unit)', () => {
     fullName: 'Test User',
     passwordHash: 'secret_hash',
     role: 'user',
+    passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
     deletedAt: null,

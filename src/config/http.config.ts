@@ -40,7 +40,8 @@ const httpSchema = z.object({
     .int()
     .positive()
     .default(15 * 60),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  /** Per client IP and window: room for a signed-in SPA, also for an office behind one NAT IP. */
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(1000),
 });
 
 export type HttpConfig = z.infer<typeof httpSchema>;

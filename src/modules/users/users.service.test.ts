@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import { UsersService } from './users.service';
-import { ConflictError, NotFoundError } from '../../core/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
+import { runWithRequestContext } from '../../core/context/request-context';
 import { transactionStorage } from '../../database/transaction-host';
 import type { UsersRepository } from './users.repository';
 import { CacheService, type CacheClient } from '../../core/cache';
@@ -14,6 +15,7 @@ describe('UsersService (Unit)', () => {
     fullName: 'Test User',
     passwordHash: 'hashed_password',
     role: 'user',
+    passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
     deletedAt: null,
@@ -89,7 +91,11 @@ describe('UsersService (Unit)', () => {
     const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
     const user = await service.getUserById(mockUser.id);
     // toEqual treats an undefined property as absent: the public user is the user minus the hash.
-    expect(user as unknown).toEqual({ ...mockUser, passwordHash: undefined });
+    expect(user as unknown).toEqual({
+      ...mockUser,
+      passwordHash: undefined,
+      passwordChangedAt: undefined,
+    });
     expect(user).not.toHaveProperty('passwordHash');
   });
 
@@ -316,5 +322,90 @@ describe('UsersService (Unit)', () => {
     const posts = await service.getUserExternalPosts(mockUser.id);
     expect(posts).toHaveLength(1);
     expect(posts[0]?.title).toBe('Sample Post');
+  });
+});
+
+describe('UsersService password reset and self-lockout', () => {
+  const user: User = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    email: 'test@example.com',
+    fullName: 'Test User',
+    passwordHash: 'old-hash',
+    role: 'admin',
+    passwordChangedAt: null,
+    createdBy: 'system',
+    updatedBy: 'system',
+    deletedAt: null,
+    isActive: true,
+    createdAt: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+    updatedAt: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+  };
+  const deleted: string[] = [];
+  const cache = {
+    del: async (key: string) => {
+      deleted.push(key);
+    },
+  } as unknown as CacheService;
+  const asActor = <T>(actor: `user:${string}`, fn: () => Promise<T>): Promise<T> =>
+    runWithRequestContext({ requestId: 'r', locale: 'en', clientIp: '127.0.0.1', actor }, fn);
+
+  it('setPassword stores a new hash with password_changed_at and evicts the cached detail', async () => {
+    const patches: Record<string, unknown>[] = [];
+    const repo: Partial<UsersRepository> = {
+      updateById: async (_id, patch) => {
+        patches.push(patch);
+        return user;
+      },
+    };
+    const service = new UsersService(repo as UsersRepository, cache);
+
+    await service.setPassword(user.id, { password: 'new password 1' });
+
+    expect(await Bun.password.verify('new password 1', String(patches[0]?.passwordHash))).toBe(
+      true,
+    );
+    expect(patches[0]?.passwordChangedAt).toBeInstanceOf(Temporal.Instant);
+    expect(deleted).toContain(`user:detail:${user.id}`);
+  });
+
+  it('setPassword of an unknown user is a 404', async () => {
+    const service = new UsersService(
+      { updateById: async () => null } as unknown as UsersRepository,
+      cache,
+    );
+
+    expect(service.setPassword(user.id, { password: 'new password 1' })).rejects.toThrow(
+      NotFoundError,
+    );
+  });
+
+  it('an admin cannot delete, deactivate or demote themselves; other admins can', async () => {
+    const repo: Partial<UsersRepository> = {
+      softDeleteById: async () => user,
+      updateById: async () => user,
+      findByEmail: async () => null,
+    };
+    const service = new UsersService(repo as UsersRepository, cache);
+    const self = `user:${user.id}` as const;
+
+    expect(asActor(self, () => service.deleteUser(user.id))).rejects.toThrow(ForbiddenError);
+    await transactionStorage.run({} as never, async () => {
+      expect(asActor(self, () => service.updateUser(user.id, { isActive: false }))).rejects.toThrow(
+        ForbiddenError,
+      );
+      expect(asActor(self, () => service.updateUser(user.id, { role: 'user' }))).rejects.toThrow(
+        ForbiddenError,
+      );
+      // Harmless changes of one's own account are fine.
+      expect(
+        await asActor(self, () =>
+          service.updateUser(user.id, { fullName: 'Renamed', role: 'admin' }),
+        ),
+      ).toBe(user);
+      expect(
+        await asActor('user:another-admin', () => service.updateUser(user.id, { isActive: false })),
+      ).toBe(user);
+    });
+    await asActor('user:another-admin', () => service.deleteUser(user.id));
   });
 });

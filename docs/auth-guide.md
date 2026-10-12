@@ -21,9 +21,11 @@ Base: `<API>/api/v1/auth`. Body dan respons memakai `snake_case`.
 | `POST /refresh` | cookie | tanpa body | `{ "access_token", "token_type", "expires_in" }` + cookie baru |
 | `POST /logout` | cookie | tanpa body | `null`, cookie dihapus (aman dipanggil berulang) |
 | `POST /logout-all` | access token | tanpa body | `null`, semua sesi user di semua perangkat diakhiri |
+| `POST /change-password` | access token | `{ "current_password", "new_password" }` | `{ "access_token", "token_type", "expires_in" }` + cookie baru; semua sesi lain diakhiri |
 | `GET /me` | access token | — | `{ "id", "email", "full_name", "role" }` |
 | `POST /register` | publik | `{ "email", "full_name", "password" }` | user baru (201). **Hanya ada bila `AUTH_REGISTRATION_ENABLED=true`**; kalau tidak, 404 |
 
+- Email tidak peka huruf besar/kecil: server menyimpan dan mencarinya dalam huruf kecil.
 - `expires_in` adalah umur access token dalam detik (default 900).
 - `user.role` bernilai `admin` atau `user`. Endpoint yang tidak diizinkan untuk role tertentu menjawab 403 `ERR_ROLE_FORBIDDEN`.
 - Refresh token **tidak pernah** muncul di body respons.
@@ -180,7 +182,12 @@ Opsional: refresh lebih awal, misalnya 60 detik sebelum `expires_in` habis, supa
 | Keluar dari sesi ini | `POST /auth/logout` dengan `credentials: 'include'`, lalu hapus access token dari memori |
 | Keluar dari semua perangkat | `POST /auth/logout-all` dengan access token |
 
-Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 menit), karena server tidak menyimpan daftar access token. Hapus dari memori FE saat logout. Hal yang sama berlaku saat admin menonaktifkan atau menghapus user: refresh berikutnya ditolak, dan access token yang masih ada habis dengan sendirinya.
+Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 menit), karena server tidak menyimpan daftar access token. Hapus dari memori FE saat logout. Hal yang sama berlaku saat admin menonaktifkan, menghapus, atau **mengubah role** user: refresh berikutnya ditolak (atau memberi token dengan role baru), dan access token yang masih ada habis dengan sendirinya.
+
+### Ganti password
+
+- **User sendiri**: `POST /auth/change-password` dengan `{ "current_password", "new_password" }` (minimal 8 karakter). Simpan `access_token` baru dari respons; cookie diganti otomatis. Semua sesi di perangkat lain berakhir. Password lama salah → 400 dengan `details[].field = "current_password"`; percobaan dihitung seperti login (→ 429).
+- **Reset oleh admin**: `PUT /users/:id/password` dengan `{ "password" }`. Semua sesi user itu berakhir pada refresh berikutnya.
 
 ---
 
@@ -188,7 +195,7 @@ Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 m
 
 | HTTP | `error.code` | Arti | Tindakan FE |
 |---|---|---|---|
-| 401 | `ERR_UNAUTHORIZED` | Tidak ada / format header `Authorization` salah | Refresh lalu ulangi; gagal → login |
+| 401 | `ERR_UNAUTHORIZED` | Tidak ada / format header `Authorization` salah (respons membawa `WWW-Authenticate: Bearer`) | Refresh lalu ulangi; gagal → login |
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token habis | Refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak sah (dipalsukan, secret server diganti, user dihapus) | Refresh; gagal → login |
 | 401 | `ERR_AUTH_INVALID_CREDENTIALS` | Email/password salah atau akun nonaktif (sengaja tidak dibedakan) | Tampilkan pesan dari `message` |
@@ -196,6 +203,8 @@ Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 m
 | 401 | `ERR_AUTH_REFRESH_REUSED` | Refresh token lama dipakai lagi — seluruh sesi dicabut | Halaman login (periksa single-flight, §4) |
 | 403 | `ERR_ROLE_FORBIDDEN` | Role tidak boleh mengakses endpoint ini | Sembunyikan fitur / tampilkan pesan |
 | 403 | `ERR_CSRF_ORIGIN_FORBIDDEN` | Origin FE tidak terdaftar | Konfigurasi: tambahkan origin ke `CORS_ORIGINS` |
+| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin mencoba menghapus, menonaktifkan, atau mencabut role admin akunnya sendiri | Tampilkan pesan |
+| 400 | `ERR_INVALID_INPUT` (`details[].field = current_password`) | Password lama salah saat ganti password | Tampilkan pesan |
 | 429 | `ERR_AUTH_LOGIN_LOCKED` | Terlalu banyak percobaan login untuk email ini dari alamat ini | Tunggu `Retry-After` detik |
 | 429 | `ERR_RATE_LIMITED` | Batas request global | Tunggu `Retry-After` detik |
 

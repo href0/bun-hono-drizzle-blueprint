@@ -54,6 +54,16 @@ describe('authenticate (default-deny)', () => {
     }
   });
 
+  it('401s carry the RFC 6750 challenge: Bearer, with invalid_token for a rejected token', async () => {
+    const missing = await appWith().request(`${BASE}/private`);
+    const forged = await appWith().request(`${BASE}/private`, {
+      headers: { Authorization: 'Bearer a.b.c' },
+    });
+
+    expect(missing.headers.get('www-authenticate')).toBe('Bearer');
+    expect(forged.headers.get('www-authenticate')).toBe('Bearer error="invalid_token"');
+  });
+
   it('a rejected token keeps the verifier’s error (expired / invalid)', async () => {
     const forged = await appWith().request(`${BASE}/private`, {
       headers: { Authorization: 'Bearer a.b.c' },

@@ -3,6 +3,9 @@ import { appConfig, type AppConfig } from './app.config';
 import { envSource } from './env-source';
 import { isTestEnvironment, parseEnv, type EnvSource } from './parse-env';
 
+/** Browsers drop cookies with a longer Max-Age; Hono refuses to set them (500 on login). */
+const MAX_COOKIE_AGE_SECONDS = 400 * 24 * 60 * 60;
+
 const seconds = (fallback: number): z.ZodDefault<z.ZodNumber> =>
   z.coerce.number().int().positive().default(fallback);
 
@@ -14,8 +17,12 @@ const authSchema = z
     JWT_ISSUER: z.string().default(''),
     JWT_AUDIENCE: z.string().default(''),
     ACCESS_TOKEN_TTL_SECONDS: seconds(15 * 60),
-    /** Lifetime of one refresh token; every rotation starts a new one (sliding). */
-    REFRESH_TOKEN_TTL_SECONDS: seconds(7 * 24 * 60 * 60),
+    /** Lifetime of one refresh token; every rotation starts a new one (sliding). It is the cookie's
+     * Max-Age, which browsers (and Hono) cap at 400 days. */
+    REFRESH_TOKEN_TTL_SECONDS: seconds(7 * 24 * 60 * 60).refine(
+      (value) => value <= MAX_COOKIE_AGE_SECONDS,
+      { message: 'must be at most 34560000 (400 days, the browser limit for cookies)' },
+    ),
     /** Hard limit for a whole rotation chain (family): after it the user signs in again. */
     REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS: seconds(30 * 24 * 60 * 60),
     /** `None` only for a cross-site frontend over HTTPS (the cookie is always `Secure`). */

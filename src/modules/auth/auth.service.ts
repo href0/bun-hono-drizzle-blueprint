@@ -8,6 +8,7 @@ import {
   InternalServerError,
   TooManyRequestsError,
   UnauthorizedError,
+  ValidationError,
 } from '../../core/errors';
 import { I18N_MESSAGES } from '../../core/i18n';
 import { logger } from '../../core/logger';
@@ -20,7 +21,7 @@ import { generateOpaqueToken, sha256Hex } from '../../utils/crypto.util';
 import { nowInstant } from '../../utils/datetime.util';
 import { AuthRepository, authRepository } from './auth.repository';
 import { AuthUsersRepository, authUsersRepository } from './auth-users.repository';
-import type { AuthUser, LoginDto, RegisterDto } from './auth.dto';
+import type { AuthUser, ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
 import { AUTH_MESSAGES } from './auth.messages';
 
 export type AuthSettings = Pick<
@@ -60,11 +61,10 @@ const USER_AGENT_MAX_LENGTH = 255;
 
 /**
  * Verified against when the email is unknown, so a failed login takes as long as a wrong password
- * and the response time does not reveal which emails exist. Created once, on first use.
+ * and the response time does not reveal which emails exist. Hashed once at startup, so even the
+ * first such login is not slower (or faster) than the others.
  */
-let dummyPasswordHash: Promise<string> | undefined;
-const getDummyPasswordHash = (): Promise<string> =>
-  (dummyPasswordHash ??= Bun.password.hash('constant-time-dummy-password'));
+const dummyPasswordHash: Promise<string> = Bun.password.hash('constant-time-dummy-password');
 
 const earliest = (a: Temporal.Instant, b: Temporal.Instant): Temporal.Instant =>
   Temporal.Instant.compare(a, b) <= 0 ? a : b;
@@ -80,6 +80,11 @@ const invalidCredentials = (): UnauthorizedError =>
 const refreshInvalid = (): UnauthorizedError =>
   new UnauthorizedError(AUTH_MESSAGES.REFRESH_INVALID, {
     code: APP_ERROR_CODES.AUTH_REFRESH_INVALID,
+  });
+
+const tokenInvalid = (): UnauthorizedError =>
+  new UnauthorizedError(I18N_MESSAGES.AUTH_TOKEN_INVALID, {
+    code: APP_ERROR_CODES.AUTH_TOKEN_INVALID,
   });
 
 const emailTaken = (): ConflictError =>
@@ -100,8 +105,9 @@ const toAuthUser = (user: User): AuthUser => {
  *
  * A login starts a token family (one session). Every refresh revokes the presented token and
  * issues its successor in the same family; presenting an already revoked token means it was
- * copied, so the whole family is revoked. Deactivated or deleted users cannot refresh: their family
- * is revoked on the next attempt, and their access token expires within ACCESS_TOKEN_TTL_SECONDS.
+ * copied, so the whole family is revoked. Deactivated or deleted users, and sessions started before
+ * the last password change, cannot refresh: the family is revoked on the next attempt, and access
+ * tokens already issued expire within ACCESS_TOKEN_TTL_SECONDS (role changes take effect then too).
  */
 export class AuthService {
   constructor(
@@ -117,28 +123,21 @@ export class AuthService {
    * Unknown email, wrong password and inactive account all give the same 401.
    */
   async login(dto: LoginDto, client: ClientInfo = {}): Promise<IssuedSession> {
-    const attemptsKey = CACHE_KEYS.loginAttempts(
-      sha256Hex(dto.email.trim().toLowerCase()),
-      getClientIp() ?? 'unknown',
-    );
-    const attempts = await this.cache.increment(attemptsKey, this.settings.AUTH_LOGIN_LOCK_SECONDS);
-    if (attempts && attempts.count > this.settings.AUTH_LOGIN_MAX_ATTEMPTS) {
-      throw new TooManyRequestsError(AUTH_MESSAGES.LOGIN_LOCKED, {
-        code: APP_ERROR_CODES.AUTH_LOGIN_LOCKED,
-        retryAfterSeconds: attempts.ttlSeconds,
-      });
-    }
+    const attempt = await this.countAttempt(dto.email);
 
     const user = await this.users.findByEmail(dto.email);
     const passwordMatches = await Bun.password.verify(
       dto.password,
-      user?.passwordHash ?? (await getDummyPasswordHash()),
+      user?.passwordHash ?? (await dummyPasswordHash),
     );
     if (!user || !passwordMatches || !user.isActive) {
+      const reason = !user ? 'unknown_email' : !passwordMatches ? 'wrong_password' : 'inactive';
+      logger.warn({ emailHash: attempt.emailHash, reason }, 'Login failed');
       throw invalidCredentials();
     }
 
-    await this.cache.del(attemptsKey);
+    await this.cache.del(attempt.key);
+    logger.info({ userId: user.id }, 'Login succeeded');
     const now = nowInstant();
     const family = { familyId: Bun.randomUUIDv7(), familyStartedAt: now };
     return (await this.issue(user, family, now, client)).session;
@@ -173,16 +172,41 @@ export class AuthService {
   /** Ends every session of the user, on every device. */
   async logoutAll(userId: string): Promise<void> {
     await this.tokens.revokeAllForUser(userId);
+    logger.info({ userId }, 'Logged out of every session');
+  }
+
+  /**
+   * The signed-in user changes their own password (current one required, counted like a login
+   * attempt). Every session ends — `password_changed_at` also refuses older token families — and
+   * this device gets a fresh session, so the user stays signed in here.
+   */
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    client: ClientInfo = {},
+  ): Promise<IssuedSession> {
+    const user = await this.users.findById(userId);
+    if (!user?.isActive) throw tokenInvalid();
+
+    const attempt = await this.countAttempt(user.email);
+    if (!(await Bun.password.verify(dto.currentPassword, user.passwordHash))) {
+      logger.warn({ userId }, 'Password change refused: wrong current password');
+      throw new ValidationError(undefined, {
+        details: [{ field: 'currentPassword', message: AUTH_MESSAGES.CURRENT_PASSWORD_INCORRECT }],
+      });
+    }
+    await this.cache.del(attempt.key);
+
+    const passwordHash = await Bun.password.hash(dto.newPassword);
+    const session = await this.replacePassword(user, passwordHash, client);
+    logger.info({ userId }, 'Password changed: every other session ended');
+    return session;
   }
 
   /** The caller's profile; a user deleted or deactivated since the token was issued gets 401. */
   async getProfile(userId: string): Promise<AuthUser> {
     const user = await this.users.findById(userId);
-    if (!user?.isActive) {
-      throw new UnauthorizedError(I18N_MESSAGES.AUTH_TOKEN_INVALID, {
-        code: APP_ERROR_CODES.AUTH_TOKEN_INVALID,
-      });
-    }
+    if (!user?.isActive) throw tokenInvalid();
     return toAuthUser(user);
   }
 
@@ -206,6 +230,39 @@ export class AuthService {
     }
   }
 
+  /**
+   * Counts one attempt for (email, client IP) — login, or the current password of a change. Past
+   * AUTH_LOGIN_MAX_ATTEMPTS → 429 `ERR_AUTH_LOGIN_LOCKED` without checking any password; a
+   * success resets the counter (`cache.del(key)`). Fails open without Redis.
+   */
+  private async countAttempt(email: string): Promise<{ key: string; emailHash: string }> {
+    const emailHash = sha256Hex(email.trim().toLowerCase());
+    const key = CACHE_KEYS.loginAttempts(emailHash, getClientIp() ?? 'unknown');
+    const attempts = await this.cache.increment(key, this.settings.AUTH_LOGIN_LOCK_SECONDS);
+    if (attempts && attempts.count > this.settings.AUTH_LOGIN_MAX_ATTEMPTS) {
+      logger.warn({ emailHash, attempts: attempts.count }, 'Login locked: too many attempts');
+      throw new TooManyRequestsError(AUTH_MESSAGES.LOGIN_LOCKED, {
+        code: APP_ERROR_CODES.AUTH_LOGIN_LOCKED,
+        retryAfterSeconds: attempts.ttlSeconds,
+      });
+    }
+    return { key, emailHash };
+  }
+
+  /** New hash + `password_changed_at`, all sessions revoked, a new one for this device — atomically. */
+  @Transactional()
+  private async replacePassword(
+    user: User,
+    passwordHash: string,
+    client: ClientInfo,
+  ): Promise<IssuedSession> {
+    const now = nowInstant();
+    const updated = await this.users.updateById(user.id, { passwordHash, passwordChangedAt: now });
+    await this.tokens.revokeAllForUser(user.id);
+    const family = { familyId: Bun.randomUUIDv7(), familyStartedAt: now };
+    return (await this.issue(updated ?? user, family, now, client)).session;
+  }
+
   /** One rotation, in one transaction with the presented token locked (plan L3). */
   @Transactional()
   private async rotate(refreshToken: string, client: ClientInfo): Promise<RotationOutcome> {
@@ -224,8 +281,16 @@ export class AuthService {
     if (Temporal.Instant.compare(presented.expiresAt, now) <= 0) return { kind: 'invalid' };
 
     const user = await this.users.findById(presented.userId);
-    if (!user?.isActive) {
+    // The password changed after this session started (own change or admin reset): it ends.
+    const passwordChangedSince =
+      user?.passwordChangedAt != null &&
+      Temporal.Instant.compare(presented.familyStartedAt, user.passwordChangedAt) < 0;
+    if (!user?.isActive || passwordChangedSince) {
       await this.tokens.revokeFamily(presented.familyId);
+      logger.info(
+        { userId: presented.userId, reason: user?.isActive ? 'password_changed' : 'inactive' },
+        'Refresh refused: session ended',
+      );
       return { kind: 'invalid' };
     }
 

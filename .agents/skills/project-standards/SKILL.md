@@ -295,7 +295,9 @@ export class UsersService {
 - The caller: `currentUser()` (`{ id, role }`) in controllers; services receive the id as an argument or read `getActor()` (`user:<id>`, used for audit columns).
 - Enforced by `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones do not).
 - Tests of a module's contract call `authorize(createApp(), role, userId?)` (`test/helpers/authorized-app.ts`) so requests carry a token.
-- Frontend integration (token storage, single-flight refresh across tabs, cookie, CSRF, SameSite vs subdomains): `docs/auth-guide.md`. First admin: `bun run seed:admin --email <email>`.
+- Access tokens are not re-checked against the database: role changes, deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); refresh already refuses / re-reads the role. A password change (`POST /auth/change-password`, admin `PUT /users/:id/password`) sets `users.password_changed_at`, and refresh refuses token families started before it — no cross-module call needed.
+- Request emails use `emailField` (trimmed, lower-cased); new passwords `newPasswordField`. An admin cannot delete, deactivate or demote their own account (403 `ERR_SELF_LOCKOUT_FORBIDDEN`).
+- Frontend integration (token storage, single-flight refresh across tabs, cookie, CSRF, SameSite vs subdomains): `docs/auth-guide.md`. First admin: `bun run seed:admin --email <email>`; expired refresh tokens: `bun run auth:purge-tokens` (schedule daily).
 
 ---
 

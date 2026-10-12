@@ -111,3 +111,40 @@ describe('seedAdmin with the default hasher', () => {
     expect(await Bun.password.verify('real password', String(hash))).toBe(true);
   });
 });
+
+describe('seedAdmin cache eviction', () => {
+  it('calls onUserChanged after a promotion, never after a creation or a no-op', async () => {
+    const changed: string[] = [];
+    const onUserChanged = (id: string): Promise<void> => {
+      changed.push(id);
+      return Promise.resolve();
+    };
+    const recorder = createSqlRecorder();
+    const user = sampleUser({ email: 'admin@example.com' });
+    const input: SeedAdminInput = {
+      email: user.email,
+      fullName: 'A',
+      password: 'long enough',
+      promote: true,
+    };
+    const hash = (password: string) => Promise.resolve(password);
+
+    recorder.respondWith(
+      [rowOf(users, user)],
+      [rowOf(users, user)],
+      [rowOf(users, { ...user, role: 'admin' })],
+    );
+    await seedAdmin(input, recorder.txHost, hash, onUserChanged);
+    recorder.respondWith([rowOf(users, { ...user, role: 'admin' })]);
+    await seedAdmin(input, recorder.txHost, hash, onUserChanged);
+    recorder.respondWith([], [rowOf(users, sampleUser({ id: 'other', role: 'admin' }))]);
+    await seedAdmin(
+      { ...input, email: 'new@example.com', promote: false },
+      recorder.txHost,
+      hash,
+      onUserChanged,
+    );
+
+    expect(changed).toEqual([user.id]);
+  });
+});

@@ -13,7 +13,10 @@ export type FakeTokenRepository = Pick<
   | 'revokeFamily'
   | 'revokeAllForUser'
 >;
-export type FakeUsersRepository = Pick<AuthUsersRepository, 'findByEmail' | 'findById' | 'create'>;
+export type FakeUsersRepository = Pick<
+  AuthUsersRepository,
+  'findByEmail' | 'findById' | 'create' | 'updateById'
+>;
 
 export const sampleUser = (overrides: Partial<User> = {}): User => ({
   id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
@@ -22,6 +25,7 @@ export const sampleUser = (overrides: Partial<User> = {}): User => ({
   // Filled in by the tests that log in (hashing is slow; most tests never need it).
   passwordHash: 'not-a-real-hash',
   role: 'user',
+  passwordChangedAt: null,
   isActive: true,
   createdAt: parseInstant('2026-10-01T00:00:00Z'),
   updatedAt: parseInstant('2026-10-01T00:00:00Z'),
@@ -103,6 +107,11 @@ export const createAuthFakes = (
       });
       users.push(user);
       return Promise.resolve(user);
+    },
+    updateById: (id, patch) => {
+      const user = users.find((candidate) => live(candidate) && candidate.id === id);
+      if (user) Object.assign(user, patch);
+      return Promise.resolve(user ?? null);
     },
   };
 

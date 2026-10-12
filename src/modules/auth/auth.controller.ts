@@ -5,7 +5,7 @@ import { ApiResponse } from '../../core/response';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './auth-cookie';
 import { authService, AuthService, type ClientInfo } from './auth.service';
 import { toAccessTokenResponse, toAuthUserResponse, toLoginResponse } from './auth.transformer';
-import type { LoginDto, RegisterDto } from './auth.dto';
+import type { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
 import { AUTH_MESSAGES } from './auth.messages';
 
 const clientInfo = (c: Context): ClientInfo => ({ userAgent: c.req.header('user-agent') });
@@ -50,6 +50,18 @@ export class AuthController {
     clearRefreshCookie(c);
 
     return new ApiResponse(null, AUTH_MESSAGES.LOGGED_OUT_ALL, 200);
+  });
+
+  changePassword = asyncHandler(async (c) => {
+    const dto = getValidatedBody<ChangePasswordDto>(c);
+    const session = await this.service.changePassword(currentUser().id, dto, clientInfo(c));
+    setRefreshCookie(c, session.refreshToken, session.refreshMaxAge);
+
+    return new ApiResponse(
+      toAccessTokenResponse(session.accessToken),
+      AUTH_MESSAGES.PASSWORD_CHANGED,
+      200,
+    );
   });
 
   me = asyncHandler(async () => {

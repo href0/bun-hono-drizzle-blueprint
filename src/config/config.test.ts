@@ -94,7 +94,7 @@ describe('Configuration groups (Unit)', () => {
       TRUST_PROXY_HOPS: 0,
       HTTP_BODY_LIMIT_BYTES: 1048576,
       RATE_LIMIT_WINDOW_SECONDS: 900,
-      RATE_LIMIT_MAX: 100,
+      RATE_LIMIT_MAX: 1000,
     });
     expect(buildHttpConfig({ RATE_LIMIT_MAX: '10', TRUST_PROXY_HOPS: '2' }, dev)).toMatchObject({
       RATE_LIMIT_MAX: 10,
@@ -152,6 +152,17 @@ describe('Configuration groups (Unit)', () => {
         app,
       ),
     ).toMatchObject({ JWT_ISSUER: 'issuer', JWT_AUDIENCE: 'web', AUTH_REGISTRATION_ENABLED: true });
+  });
+
+  it('auth: caps REFRESH_TOKEN_TTL_SECONDS at the 400-day cookie limit (a longer one breaks login)', () => {
+    const absolute = { REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS: String(500 * 86400) };
+    expect(
+      buildAuthConfig({ ...secret, ...absolute, REFRESH_TOKEN_TTL_SECONDS: '34560000' }, app)
+        .REFRESH_TOKEN_TTL_SECONDS,
+    ).toBe(34560000);
+    expect(() =>
+      buildAuthConfig({ ...secret, ...absolute, REFRESH_TOKEN_TTL_SECONDS: '34560001' }, app),
+    ).toThrow('REFRESH_TOKEN_TTL_SECONDS: must be at most 34560000');
   });
 
   it('auth: should reject invalid values without echoing them', () => {
