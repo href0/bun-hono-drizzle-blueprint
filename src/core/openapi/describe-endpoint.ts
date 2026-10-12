@@ -38,6 +38,8 @@ export interface EndpointDoc {
    * 400 / 413 by `validate()` (input / body) — list them only when returned for another reason.
    */
   errors?: readonly ErrorStatus[];
+  /** `bearer`: requires an access token (`requireAuth()`) — documents `bearerAuth` and 401. */
+  auth?: 'bearer';
 }
 
 const json = (
@@ -65,7 +67,13 @@ export const describeEndpoint = (doc: EndpointDoc): MiddlewareHandler => {
       ? successEnvelope(doc.response.data)
       : paginatedEnvelope(doc.response.paginatedItem);
 
-  const errors = [...new Set([...(doc.errors ?? []), ...ALWAYS_POSSIBLE])].sort();
+  const errors = [
+    ...new Set([
+      ...(doc.errors ?? []),
+      ...ALWAYS_POSSIBLE,
+      ...(doc.auth === 'bearer' ? ([401] as const) : []),
+    ]),
+  ].sort();
   const errorResponses = Object.fromEntries(
     errors.map((status) => [String(status), errorResponse(status)]),
   );
@@ -74,6 +82,7 @@ export const describeEndpoint = (doc: EndpointDoc): MiddlewareHandler => {
     tags: doc.tags,
     summary: doc.summary,
     ...(doc.description === undefined ? {} : { description: doc.description }),
+    ...(doc.auth === 'bearer' ? { security: [{ bearerAuth: [] }] } : {}),
     responses: {
       [String(doc.response.status)]: {
         description: doc.response.description,

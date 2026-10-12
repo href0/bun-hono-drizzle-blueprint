@@ -17,6 +17,7 @@ import {
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
 import { ApiResponse } from './core/response';
+import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
@@ -63,6 +64,7 @@ export const createApp = (): Hono => {
 
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
   const v1 = new Hono();
+  v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
   v1.route('/orders', ordersRouter);
   app.route(`${basePath}/v1`, v1);

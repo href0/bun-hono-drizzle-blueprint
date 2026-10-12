@@ -3,7 +3,12 @@ import { sign } from 'hono/jwt';
 import { parseInstant } from '../../utils/datetime.util';
 import { APP_ERROR_CODES, UnauthorizedError } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
-import { signAccessToken, verifyAccessToken, type JwtSettings } from './jwt';
+import {
+  signAccessToken,
+  verifyAccessToken,
+  type AccessTokenSubject,
+  type JwtSettings,
+} from './jwt';
 
 const settings: JwtSettings = {
   JWT_SECRET: 'unit-test-secret-with-at-least-32-characters',
@@ -11,7 +16,10 @@ const settings: JwtSettings = {
   JWT_AUDIENCE: 'sample-app',
   ACCESS_TOKEN_TTL_SECONDS: 900,
 };
-const subject = { userId: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e', role: 'admin' };
+const subject: AccessTokenSubject = {
+  userId: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
+  role: 'admin',
+};
 const issuedAt = parseInstant('2026-10-12T03:00:00Z');
 const epoch = issuedAt.epochMilliseconds / 1000;
 
@@ -174,6 +182,20 @@ describe('verifyAccessToken', () => {
       await expectInvalid(await sign(rest, settings.JWT_SECRET, 'HS256'));
     }
     await expectInvalid(await sign({ ...claims, sub: 'not-a-uuid' }, settings.JWT_SECRET, 'HS256'));
+  });
+
+  it('rejects a role that is not (or no longer) one of ROLES', async () => {
+    const claims = {
+      sub: subject.userId,
+      role: 'superuser',
+      jti: Bun.randomUUIDv7(),
+      iat: epoch,
+      exp: epoch + 900,
+      iss: 'sample-app',
+      aud: 'sample-app',
+    };
+
+    await expectInvalid(await sign(claims, settings.JWT_SECRET, 'HS256'));
   });
 
   it('rejects malformed tokens', async () => {

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { getActor, getRequestContext, runWithRequestContext, setActor } from './request-context';
+import {
+  getActor,
+  getAuthenticatedUser,
+  getRequestContext,
+  runWithRequestContext,
+  setActor,
+  setAuthenticatedUser,
+} from './request-context';
 
 const tick = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -34,6 +41,27 @@ describe('RequestContext (Unit)', () => {
   it('should refuse to set an actor outside a request', () => {
     expect(() => {
       setActor('user:1');
+    }).toThrow('outside of a request context');
+  });
+
+  it('records the authenticated user and makes them the actor', () => {
+    const seen = runWithRequestContext(
+      { requestId: 'r', locale: 'id', clientIp: '127.0.0.1', actor: 'anonymous' },
+      () => {
+        const before = getAuthenticatedUser();
+        setAuthenticatedUser({ id: 'u-1', role: 'admin' });
+        return { before, after: getAuthenticatedUser(), actor: getActor() };
+      },
+    );
+
+    expect(seen).toEqual({
+      before: undefined,
+      after: { id: 'u-1', role: 'admin' },
+      actor: 'user:u-1',
+    });
+    expect(getAuthenticatedUser()).toBeUndefined();
+    expect(() => {
+      setAuthenticatedUser({ id: 'u-1', role: 'user' });
     }).toThrow('outside of a request context');
   });
 

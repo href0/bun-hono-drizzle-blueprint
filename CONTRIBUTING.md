@@ -101,7 +101,7 @@ src/
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, dll.)
+│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, requireAuth, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Response Envelope (ApiResponse)
 │   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken), ROLES
@@ -131,6 +131,7 @@ src/
 │       └── index.ts             # Public export untuk dikonsumsi domain modules
 │
 ├── modules/                     # Inbound Domain Feature Modules (Client-Facing HTTP)
+│   ├── auth/                    # Login, rotasi refresh token (cookie HttpOnly), logout, /me (/api/v1/auth)
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
 │   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)
 │   └── users/                   # Modul referensi tabel mandiri (/api/v1/users)

@@ -52,7 +52,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── http/               # HttpClientService with connection pool
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, …
+│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, requireAuth, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   ├── response/           # ApiResponse standardized JSON envelope
 │   │   └── security/           # Access token (JWT HS256): signAccessToken, verifyAccessToken; ROLES
@@ -73,6 +73,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │       ├── domain/         # Project tables (appTable)
 │   │       └── reference/      # Shared reference tables (Read-Only)
 │   ├── modules/                # Feature domains (business capabilities)
+│   │   ├── auth/               # Login, refresh-token rotation (HttpOnly cookie), logout, /me
 │   │   ├── health/             # Healthcheck probes
 │   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)
 │   │   └── users/              # Reference feature domain (standalone table)

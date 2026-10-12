@@ -18,6 +18,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
    - **Standar Waktu (Temporal, UTC)**: instant (`*_at`, ISO 8601 UTC, request wajib ber-offset), tanggal kalender (`*_date`, `YYYY-MM-DD`), jadwal lokal (+ `*_timezone` IANA); runtime & sesi database UTC; jam yang dilompati/terulang oleh DST ditolak.
    - **Health Probes**: `GET /api/health` (selalu 200, `UP`/`DEGRADED`/`DOWN` + status komponen), `/api/health/readiness` (503 hanya bila database mati; Redis mati = `DEGRADED`), `/api/health/liveness` (tanpa cek dependency). Probe database dibatasi 2 detik.
    - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, Pino logging, dan vendor error masking.
+   - **Auth JWT + Refresh Token**: `POST /api/v1/auth/login` → access token JWT HS256 (15 menit) di body, refresh token opaque di cookie `HttpOnly; Secure; SameSite=Strict` (hanya hash SHA-256 yang disimpan). Setiap refresh merotasi token; token lama yang dipakai ulang mengakhiri seluruh sesi. Logout / logout semua perangkat, `GET /me`, batas percobaan login per (email, IP), proteksi CSRF (`Origin` ∈ `CORS_ORIGINS`).
    - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
 7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.
 8. **Kontrak snake_case Dua Arah**: Request (body & query) wajib `snake_case` — key casing lain ditolak 400 `ERR_NON_SNAKE_CASE_KEY` — lalu dikonversi ke DTO camelCase; response selalu `snake_case`.
@@ -88,6 +89,7 @@ src/
 │           └── ref-roles.schema.ts
 │
 ├── modules/                     # Domain Feature Modules
+│   ├── auth/                    # Login, rotasi refresh token (cookie HttpOnly), logout, /me (/api/v1/auth)
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
 │   ├── orders/                  # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples
 │   └── users/                   # Modul referensi tabel mandiri (/api/v1/users: CRUD, soft delete, restore)

@@ -5,6 +5,7 @@ import { authConfig, type AuthConfig } from '../../config';
 import { nowInstant } from '../../utils/datetime.util';
 import { APP_ERROR_CODES, UnauthorizedError } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
+import { ROLES, type Role } from './roles';
 
 /** The only algorithm issued and accepted; a token announcing any other (`none`, RS256…) is invalid. */
 const ALGORITHM = 'HS256';
@@ -16,7 +17,7 @@ export type JwtSettings = Pick<
 
 export interface AccessTokenSubject {
   userId: string;
-  role: string;
+  role: Role;
 }
 
 export interface VerifiedAccessToken extends AccessTokenSubject {
@@ -36,7 +37,8 @@ export interface SignedAccessToken {
  */
 const claimsSchema = z.object({
   sub: z.string().uuid(),
-  role: z.string().min(1),
+  /** A role removed from ROLES invalidates the tokens that still carry it. */
+  role: z.enum(ROLES),
   jti: z.string().uuid(),
   iat: z.number().int(),
   exp: z.number().int(),
