@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–3 selesai** (`main` @ `17d8265`); perbaikan Review 8 menunggu review (branch `fix/review-phase-3`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–3 selesai** (`main` @ `5bbf5dc`, termasuk perbaikan Review 8); Step 4.1 menunggu review (branch `feat/http-client-hardening`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `17d8265` |
+| Basis kode | branch `main` @ `5bbf5dc` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -425,6 +425,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | Review 8 | 401 dari `authenticate()` membawa `WWW-Authenticate: Bearer` / `Bearer error="invalid_token"` (RFC 6750 §3), diekspos lewat CORS. Hash dummy login dibuat saat modul dimuat (sebelumnya pada pemakaian pertama → login pertama dengan email tak dikenal sedikit lebih lambat). Komentar basi `requireAuth()` di `request-context.ts` diperbaiki | — |
 | 2026-10-12 | Review 8 | Dokumen: CONTRIBUTING §4.3 baru _Autentikasi & Otorisasi_ (route publik, `requireRole`, `requireSelfOrRole`, `currentUser`, test, seed, password, purge, latensi role 15 menit, log keamanan) + tabel error §3.3 dilengkapi kode auth + `emailField`/`newPasswordField` di §4.2; `auth-guide.md` (change-password, reset admin, perubahan role, email tak peka huruf, `WWW-Authenticate`, kode error baru); project-standards Rule 13; README; `database.md`; `.env.example`; L1, L3, L4 | — |
 | 2026-10-12 | Review 8 | **Chaos test** (11, semua tertangkap): email tidak di-lowercase, refresh mengabaikan `password_changed_at`, change-password tidak mencabut sesi lain / tidak dihitung sebagai percobaan, log memuat email plaintext, admin boleh menghapus diri sendiri, reset admin tanpa `password_changed_at`, tanpa `WWW-Authenticate`, TTL refresh tanpa batas, purge berdasarkan `created_at`, promosi seed tanpa membuang cache. **Uji nyata** (migrasi `0006` diterapkan ke DB lokal; server port 3999 + PostgreSQL + Redis): seed dengan email HURUF BESAR tersimpan lowercase; login dengan huruf campuran 200; duplikat beda huruf 409; change-password di perangkat B → perangkat A dan cookie lama B `ERR_AUTH_REFRESH_INVALID`, cookie baru B 200; password lama salah 400; reset admin → refresh perangkat lain ditolak, login dengan password baru 200; admin hapus / turunkan role diri sendiri → `ERR_SELF_LOCKOUT_FORBIDDEN`; `WWW-Authenticate` `Bearer` / `Bearer error="invalid_token"`; `auth:purge-tokens --days 7` menghapus 6 token yang dibuat kedaluwarsa 10 hari lalu. Semua data uji dihapus (0 tersisa) | Prompt TTY `seed:admin` masih belum teruji (shell agent bukan TTY) |
+| 2026-10-12 | Review 8 | ✅ Di-commit (`5bbf5dc`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-12 | 4.1 | `ExternalServiceError(kind, message, { integration })`: opsi `origin` diganti `integration: IntegrationIdentity` (`{ code, institution }`) → `error.origin` = kode, **`error.institution`** = nama vendor (hanya pada `EXTERNAL_SERVICE_ERROR`; `ErrorEnvelope` OpenAPI: properti opsional). `src/integrations/registry.ts`: `INTEGRATION_REGISTRY` (key = kode, test: key = `code`, nama unik). `HttpClientOptions`: `originName` diganti `integration` (entri registry), **`timeoutMs` wajib** (default `10000` diam-diam dihapus; nilainya dari `integrationsConfig`) | `registry.test.ts`, `api-error.test.ts`, `error-handler.test.ts` |
+| 2026-10-12 | 4.1 | Kegagalan outbound: `details` ke client = pesan generik dwibahasa per jenis (`EXTERNAL_TIMEOUT_DETAIL` / `EXTERNAL_UNREACHABLE_DETAIL` / `EXTERNAL_ERROR_DETAIL`) — body vendor dan fallback `'Unknown external service error'` hilang dari respons. Log `Outbound HTTP request failed`: `integration`, `kind`, `method`, `url` **tanpa query string**, `vendorStatus`, `vendorBody`, `err`; header tidak pernah di-log. `vendorBody` lewat `summarizeVendorBody()` (`core/http/vendor-body.ts`): kunci rahasia disensor **di kedalaman berapa pun** (fragmen `password`/`token`/`secret`/`apikey`/`authorization`/`cookie`/`creditcard`/`cardnumber`, kunci utuh `pin`/`otp`/`nik`/`cvv`/`cvc`; tidak peka huruf, `_`/`-` diabaikan), dipotong 2048 karakter, biner → ukurannya. Penyimpangan: redaksi sendiri, bukan `redact` Pino — path Pino hanya cocok satu tingkat dan nama kunci persis, sedangkan nama field vendor bebas (`access_token`, `X-Api-Key`) | `vendor-body.test.ts` |
+| 2026-10-12 | 4.1 | Interceptor request mengirim `X-Request-ID` = request ID dari context (tidak menimpa header yang diisi pemanggil; di luar request — job/bootstrap — tanpa header) | Unit + `test/outbound.e2e.test.ts` |
+| 2026-10-12 | 4.1 | ESLint (`OUTBOUND_HTTP_SYNTAX_RULES`, `OUTBOUND_HTTP_IMPORT_PATTERN`): `fetch(`, `globalThis`/`Bun`/`self`/`window.fetch(`, serta import `axios`, `node-fetch`, `undici`, `got`, `ky`, `superagent`, `(node:)http`/`https`/`http2` ditolak di seluruh `src/` kecuali `src/core/http/**`; file test boleh `fetch` ke server test lokal. Ditambahkan di luar rencana: larangan juga mencakup `node:http(s)` dan klien HTTP lain, bukan hanya `axios` | Chaos ESLint: probe berisi 4 import + 3 panggilan `fetch` di `modules` (biasa/service/repository), `integrations`, `core/cache`, `utils`, `database` → masing-masing 7 error; di `core/http` → 0 |
+| 2026-10-12 | 4.1 | `test/outbound.e2e.test.ts`: panggilan HTTP nyata `GET /users/:id/external-posts` → adapter JSONPlaceholder → vendor palsu lokal yang menjawab 401 + body/header rahasia → client **502** `ERR_EXT_ERROR`, `origin` `JSONPLACEHOLDER`, `institution` `JSONPlaceholder`, tanpa body/header vendor; vendor menerima `X-Request-ID` yang sama dengan request masuk. Dokumen: project-standards Rule 4 + Rule 9, AGENTS.md (daftar ESLint), CONTRIBUTING §3.3 + §8 (registry, timeout wajib, body hanya di log, korelasi, larangan `fetch`) + struktur folder, README, L2 | **Chaos test** (9, semua tertangkap): tanpa `X-Request-ID`, header pemanggil ditimpa, body vendor ke `details`, tanpa redaksi, tanpa pemotongan, query string di-log, timeout diabaikan, `institution` hilang dari envelope, `institution` bukan dari registry. **Uji nyata** ke JSONPlaceholder publik: `GET /posts/1` sukses; path tak ada → vendor 404 → 502 `ERR_EXT_ERROR` + `institution`; `timeoutMs: 1` → 504 `ERR_EXT_TIMEOUT`; log tanpa header/query |
 
 ---
 
@@ -477,7 +483,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `11087c7` |
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `5491544` |
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
-| 4.1 | Hardening `HttpClientService` | ⬜ | 1.3 |  |
+| 4.1 | Hardening `HttpClientService` | 👀 | 1.3 |  |
 | 4.2 | Template integrasi & cache token vendor | ⬜ | 4.1 |  |
 | 5.1 | Utilitas kripto & signing partner | ⬜ | 0.3 |  |
 | 5.2 | Kredensial partner (schema + admin API) | ⬜ | 5.1, 2.8, 3.4 |  |
@@ -1010,8 +1016,8 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Acceptance criteria**
 
-- [ ] Vendor 401 → client 502, body vendor tidak muncul di respons.
-- [ ] Request outbound membawa `X-Request-ID` yang sama dengan request masuk.
+- [x] Vendor 401 → client 502, body vendor tidak muncul di respons.
+- [x] Request outbound membawa `X-Request-ID` yang sama dengan request masuk.
 
 ### Step 4.2 — Template integrasi & cache token vendor
 
@@ -1218,6 +1224,8 @@ Envelope error (contoh):
   "timestamp": "2026-10-04T03:00:00.000Z"
 }
 ```
+
+`EXTERNAL_SERVICE_ERROR` menambahkan `error.institution` (nama vendor dari `INTEGRATION_REGISTRY`); `error.origin` = kode integrasi, `details` = pesan generik — body vendor hanya di log (Step 4.1).
 
 ### 15.3 L3 — Spesifikasi auth
 

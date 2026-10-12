@@ -60,6 +60,18 @@ export const I18N_MESSAGES = {
     id: 'Layanan eksternal sedang bermasalah',
     en: 'External service request failed',
   },
+  EXTERNAL_TIMEOUT_DETAIL: {
+    id: 'Layanan eksternal tidak merespons dalam batas waktu',
+    en: 'The external service did not respond in time',
+  },
+  EXTERNAL_UNREACHABLE_DETAIL: {
+    id: 'Layanan eksternal tidak dapat dihubungi',
+    en: 'The external service could not be reached',
+  },
+  EXTERNAL_ERROR_DETAIL: {
+    id: 'Layanan eksternal menolak atau gagal memproses permintaan',
+    en: 'The external service rejected or failed to process the request',
+  },
   INTERNAL_SERVER_ERROR: {
     id: 'Terjadi kesalahan pada server',
     en: 'Internal server error',

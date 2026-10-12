@@ -22,7 +22,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
   - Every key is auto-prefixed with `<APP_NAME>:<NODE_ENV>:` (override: `REDIS_KEY_PREFIX`), so projects and environments can share one Redis.
   - The client reconnects forever (backoff ≤ 30 s), fails fast while disconnected (`commandTimeout`, no offline queue) and blocks `FLUSHALL`/`FLUSHDB`/`KEYS`. See [redis-cache.md](references/redis-cache.md).
 - **API Docs**: OpenAPI 3.1 via [hono-openapi](https://github.com/rhinobase/hono-openapi) + `zod-openapi` v4 (Zod 3) and the [Scalar](https://scalar.com) reference UI — see Rule 11
-- **HTTP Client**: Axios with persistent HTTP/HTTPS Keep-Alive connection pooling (`maxSockets: 100`) and vendor masking
+- **HTTP Client**: `HttpClientService` (Axios) with persistent HTTP/HTTPS Keep-Alive connection pooling (`maxSockets: 100`), mandatory timeout, outbound `X-Request-ID` and vendor masking — see Rule 9
 - **Testing**: Native `bun:test` runner with an LCOV coverage gate (`scripts/check-coverage.ts`, the single source of thresholds)
 
 ---
@@ -212,7 +212,7 @@ export class UsersRepository extends BaseRepository<typeof users> {
 - Services **NEVER** return HTTP responses.
 - Business rule failures **MUST THROW** semantic `ApiError` instances (`src/core/errors/`). Throwing a plain `Error` in `src/modules/**` and `'ERR_*'` literals anywhere in `src/` are rejected by ESLint — error codes come only from `APP_ERROR_CODES` (`src/core/errors/error-codes.ts`):
   - `ValidationError` (400) · `BadRequestError` (400) · `UnauthorizedError` (401) · `ForbiddenError` (403) · `NotFoundError` (404) · `ConflictError` (409, type `CONFLICT`) · `PayloadTooLargeError` (413) · `TooManyRequestsError` (429, optional `retryAfterSeconds` → `Retry-After`) · `ServiceUnavailableError` (503)
-  - `ExternalServiceError(kind, message, { origin })` — `TIMEOUT` → 504, `UNREACHABLE` / `ERROR` → 502; the vendor's status is never forwarded
+  - `ExternalServiceError(kind, message, { integration })` — `TIMEOUT` → 504, `UNREACHABLE` / `ERROR` → 502; the vendor's status is never forwarded; `integration` is an `INTEGRATION_REGISTRY` entry (`error.origin` = its code, `error.institution` = its name)
   - `InternalServerError` (500) — broken invariants; its message and details are logged, never sent to the client
 - Constructor shape: `new XError(message, { details?, origin?, code? })` — `code` overrides the class default with a more specific registry code (e.g. `APP_ERROR_CODES.INVALID_JSON`).
 
@@ -267,6 +267,9 @@ export class UsersService {
 - Controllers **MUST NOT** import integrations directly; domain services orchestrate external data fetching.
 - Integrations **MUST NOT** contain routes, controllers, or database calls.
 - Enforced deterministically via ESLint AST (`no-restricted-syntax`, `no-restricted-imports`) and Dependency Cruiser (`http-client-only-in-integrations`, `strict-integrations-isolation`, `controller-no-integrations`).
+- **No raw outbound HTTP**: `fetch(` (also `globalThis.fetch` / `Bun.fetch`) and imports of `axios`, `node:http(s)`, `undici`, `node-fetch`, `got`, `ky`, `superagent` are rejected by ESLint everywhere in `src/` except `src/core/http/**` (tests may call `fetch` against local test servers).
+- **One registry entry per vendor**: `INTEGRATION_REGISTRY` (`src/integrations/registry.ts`, key = code) — `new HttpClientService({ integration: INTEGRATION_REGISTRY.<CODE>, baseURL, timeoutMs })`. `timeoutMs` is required (no silent default; take it from `integrationsConfig`).
+- **What `HttpClientService` guarantees**: timeout → 504 `ERR_EXT_TIMEOUT`, no response → 502 `ERR_EXT_UNREACHABLE`, vendor 4xx/5xx → 502 `ERR_EXT_ERROR` (never the vendor's status); the client gets `error.origin` (code), `error.institution` (name) and a generic localized detail — **never** the vendor's body. The vendor body is only logged (`vendorBody`: secret-looking keys redacted at any depth, at most 2048 characters); request headers and query strings are never logged. The inbound request ID is sent as `X-Request-ID` (unless the call sets its own), so both sides can correlate logs.
 
 
 ### Rule 10: Localized User-Facing Messages (i18n `id` / `en`)

@@ -57,11 +57,10 @@ describe('ApiError hierarchy (Unit)', () => {
   });
 
   it('ExternalServiceError should derive status and code from the failure kind, never the vendor', () => {
-    const timeout = new ExternalServiceError('TIMEOUT', 'Vendor timed out', { origin: 'PAYMENTS' });
-    const unreachable = new ExternalServiceError('UNREACHABLE', 'Vendor down', {
-      origin: 'PAYMENTS',
-    });
-    const failed = new ExternalServiceError('ERROR', 'Vendor error', { origin: 'PAYMENTS' });
+    const integration = { code: 'PAYMENTS', institution: 'Payments Inc.' };
+    const timeout = new ExternalServiceError('TIMEOUT', 'Vendor timed out', { integration });
+    const unreachable = new ExternalServiceError('UNREACHABLE', 'Vendor down', { integration });
+    const failed = new ExternalServiceError('ERROR', 'Vendor error', { integration });
 
     expect([timeout.statusCode, timeout.errorCode]).toEqual([504, 'ERR_EXT_TIMEOUT']);
     expect([unreachable.statusCode, unreachable.errorCode]).toEqual([502, 'ERR_EXT_UNREACHABLE']);
@@ -71,6 +70,6 @@ describe('ApiError hierarchy (Unit)', () => {
       'ERROR',
     ]);
     expect(failed.errorType).toBe('EXTERNAL_SERVICE_ERROR');
-    expect(failed.origin).toBe('PAYMENTS');
+    expect([failed.origin, failed.institution]).toEqual(['PAYMENTS', 'Payments Inc.']);
   });
 });

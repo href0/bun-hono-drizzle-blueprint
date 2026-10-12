@@ -124,6 +124,7 @@ src/
 │       └── reference/           # Reference Schemas (Read-Only, Shared DBs)
 │
 ├── integrations/                # Outbound Third-Party Gateways (No routes, No controllers)
+│   ├── registry.ts              # INTEGRATION_REGISTRY: kode → nama institusi (error.origin / error.institution)
 │   └── jsonplaceholder/         # Referensi Integrasi REST API Publik (Outbound Only)
 │       ├── jsonplaceholder.dto.ts      # Kontrak payload & respon vendor
 │       ├── jsonplaceholder.service.ts  # Service client berbasis HttpClientService
@@ -248,7 +249,7 @@ Aturan envelope error (dibangun satu tempat: `buildErrorBody()` di `src/core/res
 
 - Tidak ada field `data` pada envelope error.
 - `error.code` hanya dari `APP_ERROR_CODES`; literal `'ERR_*'` di `src/` ditolak ESLint.
-- `error.origin` = `APP`, atau kode integrasi untuk kegagalan sistem eksternal.
+- `error.origin` = `APP`, atau kode integrasi untuk kegagalan sistem eksternal; khusus `EXTERNAL_SERVICE_ERROR` ada juga `error.institution` (nama sistem eksternal dari `INTEGRATION_REGISTRY`).
 - `details[].field` selalu snake_case (`address.postal_code`).
 - Error 500 (`InternalServerError` atau error tak dikenal) tidak pernah membocorkan pesan/detail internal — pesan aslinya hanya di log.
 - 429 dengan `retryAfterSeconds` mengirim header `Retry-After`.
@@ -268,7 +269,7 @@ Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (di
 | `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi batas |
 | `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Rate limit global · terlalu banyak percobaan login per (email, IP) (opsional `retryAfterSeconds` → header `Retry-After`) |
 | `ServiceUnavailableError` | 503 | `SERVICE_UNAVAILABLE` | `ERR_SERVICE_UNAVAILABLE` | Dependency inti (DB) tidak tersedia |
-| `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` / `ERR_EXT_UNREACHABLE` / `ERR_EXT_ERROR` | Kegagalan API vendor; status vendor tidak pernah diteruskan, vendor diidentifikasi lewat `error.origin` |
+| `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` / `ERR_EXT_UNREACHABLE` / `ERR_EXT_ERROR` | Kegagalan API vendor; status dan body vendor tidak pernah diteruskan (body hanya di log), vendor diidentifikasi lewat `error.origin` (kode) + `error.institution` (nama) |
 | `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Invariant internal rusak; pesan tidak dikirim ke client |
 
 ### 3.4 Pesan Dwibahasa (i18n `id` / `en`)
@@ -506,6 +507,12 @@ Setiap pemanggilan HTTP ke API pihak ketiga atau vendor eksternal (seperti Whats
 ### Contoh Referensi Produksi: JSONPlaceholder (`src/integrations/jsonplaceholder/`)
 Repositori ini menyediakan implementasi referensi nyata yang dapat langsung di-test dan dijalankan di [src/integrations/jsonplaceholder/](src/integrations/jsonplaceholder/):
 
+0. **Daftarkan vendor** di `src/integrations/registry.ts` (key = kode integrasi):
+   ```typescript
+   export const INTEGRATION_REGISTRY = {
+     JSONPLACEHOLDER: { code: 'JSONPLACEHOLDER', institution: 'JSONPlaceholder' },
+   } as const satisfies Record<string, IntegrationIdentity>;
+   ```
 1. **Konfigurasi URL & Timeout** (`src/config/integrations.config.ts`):
    ```typescript
    JSONPLACEHOLDER_BASE_URL: z.string().url().default('https://jsonplaceholder.typicode.com'),
@@ -515,8 +522,8 @@ Repositori ini menyediakan implementasi referensi nyata yang dapat langsung di-t
    ```typescript
    export const defaultJsonPlaceholderHttpClient = new HttpClientService({
      baseURL: integrationsConfig.JSONPLACEHOLDER_BASE_URL,
-     timeoutMs: integrationsConfig.JSONPLACEHOLDER_TIMEOUT_MS,
-     originName: 'JSONPLACEHOLDER',
+     timeoutMs: integrationsConfig.JSONPLACEHOLDER_TIMEOUT_MS, // wajib, tanpa default diam-diam
+     integration: INTEGRATION_REGISTRY.JSONPLACEHOLDER, // → error.origin + error.institution
    });
 
    export class JsonPlaceholderService {
@@ -551,8 +558,11 @@ Repositori ini menyediakan implementasi referensi nyata yang dapat langsung di-t
 
 ### Fitur Standar `HttpClientService`:
 - **Persistent Keep-Alive Connection Pool**: Menggunakan persistent `http.Agent` dan `https.Agent` dengan `maxSockets: 100` untuk mencegah TLS handshake berulang.
-- **Mandatory Timeout**: Menolak hanging request (default 10 detik).
-- **Vendor Error Masking**: Error axios otomatis di-mask menjadi `ExternalServiceError` — timeout → 504 `ERR_EXT_TIMEOUT`, tanpa respons → 502 `ERR_EXT_UNREACHABLE`, respons error vendor → 502 `ERR_EXT_ERROR` (status vendor tidak diteruskan); `error.origin` = kode integrasi.
+- **Mandatory Timeout**: `timeoutMs` wajib diisi (tidak ada default diam-diam); ambil dari `integrationsConfig` (`<VENDOR>_TIMEOUT_MS`).
+- **Vendor Error Masking**: Error axios otomatis di-mask menjadi `ExternalServiceError` — timeout → 504 `ERR_EXT_TIMEOUT`, tanpa respons → 502 `ERR_EXT_UNREACHABLE`, respons error vendor → 502 `ERR_EXT_ERROR` (status vendor tidak diteruskan); `error.origin` = kode integrasi, `error.institution` = nama vendor, `details` = pesan generik dwibahasa per jenis kegagalan.
+- **Body vendor hanya di log**: field `vendorBody` pada log `Outbound HTTP request failed` — kunci yang tampak rahasia (`password`, `*token*`, `*secret*`, `api_key`, `authorization`, `cookie`, `nik`, `pin`, `otp`, …) disensor di kedalaman berapa pun, dipotong 2048 karakter, biner hanya ukurannya. Header request dan query string tidak pernah di-log.
+- **Korelasi `X-Request-ID`**: request ID dari request masuk dikirim ke vendor sebagai header `X-Request-ID` (kecuali pemanggil mengisinya sendiri) — sertakan saat melapor ke vendor.
+- **Tanpa jalan pintas**: `fetch(`, `axios`, `node:http(s)` dan klien HTTP lain ditolak ESLint di `src/` kecuali `src/core/http/**` (test boleh memakai `fetch` ke server test lokal).
 
 ---
 

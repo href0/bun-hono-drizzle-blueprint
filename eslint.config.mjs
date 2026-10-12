@@ -109,11 +109,37 @@ const SQL_RAW_RULES = [
   },
 ];
 
+/*
+ * Outbound HTTP goes only through HttpClientService (src/core/http, plan step 4.1): mandatory
+ * timeout, keep-alive pool, X-Request-ID, vendor failures masked as ExternalServiceError with the
+ * vendor body only in the log. A raw fetch()/axios call silently skips all of that.
+ */
+const OUTBOUND_HTTP_MESSAGE =
+  'Outbound HTTP must go through HttpClientService (src/core/http), called from an adapter under src/integrations/<vendor>/. It enforces the timeout, X-Request-ID and vendor error masking.';
+
+const OUTBOUND_HTTP_SYNTAX_RULES = [
+  {
+    selector: 'CallExpression[callee.name="fetch"]',
+    message: OUTBOUND_HTTP_MESSAGE,
+  },
+  {
+    selector:
+      'CallExpression[callee.property.name="fetch"][callee.object.name=/^(globalThis|global|self|window|Bun)$/]',
+    message: OUTBOUND_HTTP_MESSAGE,
+  },
+];
+
+const OUTBOUND_HTTP_IMPORT_PATTERN = {
+  regex: '^(axios|node-fetch|undici|got|ky|superagent)(/.*)?$|^(node:)?(http|https|http2)$',
+  message: OUTBOUND_HTTP_MESSAGE,
+};
+
 const SOURCE_SYNTAX_RULES = [
   ...ERROR_CODE_SYNTAX_RULES,
   ...DATETIME_SYNTAX_RULES,
   ...SCHEMA_DECLARATION_RULES,
   ...SQL_RAW_RULES,
+  ...OUTBOUND_HTTP_SYNTAX_RULES,
 ];
 
 /*
@@ -285,6 +311,7 @@ const MODULE_IMPORT_PATTERNS = [
       'Domain modules must never import from core/http directly. Outbound HTTP integrations must live exclusively under "src/integrations/<vendor>/".',
   },
   CACHE_CLIENT_IMPORT_PATTERN,
+  OUTBOUND_HTTP_IMPORT_PATTERN,
   {
     group: ['**/database', '**/database/**'],
     importNames: ['recordChanges'],
@@ -434,6 +461,27 @@ export default tseslint.config(
     },
   },
   {
+    // Outbound HTTP clients only in core/http (the module blocks below compose the same pattern).
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [OUTBOUND_HTTP_IMPORT_PATTERN] }],
+    },
+  },
+  {
+    // The one place allowed to call fetch()/axios and import node:http(s).
+    files: ['src/core/http/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...ERROR_CODE_SYNTAX_RULES,
+        ...DATETIME_SYNTAX_RULES,
+        ...SCHEMA_DECLARATION_RULES,
+        ...SQL_RAW_RULES,
+      ],
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
     // The one module allowed to convert between text, Date and Temporal values.
     files: ['src/utils/datetime.util.ts'],
     rules: {
@@ -442,6 +490,7 @@ export default tseslint.config(
         ...ERROR_CODE_SYNTAX_RULES,
         ...SCHEMA_DECLARATION_RULES,
         ...SQL_RAW_RULES,
+        ...OUTBOUND_HTTP_SYNTAX_RULES,
       ],
     },
   },
@@ -454,6 +503,7 @@ export default tseslint.config(
         ...ERROR_CODE_SYNTAX_RULES,
         ...DATETIME_SYNTAX_RULES,
         ...SQL_RAW_RULES,
+        ...OUTBOUND_HTTP_SYNTAX_RULES,
       ],
     },
   },
@@ -592,6 +642,7 @@ export default tseslint.config(
                 'Outbound integrations must never import from the database layer. Database persistence is reserved for domain repositories.',
             },
             CACHE_CLIENT_IMPORT_PATTERN,
+            OUTBOUND_HTTP_IMPORT_PATTERN,
           ],
         },
       ],
