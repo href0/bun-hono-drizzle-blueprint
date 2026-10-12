@@ -177,6 +177,7 @@ class OrdersRepository extends AuditedRepository<typeof orders> {
 | Detail | Only meaningful inside one header | `uuidPrimaryKey` + `parentReference` (indexed) + `timestamps` + `auditColumns`, **no** `softDelete` | `ChildRepository` |
 | Record | Log / history, append-only | `sequentialPrimaryKey` + `timestamps` (listed in `APPEND_ONLY_TABLES`) | `AppendOnlyRepository` |
 | Reference | Owned by another system | view `.existing()` | `ReadOnlyRepository` |
+| Refresh token (exception) | `auth_refresh_tokens` only | `uuidPrimaryKey` + `parentReference(user_id)` + own `created_at` / `revoked_at` | plain class in `auth.repository.ts` (see below) |
 
 ```typescript
 export class OrdersRepository extends BaseRepository<typeof orders> {
@@ -209,7 +210,7 @@ export class OrderLinesRepository extends ChildRepository<typeof orderLines, typ
 
 **`ReadOnlyRepository`** — `findPage({ page, perPage, where?, orderBy })` (order required: a view has no key) and `count(where?)` over a `.existing()` view. Writes are impossible twice over: no write method, and Drizzle rejects `insert` / `update` / `delete` on a view at compile time.
 
-Every module repository extends one of these four (ESLint `REPOSITORY_SYNTAX_RULES`), and module code never writes around them: no `tx.update` / `tx.delete` in repositories, no writes outside repositories, no raw `UPDATE` / `DELETE` SQL, `recordChanges` never imported outside `src/database/` (full table: CONTRIBUTING §5.3). The one approved exception (`auth_refresh_tokens`, step 3.2) carries an `eslint-disable` with its reason. Custom reads inside a `BaseRepository` subclass must start from `this.scoped(...)` so deleted rows stay hidden `[review-only]`.
+Every module repository extends one of these four (ESLint `REPOSITORY_SYNTAX_RULES`), and module code never writes around them: no `tx.update` / `tx.delete` in repositories, no writes outside repositories, no raw `UPDATE` / `DELETE` SQL, `recordChanges` never imported outside `src/database/` (full table: CONTRIBUTING §5.3). The one approved exception is the refresh-token repository `src/modules/auth/auth.repository.ts` (table `auth_refresh_tokens`: high-volume security state, no audit columns or soft delete — `revoked_at` / `replaced_by_id` are its trail): a one-file override in `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) lets it skip the base and `tx.update(authRefreshTokens)` only; updating any other table and `tx.delete` stay rejected. Custom reads inside a `BaseRepository` subclass must start from `this.scoped(...)` so deleted rows stay hidden `[review-only]`.
 
 Reference implementations: `src/modules/orders/` (header + detail, generated from the scaffold header-detail template; removed by `bun run setup <name>` unless `--keep-examples`) and `src/modules/users/` — `UsersRepository extends BaseRepository` (redacts `passwordHash`), the service maps `null` to `NotFoundError` and a unique violation (`isUniqueViolation()` from `src/database`, SQLSTATE 23505) to `ConflictError` on create, update and restore, and evicts the cached detail after every write.
 

@@ -9,6 +9,7 @@ describe('UsersTransformer (Unit)', () => {
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'secret_hash',
+    role: 'user',
     createdBy: 'system',
     updatedBy: 'system',
     deletedAt: null,
@@ -19,6 +20,16 @@ describe('UsersTransformer (Unit)', () => {
 
   it('should strip passwordHash from single user response', () => {
     const res = toUserResponse(sampleUser);
+    expect(Object.keys(res).sort()).toEqual([
+      'createdAt',
+      'email',
+      'fullName',
+      'id',
+      'isActive',
+      'role',
+      'updatedAt',
+    ]);
+    expect(res.role).toBe('user');
     expect(res.id).toBe(sampleUser.id);
     expect(res.email).toBe(sampleUser.email);
     expect(res.fullName).toBe(sampleUser.fullName);

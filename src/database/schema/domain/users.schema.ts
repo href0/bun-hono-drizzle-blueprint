@@ -16,6 +16,8 @@ export const users = appTable(
     email: varchar('email', { length: 255 }).notNull(),
     fullName: varchar('full_name', { length: 255 }).notNull(),
     passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+    /** One of `ROLES` (src/core/security/roles.ts); the default is `DEFAULT_ROLE`. */
+    role: varchar('role', { length: 20 }).notNull().default('user'),
     isActive: boolean('is_active').notNull().default(true),
     ...timestamps(),
     ...auditColumns(),

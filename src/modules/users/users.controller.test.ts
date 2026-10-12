@@ -10,6 +10,7 @@ describe('UsersController (Unit)', () => {
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'hash',
+    role: 'user',
     createdBy: 'system',
     updatedBy: 'system',
     deletedAt: null,

@@ -65,7 +65,7 @@ src/
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Envelope
 │   │   └── api-response.ts
-│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken)
+│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken), ROLES
 │
 ├── database/                    # Drizzle ORM Infrastructure
 │   ├── connection.ts            # PostgreSQL connection pool & Drizzle instance

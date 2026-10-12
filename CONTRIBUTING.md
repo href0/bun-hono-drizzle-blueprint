@@ -104,7 +104,7 @@ src/
 │   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Response Envelope (ApiResponse)
-│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken)
+│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken), ROLES
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
 │   ├── connection.ts            # PostgreSQL connection pool via postgres driver
@@ -428,9 +428,9 @@ Setiap perubahan baris domain melewati base repository (kunci baris, scope soft 
 | `recordChanges` tidak di-import di luar `src/database/` | seluruh `src/` | ESLint (`importNames`, juga lewat barrel) + depcruise `record-changes-only-in-database` |
 | `sql.raw(` dilarang (pakai `sql.identifier()`; fragmen statis = `eslint-disable` + alasan) | seluruh `src/` | ESLint `SQL_RAW_RULES` |
 
-- Pengecualian yang disetujui: `auth_refresh_tokens` (Step 3.2) lewat `eslint-disable-next-line <rule> -- <alasan>`.
+- Satu-satunya pengecualian yang disetujui (log 4.1, 2026-10-04): repository refresh token `src/modules/auth/auth.repository.ts` — override satu file di `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`). File itu tidak wajib `extends` base dan boleh `tx.update(authRefreshTokens)` (mencabut token); `tx.update` ke tabel lain dan `tx.delete` tetap ditolak. Tabel `auth_refresh_tokens` tidak punya kolom audit / soft delete: jejaknya adalah `revoked_at` + `replaced_by_id`.
 - Seeder (`src/database/seeds/**`) berada di lapisan database, bukan modul: aturan modul di atas tidak berlaku untuknya.
-- Konvensi schema diuji di `src/database/schema/schema-conventions.test.ts` untuk setiap tabel yang diekspor: FK wajib ter-index, `id` dari helper, id berurutan hanya di `APPEND_ONLY_TABLES` (tanpa entri basi), tanpa `serial`, tabel soft delete tanpa unique biasa (`activeUniqueIndex()`), `record_changes` siap partisi. Pesan gagal menyebut tabel & kolom.
+- Konvensi schema diuji di `src/database/schema/schema-conventions.test.ts` untuk setiap tabel yang diekspor: FK wajib ter-index, `id` dari helper, id berurutan hanya di `APPEND_ONLY_TABLES` (tanpa entri basi), tanpa `serial`, tabel soft delete tanpa unique biasa (`activeUniqueIndex()`), `record_changes` siap partisi, `auth_refresh_tokens` ter-index di `user_id` & `family_id` dan dicari lewat `token_hash` unik. Pesan gagal menyebut tabel & kolom. `users.role` dicocokkan dengan `ROLES` (`src/core/security/roles.ts`) oleh `src/database/roles-column.test.ts`.
 - `[review-only]`: query baca kustom di subclass `BaseRepository` wajib dimulai dari `this.scoped(...)` agar baris yang terhapus tetap tersembunyi.
 
 ---
