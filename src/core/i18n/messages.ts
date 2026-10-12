@@ -31,6 +31,11 @@ export const I18N_MESSAGES = {
   },
   BAD_REQUEST: { id: 'Permintaan tidak valid', en: 'Bad request' },
   UNAUTHORIZED: { id: 'Autentikasi diperlukan', en: 'Authentication required' },
+  AUTH_TOKEN_EXPIRED: {
+    id: 'Sesi telah berakhir. Silakan perbarui token akses',
+    en: 'Access token has expired. Please refresh it',
+  },
+  AUTH_TOKEN_INVALID: { id: 'Token akses tidak valid', en: 'Invalid access token' },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },
   NOT_FOUND: { id: 'Data tidak ditemukan', en: 'Resource not found' },
   CONFLICT: { id: 'Data bertentangan dengan data yang sudah ada', en: 'Resource conflict' },

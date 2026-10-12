@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildAppConfig } from './app.config';
+import { buildAuthConfig } from './auth.config';
 import { buildDatabaseConfig } from './database.config';
 import { buildHttpConfig } from './http.config';
 import { buildIntegrationsConfig } from './integrations.config';
@@ -117,6 +118,66 @@ describe('Configuration groups (Unit)', () => {
     expect(() => buildHttpConfig({ CORS_ORIGINS: '*' }, prod)).toThrow(
       'CORS_ORIGINS: "*" is not allowed in production',
     );
+  });
+
+  const secret = { JWT_SECRET: 'x'.repeat(32) };
+
+  it('auth: should require a JWT_SECRET of 32+ characters outside test and default it in test', () => {
+    expect(() => buildAuthConfig({ NODE_ENV: 'production' }, app)).toThrow(
+      'JWT_SECRET: is required',
+    );
+    expect(() => buildAuthConfig({ NODE_ENV: 'development', JWT_SECRET: '' }, app)).toThrow(
+      'JWT_SECRET: must be at least 32 characters',
+    );
+    expect(() => buildAuthConfig({ JWT_SECRET: 'x'.repeat(31) }, app)).toThrow('JWT_SECRET');
+    expect(buildAuthConfig({ NODE_ENV: 'test' }, app).JWT_SECRET.length).toBeGreaterThanOrEqual(32);
+  });
+
+  it('auth: should apply defaults, with issuer and audience falling back to APP_NAME', () => {
+    expect(buildAuthConfig(secret, app)).toEqual({
+      ...secret,
+      JWT_ISSUER: 'my-app',
+      JWT_AUDIENCE: 'my-app',
+      ACCESS_TOKEN_TTL_SECONDS: 900,
+      REFRESH_TOKEN_TTL_SECONDS: 604800,
+      REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS: 2592000,
+      AUTH_COOKIE_SAMESITE: 'Strict',
+      AUTH_REGISTRATION_ENABLED: false,
+      AUTH_LOGIN_MAX_ATTEMPTS: 5,
+      AUTH_LOGIN_LOCK_SECONDS: 900,
+    });
+    expect(
+      buildAuthConfig(
+        { ...secret, JWT_ISSUER: 'issuer', JWT_AUDIENCE: 'web', AUTH_REGISTRATION_ENABLED: 'true' },
+        app,
+      ),
+    ).toMatchObject({ JWT_ISSUER: 'issuer', JWT_AUDIENCE: 'web', AUTH_REGISTRATION_ENABLED: true });
+  });
+
+  it('auth: should reject invalid values without echoing them', () => {
+    expect(() => buildAuthConfig({ ...secret, AUTH_COOKIE_SAMESITE: 'strict' }, app)).toThrow(
+      'AUTH_COOKIE_SAMESITE: must be one of: Strict | Lax | None',
+    );
+    expect(() => buildAuthConfig({ ...secret, ACCESS_TOKEN_TTL_SECONDS: '0' }, app)).toThrow(
+      'ACCESS_TOKEN_TTL_SECONDS',
+    );
+    expect(() =>
+      buildAuthConfig(
+        { ...secret, REFRESH_TOKEN_TTL_SECONDS: '3600', REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS: '60' },
+        app,
+      ),
+    ).toThrow('REFRESH_TOKEN_TTL_SECONDS: must not exceed REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS');
+    const leak = 'short-secret-value';
+    const message = (() => {
+      try {
+        buildAuthConfig({ JWT_SECRET: leak }, app);
+        return '';
+      } catch (error) {
+        return (error as Error).message;
+      }
+    })();
+    expect(message).toContain('JWT_SECRET');
+    expect(message).not.toContain(leak);
   });
 
   it('integrations: should reject an invalid base URL', () => {

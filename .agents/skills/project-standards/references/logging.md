@@ -13,7 +13,7 @@ Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/
 | `level` | `LOG_LEVEL` (default `info`; tests usually run with `LOG_LEVEL=fatal`) |
 | `base` | `{ app: APP_NAME, env: NODE_ENV }` on every line |
 | `mixin` | `requestContextMixin` → `requestId` and `actor` from the `RequestContext` (§2) |
-| `redact` | `password`, `passwordHash`, `token`, `apiKey`, `secret` (each also as `*.<name>`), `authorization`, `req.headers.authorization`, `nik`, `creditCard` → `[REDACTED]` |
+| `redact` | `password`, `passwordHash`, `token`, `accessToken`, `refreshToken`, `apiKey`, `secret` (each also as `*.<name>`), `authorization`, `cookie`, `req.headers.authorization`, `req.headers.cookie`, `nik`, `creditCard` → `[REDACTED]` |
 | `timestamp` | Development: the host machine's wall clock with its offset, e.g. `[2026-10-05 11:30:22.877 +07:00]` — follows the developer's zone wherever they are (`hostTimeZone`, read before the process switches to UTC). Elsewhere: ISO 8601 UTC, `"time":"2026-10-05T04:30:23.989Z"` — readable raw on a server and parsed natively by log pipelines, which display it in each viewer's zone |
 | `transport` | `pino-pretty` (single line) only when `NODE_ENV=development`; JSON lines elsewhere |
 
