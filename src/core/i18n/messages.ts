@@ -37,6 +37,10 @@ export const I18N_MESSAGES = {
   },
   AUTH_TOKEN_INVALID: { id: 'Token akses tidak valid', en: 'Invalid access token' },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },
+  CSRF_ORIGIN_FORBIDDEN: {
+    id: 'Permintaan ditolak: asal (origin) tidak diizinkan',
+    en: 'Request rejected: origin not allowed',
+  },
   NOT_FOUND: { id: 'Data tidak ditemukan', en: 'Resource not found' },
   CONFLICT: { id: 'Data bertentangan dengan data yang sudah ada', en: 'Resource conflict' },
   PAYLOAD_TOO_LARGE: { id: 'Ukuran body request terlalu besar', en: 'Request body too large' },

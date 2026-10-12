@@ -5,6 +5,7 @@ import { isSnakeCaseKey } from '../src/utils/case-converter.util';
 
 interface Operation {
   summary?: string;
+  security?: Record<string, string[]>[];
   parameters?: { in: string; name: string }[];
   requestBody?: unknown;
   responses: Record<string, unknown>;
@@ -112,6 +113,17 @@ describe('OpenAPI document (createApp)', () => {
         );
       }
     }
+  });
+
+  it('marks bearer-protected operations with bearerAuth and their 401', async () => {
+    const paths = new Map(Object.entries((await loadDocument()).paths));
+    const me = paths.get(`${appConfig.API_BASE_PATH}/v1/auth/me`)?.get;
+    const login = paths.get(`${appConfig.API_BASE_PATH}/v1/auth/login`)?.post;
+
+    expect(me?.security).toEqual([{ bearerAuth: [] }]);
+    expect(Object.keys(me?.responses ?? {})).toContain('401');
+    expect(login).toBeDefined();
+    expect(login?.security).toBeUndefined();
   });
 
   it('serves the reference UI', async () => {

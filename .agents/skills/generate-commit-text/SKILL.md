@@ -69,7 +69,7 @@ Use **Conventional Commits** format:
 The allowed types are exactly `type-enum` in `commitlint.config.ts` (there is **no** `style`: formatting-only changes are `chore`). Any other type is rejected by the `commit-msg` hook and by CI.
 
 #### Scope Mapping:
-- Feature domains: `users`, `health`, `[feature-name]`
+- Feature domains: `auth`, `users`, `health`, `[feature-name]`
 - Core components: `core/cache`, `core/context`, `core/dto`, `core/errors`, `core/http`, `core/i18n`, `core/logger`, `core/middlewares`, `core/openapi`, `core/response`
 - Database: `database` (data-layer infrastructure: repositories, transactions), `database/schema`, `database/migrations`
 - Configuration: `config`

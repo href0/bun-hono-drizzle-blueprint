@@ -8,5 +8,9 @@ export const ROLES = ['admin', 'user'] as const;
 
 export type Role = (typeof ROLES)[number];
 
+/** `users.role` is a plain varchar: narrow it before trusting it. */
+export const isRole = (value: string): value is Role =>
+  (ROLES as readonly string[]).includes(value);
+
 /** Role of a user created without one (the `users.role` column default). */
 export const DEFAULT_ROLE: Role = 'user';

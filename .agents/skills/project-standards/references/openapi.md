@@ -43,6 +43,7 @@ productRoutes.post(
 - `response.data`: wrapped in the success envelope (`success`, `status_code`, `message`, `data`).
 - `response.paginatedItem`: one item of a list; becomes `data: item[]` + `meta` (`PaginationMeta`).
 - `errors`: only the **domain** errors this route returns. Do not list 400/413/429/500 unless the route returns them for another reason (e.g. a `BadRequestError` from the service).
+- `auth: 'bearer'`: the route requires an access token (`requireAuth()`) — adds `security: [{ bearerAuth: [] }]` and 401 to the operation (checked by `test/openapi.e2e.test.ts`).
 - Put `describeEndpoint()` first, then `validate()`, then the handler.
 
 ---
@@ -93,6 +94,7 @@ export type ProductResponse = z.infer<typeof productResponseSchema>;
 
 ## 6. Not covered yet
 
-- Security requirements per operation: `bearerAuth` is declared in `components.securitySchemes`; operations start requiring it with `authenticate()` (phase 3).
+- Security per operation is opt-in (`auth: 'bearer'`) until plan step 3.4 makes authentication the default for every route except `PUBLIC_ROUTES`.
+- Cookie-authenticated endpoints (`/auth/refresh`, `/auth/logout`) describe the `refresh_token` cookie in their `description`; it is not a declared security scheme.
 - Partner HMAC headers (phase 5).
 - Non-JSON endpoints (file upload/download): describe the body/response with `describeRoute()` from `hono-openapi` directly and add a test.

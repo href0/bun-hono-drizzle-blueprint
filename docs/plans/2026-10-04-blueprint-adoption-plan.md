@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–2 selesai** (`main` @ `a29524f`); perbaikan Review 7 menunggu review (branch `fix/review-phase-2`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–2 selesai**, Fase 3: 3.1–3.2 selesai (`main` @ `f50a2f8`), 3.3 menunggu review (branch `feat/auth-module`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `a29524f` |
+| Basis kode | branch `main` @ `f50a2f8` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -391,6 +391,15 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 3.2 | `auth_refresh_tokens` (L3) di `domain/auth-refresh-tokens.schema.ts`: index `user_id` (FK `restrict`) & `family_id`, `token_hash char(64)` unik, tanpa kolom audit/soft delete. Penyimpangan: `replaced_by_id` sengaja **bukan** FK (family kedaluwarsa bisa dibersihkan dalam urutan apa pun; FK juga akan menuntut index). Test khusus di `schema-conventions.test.ts` (index `user_id`/`family_id`, `token_hash` unik, tidak ada kolom `token`). Migrasi `0005_rapid_lake.sql` di-generate dan diterapkan ke DB lokal (dicek read-only lewat `information_schema`) | Chaos test: index `family_id` / `user_id` dihapus, `token_hash` tidak unik → test gagal |
 | 2026-10-12 | 3.2 | **Pengecualian data layer** (disetujui user 2026-10-04): override satu file `src/modules/auth/auth.repository.ts` di `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) — tanpa base, hanya `tx.update(authRefreshTokens)`; `tx.update` tabel lain & `tx.delete` tetap ditolak; aturan modul lain (raw `UPDATE`, alias `tx`, `tx.execute`, `@Transactional()`) tetap berlaku. Lebih sempit dari rencana awal (`eslint-disable` + alasan): pengecualian tidak bisa meluas ke tabel lain. Dokumen `database.md` §6 & CONTRIBUTING §5.3 diperbarui | Chaos test (file sementara, dihapus): kode yang diizinkan lolos; `update(users)`, `delete(authRefreshTokens)`, kode yang sama di `tokens.repository.ts` → ditolak |
 | 2026-10-12 | 3.2 | Dampak ke `users`: `role` masuk respons user (`userResponseSchema`, transformer, OpenAPI) dan skema cache detail (entri cache lama tanpa `role` gagal di-revive → dianggap miss); fixture & snapshot SQL test diperbarui | Chaos test: `role` dihapus dari transformer → test transformer & e2e gagal |
+| 2026-10-12 | 3.2 | ✅ Di-commit (`f50a2f8`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-12 | 3.3 | Modul `src/modules/auth/` (`POST /login`, `/refresh`, `/logout`, `/logout-all`, `GET /me`, `POST /register` hanya bila `AUTH_REGISTRATION_ENABLED`): access token di body, refresh token opaque hanya di cookie `refresh_token` (`HttpOnly; Secure; SameSite` dari config; `Path=<API_BASE_PATH>/v1/auth`; `Max-Age` = sisa umur token), hanya `sha256` yang disimpan. Rotasi dalam satu transaksi dengan baris token terkunci `FOR UPDATE`; `expires_at = min(now + TTL, family_started_at + ABSOLUTE_TTL)`; cabut = `revoked_at = now()` (jam DB) | e2e `test/auth.e2e.test.ts` lewat `createApp()` + fake in-memory (`test/helpers/auth-fakes.ts`, `spyOn` singleton); SQL repository dengan perekam SQL |
+| 2026-10-12 | 3.3 | **Penyimpangan (algoritma L3)**: token yang dicabut **tanpa pengganti** (logout, logout-all, user nonaktif, family dicabut) yang dipakai lagi kini `ERR_AUTH_REFRESH_INVALID`, bukan reuse — hanya token yang sudah dirotasi (`replaced_by_id` terisi) yang memicu deteksi reuse + cabut family. Tanpa ini, refresh setelah logout menampilkan pesan "token lama dipakai ulang", dan token terbaru dari family yang dicabut juga disebut reuse | Chaos test: pembedaan dicabut → 4 test gagal |
+| 2026-10-12 | 3.3 | **Penyimpangan (langkah 4)**: depcruise `no-cross-module-imports` melarang `users` → `auth` sama sekali. Pencabutan untuk user nonaktif/terhapus terjadi di jalur refresh (family dicabut, 401) dan `GET /me` (401); access token yang sudah terbit habis dalam `ACCESS_TOKEN_TTL_SECONDS` (15 menit). Endpoint ganti password belum ada — saat dibuat, di modul `auth` + `logoutAll`. Login/register memakai `AuthUsersRepository` milik modul auth (`extends BaseRepository<typeof users>`, `redact: passwordHash`) atas tabel `users` bersama | Chaos test: cek `isActive` di refresh dicabut → test gagal |
+| 2026-10-12 | 3.3 | Login: setiap percobaan dihitung per `(sha256(email ternormalisasi), IP klien)` via `increment` (`CACHE_KEYS.loginAttempts`), login sukses mereset; lewat `AUTH_LOGIN_MAX_ATTEMPTS` → 429 `ERR_AUTH_LOGIN_LOCKED` + `Retry-After` **tanpa** memeriksa password; Redis mati → fail-open. Email tak dikenal diverifikasi terhadap hash dummy (waktu respons sama); email salah, password salah, akun nonaktif → 401 `ERR_AUTH_INVALID_CREDENTIALS` yang sama. Batas panjang password 1024 (hashing sengaja lambat → tuas DoS). `users.role` di luar `ROLES` → 500 (invariant rusak); claim `role` JWT kini `z.enum(ROLES)` | Chaos test: lock dicabut, cek akun nonaktif dicabut → test gagal |
+| 2026-10-12 | 3.3 | **Temuan `hono/csrf`**: hanya memeriksa request yang content-type-nya mirip form (`Content-Type` kosong dianggap `text/plain` → ikut diperiksa); `application/json` tidak diperiksa — aman karena browser lintas situs butuh preflight CORS untuk itu. `csrfProtection(origins)` di core membungkusnya: origin yang diizinkan = `CORS_ORIGINS` (`*` = semua, hanya non-production) + origin API sendiri; penolakan → 403 `ERR_CSRF_ORIGIN_FORBIDDEN` (bawaan: `HTTPException` → `ERR_FORBIDDEN`). Dipasang di `/login`, `/refresh`, `/logout` | Klien non-browser (tanpa `Origin`) mengirim `Content-Type: application/json` — didokumentasikan di deskripsi endpoint & `.env.example` |
+| 2026-10-12 | 3.3 | Ditarik lebih awal dari 3.4: `requireAuth()` per route (`src/core/middlewares/authenticate.ts`; `Bearer` → `verifyAccessToken` → `setAuthenticatedUser` = actor `user:<id>` + role di `RequestContext.user`), `currentUser()` (401 bila route lupa `requireAuth`), opsi `describeEndpoint({ auth: 'bearer' })` (`security: bearerAuth` + 401, dijaga `test/openapi.e2e.test.ts`). Step 3.4 tinggal menjadikannya global default-deny + `PUBLIC_ROUTES` + `requireRole()` | — |
+| 2026-10-12 | 3.3 | **Uji nyata** (server sungguhan port 3999, PostgreSQL 17 + Redis 3.0 lokal, `JWT_SECRET` sementara lewat env proses — file env tidak dibaca): `Set-Cookie` persis D3; `/me` 200; rotasi → cookie baru; token lama → 401 `REUSED`; token terbaru → 401 `INVALID`; `Origin` asing → 403 `ERR_CSRF_ORIGIN_FORBIDDEN`; DB: 1 family, baris lama `revoked+rotated`, hash 64 karakter, plaintext tidak tersimpan, umur 7 hari; logout 200 dua kali → refresh 401; brute force `401×5 → 429` (`Retry-After: 899`, skrip Lua di Redis 3.0). User, token & audit uji dihapus (0 baris tersisa) | Satu-satunya baris `csrf.ts` tak tercakup = lempar ulang defensif untuk error non-403 (`hono/csrf` hanya melempar 403) |
+| 2026-10-12 | 3.3 | Dokumen: `references/openapi.md` (`auth: 'bearer'`, §6), pohon struktur & daftar middleware (project-standards, CONTRIBUTING, README), README (fitur Auth), scope commit `auth`, `.env.example` (`CORS_ORIGINS` = allowlist CSRF); header status plan diperbarui (sebelumnya masih `a29524f` / Review 7). Panduan FE (`docs/auth-guide.md`) tetap di 3.5 | — |
 
 ---
 
@@ -439,8 +448,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `27d29dc` |
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `a29524f` |
 | 3.1 | Primitif keamanan & config auth | ✅ | 1.1 | `c49fe51` |
-| 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | 👀 | 2.8 |  |
-| 3.3 | Modul `auth` (login, refresh, logout, me) | ⬜ | 3.1, 3.2, 1.7 |  |
+| 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ✅ | 2.8 | `f50a2f8` |
+| 3.3 | Modul `auth` (login, refresh, logout, me) | 👀 | 3.1, 3.2, 1.7 |  |
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ⬜ | 3.3 |  |
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ⬜ | 3.4 |  |
 | 4.1 | Hardening `HttpClientService` | ⬜ | 1.3 |  |
@@ -915,14 +924,15 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 2. Endpoint & algoritma rotasi sesuai L3; endpoint ber-cookie memakai `csrf({ origin: CORS_ORIGINS })` dari `hono/csrf` (D4).
 3. Login: dummy hash saat user tidak ada (waktu konstan); pesan gagal generik; brute-force limit per `(sha256(email), ip)` via `increment` (fail-open) → 429.
 4. Ganti password / nonaktifkan user (method service `users`) → cabut semua family user (dipanggil lewat service auth yang di-export, bukan repository lintas modul).
+   > **Diubah 2026-10-12 (lihat 4.1)**: depcruise melarang import lintas modul sama sekali. User nonaktif / terhapus ditolak saat refresh (family-nya dicabut) dan di `GET /me`; access token-nya habis dalam `ACCESS_TOKEN_TTL_SECONDS`. Ganti password belum ada endpoint-nya — saat dibuat, tempatnya di modul `auth` dan memanggil `logoutAll`.
 
 **Acceptance criteria**
 
-- [ ] e2e: login → refresh (token berganti, cookie baru) → pakai token lama lagi → 401 `ERR_AUTH_REFRESH_REUSED` dan token terbaru ikut tercabut → logout idempoten.
-- [ ] Atribut `Set-Cookie` diverifikasi persis (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1/auth`, `Max-Age`).
-- [ ] `POST /auth/refresh` dengan `Origin` tak terdaftar → 403.
-- [ ] Respons login/refresh tidak pernah memuat refresh token di body.
-- [ ] Login gagal ke-(max+1) → 429.
+- [x] e2e: login → refresh (token berganti, cookie baru) → pakai token lama lagi → 401 `ERR_AUTH_REFRESH_REUSED` dan token terbaru ikut tercabut → logout idempoten.
+- [x] Atribut `Set-Cookie` diverifikasi persis (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1/auth`, `Max-Age`).
+- [x] `POST /auth/refresh` dengan `Origin` tak terdaftar → 403.
+- [x] Respons login/refresh tidak pernah memuat refresh token di body.
+- [x] Login gagal ke-(max+1) → 429.
 
 ### Step 3.4 — `authenticate()` default-deny + `requireRole()`
 
@@ -1247,6 +1257,8 @@ BEGIN
 COMMIT
 → access token baru + Set-Cookie newToken
 ```
+
+> **Diubah 2026-10-12 (lihat 4.1)**: `revoked_at IS NOT NULL` dibedakan — `replaced_by_id` terisi (token sudah dirotasi lalu dipakai lagi) = **reuse** (cabut family, `ERR_AUTH_REFRESH_REUSED`); tanpa pengganti (logout, logout-all, user nonaktif, family dicabut) = `ERR_AUTH_REFRESH_INVALID`.
 
 ### 15.4 L4 — `PUBLIC_ROUTES` & test default-deny
 
