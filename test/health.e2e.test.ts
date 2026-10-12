@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp } from '../src/app';
+import { authorize } from './helpers/authorized-app';
 import { appConfig } from '../src/config';
 
 describe('Health Module', () => {
@@ -55,7 +56,9 @@ describe('Health Module', () => {
 
   it('health is unversioned: the old /api/v1/health path is gone', async () => {
     expect(appConfig.API_BASE_PATH).toBe('/api');
-    expect((await app.request('/api/v1/health')).status).toBe(404);
+    // Default-deny answers anonymous callers before routing; authenticated ones get 404.
+    expect((await app.request('/api/v1/health')).status).toBe(401);
+    expect((await (await authorize(createApp())).request('/api/v1/health')).status).toBe(404);
     expect((await app.request('/api/health/liveness')).status).toBe(200);
   });
 

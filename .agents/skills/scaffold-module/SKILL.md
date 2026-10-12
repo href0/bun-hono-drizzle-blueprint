@@ -329,6 +329,8 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 Every route carries `describeEndpoint()`: the response envelope and the **domain** errors it can return (e.g. 404, 409). Added automatically: 429 and 500 on every route; the request body, parameters, 400 and (with a body) 413 by `validate()`; the common headers by the document builder — never describe them twice. `test/openapi.e2e.test.ts` fails for a route without `describeEndpoint()`. See `.agents/skills/project-standards/references/openapi.md`.
 
+Every generated route requires an access token (default-deny, `authenticate()` in `createApp()`) — do not add it to `PUBLIC_ROUTES` unless the endpoint must work without login. Restrict by role with `requireRole('admin')` from `../../core/middlewares` after `describeEndpoint()`; its 403 is documented automatically. Contract tests use `authorize(createApp())` (`test/helpers/authorized-app.ts`).
+
 ```typescript
 import { Hono } from 'hono';
 import { z } from 'zod';

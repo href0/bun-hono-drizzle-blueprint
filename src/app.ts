@@ -5,6 +5,7 @@ import packageJson from '../package.json';
 import { appConfig, httpConfig } from './config';
 import {
   asyncHandler,
+  authenticate,
   bodySizeLimit,
   corsMiddleware,
   globalErrorHandler,
@@ -16,6 +17,7 @@ import {
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
+import { isPublicRoute } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
@@ -62,12 +64,16 @@ export const createApp = (): Hono => {
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
 
+  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES
+  const v1Path = `${basePath}/v1`;
+  app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
+
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
   const v1 = new Hono();
   v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
   v1.route('/orders', ordersRouter);
-  app.route(`${basePath}/v1`, v1);
+  app.route(v1Path, v1);
 
   app.get(
     '/',
@@ -95,6 +101,10 @@ export const createApp = (): Hono => {
   mountApiDocs(app, {
     basePath,
     enabled: appConfig.API_DOCS_ENABLED,
+    // Same rule as authenticate(): documents bearerAuth + 401 on every protected operation
+    requiresAuthentication: (method, path) =>
+      path.startsWith(`${v1Path}/`) &&
+      !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
     info: {
       title: appConfig.APP_NAME,
       version: packageJson.version,

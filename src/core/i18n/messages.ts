@@ -37,6 +37,10 @@ export const I18N_MESSAGES = {
   },
   AUTH_TOKEN_INVALID: { id: 'Token akses tidak valid', en: 'Invalid access token' },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },
+  ROLE_FORBIDDEN: {
+    id: 'Peran Anda tidak memiliki akses ke fitur ini',
+    en: 'Your role is not allowed to use this feature',
+  },
   CSRF_ORIGIN_FORBIDDEN: {
     id: 'Permintaan ditolak: asal (origin) tidak diizinkan',
     en: 'Request rejected: origin not allowed',

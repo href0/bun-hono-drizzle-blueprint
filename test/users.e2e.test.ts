@@ -3,6 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import type { User } from '../src/database/schema';
 import type { Hono } from 'hono';
 import { createApp } from '../src/app';
+import { authorize } from './helpers/authorized-app';
 import { usersService } from '../src/modules/users/users.service';
 import { ConflictError, NotFoundError } from '../src/core/errors';
 
@@ -41,7 +42,7 @@ describe('Users Module — E2E Contract Tests', () => {
   let listUsersSpy: ReturnType<typeof spyOn>;
   let getUserExternalPostsSpy: ReturnType<typeof spyOn>;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     createUserSpy = spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
       if (dto.email === 'existing@example.com') {
         throw new ConflictError('User with this email already exists', {
@@ -64,7 +65,7 @@ describe('Users Module — E2E Contract Tests', () => {
       async () => [{ id: 1, userId: 1, title: 'Sample Post', body: 'Sample Body' }],
     );
 
-    app = createApp();
+    app = await authorize(createApp());
   });
 
   afterAll(() => {
@@ -300,7 +301,7 @@ describe('Users Module — E2E: update, soft delete, restore', () => {
   const spies: ReturnType<typeof spyOn>[] = [];
   const otherId = 'b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a99';
 
-  beforeAll(() => {
+  beforeAll(async () => {
     spies.push(
       spyOn(usersService, 'updateUser').mockImplementation(async (id, dto) => {
         if (id !== mockUser.id) throw new NotFoundError('User not found');
@@ -314,7 +315,7 @@ describe('Users Module — E2E: update, soft delete, restore', () => {
         return mockUser;
       }),
     );
-    app = createApp();
+    app = await authorize(createApp());
   });
 
   afterAll(() => {
