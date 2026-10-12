@@ -16,6 +16,7 @@ Use this skill when asked to create, add, or scaffold a new domain/feature modul
 | Record (append-only log / history) | [references/record.md](references/record.md) | `AppendOnlyRepository` |
 | Partner endpoint (partner systems call it with signed requests) | [references/partner.md](references/partner.md) — `<name>.partner.routes.ts` under `/v1/partner/<name>` | `BaseRepository` (unique `partner_code` + `partner_reference`) |
 | Reference data owned by another system | no module template — a `.existing()` view + `ReadOnlyRepository` | `ReadOnlyRepository` |
+| Vendor webhook (a vendor notifies events; its contract) | [references/webhook.md](references/webhook.md) — verifier in `src/integrations/<vendor>/`, receiver `<name>.webhook.routes.ts` under `/webhooks/<vendor>` | `AppendOnlyRepository` over `webhook_events` |
 | Outbound vendor adapter (not a module) | [references/integration.md](references/integration.md) — login-based vendor under `src/integrations/<name>/` | — (`HttpClientService` + `AccessTokenCache`) |
 
 Every variant, the integration template included, is generated and run through all gates by `bun run verify:scaffold` (CI). Working references in this repository: `src/modules/users` (standalone) and, until `bun run setup <name>` removes it, `src/modules/orders` (header + detail, generated from the header-detail template).

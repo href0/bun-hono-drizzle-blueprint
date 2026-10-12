@@ -57,3 +57,21 @@ const body = await this.tokens.withToken((token) =>
 - Adapter tests run against a local fake vendor (`Bun.serve({ port: 0 })`): real HTTP, no network, no `mock.module()`. Inject the client and credentials through the constructor.
 - Cover: the happy path, single-flight login, 401 → re-login, a body that fails the schema → 502, and the default singleton wired to config (in tests its base URL is a closed port → `ERR_EXT_UNREACHABLE`, so nothing ever reaches the real vendor).
 - Domain services that use the adapter are tested with a fake adapter object; an e2e test may route a real call to a fake vendor (`test/outbound.e2e.test.ts`).
+
+## 5. Inbound webhooks from a vendor
+
+A vendor that **calls us** (payment status, delivery receipts, incoming messages) owns that contract: payload, signature scheme, retries. Template: scaffold-module `references/webhook.md`; example: `src/integrations/demo-pay/` + `src/modules/payment-notifications/`.
+
+| Piece | Where |
+|---|---|
+| Verifier (`WebhookVendor`: `vendor`, `signatureHeader`, `verify()`) — exactly the vendor's documented scheme, constant-time comparison, bad input → `false` | `src/integrations/<vendor>/<vendor>.webhook.ts` |
+| Payload schema (the vendor's casing) | `src/integrations/<vendor>/<vendor>.webhook.dto.ts`, exported from `index.ts` |
+| Secret (`<VENDOR>_WEBHOOK_SECRET`; empty = disabled, every call 401) | `src/config/<vendor>.config.ts` |
+| Registration: `WEBHOOK_VENDORS` + `app.route(\`${webhooksPath}/<vendor>\`, …)` | `src/app.ts` only (dependency-cruiser `webhook-verifier-only-in-app`) |
+| Receiver: `<module>.webhook.routes.ts` / `.webhook.controller.ts`, `validate({ body, bodyKeys: 'verbatim' })`, `currentWebhook()` | the **domain** module (plan D26) |
+| Idempotency: `appendIfNew` into `webhook_events` (`ON CONFLICT (vendor, event_id) DO NOTHING`) + processing in one `@Transactional()` | the module's repository and service |
+
+- `<API_BASE_PATH>/webhooks/*` is outside `/v1` and fail-closed: `webhookAuth(vendor)` per vendor, then `requireVerifiedWebhook()` for the whole prefix — a route without a registered verifier answers 401, never 200.
+- Answer 200 for every verified, valid event, also a retry (`duplicate: true`), so the vendor stops resending; a 4xx/5xx makes it retry.
+- Keep processing short; long work needs a job queue (backlog).
+- Tests: the verifier with independent HMAC vectors, the receiver behind a stand-in for `webhookAuth()`, and signed requests through `createApp()` (`test/vendor-webhooks.e2e.test.ts`).

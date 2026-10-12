@@ -105,6 +105,14 @@ module.exports = {
       to: { path: '^src/integrations/([^/]+)/', pathNot: '^src/integrations/$1/' },
     },
     {
+      name: 'webhook-verifier-only-in-app',
+      severity: 'error',
+      comment:
+        'A vendor webhook verifier (src/integrations/<vendor>/<vendor>.webhook.ts) is wired once in createApp() (WEBHOOK_VENDORS → webhookAuth). Modules use the payload contract (<vendor>.webhook.dto.ts), never the verifier.',
+      from: { path: '^src/', pathNot: ['^src/app\\.ts$', '\\.test\\.ts$'] },
+      to: { path: '^src/integrations/[^/]+/[^/]+\\.webhook\\.ts$' },
+    },
+    {
       name: 'integrations-no-presentation',
       severity: 'error',
       comment:

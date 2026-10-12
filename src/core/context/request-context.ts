@@ -3,7 +3,8 @@ import { appConfig, type Locale } from '../../config';
 import type { Role } from '../security/roles';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
-export type Actor = `user:${string}` | `partner:${string}` | 'system' | 'anonymous';
+export type Actor =
+  `user:${string}` | `partner:${string}` | `webhook:${string}` | 'system' | 'anonymous';
 
 /** The caller proven by a verified access token. */
 export interface AuthenticatedUser {
@@ -16,6 +17,11 @@ export interface AuthenticatedPartner {
   readonly code: string;
 }
 
+/** The vendor whose webhook signature was verified (`webhookAuth()`). */
+export interface AuthenticatedWebhook {
+  readonly vendor: string;
+}
+
 export interface RequestContext {
   readonly requestId: string;
   readonly locale: Locale;
@@ -26,6 +32,8 @@ export interface RequestContext {
   user?: AuthenticatedUser;
   /** Set by `partnerAuth()` on partner routes. */
   partner?: AuthenticatedPartner;
+  /** Set by `webhookAuth()` on vendor webhook routes. */
+  webhook?: AuthenticatedWebhook;
 }
 
 const storage = new AsyncLocalStorage<RequestContext>();
@@ -48,6 +56,9 @@ export const getAuthenticatedUser = (): AuthenticatedUser | undefined => storage
 /** Trusted client IP of the current request; `undefined` outside a request. */
 export const getAuthenticatedPartner = (): AuthenticatedPartner | undefined =>
   storage.getStore()?.partner;
+
+export const getAuthenticatedWebhook = (): AuthenticatedWebhook | undefined =>
+  storage.getStore()?.webhook;
 
 export const getClientIp = (): string | undefined => storage.getStore()?.clientIp;
 
@@ -84,4 +95,14 @@ export const setAuthenticatedPartner = (partner: AuthenticatedPartner): void => 
   setActor(`partner:${partner.code}`);
   const context = storage.getStore();
   if (context) context.partner = partner;
+};
+
+/**
+ * Records the vendor proven by a verified webhook signature: the actor becomes `webhook:<vendor>`
+ * (audit columns, logs). Throws outside a request, like `setActor`.
+ */
+export const setAuthenticatedWebhook = (webhook: AuthenticatedWebhook): void => {
+  setActor(`webhook:${webhook.vendor}`);
+  const context = storage.getStore();
+  if (context) context.webhook = webhook;
 };

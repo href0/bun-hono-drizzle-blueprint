@@ -65,7 +65,7 @@ describe('sequentialPrimaryKey', () => {
   });
 
   it('is allowed only for tables listed in APPEND_ONLY_TABLES, each with a reason', () => {
-    expect(Object.keys(APPEND_ONLY_TABLES)).toEqual(['record_changes']);
+    expect(Object.keys(APPEND_ONLY_TABLES)).toEqual(['record_changes', 'webhook_events']);
     expect(Object.values(APPEND_ONLY_TABLES).every((reason) => reason.length > 0)).toBe(true);
   });
 });

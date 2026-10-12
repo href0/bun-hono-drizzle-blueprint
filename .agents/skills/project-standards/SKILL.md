@@ -59,7 +59,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │   ├── http/               # HttpClientService (pool, required timeout, X-Request-ID, vendor masking, parse()), AccessTokenCache, vendor-body redaction
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, requireRole, validate, globalErrorHandler, …
+│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, webhookAuth, requireRole, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   ├── response/           # ApiResponse standardized JSON envelope
 │   │   └── security/           # Access token (JWT HS256), ROLES, PUBLIC_ROUTES (default-deny allowlist), partner API keys + secret cipher
@@ -89,11 +89,13 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)
 │   │   ├── partner-credentials/ # Admin-only API for inbound partner credentials (key + secret shown once)
 │   │   ├── partner-gateway/    # Example signed partner endpoints: GET /partner/ping, POST /partner/echo
+│   │   ├── payment-notifications/ # Example vendor webhook receiver (POST /webhooks/demo-pay, idempotent)
 │   │   └── users/              # Reference feature domain (standalone table): users.{routes,controller,service,
 │   │                           #   repository,transformer,dto,messages}.ts + co-located tests for repository,
 │   │                           #   service, transformer and controller
 │   ├── integrations/           # Outbound vendor adapters (no routes/controllers) — references/integrations.md
 │   │   ├── registry.ts         # INTEGRATION_REGISTRY: code → institution (error.origin / error.institution)
+│   │   ├── demo-pay/           # Example webhook vendor: <vendor>.webhook.ts (verifier) + .webhook.dto.ts
 │   │   └── jsonplaceholder/    # Reference keyless adapter: <vendor>.{dto,service}.ts + test + index.ts
 │   └── utils/                  # Pure utility functions (zero dependencies on core/modules)
 └── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder, repository fixtures)
@@ -321,11 +323,12 @@ Three inbound channels, each in its own files (plan D23–D26):
 |---|---|---|---|---|
 | Users (FE, mobile) | `<module>.<role>.ts` | `<API_BASE_PATH>/v1/<module>` | `authenticate()` (Bearer) | `requireRole`, `requireSelfOrRole`, `currentUser` |
 | Partner systems | `<module>.partner.<role>.ts` | `<API_BASE_PATH>/v1/partner/...` | `partnerAuth()` (signing v1) | `currentPartner`, `requirePartner` |
-| Vendor webhooks | `<module>.webhook.<role>.ts` | `<API_BASE_PATH>/webhooks/<vendor>` | per-vendor verifier (step 5.6) | neither |
+| Vendor webhooks | `<module>.webhook.<role>.ts` | `<API_BASE_PATH>/webhooks/<vendor>` | `webhookAuth()` with the vendor's verifier (`WEBHOOK_VENDORS`) | `currentWebhook` |
 
 - **Module file names**: `<module>[-<qualifier>][.partner|.webhook].<role>[.test].ts`, `<module>` = the folder name, `<role>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util` (module-local helper). A qualifier names a second file of the same role (`auth-users.repository.ts`). The role suffix is what ESLint and dependency-cruiser match (`*.controller.ts`, `*.routes.ts`, …): `payments.partner-routes.ts` would escape every architecture rule, so it is rejected.
 - **Integration file names**: `src/integrations/<vendor>/<vendor>.<role>.ts` with `<role>` ∈ `service`, `dto`, `webhook`, `webhook.dto`, plus `index.ts`; no `integration-*` prefix — the folder is the marker.
 - **Modules are named after their domain** (`messaging`, `payments`), never after a vendor: the vendor lives only in `src/integrations/<vendor>/`, so changing vendors means a new adapter, not a new module.
+- **Vendor webhooks** (the vendor owns the contract): the verifier (`WebhookVendor`: `vendor`, `signatureHeader`, `verify()`) lives in `src/integrations/<vendor>/<vendor>.webhook.ts` and is imported only by `src/app.ts`, which lists it in `WEBHOOK_VENDORS` (dependency-cruiser `webhook-verifier-only-in-app`). The prefix `<API_BASE_PATH>/webhooks/*` is outside `/v1` and **fail-closed**: `requireVerifiedWebhook()` answers 401 `ERR_WEBHOOK_SIGNATURE_INVALID` for any request no vendor verifier accepted. The payload keeps the vendor's casing — `validate({ body, bodyKeys: 'verbatim' })`, allowed only in `*.webhook.*` files. Events go to `webhook_events` (unique `(vendor, event_id)`, `ON CONFLICT DO NOTHING`) and are processed in the same transaction, so a vendor retry is acknowledged (200) without running twice. Template: scaffold-module `references/webhook.md`; example: `demo-pay` + `payment-notifications`.
 - **Idempotent partner writes**: the partner sends its own reference; `(partner_code, partner_reference)` is unique (`activeUniqueIndex`) and a retry is a 409. The partner code always comes from `currentPartner()`, never from the body; reads are scoped to the calling partner.
 - Enforced by `test/structure.test.ts` (every file name kebab-case per dot segment, the two naming patterns, no module named like a vendor, `*.partner.routes.ts` routers only under `/v1/partner` and nothing else there, `*.webhook.routes.ts` only under `/webhooks`) and ESLint `local/inbound-channel` (helpers per channel, read from the file name). ls-lint applies its `.ts` rules only to names whose whole extension is `.ts` (`users.controller.ts` has extension `.controller.ts`), which is why the names are checked by the test.
 

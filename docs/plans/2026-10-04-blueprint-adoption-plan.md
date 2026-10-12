@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.4 selesai** (`main` @ `ed556d6`); 5.5 menunggu review (branch `feat/inbound-channel-conventions`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.5 selesai** (`main` @ `bb29912`); 5.6 menunggu review (branch `feat/vendor-webhooks`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `ed556d6` |
+| Basis kode | branch `main` @ `bb29912` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -489,6 +489,14 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 5.5 | Varian template `scaffold-module/references/partner.md` (13 langkah): tabel `partner_code` + `partner_reference` dengan `activeUniqueIndex` (retry → 409), repository `findByPartnerReference` (dibatasi ke partner pemanggil), service `createForPartner`/`getForPartner`, `<name>.partner.controller.ts` (`currentPartner()`), `<name>.partner.routes.ts` (tanpa `requireRole`), registrasi `v1.route('/partner/<name>', …)`, test repository/service/transformer/controller. `verify:scaffold`: varian keempat `probe-submissions` (dipasang di `/v1/partner/probe-submissions`), **live check bertanda tangan** lewat `partnerAuth()` asli dengan credential probe (tanpa header → 401 `ERR_PARTNER_HEADERS_MISSING`, signature valid + body salah → 400), dan `test/structure.test.ts` ikut dijalankan atas file hasil generate | `verify:scaffold`: 4 varian modul + integrasi lolos semua gate |
 | 2026-10-12 | 5.5 | Rules & skills: `AGENTS.md` invariant #16 _Inbound Channels & File Naming_ + daftar penegak (ESLint, ls-lint vs test struktur); project-standards Rule 14 (tabel kanal, pola nama, idempotensi, penegak) + `requirePartner` di Rule 13; tabel varian `scaffold-module`; CONTRIBUTING §11 (pola nama + subbagian kanal inbound), §4.3, pohon `test/`; `testing.md`; panduan partner §10 | **Chaos test** (14, semua tertangkap): akhiran nyaris benar `users.partner-routes.ts`, file ber-huruf besar di `core/`, file modul tanpa prefix modul, peran integrasi tak dikenal, modul bernama vendor, router partner dipasang di luar `/partner`, router user dipasang di bawah `/partner`, `currentUser()` di controller partner, `currentPartner()` di controller user, `requirePartner` ber-alias di route user, `requireRole()` di file webhook, `requirePartner()` meloloskan semua partner, template partner memakai `requireRole()` (`verify:scaffold` gagal), template partner dipasang di luar `/partner` (`verify:scaffold` gagal lewat test struktur) |
 | 2026-10-12 | 5.5 | **Insiden saat probe ls-lint**: skrip probe sempat menghapus `src/modules/users/users.controller.ts` (file ter-track, belum diubah); dipulihkan dengan `git checkout` (isi identik dengan commit) sebelum test dijalankan | `git status` bersih untuk modul `users` |
+| 2026-10-12 | 5.5 | ✅ di-commit (`bb29912`) dan di-merge ke `main` | — |
+| 2026-10-12 | 5.6 | Core: `WebhookVendor` (`vendor`, `signatureHeader`, `verify({ body, header, nowMs })`) + `webhookAuth(vendor)` (body mentah dibaca sekali — `validate()` tetap bisa membaca; gagal → 401 `ERR_WEBHOOK_SIGNATURE_INVALID`; actor `webhook:<vendor>`, `currentWebhook()`; satu log audit `audit: 'webhook'` per request tanpa nilai signature) + `requireVerifiedWebhook()`: guard **fail-closed** untuk seluruh `<base>/webhooks/*` setelah verifier semua vendor — route yang vendornya tidak punya verifier, atau path vendor tak dikenal, → 401 (bukan publik, bukan 404). Tipe `Actor` + `RequestContext.webhook`. **Penyimpangan kecil langkah 1**: `webhookAuth(vendor)` menerima deskriptor vendor (bukan `{ vendor, verify }` terpisah) agar header signature ikut dipakai OpenAPI | Unit test 7 kasus |
+| 2026-10-12 | 5.6 | `validate({ body, bodyKeys: 'verbatim' })` (**tambahan**): payload vendor dipertahankan apa adanya (tanpa cek snake_case, tanpa konversi) — tanpa ini vendor ber-camelCase selalu 400. Dibatasi ESLint `local/inbound-channel` hanya di file `*.webhook.*`; rule yang sama kini mengenal kanal webhook (`currentWebhook` hanya di file webhook) | — |
+| 2026-10-12 | 5.6 | Tabel `webhook_events` (migrasi `0008`, `APPEND_ONLY_TABLES`): `vendor`, `event_id`, `event_type`, `payload` jsonb, timestamps; unique `(vendor, event_id)`. Penerima menyimpan dengan `INSERT … ON CONFLICT (vendor, event_id) DO NOTHING RETURNING` (`appendIfNew`, tidak melempar → transaksi tetap sehat) dan memproses dalam `@Transactional()` yang sama: gagal → tidak ada baris → retry vendor diproses ulang; duplikat → 200 `duplicate: true` | — |
+| 2026-10-12 | 5.6 | Contoh: vendor `demo-pay` (`src/integrations/demo-pay/`: verifier gaya Stripe — `x-demo-pay-timestamp` detik + `v1=<HMAC-SHA256(secret, "<ts>.<body>")>`, toleransi, timing-safe; payload camelCase; config `DEMO_PAY_WEBHOOK_SECRET` — **kosong = webhook nonaktif, semua 401**, sehingga contoh tidak pernah membuka endpoint tanpa autentikasi; registry `DEMO_PAY`) + modul domain `payment-notifications` (D26; `*.webhook.routes.ts` di `<base>/webhooks/demo-pay`). `WEBHOOK_VENDORS` di `src/app.ts` = satu-satunya tempat verifier didaftarkan; dependency-cruiser `webhook-verifier-only-in-app` menolak impor `*.webhook.ts` integrasi dari tempat lain. OpenAPI: skema `<vendor>-webhook` (header signature vendor) + 401 per operasi webhook. Preload hermetik mengunci `DEMO_PAY_WEBHOOK_SECRET` ke nilai test | — |
+| 2026-10-12 | 5.6 | Penjaga: `test/default-deny.e2e.test.ts` — route di luar `/v1` = platform publik **atau** webhook; setiap route webhook harus milik vendor di `WEBHOOK_VENDORS` dan menjawab 401 `ERR_WEBHOOK_SIGNATURE_INVALID` tanpa signature (juga dengan bearer token admin); path vendor tak dikenal 401. `test/openapi.e2e.test.ts` — operasi webhook bertanda skema vendornya. `test/vendor-webhooks.e2e.test.ts` — signed lewat `createApp()`. Test struktur (5.5) kini aktif untuk kanal webhook. Template `scaffold-module/references/webhook.md` (15 langkah: config, DTO payload, verifier + test vektor, `index.ts`, DTO/pesan/repository/service/controller/routes modul + test) dengan placeholder vendor baru; `verify:scaffold` varian kelima `probe-receipts` ← vendor `probe-hooks`, registrasi `WEBHOOK_VENDORS` + route, live check bertanda tangan (tanpa signature → 401, signature valid + payload salah → 400) | **Chaos test** (14, semua tertangkap): prefix webhook tanpa verifier & guard, guard dicabut + penerima dipasang untuk vendor tak terdaftar, vendor dihapus dari `WEBHOOK_VENDORS`, `webhookAuth` tidak mencatat vendor, toleransi timestamp diabaikan, signature apa pun diterima, secret kosong tidak fail-closed, insert inbox tanpa `ON CONFLICT DO NOTHING`, duplikat diproses ulang, `bodyKeys: 'verbatim'` di route user, `currentWebhook()` di controller partner, service modul mengimpor verifier, OpenAPI tidak menandai webhook, template controller mengimpor verifier (`verify:scaffold` gagal) |
+| 2026-10-12 | 5.6 | Probe layanan asli (migrasi `0008` diterapkan ke DB lokal; server port 3999, secret demo lewat env proses): webhook bertanda tangan → 200; retry event sama → 200 `duplicate: true`; tepat satu baris `webhook_events` dengan payload ber-casing vendor; signature palsu → 401; timestamp 1 jam → 401; path vendor tak dikenal → 401 (fail-closed); signature valid + payload salah → 400 tanpa baris; log audit accepted/rejected (`no_verifier`) tanpa nilai signature, actor `webhook:demo-pay`. Baris uji dihapus | 9/9 OK |
+| 2026-10-12 | 5.6 | Dokumen: `AGENTS.md` invariant #16 (bagian webhook), project-standards Rule 14 (tabel kanal + bullet webhook) & pohon, `integrations.md` §5 baru _Inbound webhooks_, `openapi.md`, `bootstrap.md` (langkah 7b), `testing.md`, tabel varian `scaffold-module`, CONTRIBUTING (pohon, tabel kanal, aturan webhook), README, `.env.example`, L1/L2/L10/L11 | — |
 
 ---
 
@@ -547,8 +555,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 5.2 | Kredensial partner (schema + admin API) | ✅ | 5.1, 2.8, 3.4 | `2ba2423` |
 | 5.3 | Middleware `partnerAuth()` | ✅ | 5.2, 1.6 | `85e7c2a` |
 | 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ed556d6` |
-| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | 👀 | 5.4 |  |
-| 5.6 | Webhook vendor inbound | ⬜ | 5.5, 4.2 |  |
+| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bb29912` |
+| 5.6 | Webhook vendor inbound | 👀 | 5.5, 4.2 |  |
 | 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.6 |  |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
 | 7.2 | Finalisasi skills AI | ⬜ | 7.1 |  |
@@ -1165,9 +1173,9 @@ Keputusan D23, D25, D28. Kontrak milik vendor; kita hanya memverifikasi dan meny
 
 **Acceptance criteria**
 
-- [ ] Signature salah / header hilang → 401; event dengan `event_id` sama dua kali → dua-duanya 2xx, satu baris di `webhook_events`.
-- [ ] Route di bawah `/webhooks/*` tanpa `webhookAuth()` membuat test default-deny gagal (chaos test).
-- [ ] Probe asli (Postgres + Redis lokal): webhook vendor dummy diterima, duplikat diabaikan, signature salah ditolak.
+- [x] Signature salah / header hilang → 401; event dengan `event_id` sama dua kali → dua-duanya 2xx, satu baris di `webhook_events`.
+- [x] Route di bawah `/webhooks/*` tanpa `webhookAuth()` membuat test default-deny gagal (chaos test).
+- [x] Probe asli (Postgres + Redis lokal): webhook vendor dummy diterima, duplikat diabaikan, signature salah ditolak.
 
 ---
 
@@ -1290,6 +1298,8 @@ Catatan   : <hal yang perlu perhatian reviewer>
 | `PARTNER_SECRET_KEYS` | 5.2 | — | `k1:<64hex>[,k0:<64hex>]`; diisi `bun run setup` di env lokal |
 | `PARTNER_SECRET_ACTIVE_KEY_ID` | 5.2 | — | harus ada di keyring; diisi `bun run setup` (`k1`) |
 | `JSONPLACEHOLDER_BASE_URL` / `TIMEOUT_MS` | ada | contoh | contoh integrasi |
+| `DEMO_PAY_WEBHOOK_SECRET` | 5.6 | kosong | contoh webhook vendor; kosong = webhook Demo Pay nonaktif (semua 401) |
+| `DEMO_PAY_WEBHOOK_TOLERANCE_SECONDS` | 5.6 | `300` | umur maksimum timestamp bertanda tangan |
 | `EXTERNAL_VENDOR_*` | 1.1 | — | **dihapus** di 1.1 (tidak pernah dipakai kode) |
 
 ### 15.2 L2 — Error types & `APP_ERROR_CODES`
@@ -1298,7 +1308,7 @@ Catatan   : <hal yang perlu perhatian reviewer>
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | `ERR_INVALID_INPUT`, `ERR_INVALID_JSON`, `ERR_NON_SNAKE_CASE_KEY` |
 | `BAD_REQUEST` | 400 | `ERR_BAD_REQUEST` |
-| `UNAUTHORIZED` | 401 | `ERR_UNAUTHORIZED`, `ERR_AUTH_INVALID_CREDENTIALS`, `ERR_AUTH_TOKEN_EXPIRED`, `ERR_AUTH_TOKEN_INVALID`, `ERR_AUTH_REFRESH_INVALID`, `ERR_AUTH_REFRESH_REUSED`, `ERR_PARTNER_HEADERS_MISSING`, `ERR_PARTNER_INVALID_KEY`, `ERR_PARTNER_REPLAY_REJECTED`, `ERR_PARTNER_SIGNATURE_INVALID` |
+| `UNAUTHORIZED` | 401 | `ERR_UNAUTHORIZED`, `ERR_AUTH_INVALID_CREDENTIALS`, `ERR_AUTH_TOKEN_EXPIRED`, `ERR_AUTH_TOKEN_INVALID`, `ERR_AUTH_REFRESH_INVALID`, `ERR_AUTH_REFRESH_REUSED`, `ERR_PARTNER_HEADERS_MISSING`, `ERR_PARTNER_INVALID_KEY`, `ERR_PARTNER_REPLAY_REJECTED`, `ERR_PARTNER_SIGNATURE_INVALID`, `ERR_WEBHOOK_SIGNATURE_INVALID` |
 | `FORBIDDEN` | 403 | `ERR_FORBIDDEN`, `ERR_ROLE_FORBIDDEN`, `ERR_CSRF_ORIGIN_FORBIDDEN`, `ERR_PARTNER_IP_FORBIDDEN`, `ERR_PARTNER_ROUTE_FORBIDDEN` |
 | `NOT_FOUND` | 404 | `ERR_NOT_FOUND`, `ERR_ROUTE_NOT_FOUND` |
 | `CONFLICT` | 409 | `ERR_CONFLICT` |
@@ -1575,6 +1585,8 @@ jobs:
  5. bodyLimit()             413
  6. rateLimit()             global per IP (fail-open)
  7. /api/health/*, /api/docs*                      publik
+7b. app.use('/api/webhooks/<vendor>/*', webhookAuth(vendor)) per WEBHOOK_VENDORS,
+    lalu app.use('/api/webhooks/*', requireVerifiedWebhook())   fail-closed (Fase 5.6)
  8. app.use('/api/v1/partner/*', partnerAuth())    HMAC (Fase 5)
  9. app.use('/api/v1/*', authenticate())           default-deny, kecuali PUBLIC_ROUTES & partner
 10. app.route('/api/v1', v1Router)                 modul (requireRole per route)
@@ -1605,7 +1617,7 @@ src/
 │   ├── connection.ts · transaction-host.ts · transactional.decorator.ts · health-probe.ts · unique-violation.ts
 │   ├── schema/    schemas.ts · columns.ts · domain/ · reference/
 │   └── seeds/
-├── integrations/  registry.ts · <vendor>/
+├── integrations/  registry.ts · <vendor>/ (<vendor>.service.ts outbound, <vendor>.webhook.ts verifier inbound)
 ├── modules/       auth/ · users/ · partner-credentials/ · health/ · orders/ (contoh, dihapus init-project)
 └── utils/         datetime, crypto, secret-cipher, partner-signature, ip-match, route-match, record-diff, request-id, locale, case-converter
 ```

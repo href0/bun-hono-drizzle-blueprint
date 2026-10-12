@@ -4,8 +4,8 @@
  * Usage: bun run verify:scaffold
  *
  * Materializes every code block of each template variant (`SKILL.md` = standalone,
- * `references/header-detail.md`, `references/record.md`, `references/partner.md`) as a probe
- * module, and the outbound
+ * `references/header-detail.md`, `references/record.md`, `references/partner.md`,
+ * `references/webhook.md`) as a probe module, and the outbound
  * integration template (`references/integration.md`) as a probe vendor adapter; registers them
  * exactly as the templates instruct, then runs prettier, tsc, eslint, ls-lint, dependency-cruiser,
  * knip, the generated tests and the schema conventions, plus live requests through `createApp()`.
@@ -44,23 +44,38 @@ interface Variant {
   /** A request that must be rejected with 400 by validate() once authenticated. */
   invalid: { path: string; method: string; body?: string };
   appendOnly?: boolean;
-  /** Inbound channel: users with access tokens (default) or partners with signed requests. */
-  channel?: 'partner';
+  /** Inbound channel: users with access tokens (default), partners or vendor webhooks. */
+  channel?: 'partner' | 'webhook';
+  /** Webhook variant: the vendor whose verifier the template generates. */
+  vendor?: VendorNames;
+}
+
+interface VendorNames {
+  kebab: string;
+  upper: string;
+  camel: string;
+  pascal: string;
 }
 
 /** Where the template registers its router (Step "Register Route in src/app.ts"). */
 const routerOf = (variant: Variant): { file: string; symbol: string; mount: string } =>
-  variant.channel === 'partner'
+  variant.channel === 'webhook'
     ? {
-        file: `${variant.names.name}.partner.routes`,
-        symbol: `${variant.names.camelPlural}PartnerRoutes`,
-        mount: `/partner/${variant.names.name}`,
+        file: `${variant.names.name}.webhook.routes`,
+        symbol: `${variant.names.camelPlural}WebhookRoutes`,
+        mount: `/${variant.vendor?.kebab ?? ''}`,
       }
-    : {
-        file: `${variant.names.name}.routes`,
-        symbol: `${variant.names.camelPlural}Router`,
-        mount: `/${variant.names.name}`,
-      };
+    : variant.channel === 'partner'
+      ? {
+          file: `${variant.names.name}.partner.routes`,
+          symbol: `${variant.names.camelPlural}PartnerRoutes`,
+          mount: `/partner/${variant.names.name}`,
+        }
+      : {
+          file: `${variant.names.name}.routes`,
+          symbol: `${variant.names.camelPlural}Router`,
+          mount: `/${variant.names.name}`,
+        };
 
 /** Kebab-case names with a hyphen on purpose: exercises naming rules for multi-word modules. */
 const VARIANTS: Variant[] = [
@@ -159,11 +174,42 @@ const VARIANTS: Variant[] = [
     },
     channel: 'partner',
   },
+  {
+    label: 'webhook',
+    template: `${SKILL_DIR}/references/webhook.md`,
+    names: {
+      name: 'probe-receipts',
+      snakePlural: 'probe_receipts',
+      snakeSingular: 'probe_receipt',
+      upperSingular: 'PROBE_RECEIPT',
+      pascalPlural: 'ProbeReceipts',
+      camelPlural: 'probeReceipts',
+      pascalSingular: 'ProbeReceipt',
+      camelSingular: 'probeReceipt',
+    },
+    vendor: {
+      kebab: 'probe-hooks',
+      upper: 'PROBE_HOOKS',
+      camel: 'probeHooks',
+      pascal: 'ProbeHooks',
+    },
+    documented: [['/webhooks/probe-hooks', 'post']],
+    invalid: {
+      path: '/webhooks/probe-hooks',
+      method: 'POST',
+      body: '{"id":"","type":"thing.happened","data":{}}',
+    },
+    channel: 'webhook',
+  },
 ];
 
-const fill = (text: string, names: Names): string =>
+const fill = (text: string, names: Names, vendor?: VendorNames): string =>
   (
     [
+      [/<vendorCamel>/g, vendor?.camel ?? '<vendorCamel>'],
+      [/<VendorPascal>/g, vendor?.pascal ?? '<VendorPascal>'],
+      [/<VENDOR>/g, vendor?.upper ?? '<VENDOR>'],
+      [/<vendor>/g, vendor?.kebab ?? '<vendor>'],
       [/<snake_plural>/g, names.snakePlural],
       [/<snake_singular>/g, names.snakeSingular],
       [/<UPPER_SINGULAR>/g, names.upperSingular],
@@ -196,6 +242,9 @@ const integrationConfig = `src/config/${INTEGRATION.names.name}.config.ts`;
 const moduleDir = (names: Names): string => `src/modules/${names.name}`;
 const schemaFile = (names: Names): string => `src/database/schema/domain/${names.name}.schema.ts`;
 
+const webhookVendors = (): VendorNames[] =>
+  VARIANTS.flatMap((variant) => (variant.vendor ? [variant.vendor] : []));
+
 const originals = new Map<string, string>();
 let cleanedUp = false;
 
@@ -208,6 +257,10 @@ const cleanup = (): void => {
   }
   rmSync(integrationDir, { recursive: true, force: true });
   rmSync(integrationConfig, { force: true });
+  for (const vendor of webhookVendors()) {
+    rmSync(`src/integrations/${vendor.kebab}`, { recursive: true, force: true });
+    rmSync(`src/config/${vendor.kebab}.config.ts`, { force: true });
+  }
   for (const [path, content] of originals) writeFileSync(path, content);
 };
 
@@ -231,16 +284,21 @@ const run = (label: string, command: string[]): boolean => {
 };
 
 /** Writes the code block under every `### Step N: … (path)` heading, except registration edits. */
-const materialize = (templatePath: string, names: Names, registrations: string[]): string[] => {
+const materialize = (
+  templatePath: string,
+  names: Names,
+  registrations: string[],
+  vendor?: VendorNames,
+): string[] => {
   const template = readFileSync(templatePath, 'utf-8');
   const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
   const generated: string[] = [];
 
   for (const match of template.matchAll(stepPattern)) {
-    const path = fill(match[1], names);
+    const path = fill(match[1], names, vendor);
     if (registrations.includes(path)) continue;
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, fill(match[2], names));
+    writeFileSync(path, fill(match[2], names, vendor));
     generated.push(path);
   }
   if (generated.length === 0) throw new Error(`no templates found in ${templatePath}`);
@@ -261,8 +319,33 @@ const generateIntegration = (): string[] => {
 };
 
 const generate = (variant: Variant): string[] => {
-  const { names } = variant;
-  const generated = materialize(variant.template, names, [APP_PATH]);
+  const { names, vendor } = variant;
+  const generated = materialize(variant.template, names, [APP_PATH], vendor);
+
+  if (vendor) {
+    // Webhook variant: no table of its own (webhook_events is shared); vendor config + registry.
+    editFile(CONFIG_BARREL, (content) => `${content}export * from './${vendor.kebab}.config';\n`);
+    editFile(REGISTRY_PATH, (content) =>
+      content.replace(
+        /(export const INTEGRATION_REGISTRY = \{\n)/,
+        `$1  ${vendor.upper}: { code: '${vendor.upper}', institution: 'Probe Hooks (verify:scaffold)' },\n`,
+      ),
+    );
+    const router = routerOf(variant);
+    editFile(APP_PATH, (content) =>
+      content
+        .replace(
+          "import { userRoutes } from './modules/users/users.routes';",
+          `import { userRoutes } from './modules/users/users.routes';\nimport { ${router.symbol} } from './modules/${names.name}/${router.file}';\nimport { ${vendor.camel}Webhook } from './integrations/${vendor.kebab}/${vendor.kebab}.webhook';`,
+        )
+        .replace('[demoPayWebhook]', `[demoPayWebhook, ${vendor.camel}Webhook]`)
+        .replace(
+          '  app.route(`${webhooksPath}/demo-pay`, paymentNotificationWebhookRoutes);',
+          `  app.route(\`\${webhooksPath}/demo-pay\`, paymentNotificationWebhookRoutes);\n  app.route(\`\${webhooksPath}${router.mount}\`, ${router.symbol});`,
+        ),
+    );
+    return generated;
+  }
 
   editFile(SCHEMA_BARREL, (content) => `${content}export * from './${names.name}.schema';\n`);
   if (variant.appendOnly) {
@@ -289,6 +372,9 @@ const generate = (variant: Variant): string[] => {
 };
 
 const liveCheck = (): string => `
+// Webhook probes are enabled with a test-only secret before the app (and its config) load.
+process.env.PROBE_HOOKS_WEBHOOK_SECRET = 'verify-scaffold-webhook-secret';
+const { signProbeHooksWebhook } = await import('./src/integrations/probe-hooks/probe-hooks.webhook.ts');
 const { createApp } = await import('./src/app.ts');
 const { appConfig } = await import('./src/config/index.ts');
 const { signAccessToken } = await import('./src/core/security/jwt.ts');
@@ -312,13 +398,16 @@ for (const variant of variants) {
   const { path, method, body: requestBody } = variant.invalid;
   const anonymous = await app.request(base + path, { method, body: requestBody });
   const anonymousCode = (await anonymous.json()).error?.code;
-  const expectedCode = variant.channel === 'partner' ? 'ERR_PARTNER_HEADERS_MISSING' : 'ERR_UNAUTHORIZED';
+  const expectedCode = variant.channel === 'partner' ? 'ERR_PARTNER_HEADERS_MISSING' : variant.channel === 'webhook' ? 'ERR_WEBHOOK_SIGNATURE_INVALID' : 'ERR_UNAUTHORIZED';
   if (anonymous.status !== 401 || anonymousCode !== expectedCode) {
     console.error(variant.label + ': expected 401 ' + expectedCode + ' without credentials (default-deny), got', anonymous.status, anonymousCode);
     process.exit(1);
   }
   // ... and validate their input once authenticated (access token or partner signature).
-  const credentials = variant.channel === 'partner'
+  const webhookTimestamp = String(Math.floor(Date.now() / 1000));
+  const credentials = variant.channel === 'webhook'
+    ? { 'x-probe-hooks-timestamp': webhookTimestamp, 'x-probe-hooks-signature': signProbeHooksWebhook('verify-scaffold-webhook-secret', webhookTimestamp, requestBody ?? '') }
+    : variant.channel === 'partner'
     ? partnerSignatureHeaders({ apiKey: probeKey, secret: probeSecret, method, url: base + path, body: requestBody ?? '', timestamp: String(Date.now()), nonce: 'verify_scaffold_' + String(++nonce).padStart(8, '0') })
     : { Authorization: 'Bearer ' + token };
   const res = await app.request(base + path, { method, body: requestBody, headers: { 'Accept-Language': 'en', 'Content-Type': 'application/json', ...credentials } });
@@ -343,6 +432,10 @@ const main = (): void => {
     ...VARIANTS.flatMap(({ names }) => [moduleDir(names), schemaFile(names)]),
     integrationDir,
     integrationConfig,
+    ...webhookVendors().flatMap((vendor) => [
+      `src/integrations/${vendor.kebab}`,
+      `src/config/${vendor.kebab}.config.ts`,
+    ]),
   ].filter((path) => existsSync(path));
   if (existing.length > 0) {
     console.error(`Refusing to run: ${existing.join(', ')} already exist(s).`);

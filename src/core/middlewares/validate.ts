@@ -17,6 +17,12 @@ export interface ValidationSchemas {
    * contracts; use this only when a dictionary is unavoidable.
    */
   preserveKeys?: readonly string[];
+  /**
+   * `verbatim`: the body keeps its keys exactly as sent — no snake_case check, no camelCase
+   * conversion — for payloads whose contract belongs to someone else (vendor webhooks, plan D23).
+   * Allowed only in `*.webhook.*` files (ESLint `local/inbound-channel`). Default `snake_case`.
+   */
+  bodyKeys?: 'snake_case' | 'verbatim';
 }
 
 /**
@@ -49,7 +55,11 @@ export const validate = (schemas: ValidationSchemas): MiddlewareHandler => {
   const middleware: MiddlewareHandler = async (c, next) => {
     try {
       if (schemas.body) {
-        const rawBody = toCamelCasePayload(await parseRequestBody(c), preserveKeys);
+        const parsedBody = await parseRequestBody(c);
+        const rawBody =
+          schemas.bodyKeys === 'verbatim'
+            ? parsedBody
+            : toCamelCasePayload(parsedBody, preserveKeys);
         const validatedBody: unknown = await schemas.body.parseAsync(rawBody);
         c.set('validatedBody', validatedBody);
       }

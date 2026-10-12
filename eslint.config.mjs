@@ -350,15 +350,16 @@ const TX_HOST_IMPORT_PATTERN = {
  * `no-restricted-syntax`) so it never collides with the role-based groups above.
  */
 /** @typedef {'default' | 'partner' | 'webhook'} Channel */
-/** @typedef {'user' | 'partner'} Caller */
+/** @typedef {'user' | 'partner' | 'webhook'} Caller */
 
 /** @type {Record<Caller, string[]>} */
 const CHANNEL_HELPERS = {
   user: ['requireRole', 'requireSelfOrRole', 'currentUser'],
   partner: ['currentPartner', 'requirePartner'],
+  webhook: ['currentWebhook'],
 };
 /** @type {Record<Channel, Caller[]>} */
-const CHANNEL_CALLERS = { default: ['user'], partner: ['partner'], webhook: [] };
+const CHANNEL_CALLERS = { default: ['user'], partner: ['partner'], webhook: ['webhook'] };
 
 /**
  * @param {string} filename
@@ -379,6 +380,8 @@ const inboundChannelRule = {
     messages: {
       forbidden:
         '"{{name}}" is a {{kind}}-channel helper, but this file serves the {{channel}} channel. Name partner files <module>.partner.<role>.ts and webhook files <module>.webhook.<role>.ts; keep each channel in its own files (plan D24).',
+      verbatimBody:
+        "bodyKeys: 'verbatim' (vendor-owned payload casing) is only for vendor webhooks, in <module>.webhook.<role>.ts files; our own contracts are snake_case (plan D10, D23).",
     },
   },
   create(context) {
@@ -392,6 +395,14 @@ const inboundChannelRule = {
       for (const name of names) banned.set(name, kind);
     }
     return {
+      Property(node) {
+        if (channel === 'webhook') return;
+        const key = /** @type {any} */ (node).key;
+        const value = /** @type {any} */ (node).value;
+        if (key?.name === 'bodyKeys' && value?.type === 'Literal' && value.value === 'verbatim') {
+          context.report({ node, messageId: 'verbatimBody' });
+        }
+      },
       Identifier(node) {
         const kind = banned.get(node.name);
         if (kind === undefined) return;

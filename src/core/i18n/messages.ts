@@ -49,6 +49,10 @@ export const I18N_MESSAGES = {
     id: 'Signature partner tidak valid',
     en: 'Invalid partner signature',
   },
+  WEBHOOK_SIGNATURE_INVALID: {
+    id: 'Signature webhook tidak valid',
+    en: 'Invalid webhook signature',
+  },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },
   PARTNER_IP_FORBIDDEN: {
     id: 'Alamat IP tidak diizinkan untuk partner ini',

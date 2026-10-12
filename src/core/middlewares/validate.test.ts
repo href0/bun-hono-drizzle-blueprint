@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import { createApp } from '../../app';
+import { globalErrorHandler } from './error-handler';
 import { validate, getValidatedBody, getValidatedQuery, getValidatedParams } from './validate';
 import { Hono } from 'hono';
 import { authorize } from '../../../test/helpers/authorized-app';
@@ -138,5 +139,41 @@ describe('Validation Middleware (Integration)', () => {
     // Request with no Content-Type (body treated as empty)
     const res = await testApp.request('/test', { method: 'POST' });
     expect(res.status).toBe(200);
+  });
+
+  it('bodyKeys: verbatim keeps vendor keys as sent (no snake_case check, no conversion)', async () => {
+    const testApp = new Hono();
+    testApp.post(
+      '/hook',
+      validate({
+        body: z.object({ eventId: z.string(), Data: z.object({ paymentId: z.string() }) }),
+        bodyKeys: 'verbatim',
+      }),
+      (c) => c.json(getValidatedBody<unknown>(c)),
+    );
+    const payload = { eventId: 'evt_1', Data: { paymentId: 'p_1' } };
+
+    const res = await testApp.request('/hook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(payload);
+  });
+
+  it('without bodyKeys the same camelCase payload is rejected (snake_case contract)', async () => {
+    const testApp = new Hono();
+    testApp.post('/hook', validate({ body: z.object({ eventId: z.string() }) }), (c) => c.json({}));
+    testApp.onError(globalErrorHandler);
+
+    const res = await testApp.request('/hook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId: 'evt_1' }),
+    });
+
+    expect(res.status).toBe(400);
   });
 });
