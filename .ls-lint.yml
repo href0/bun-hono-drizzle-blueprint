@@ -1,3 +1,7 @@
+# ls-lint checks directory names and file names whose whole extension is `.ts` only: a name with
+# more dots (users.controller.ts has extension `.controller.ts`) is not matched by `.ts` rules.
+# Every file name, the module/integration naming patterns and channel mounting are checked by
+# test/structure.test.ts (adoption plan D24).
 ls:
   src:
     .dir: kebab-case

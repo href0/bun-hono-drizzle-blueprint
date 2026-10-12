@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
-import { partnerGatewayController } from './partner-gateway.controller';
+import { partnerGatewayController } from './partner-gateway.partner.controller';
 import {
   partnerEchoResponseSchema,
   partnerEchoSchema,

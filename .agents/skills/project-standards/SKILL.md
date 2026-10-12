@@ -307,10 +307,27 @@ export class UsersService {
 - The caller: `currentUser()` (`{ id, role }`) in controllers; services receive the id as an argument or read `getActor()` (`user:<id>`, used for audit columns).
 - Enforced by `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public; partner routes → 401 `ERR_PARTNER_HEADERS_MISSING` without partner headers, also with a bearer token) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, partner operations the four partner header schemes + 401/403, public ones nothing).
 - **Partner routes** (`<API_BASE_PATH>/v1/partner/*`) are not bearer routes: `partnerAuth()` (mounted before `authenticate()`) verifies a request signed per spec v1 (`x-partner-key`, `x-partner-timestamp`, `x-partner-nonce`, `x-partner-signature`; `partner-signature.util.ts`), then the credential's IP whitelist, `allowed_routes` (relative to `/partner`), nonce and per-partner rate limit; refusals use the `ERR_PARTNER_*` codes. Handlers read `currentPartner()` (actor `partner:<code>`) and can still read the body (`validate()`). `authenticate()` lets a partner route through only after `partnerAuth()` verified the partner — without it the route needs a bearer token (fail-closed). The credential lookup (`findForGateway`, cached by API key hash, misses too) is injected from the `partner-credentials` module; every change to a credential drops its cache entry. Partner-facing guide (signing spec, TypeScript/Python/curl samples, test vectors, errors, rotation): `docs/partner-integration-guide.md` — guarded by `test/partner-guide.test.ts` (vectors, headers and `ERR_PARTNER_*` codes must match the code).
+- A partner route meant for one partner only adds `requirePartner('<code>')` after `describeEndpoint()` (403 `ERR_PARTNER_ROUTE_FORBIDDEN`, documented in OpenAPI) — on top of the credential's `allowed_routes`, so an admin's mistake cannot open it to another partner. New partner endpoints: scaffold variant `.agents/skills/scaffold-module/references/partner.md`.
 - Tests of a module's contract call `authorize(createApp(), role, userId?)` (`test/helpers/authorized-app.ts`) so requests carry a token.
 - Access tokens are not re-checked against the database: role changes, deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); refresh already refuses / re-reads the role. A password change (`POST /auth/change-password`, admin `PUT /users/:id/password`) sets `users.password_changed_at`, and refresh refuses token families started before it — no cross-module call needed.
 - Request emails use `emailField` (trimmed, lower-cased); new passwords `newPasswordField`. An admin cannot delete, deactivate or demote their own account (403 `ERR_SELF_LOCKOUT_FORBIDDEN`).
 - Frontend integration (token storage, single-flight refresh across tabs, cookie, CSRF, SameSite vs subdomains): `docs/auth-guide.md`. First admin: `bun run seed:admin --email <email>`; expired refresh tokens: `bun run auth:purge-tokens` (schedule daily).
+
+
+### Rule 14: Inbound Channels & File Naming
+Three inbound channels, each in its own files (plan D23–D26):
+
+| Caller | Files | Mounted under | Authenticated by | Helpers allowed |
+|---|---|---|---|---|
+| Users (FE, mobile) | `<module>.<role>.ts` | `<API_BASE_PATH>/v1/<module>` | `authenticate()` (Bearer) | `requireRole`, `requireSelfOrRole`, `currentUser` |
+| Partner systems | `<module>.partner.<role>.ts` | `<API_BASE_PATH>/v1/partner/...` | `partnerAuth()` (signing v1) | `currentPartner`, `requirePartner` |
+| Vendor webhooks | `<module>.webhook.<role>.ts` | `<API_BASE_PATH>/webhooks/<vendor>` | per-vendor verifier (step 5.6) | neither |
+
+- **Module file names**: `<module>[-<qualifier>][.partner|.webhook].<role>[.test].ts`, `<module>` = the folder name, `<role>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util` (module-local helper). A qualifier names a second file of the same role (`auth-users.repository.ts`). The role suffix is what ESLint and dependency-cruiser match (`*.controller.ts`, `*.routes.ts`, …): `payments.partner-routes.ts` would escape every architecture rule, so it is rejected.
+- **Integration file names**: `src/integrations/<vendor>/<vendor>.<role>.ts` with `<role>` ∈ `service`, `dto`, `webhook`, `webhook.dto`, plus `index.ts`; no `integration-*` prefix — the folder is the marker.
+- **Modules are named after their domain** (`messaging`, `payments`), never after a vendor: the vendor lives only in `src/integrations/<vendor>/`, so changing vendors means a new adapter, not a new module.
+- **Idempotent partner writes**: the partner sends its own reference; `(partner_code, partner_reference)` is unique (`activeUniqueIndex`) and a retry is a 409. The partner code always comes from `currentPartner()`, never from the body; reads are scoped to the calling partner.
+- Enforced by `test/structure.test.ts` (every file name kebab-case per dot segment, the two naming patterns, no module named like a vendor, `*.partner.routes.ts` routers only under `/v1/partner` and nothing else there, `*.webhook.routes.ts` only under `/webhooks`) and ESLint `local/inbound-channel` (helpers per channel, read from the file name). ls-lint applies its `.ts` rules only to names whose whole extension is `.ts` (`users.controller.ts` has extension `.controller.ts`), which is why the names are checked by the test.
 
 ---
 

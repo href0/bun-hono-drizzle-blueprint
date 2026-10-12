@@ -343,6 +343,81 @@ const TX_HOST_IMPORT_PATTERN = {
     'TransactionHost is for repositories and *.queries.ts only. Services call repositories; use @Transactional() / runInTransaction() for transactions.',
 };
 
+/*
+ * Inbound channels (adoption plan D23–D27). A module file name says which caller it serves —
+ * `<module>[.<channel>].<role>.ts`, channel `partner` | `webhook` (no channel = users with access
+ * tokens) — and only that caller's helpers may appear in it. A dedicated rule (not
+ * `no-restricted-syntax`) so it never collides with the role-based groups above.
+ */
+/** @typedef {'default' | 'partner' | 'webhook'} Channel */
+/** @typedef {'user' | 'partner'} Caller */
+
+/** @type {Record<Caller, string[]>} */
+const CHANNEL_HELPERS = {
+  user: ['requireRole', 'requireSelfOrRole', 'currentUser'],
+  partner: ['currentPartner', 'requirePartner'],
+};
+/** @type {Record<Channel, Caller[]>} */
+const CHANNEL_CALLERS = { default: ['user'], partner: ['partner'], webhook: [] };
+
+/**
+ * @param {string} filename
+ * @returns {Channel}
+ */
+const channelOf = (filename) => {
+  const base = filename.split(/[\\/]/).pop() ?? '';
+  if (base.includes('.partner.')) return 'partner';
+  if (base.includes('.webhook.')) return 'webhook';
+  return 'default';
+};
+
+/** @type {import('eslint').Rule.RuleModule} */
+const inboundChannelRule = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      forbidden:
+        '"{{name}}" is a {{kind}}-channel helper, but this file serves the {{channel}} channel. Name partner files <module>.partner.<role>.ts and webhook files <module>.webhook.<role>.ts; keep each channel in its own files (plan D24).',
+    },
+  },
+  create(context) {
+    const channel = channelOf(context.filename);
+    /** @type {Map<string, string>} */
+    const banned = new Map();
+    for (const [kind, names] of /** @type {[Caller, string[]][]} */ (
+      Object.entries(CHANNEL_HELPERS)
+    )) {
+      if (CHANNEL_CALLERS[channel].includes(kind)) continue;
+      for (const name of names) banned.set(name, kind);
+    }
+    return {
+      Identifier(node) {
+        const kind = banned.get(node.name);
+        if (kind === undefined) return;
+        const parent = /** @type {any} */ (node).parent;
+        // Object keys and class members that merely share the name are not the helper.
+        if (
+          ['Property', 'PropertyDefinition', 'MethodDefinition'].includes(parent.type) &&
+          parent.key === node &&
+          !parent.computed
+        ) {
+          return;
+        }
+        // `import { currentUser as x }`: report once, on the imported name.
+        if (
+          parent.type === 'ImportSpecifier' &&
+          parent.local === node &&
+          parent.imported !== node
+        ) {
+          return;
+        }
+        context.report({ node, messageId: 'forbidden', data: { name: node.name, kind, channel } });
+      },
+    };
+  },
+};
+
 export default tseslint.config(
   {
     ignores: ['eslint.config.mjs', 'dist/**', 'drizzle/**', 'node_modules/**', '.husky/**'],
@@ -620,6 +695,12 @@ export default tseslint.config(
       ],
       'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
     },
+  },
+  {
+    // Inbound channels: a file uses only the helpers of the caller its name declares (D24).
+    files: ['src/modules/**/*.ts'],
+    plugins: { local: { rules: { 'inbound-channel': inboundChannelRule } } },
+    rules: { 'local/inbound-channel': 'error' },
   },
   {
     // AST architectural enforcement for Controllers: Pure Controllers only.

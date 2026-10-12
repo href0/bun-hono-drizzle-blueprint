@@ -12,3 +12,4 @@ export * from './csrf';
 export * from './authenticate';
 export * from './partner-auth';
 export * from './require-role';
+export * from './require-partner';
