@@ -1,6 +1,6 @@
 ---
 name: generate-logbook
-description: Generate logbook text entries for a given date range based on git commits authored by the configured git user. Output is formatted as a table matching the project's work logbook format (No, Tanggal, Aktivitas, Jam Mulai, Jam Selesai, Durasi, Status).
+description: Generate a monthly work logbook table (No, Tanggal, Aktivitas, Jam Mulai, Jam Selesai, Durasi, Status) from the current git user's commits. Use when asked for a logbook.
 ---
 
 # Generate Logbook

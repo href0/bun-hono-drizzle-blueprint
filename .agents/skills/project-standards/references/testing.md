@@ -87,15 +87,18 @@ describe('UsersService (Unit)', () => {
 - `src/database/schema/schema-conventions.test.ts` — every exported table: indexed foreign keys, ids from the helpers, sequential ids only in `APPEND_ONLY_TABLES`, no `serial`, no plain unique on soft-deleted tables, partition-ready `record_changes`. See [database.md](database.md).
 - `test/migrations.test.ts` — the generated SQL: no `CREATE SCHEMA`, tables in `public`, no database UUID defaults, `record_changes` CHECKs match the code.
 - `test/platform.e2e.test.ts` — the `createApp()` pipeline: security headers, CORS off by default, 413 before the route, rate limit failing open.
+- `test/default-deny.e2e.test.ts` — every route of `createApp()` under `<API_BASE_PATH>/v1` answers 401 without a token unless it is in `PUBLIC_ROUTES`.
+- `test/hermetic-env.test.ts` — the preload points the database and Redis at a closed port, whatever the local env file says.
+- `test/outbound.e2e.test.ts` — the outbound contract end to end: a vendor 401 becomes 502 without the vendor's body, and the inbound `X-Request-ID` reaches the vendor. Adapter tests run against a local fake vendor (`Bun.serve`); see [integrations.md](integrations.md).
 
 ## 5. Module E2E Tests (`test/<name>.e2e.test.ts`)
 
-A module's HTTP contract is tested through `createApp()` with its service stubbed by `spyOn` on the exported singleton — never `mock.module()`, which leaks into later files. Restore every spy in `afterAll`. See `test/users.e2e.test.ts` (standalone) and `test/orders.e2e.test.ts` (header + detail: IDOR → 404, sync, nested snake_case keys).
+A module's HTTP contract is tested through `createApp()` with its service stubbed by `spyOn` on the exported singleton — never `mock.module()`, which leaks into later files. Restore every spy in `afterAll`. Routes are protected by default (default-deny), so wrap the app with `authorize(createApp(), role?, userId?)` (`test/helpers/authorized-app.ts`): every request then carries a Bearer token unless it sets its own `Authorization` header; a role test signs in as `'user'` and expects 403 `ERR_ROLE_FORBIDDEN`. See `test/users.e2e.test.ts` (standalone) and `test/orders.e2e.test.ts` (header + detail: IDOR → 404, sync, nested snake_case keys).
 
 ```typescript
-beforeAll(() => {
+beforeAll(async () => {
   spies.push(spyOn(ordersService, 'listItems').mockImplementation(async (id) => { … }));
-  app = createApp();
+  app = await authorize(createApp(), 'admin');
 });
 afterAll(() => {
   for (const spy of spies) spy.mockRestore();
@@ -106,7 +109,7 @@ Repository behaviour is not re-tested per module: the bases are tested once (`sr
 
 ## 6. Blackbox E2E HTTP Testing (`test/health.e2e.test.ts`)
 
-Instantiate fresh `createApp()` and dispatch requests via `app.request()`:
+Public routes (health, `PUBLIC_ROUTES`) need no token: instantiate a fresh `createApp()` and dispatch requests via `app.request()`:
 
 ```typescript
 import { describe, expect, it } from 'bun:test';

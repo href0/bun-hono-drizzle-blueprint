@@ -10,8 +10,8 @@ import {
 
 /**
  * Refresh tokens (`auth_refresh_tokens`) — the approved exception to the audited data layer
- * (plan 4.1, eslint.config.mjs `AUTH_TOKEN_REPOSITORY_RULES`): no repository base and direct
- * UPDATEs, because the table's own `revoked_at` / `replaced_by_id` are the trail. Tokens are never
+ * (adoption plan §4.1 decision log, eslint.config.mjs `AUTH_TOKEN_REPOSITORY_RULES`): no
+ * repository base and direct UPDATEs, because the table's own `revoked_at` / `replaced_by_id` are the trail. Tokens are never
  * deleted here; revocation sets `revoked_at` (database clock).
  */
 export class AuthRepository {

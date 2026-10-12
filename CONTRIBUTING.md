@@ -40,14 +40,12 @@ Setiap commit dan push melewati lapis proteksi otomatis:
 
 [3] git push dijalankan                      (pemeriksaan seluruh proyek)
       └─ pre-push hook (Husky)
-            ├─ lint:branch        → Validasi nama branch sesuai standar branching strategy
-            ├─ lint:arch          → depcruise: isolasi layer arsitektur (.dependency-cruiser.cjs)
-            ├─ lint:deps          → knip: file, export, dan dependency yang tidak terpakai
-            └─ bun test           → Seluruh unit & e2e test
+            └─ validate:full      → typecheck → lint → ls-lint → prettier → depcruise → knip
+                                     → lint:setup (IDENTITY_RULES) → lint:branch → test + coverage gate
 
 [4] CI (GitHub Actions, .github/workflows/ci.yml) — setiap push ke main & pull request
       └─ nama branch + commitlint (PR) → typecheck → lint → ls-lint → prettier
-         → depcruise → knip → test + coverage gate → build
+         → depcruise → knip → lint:setup → test + coverage gate → build → verify:scaffold
 ```
 
 Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, termasuk nama branch dan pesan commit.
@@ -76,10 +74,11 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 | `bun run lint:arch` | Memeriksa pelanggaran batas layer arsitektur | Saat menambah ketergantungan antar layer |
 | `bun run lint:deps` | Memeriksa file, export, dan dependency yang tidak terpakai (knip) | Saat menghapus/memindah kode atau mengelola package |
 | `bun run lint:branch` | Memvalidasi kepatuhan format nama git branch aktif | Sebelum git push |
-| `bun run verify:scaffold` | Men-generate modul contoh dari template skill `scaffold-module` lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, database) atau template itu sendiri |
+| `bun run lint:setup` | Memastikan setiap `IDENTITY_RULES` (`scripts/setup.ts`) masih cocok dengan file-nya | Saat mengubah nilai yang membawa nama proyek |
+| `bun run verify:scaffold` | Men-generate modul contoh dari setiap template skill `scaffold-module` (mandiri, header-detail, pencatatan) **dan** adapter vendor dari template integrasi, lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, test hasil generate, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, openapi, database, http) atau template itu sendiri |
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
 | `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
-| **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** | **Wajib sebelum membuat Pull/Merge Request** |
+| **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** (juga dijalankan hook pre-push) | **Wajib sebelum membuat Pull/Merge Request** |
 
 ---
 
@@ -99,7 +98,7 @@ src/
 │   ├── cache/                   # Redis Fail-Open Caching & Key Generators
 │   ├── dto/                     # Schema request bersama (uuidParamSchema, paginationQuerySchema)
 │   ├── errors/                  # Semantic ApiError Hierarchy
-│   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
+│   ├── http/                    # HttpClientService (keep-alive pool, timeout wajib, X-Request-ID, masking error vendor), vendor-body.ts (redaksi body vendor untuk log), access-token-cache.ts (token vendor single-flight)
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
 │   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
@@ -116,6 +115,9 @@ src/
 │   ├── unique-violation.ts      # isUniqueViolation(): SQLSTATE 23505 → service melempar ConflictError
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
+│   ├── health-probe.ts          # pingDatabase() untuk health check
+│   ├── seeds/                   # seed-admin.ts (`bun run seed:admin`)
+│   ├── maintenance/             # purge-refresh-tokens.ts (`bun run auth:purge-tokens`)
 │   └── schema/                  # Definisi tabel (public) & view referensi
 │       ├── schemas.ts           # appTable (public) & referenceSchema — satu-satunya pgTable/pgSchema
 │       ├── columns.ts           # Helper kolom: uuidPrimaryKey, timestamps, instant, softDelete, …
@@ -152,9 +154,19 @@ src/
 test/                            # End-to-End (E2E) & Blackbox API Tests
 ├── setup/hermetic-env.ts        # Preload: tanpa database/Redis asli di `bun test`
 ├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji)
-├── *.e2e.test.ts                # health, users, orders (contoh), openapi, platform
+├── *.e2e.test.ts                # health, auth, users, orders (contoh), openapi, platform, default-deny, outbound
+├── hermetic-env.test.ts         # Penjaga preload hermetik
 └── migrations.test.ts           # Penjaga SQL migrasi hasil generate
+
+scripts/
+├── setup.ts                     # `bun run setup <nama>` (skill init-project, IDENTITY_RULES)
+├── check-coverage.ts            # Coverage gate (THRESHOLDS = satu-satunya sumber ambang)
+├── verify-scaffold.ts           # `bun run verify:scaffold`: template scaffold-module lewat semua gate
+├── seed-admin.ts                # `bun run seed:admin --email <email>`
+└── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
+
+Pohon ini adalah versi kanonik; README dan skill `project-standards` hanya meringkas dan merujuk ke sini.
 
 ### 2.2 Boundary Isolation Matrix (Enforced by `dependency-cruiser`)
 
@@ -256,7 +268,7 @@ Aturan envelope error (dibangun satu tempat: `buildErrorBody()` di `src/core/res
 
 ### 3.3 Semantic Error Classes
 
-Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (ditegakkan ESLint). Wajib menggunakan class turunan `ApiError` dari `src/core/errors/` dengan bentuk `new XError(message, { details?, origin?, code? })`:
+Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (ditegakkan ESLint). Wajib menggunakan class turunan `ApiError` dari `src/core/errors/` dengan bentuk `new XError(message, { details?, origin?, code? })` — kecuali `ExternalServiceError(kind, message, { integration, details? })` yang mengambil `origin`/`institution` dari entri `INTEGRATION_REGISTRY`:
 
 | Class | HTTP Status | Error Type | Error Code | Penggunaan |
 |---|---|---|---|---|
@@ -264,7 +276,7 @@ Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (di
 | `BadRequestError` | 400 | `BAD_REQUEST` | `ERR_BAD_REQUEST` | Pelanggaran aturan bisnis |
 | `UnauthorizedError` | 401 | `UNAUTHORIZED` | `ERR_UNAUTHORIZED` (default) · `ERR_AUTH_TOKEN_EXPIRED` · `ERR_AUTH_TOKEN_INVALID` · `ERR_AUTH_INVALID_CREDENTIALS` · `ERR_AUTH_REFRESH_INVALID` · `ERR_AUTH_REFRESH_REUSED` | Header `Authorization` tidak ada · access token habis / tidak sah · login gagal (sengaja tidak dibedakan) · refresh token tidak sah · refresh token lama dipakai lagi (sesi dicabut) |
 | `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` (default) · `ERR_ROLE_FORBIDDEN` · `ERR_CSRF_ORIGIN_FORBIDDEN` · `ERR_SELF_LOCKOUT_FORBIDDEN` | Akses ditolak · role tidak berhak (`requireRole`) · origin tidak terdaftar di endpoint ber-cookie · admin mengunci akunnya sendiri |
-| `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` | Resource entitas tidak ditemukan |
+| `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` (default) · `ERR_ROUTE_NOT_FOUND` | Resource entitas tidak ditemukan · route tidak ada (`notFoundHandler`) |
 | `ConflictError` | 409 | `CONFLICT` | `ERR_CONFLICT` | Data unik sudah terdaftar (duplikat) |
 | `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi batas |
 | `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Rate limit global · terlalu banyak percobaan login per (email, IP) (opsional `retryAfterSeconds` → header `Retry-After`) |
@@ -297,13 +309,13 @@ return new ApiResponse(responseData, USER_MESSAGES.CREATED, 201);
 ## 4. Pure Controllers & Request Validation
 
 ### 4.1 Prinsip Pure Controller
-- **DILARANG KERAS** memanggil `c.json()` di dalam file `*.controller.ts` (di-enforce oleh ESLint AST rule `MemberExpression[object.name="c"][property.name="json"]`).
+- **DILARANG KERAS** di `*.controller.ts` (ESLint `CONTROLLER_SYNTAX_RULES`): `c.json()` / `c.text()` / `c.body()` / `c.html()`, membaca input dari `c.req` (`json`, `parseBody`, `query`, `param`, `valid`, … — `c.req.header()` tetap boleh), serta method atau field class yang tidak dibungkus `asyncHandler`.
 - Controller **HANYA** bertugas:
   1. Mengambil input tervalidasi via helper (`getValidatedBody`, `getValidatedQuery`, `getValidatedParams`).
   2. Memanggil method Service layer.
   3. Mengonversi hasil domain ke bentuk DTO response via Transformer murni.
   4. Mengembalikan (*return*) instance `new ApiResponse(data, message, statusCode, meta)`.
-- Seluruh handler controller wajib dibungkus oleh `asyncHandler`.
+- Seluruh handler controller wajib berupa field `name = asyncHandler(async (c) => …)`; helper diletakkan di luar class. Pemakaian transformer `[review-only]`.
 
 ```typescript
 // BENAR: Pure Controller
@@ -485,7 +497,7 @@ Setiap perubahan baris domain melewati base repository (kunci baris, scope soft 
    // SALAH — Interpolasi string merusak struktur JSON
    logger.info(`User ${userId} authenticated`);
    ```
-4. **Automatic PII Redaction**: Field sensitif (`password`, `token`, `authorization`, `apiKey`, `secret`, `nik`, `creditCard`) otomatis disamarkan menjadi `[REDACTED]`.
+4. **Automatic PII Redaction**: Field sensitif (`password`, `passwordHash`, `token`, `accessToken`, `refreshToken`, `apiKey`, `secret` — juga sebagai `*.<nama>` —, `authorization`, `cookie`, header `authorization`/`cookie` request, `nik`, `creditCard`) otomatis disamarkan menjadi `[REDACTED]` (`buildLoggerOptions()`; menambah field: `.agents/skills/project-standards/references/logging.md`). Body respons vendor punya redaksinya sendiri yang lebih luas (`vendorBody`, §8).
 
 ---
 
@@ -589,7 +601,7 @@ const user = await this.cache.getOrSet(
 
 ## 10. Panduan Scaffolding Modul Fitur Baru
 
-Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). Template lengkap per jenis tabel ada di skill `scaffold-module`: mandiri (`SKILL.md`), header + detail (`references/header-detail.md`, contoh nyata `src/modules/orders`), pencatatan (`references/record.md`) — ketiganya diverifikasi `bun run verify:scaffold`.
+Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). Template lengkap per jenis tabel ada di skill `scaffold-module`: mandiri (`SKILL.md`), header + detail (`references/header-detail.md`, contoh nyata `src/modules/orders`), pencatatan (`references/record.md`); adapter vendor keluar ada di `references/integration.md` (§8) — semuanya diverifikasi `bun run verify:scaffold`. Langkah di bawah adalah ringkasan; ikuti template untuk kode lengkapnya.
 
 1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dengan `appTable(...)` + helper kolom (`uuidPrimaryKey()`, `timestamps()`), lalu re-export di `schema/domain/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
@@ -597,10 +609,10 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). 
 4. **Repository**: Buat file `src/modules/<feature>/<feature>.repository.ts` yang meng-extend base sesuai jenis tabel (`BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository`; §5.3).
 5. **Transformer**: Buat file `src/modules/<feature>/<feature>.transformer.ts` untuk membersihkan data.
 6. **Service**: Buat file `src/modules/<feature>/<feature>.service.ts` dengan `@Transactional()` pada operasi tulis.
-7. **Controller**: Buat file `src/modules/<feature>/<feature>.controller.ts` dibungkus `asyncHandler` dan me-return `ApiResponse`.
-8. **Routes**: Buat file `src/modules/<feature>/<feature>.routes.ts`: setiap route **wajib** memakai `describeEndpoint({ tags, summary, response, errors })` lalu `validate({ ... })`. `errors` cukup berisi error domain (404, 409, …); request body, parameter, 400/413, 429/500, dan header umum terdokumentasi otomatis. Route tanpa `describeEndpoint()` membuat `test/openapi.e2e.test.ts` gagal. Dokumentasi tampil di `/api/docs` (`API_DOCS_ENABLED`, mati di production). Panduan: `.agents/skills/project-standards/references/openapi.md`.
+7. **Controller**: Buat file `src/modules/<feature>/<feature>.controller.ts`: setiap handler berupa field `name = asyncHandler(async (c) => …)` yang me-return `ApiResponse` lewat transformer; input hanya dari `getValidatedBody/Query/Params(c)` — `c.json()`, `c.req.json()`/`query()`/`param()` dan method/arrow tanpa `asyncHandler` ditolak ESLint.
+8. **Routes**: Buat file `src/modules/<feature>/<feature>.routes.ts`: setiap route **wajib** memakai `describeEndpoint({ tags, summary, response, errors })`, lalu (bila perlu) `requireRole(...)` / `requireSelfOrRole(...)`, lalu `validate({ ... })`. Route baru otomatis butuh access token (default-deny, §4.3) — jangan menambahkannya ke `PUBLIC_ROUTES` kecuali memang harus bisa diakses tanpa login. `errors` cukup berisi error domain (404, 409, …); request body, parameter, 400/413, 429/500, dan header umum terdokumentasi otomatis. Route tanpa `describeEndpoint()` membuat `test/openapi.e2e.test.ts` gagal. Dokumentasi tampil di `/api/docs` (`API_DOCS_ENABLED`, mati di production). Panduan: `.agents/skills/project-standards/references/openapi.md`.
 9. **Daftarkan di `src/app.ts`**: pasang pada router versi, `v1.route('/<feature>', featureRoutes)` → `<API_BASE_PATH>/v1/<feature>`. Versi adalah kode, bukan env: versi baru = router baru (`v2`).
-10. **Tulis Unit Test**: Buat file co-located `src/modules/<feature>/<feature>.service.test.ts`.
+10. **Tulis Test**: co-located `<feature>.repository.test.ts` (perekam SQL), `.service.test.ts`, `.transformer.test.ts`, `.controller.test.ts`, plus `test/<feature>.e2e.test.ts` lewat `authorize(createApp())` — lihat `.agents/skills/project-standards/references/testing.md`.
 11. **Validasi Penuh**: Jalankan `bun run validate:full`.
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: scaffold-module
-description: Scaffold a new feature/domain module strictly adhering to Clean Architecture, Drizzle column helpers, Zod DTOs, TransactionHost Repository, and the coverage gate — or an outbound vendor integration adapter (registry, config, token cache).
+description: Scaffold a new feature/domain module under src/modules/<name>/ (schema, DTO, repository, service, transformer, controller, routes, tests). Use when asked to create, add or scaffold a module, resource or CRUD endpoint, or an outbound vendor integration (src/integrations/<name>/).
 ---
 
 # Scaffold Feature Module

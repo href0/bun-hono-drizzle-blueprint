@@ -28,87 +28,21 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 
 ## 2. Struktur Direktori
 
+Ringkasan per lapisan — pohon lengkap (versi kanonik) ada di [CONTRIBUTING.md §2.1](CONTRIBUTING.md#21-anatomi-direktori-standar), batas antar-lapisan di §2.2.
+
 ```
 src/
-├── config/                      # Zero-Trust Zod Configuration
-│   ├── env-source.ts            # Satu-satunya pembaca process.env
-│   ├── parse-env.ts             # Validasi per grup (fail-fast, tanpa mencetak nilai)
-│   ├── <group>.config.ts        # app, auth, database, redis, http, satu file per vendor (jsonplaceholder, …)
-│   └── index.ts
-│
-├── core/                        # Cross-Cutting Core Building Blocks
-│   ├── cache/                   # Redis Fail-Open Caching & Key Generators
-│   │   ├── cache-keys.ts
-│   │   ├── cache.service.ts
-│   │   └── redis.client.ts
-│   ├── dto/                     # Schema request bersama (uuidParamSchema, paginationQuerySchema)
-│   ├── errors/                  # Semantic ApiError Hierarchy
-│   │   ├── api-error.ts         # Base error class
-│   │   ├── bad-request.error.ts # 400
-│   │   ├── unauthorized.error.ts# 401
-│   │   ├── forbidden.error.ts   # 403
-│   │   ├── not-found.error.ts   # 404
-│   │   ├── conflict.error.ts    # 409
-│   │   └── external.error.ts    # 502/504
-│   ├── http/                    # Enterprise HTTP Client (Connection Pooled)
-│   │   ├── http-client.service.ts
-│   │   └── http-client.service.test.ts # Co-located Unit Test
-│   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   │   └── logger.ts
-│   ├── middlewares/             # Hono Middlewares Pipeline
-│   │   ├── async-handler.ts     # Wrapper untuk Pure Controllers
-│   │   ├── error-handler.ts     # Global onError handler
-│   │   ├── logger.middleware.ts # Request & response logging
-│   │   ├── not-found.ts         # 404 route handler
-│   │   ├── request-context.ts   # Request ID + RequestContext (AsyncLocalStorage)
-│   │   ├── validate.ts          # Async Zod request validator & helpers
-│   │   └── validate.test.ts     # Co-located Integration Test
-│   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
-│   ├── response/                # Standard Success Envelope
-│   │   └── api-response.ts
-│   └── security/                # Access token JWT HS256, ROLES, PUBLIC_ROUTES (allowlist default-deny)
-│
-├── database/                    # Drizzle ORM Infrastructure
-│   ├── connection.ts            # PostgreSQL connection pool & Drizzle instance
-│   ├── audited.repository.ts    # AuditedRepository (audit trail record_changes)
-│   ├── base.repository.ts       # BaseRepository (soft delete, actor, update teraudit)
-│   ├── child.repository.ts      # ChildRepository (header/detail, anti IDOR)
-│   ├── append-only.repository.ts # AppendOnlyRepository (tabel pencatatan)
-│   ├── read-only.repository.ts  # ReadOnlyRepository (view referensi)
-│   ├── unique-violation.ts      # isUniqueViolation() → 409
-│   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
-│   ├── transaction-host.test.ts # Co-located Unit Test
-│   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
-│   └── schema/                  # Table Definitions (public) & reference views
-│       ├── schemas.ts           # appTable (public) & referenceSchema (opsional)
-│       ├── columns.ts           # Helper kolom (UUID v7, timestamps Temporal, soft delete, …)
-│       ├── domain/              # Domain Schema (CRUD & Migrated)
-│       │   ├── record-changes.schema.ts # Audit trail (append-only)
-│       │   └── users.schema.ts
-│       └── reference/           # Reference Schema (Read-Only)
-│           └── ref-roles.schema.ts
-│
-├── modules/                     # Domain Feature Modules
-│   ├── auth/                    # Login, rotasi refresh token (cookie HttpOnly), logout, /me (/api/v1/auth)
-│   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
-│   ├── orders/                  # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples
-│   └── users/                   # Modul referensi tabel mandiri (/api/v1/users: CRUD, soft delete, restore)
-│       ├── users.dto.ts         # Zod schemas (body, query, params)
-│       ├── users.repository.ts  # Database access via TransactionHost
-│       ├── users.service.ts     # Business logic + @Transactional()
-│       ├── users.service.test.ts# Co-located Unit Test
-│       ├── users.transformer.ts # Data sanitization (exclude password)
-│       ├── users.controller.ts  # Pure controller returning ApiResponse
-│       └── users.routes.ts      # Hono routing & middleware binding
-│
-├── utils/                       # Pure Helper Functions (Zero Framework Dependency)
-│   └── case-converter.util.ts
-│
-├── test/                        # End-to-End (E2E) & Blackbox API Tests
-│   └── health.e2e.test.ts
-│
-├── app.ts                       # Hono Application Factory & Middlewares
-└── index.ts                     # Bun Server Entrypoint
+├── config/        # Satu grup Zod per file (app, auth, database, redis, http, satu per vendor); env-source.ts = satu-satunya pembaca process.env
+├── core/          # Lintas domain: cache, context, dto, errors, http (klien outbound), i18n, logger, middlewares, openapi, response, security
+├── database/      # Koneksi, TransactionHost, repository base teraudit, schema, seeds/, maintenance/
+├── integrations/  # Adapter vendor keluar (registry.ts + <vendor>/), tanpa route/controller
+├── modules/       # Modul domain: auth, health, users (referensi tabel mandiri)
+│   └── orders/    # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples
+├── utils/         # Fungsi murni (datetime, case converter, …)
+├── app.ts         # createApp(): pipeline middleware & router versi
+└── index.ts       # Bun.serve + graceful shutdown
+test/              # E2E (createApp().request), guard kontrak, helpers (perekam SQL), preload hermetik
+scripts/           # setup, check-coverage, verify-scaffold, seed-admin, purge-refresh-tokens
 ```
 
 ---
@@ -173,13 +107,15 @@ Urutannya selalu: schema (`appTable` + helper kolom) → `bun run db:generate` �
 Jalankan seluruh verifikasi statis, arsitektur, dan testing:
 
 ```bash
-# Menjalankan seluruh quality gates (typecheck + lint + ls-lint + dependency-cruiser + unit test)
+# Seluruh quality gates (juga dijalankan hook pre-push): typecheck, lint, ls-lint, prettier,
+# dependency-cruiser, knip, lint:setup, lint:branch, test + coverage gate
 bun run validate:full
+bun run verify:scaffold   # template scaffold-module (modul + integrasi) lewat semua gate (CI)
 
 # Validasi parsial:
 bun run typecheck   # Typecheck tanpa emit
 bun run lint        # ESLint flat config
 bun run lint:ls     # Kebab-case naming check
 bun run lint:arch   # Architectural boundary isolation check
-bun test            # Unit & Integration test runner
+bun test            # Unit & e2e test (hermetik: tanpa DB/Redis asli)
 ```

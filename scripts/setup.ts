@@ -131,7 +131,15 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       { file: 'src/app.ts', line: "  v1.route('/orders', ordersRouter);" },
       {
         file: 'README.md',
-        line: '│   ├── orders/                  # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples',
+        line: '│   └── orders/    # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples',
+      },
+      {
+        file: 'CONTRIBUTING.md',
+        line: '│   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)',
+      },
+      {
+        file: '.agents/skills/project-standards/SKILL.md',
+        line: '│   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)',
       },
     ],
   },

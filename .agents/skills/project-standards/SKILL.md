@@ -1,6 +1,6 @@
 ---
 name: project-standards
-description: Understand this project's coding standards, folder structure, naming conventions, and architectural patterns before writing any code in this project
+description: Coding standards, folder structure, layer boundaries, naming, response envelopes and quality gates for this Bun + Hono + Drizzle backend. MUST be loaded before writing or modifying any code (modules, services, controllers, DTOs, schemas, transformers, middlewares, utils, tests).
 ---
 
 # Project Standards
@@ -29,6 +29,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 
 ## 2. Directory Architecture & Layer Boundaries
 
+The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent needs to place code.
+
 ```
 <project-root>/
 ├── .agents/                    # Workspace agent rules & skills
@@ -36,6 +38,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 ├── scripts/
 │   ├── check-coverage.ts       # Coverage gate: thresholds (SSOT), per-file check, untested-file detection
 │   ├── seed-admin.ts           # `bun run seed:admin --email` — first admin (password from a hidden prompt / stdin)
+│   ├── purge-refresh-tokens.ts # `bun run auth:purge-tokens [--days N]` — schedule daily
+│   ├── verify-scaffold.ts      # `bun run verify:scaffold` — every scaffold-module template through every gate
 │   └── setup.ts                # Project initializer (init-project skill, IDENTITY_RULES)
 ├── src/
 │   ├── app.ts                  # Hono application factory & global middleware pipeline
@@ -50,7 +54,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── context/            # RequestContext (AsyncLocalStorage): requestId, locale, clientIp, actor
 │   │   ├── dto/                # Shared request schemas (uuidParamSchema, paginationQuerySchema)
 │   │   ├── errors/             # Semantic ApiError class hierarchy
-│   │   ├── http/               # HttpClientService with connection pool
+│   │   ├── http/               # HttpClientService (pool, required timeout, X-Request-ID, vendor masking, parse()), AccessTokenCache, vendor-body redaction
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
 │   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, …
@@ -67,7 +71,9 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── unique-violation.ts # isUniqueViolation(): SQLSTATE 23505 → services throw ConflictError
 │   │   ├── transaction-host.ts # TransactionHost (AsyncLocalStorage context resolver)
 │   │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
+│   │   ├── health-probe.ts     # pingDatabase() for health checks
 │   │   ├── seeds/              # Seeders (database layer; module data rules do not apply): seed-admin.ts
+│   │   ├── maintenance/        # Housekeeping jobs (database layer): purge-refresh-tokens.ts
 │   │   └── schema/             # Drizzle definitions (see references/database.md)
 │   │       ├── schemas.ts      # appTable (public) + referenceSchema — the only pgTable()/pgSchema()
 │   │       ├── columns.ts      # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …
@@ -78,17 +84,12 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── auth/               # Login, refresh-token rotation (HttpOnly cookie), logout, /me
 │   │   ├── health/             # Healthcheck probes
 │   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)
-│   │   └── users/              # Reference feature domain (standalone table)
-│   │       ├── users.controller.ts
-│   │       ├── users.controller.test.ts
-│   │       ├── users.dto.ts
-│   │       ├── users.repository.ts
-│   │       ├── users.repository.test.ts
-│   │       ├── users.routes.ts
-│   │       ├── users.service.ts
-│   │       ├── users.service.test.ts
-│   │       ├── users.transformer.ts
-│   │       └── users.transformer.test.ts
+│   │   └── users/              # Reference feature domain (standalone table): users.{routes,controller,service,
+│   │                           #   repository,transformer,dto,messages}.ts + co-located tests for repository,
+│   │                           #   service, transformer and controller
+│   ├── integrations/           # Outbound vendor adapters (no routes/controllers) — references/integrations.md
+│   │   ├── registry.ts         # INTEGRATION_REGISTRY: code → institution (error.origin / error.institution)
+│   │   └── jsonplaceholder/    # Reference keyless adapter: <vendor>.{dto,service}.ts + test + index.ts
 │   └── utils/                  # Pure utility functions (zero dependencies on core/modules)
 └── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder, repository fixtures)
 ```
@@ -140,8 +141,8 @@ Routes ──> Controller ──> Service ──> Repository ──> Database (T
 ### Rule 1: Return, Don't Send (Pure Controllers)
 - Controllers **MUST NEVER** call `c.json()` or `c.text()` directly.
 - Controllers **MUST RETURN** an `ApiResponse` instance.
-- Controllers **MUST** be wrapped in `asyncHandler`.
-- Violation of this rule is blocked at the AST level by ESLint `no-restricted-syntax` (group `CONTROLLER_SYNTAX_RULES` in `eslint.config.mjs`: `c.json`/`c.text`/`c.body`/`c.html`).
+- Controllers **MUST** be wrapped in `asyncHandler`: every handler is a class field `name = asyncHandler(async (c) => …)`; helpers live outside the class.
+- Violations are blocked at the AST level by ESLint `no-restricted-syntax` (group `CONTROLLER_SYNTAX_RULES` in `eslint.config.mjs`): `c.json`/`c.text`/`c.body`/`c.html`, reading input from `c.req` (`json`, `parseBody`, `query`, `param`, `valid`, … — `c.req.header()` stays allowed), and controller methods or fields not wrapped in `asyncHandler`.
 
 ```typescript
 // users.controller.ts
@@ -159,7 +160,7 @@ export class UsersController {
 ```
 
 ### Rule 2: Validation First (Zod Middleware)
-- Never parse raw `await c.req.json()` inside controller logic.
+- Never parse raw `await c.req.json()` (or `c.req.query()` / `c.req.param()`) inside controller logic — rejected by ESLint (`CONTROLLER_SYNTAX_RULES`).
 - Bind the `validate({ body, query, params })` middleware to route definitions.
 - Controllers extract sanitized, strongly-typed data using getters:
   - `getValidatedBody<T>(c)`
@@ -236,6 +237,7 @@ export class UsersService {
 - Transform outputs using dedicated pure functions in `<name>.transformer.ts`:
   - `to<Name>Response(entity)`
   - `to<Name>ListResponse(entities)`
+- `[review-only]`: that a controller passes data through a transformer is not machine-checked; transformers are typed by the response schema (`z.infer<typeof <name>ResponseSchema>`), so a raw entity with extra columns still compiles — reviewers check it.
 
 ### Rule 6: Strict Casing Invariant (snake_case Wire Format vs camelCase Codebase)
 - **HTTP Response Payloads**: MUST ALWAYS be serialized in `snake_case` (e.g. `status_code`, `full_name`, `is_active`). This is automatically performed by `ApiResponse.toJSON()` and `globalErrorHandler`.
@@ -365,7 +367,7 @@ Field messages come from the Zod schema and are not translated (known limitation
    ```bash
    bun run validate:full
    ```
-   Runs `typecheck` $\rightarrow$ `lint` $\rightarrow$ `lint:ls` $\rightarrow$ `format:check` $\rightarrow$ `lint:arch` $\rightarrow$ `lint:deps` $\rightarrow$ `lint:branch` $\rightarrow$ `test:cov`.
+   Runs `typecheck` → `lint` → `lint:ls` → `format:check` → `lint:arch` → `lint:deps` → `lint:setup` → `lint:branch` → `test:cov` (also the Husky pre-push hook). CI additionally runs `build` and `verify:scaffold`.
 
 ---
 
