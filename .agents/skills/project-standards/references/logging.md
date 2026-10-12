@@ -19,6 +19,8 @@ Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/
 
 Adding a sensitive field: extend `redact.paths` in `buildLoggerOptions()` (top level and `*.<field>`) and add a case to `logger.test.ts`.
 
+Vendor response bodies are not covered by these paths (vendors name fields freely, at any depth): `HttpClientService` logs them as `vendorBody` through `summarizeVendorBody()` — case-insensitive key matching (`access_token`, `X-Api-Key`, `client_secret`, …) at any depth, at most 2048 characters — and never logs request headers, bodies or query strings. See [integrations.md](integrations.md) §2.
+
 ---
 
 ## 2. Request Correlation & Contextual Logging

@@ -200,8 +200,8 @@ const REPOSITORY_SYNTAX_RULES = [
 ];
 
 /**
- * The one approved exception (plan 4.1, 2026-10-04): the refresh-token repository needs no base
- * and may revoke tokens with UPDATE — rotation is high-volume security state whose own columns
+ * The one approved exception (adoption plan §4.1 decision log, 2026-10-04): the refresh-token
+ * repository needs no base and may revoke tokens with UPDATE — rotation is high-volume security state whose own columns
  * (`revoked_at`, `replaced_by_id`) are the trail. Only `auth_refresh_tokens` may be updated;
  * DELETE stays banned.
  */
@@ -209,11 +209,12 @@ const AUTH_TOKEN_REPOSITORY_RULES = [
   {
     selector: `CallExpression[callee.property.name="update"]${TX_OBJECT}:not([arguments.0.name="authRefreshTokens"])`,
     message:
-      'The auth repository may only update authRefreshTokens (approved exception, plan 4.1); other tables go through their own repository base.',
+      'The auth repository may only update authRefreshTokens (approved exception, adoption plan §4.1 decision log); other tables go through their own repository base.',
   },
   {
     selector: `CallExpression[callee.property.name="delete"]${TX_OBJECT}`,
-    message: 'DELETE is not part of the refresh-token exception (plan 4.1); revoke tokens instead.',
+    message:
+      'DELETE is not part of the refresh-token exception (adoption plan §4.1 decision log); revoke tokens instead.',
   },
 ];
 
@@ -276,6 +277,20 @@ const CONTROLLER_SYNTAX_RULES = [
     selector: 'MemberExpression[object.name="c"][property.name=/^(json|text|body|html)$/]',
     message:
       'Sending a response directly from a controller is forbidden. Return an instance of ApiResponse wrapped with asyncHandler.',
+  },
+  {
+    // Request headers (c.req.header) are not validated by validate() and stay readable.
+    selector:
+      'MemberExpression[object.object.name="c"][object.property.name="req"][property.name=/^(json|parseBody|formData|text|arrayBuffer|blob|query|queries|param|valid)$/]',
+    message:
+      'Controllers read input only through validate() + getValidatedBody(c) / getValidatedQuery(c) / getValidatedParams(c), never from c.req directly.',
+  },
+  {
+    // Every handler is `name = asyncHandler(async (c) => …)`; methods and plain arrow fields skip it.
+    selector:
+      'ClassBody > PropertyDefinition[value]:not([value.callee.name="asyncHandler"]), ClassBody > MethodDefinition[kind!="constructor"]',
+    message:
+      'Controller handlers are class fields wrapped in asyncHandler: `name = asyncHandler(async (c) => …)`. Move helpers out of the class.',
   },
 ];
 

@@ -1,6 +1,6 @@
 ---
 name: env-protection
-description: Global security policy for reading environment files. MUST be read at the start of EVERY conversation or whenever reading/modifying configuration and environment files to prevent credential leaks.
+description: Security policy for environment files: never read, search or expose .env files other than .env.example. Use whenever a task touches configuration or environment variables.
 ---
 
 # Environment File Protection Policy

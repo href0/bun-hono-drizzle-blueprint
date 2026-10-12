@@ -1,6 +1,6 @@
 ---
 name: update-version
-description: Update version in package.json based on branching strategy. Supports hotfix (from branch name), dev-to-staging (MINOR bump), and staging-to-prod (no change).
+description: Bump package.json version and update CHANGELOG.md according to the branching strategy (hotfix, development, staging, prod). Use when asked to update or bump the version.
 ---
 
 # Update Version

@@ -1,6 +1,6 @@
 ---
 name: generate-commit-text
-description: Generate commit message text from staged changes (git add). Does NOT perform the actual commit.
+description: Generate a Conventional Commits message from staged changes (git diff --cached) without committing. Use when asked for a commit message or commit text.
 ---
 
 # Generate Commit Text

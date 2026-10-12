@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–3 dan Step 4.1 selesai** (`main` @ `b317346`); Step 4.2 menunggu review (branch `feat/vendor-token-cache`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 selesai** (`main` @ `6ff27d1`); perbaikan Review 9 menunggu review (branch `fix/review-phase-4`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `b317346` |
+| Basis kode | branch `main` @ `6ff27d1` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -437,6 +437,18 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 4.2 | `HttpClientService.parse(schema, body)`: key body vendor → camelCase lalu Zod; tidak cocok → 502 `ERR_EXT_ERROR` + log `Outbound HTTP response rejected` (hanya path + kode issue, tanpa nilai). Ditambahkan di luar rencana — respons vendor (mis. `expires_in`) harus divalidasi sebelum dipakai | Unit test |
 | 2026-10-12 | 4.2 | Config per vendor: `integrations.config.ts` → **`jsonplaceholder.config.ts`** (`jsonPlaceholderConfig`, grup `jsonplaceholder`); vendor baru = `src/config/<vendor>.config.ts` (kredensial wajib di luar test, `TEST_DEFAULTS` seperti `auth.config.ts`). Nama env var tidak berubah | `config.test.ts` |
 | 2026-10-12 | 4.2 | Template `scaffold-module/references/integration.md` (vendor berbasis login: registry, config, DTO, adapter dengan `AccessTokenCache` + `parse()`, `index.ts`, test terhadap vendor palsu `Bun.serve`: 10 paralel → 1 login, 401 → login ulang, body salah → 502, singleton default → port tertutup `ERR_EXT_UNREACHABLE`, kredensial wajib di luar test). **`verify:scaffold` diperluas**: men-generate vendor `probe-vendor`, mendaftarkannya di registry + barrel config, lalu semua gate + test-nya (gate ini sempat menangkap 2 error lint dan 1 export tak terpakai di draf template). Panduan `project-standards/references/integrations.md`; project-standards Rule 9 + tabel referensi; scaffold-module (tabel varian, deskripsi pemicu + wrapper `.claude`); AGENTS.md; CONTRIBUTING §8; README; `.env.example` | **Chaos test** (12, semua tertangkap): tanpa single-flight, margin diabaikan, token pendek tidak dipakai ulang, promise login gagal tidak dilepas, `invalidate` membuang token baru, tanpa retry 401, retry untuk semua error, expiry tidak dijumlahkan, `vendorStatus` tidak diisi, `parse` tanpa camelCase, `parse` mencatat pesan/nilai issue (2). Cabang khusus `expires_in` tidak valid terbukti redundan oleh chaos test (perilaku sama tanpa cabang) → dihapus, test tetap |
+| 2026-10-12 | 4.2 | ✅ Di-commit (`6ff27d1`) dan di-merge ke `main` atas permintaan user — **Fase 4 selesai** | — |
+| 2026-10-12 | Review 9 | Review ulang Fase 4 + cek silang skills ↔ rules ↔ lint ↔ docs atas permintaan user: 13 temuan; user menyetujui semua rekomendasi, diperbaiki di branch `fix/review-phase-4` (baris di bawah). Konsisten tanpa perubahan: env var config ↔ `.env.example` ↔ L1, kode error di plan, pipeline `createApp()` ↔ `bootstrap.md`, nama rule depcruise yang dikutip dokumen | Gate hijau |
+| 2026-10-12 | Review 9 | **Hook pre-push** = `bun run validate:full` (sebelumnya hanya `lint:branch`, `lint:arch`, `lint:deps`, `bun test`): coverage gate, `format:check`, `lint:setup` kini juga menahan push — penting karena CI belum pernah jalan (belum ada remote) | — |
+| 2026-10-12 | Review 9 | **Aturan controller ditegakkan** (`CONTROLLER_SYNTAX_RULES`): membaca input dari `c.req` (`json`, `parseBody`, `formData`, `text`, `arrayBuffer`, `blob`, `query`, `queries`, `param`, `valid`; `c.req.header()` tetap boleh karena header tidak divalidasi `validate()`), dan method / field class yang bukan `asyncHandler(...)`. Pemakaian transformer ditandai `[review-only]` (Rule 5, invariant 4) | Chaos ESLint: probe controller dengan `c.req.json`, `c.req.query`, `c.req.param`, arrow tanpa `asyncHandler`, wrapper lain, method → 6 error; `c.req.header` + constructor lolos; modul nyata bersih |
+| 2026-10-12 | Review 9 | `raw-queries.md`: contoh lama tidak lolos lint (tanpa return type, `this.txHost` di luar `*.queries.ts`) dan menghitung baris soft-deleted. Contoh baru: tabel/kolom diinterpolasi (`${users.deletedAt}`), `deleted_at IS NULL`, hasil `tx.execute` (bertipe `any`) ke `unknown` lalu divalidasi Zod | Dibuktikan sebagai file sementara: tsc + ESLint + Prettier lolos, SQL dirender lewat perekam SQL |
+| 2026-10-12 | Review 9 | `testing.md`: contoh e2e modul memakai `authorize(createApp())` (sebelumnya `createApp()` saja → 401 sejak default-deny), guard `default-deny`, `hermetic-env`, `outbound` ditambahkan | — |
+| 2026-10-12 | Review 9 | Rujukan ambigu "plan 4.1" (pengecualian repository auth) di `eslint.config.mjs`, `auth.repository.ts`, `auth-refresh-tokens.schema.ts` → "adoption plan §4.1 decision log" (Step 4.1 kini HttpClient) | — |
+| 2026-10-12 | Review 9 | Pohon direktori: CONTRIBUTING §2.1 jadi versi kanonik (ditambah `core/http` isi, `health-probe.ts`, `seeds/`, `maintenance/`, `test/` lengkap, `scripts/`); README diringkas per lapisan + tautan; SKILL dibetulkan (`integrations/`, `scripts/`, `maintenance/`, daftar file `users/` diringkas). Ditemukan saat perbaikan: baris `orders/` di pohon CONTRIBUTING dan SKILL **tidak** dihapus `bun run setup` (basi setelah setup) → `EXAMPLE_MODULES` kini juga menghapusnya | `lint:setup` + `setup demo --dry-run` hijau |
+| 2026-10-12 | Review 9 | Dokumen disamakan: diagram CI + pre-push (CONTRIBUTING §1), tabel perintah (`lint:setup`, cakupan `verify:scaffold`), urutan `validate:full` (project-standards §6), L8 (`lint:setup`), `ERR_ROUTE_NOT_FOUND` + bentuk `ExternalServiceError` (§3.3), daftar redaksi log (§7) + `logging.md` → `vendorBody`, §10 scaffolding (`requireRole`, default-deny, aturan controller, test lengkap), AGENTS.md (daftar ESLint: `c.body`/`c.html`, `c.req`, `asyncHandler`, alias `tx`, pengecualian repository auth; invariant 1 dan 4) | — |
+| 2026-10-12 | Review 9 | Deskripsi frontmatter `.agents/skills/*` disamakan dengan wrapper `.claude` (teks pemicu). Ditambahkan di luar rekomendasi: `test/agent-skills.test.ts` menjaga setiap skill punya tepat satu wrapper dengan `name` + `description` sama dan menunjuk file sumbernya (dicatat di CLAUDE.md) | **Chaos test** (5, semua tertangkap): deskripsi sumber berbeda, wrapper tidak menunjuk sumber, `name` wrapper berbeda, skill sumber tanpa wrapper; baris `orders/` di pohon CONTRIBUTING berubah → `lint:setup` gagal |
+| 2026-10-12 | Review 9 | `bun.lock`: nama root workspace `backend-boilerplate` → `bun-hono-starter` (= `package.json`; `IDENTITY_RULES` menimpa keduanya saat setup) | `bun install --frozen-lockfile` tanpa perubahan |
+| 2026-10-12 | Review 9 | **Insiden saat review**: `grep -rn` rekursif di root repo ikut membaca file env lokal (gitignored) dan menampilkan 3 barisnya, termasuk password DB lokal — hook tidak menahan karena nama file tidak muncul di perintah. Dilaporkan ke user; pencarian berikutnya hanya lewat `git grep` (file ter-track) | User disarankan mengganti password DB lokal bila dipakai di tempat lain |
 
 ---
 
@@ -490,7 +502,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `5491544` |
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
 | 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `b317346` |
-| 4.2 | Template integrasi & cache token vendor | 👀 | 4.1 |  |
+| 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `6ff27d1` |
 | 5.1 | Utilitas kripto & signing partner | ⬜ | 0.3 |  |
 | 5.2 | Kredensial partner (schema + admin API) | ⬜ | 5.1, 2.8, 3.4 |  |
 | 5.3 | Middleware `partnerAuth()` | ⬜ | 5.2, 1.6 |  |
@@ -1439,6 +1451,7 @@ jobs:
       - run: bun run format:check
       - run: bun run lint:arch
       - run: bun run lint:deps
+      - run: bun run lint:setup
       - run: bun run test:cov
       - run: bun run build
       - run: bun run verify:scaffold

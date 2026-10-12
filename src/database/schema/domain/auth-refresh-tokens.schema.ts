@@ -8,8 +8,8 @@ import { users } from './users.schema';
  * the presented token and issues a new one in the same family (`family_id` = one login session);
  * presenting a revoked token again revokes the whole family (reuse detection).
  *
- * Approved exception to the audited data layer (plan 4.1, 2026-10-04): high-volume security state
- * whose own columns are the trail (`revoked_at`, `replaced_by_id`), so it has no audit columns or
+ * Approved exception to the audited data layer (adoption plan §4.1 decision log, 2026-10-04):
+ * high-volume security state whose own columns are the trail (`revoked_at`, `replaced_by_id`), so it has no audit columns or
  * soft delete, and its repository may update it directly (eslint.config.mjs, auth repository).
  */
 export const authRefreshTokens = appTable(
