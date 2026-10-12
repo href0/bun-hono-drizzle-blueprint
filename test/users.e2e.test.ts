@@ -19,6 +19,7 @@ const mockUser: User = {
   email: 'test@example.com',
   fullName: 'Test User',
   passwordHash: '$argon2id$v=19$m=16,t=2,p=1$abc',
+  role: 'user',
   createdBy: 'system',
   updatedBy: 'system',
   deletedAt: null,
@@ -93,7 +94,7 @@ describe('Users Module — E2E Contract Tests', () => {
         success: boolean;
         status_code: number;
         message: string;
-        data: { id: string; email: string; full_name: string; is_active: boolean };
+        data: { id: string; email: string; full_name: string; role: string; is_active: boolean };
       };
 
       expect(body.success).toBe(true);
@@ -102,6 +103,7 @@ describe('Users Module — E2E Contract Tests', () => {
       // Verify snake_case wire format — core contract invariant
       expect(body.data.full_name).toBe('Test User');
       expect(body.data.is_active).toBe(true);
+      expect(body.data.role).toBe('user');
       expect(body.data.email).toBe('test@example.com');
     });
 

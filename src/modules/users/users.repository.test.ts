@@ -5,7 +5,7 @@ import { users, type User } from '../../database/schema';
 import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
 
 const COLUMNS =
-  '"id", "email", "full_name", "password_hash", "is_active", "created_at", "updated_at", "created_by", "updated_by", "deleted_at"';
+  '"id", "email", "full_name", "password_hash", "role", "is_active", "created_at", "updated_at", "created_by", "updated_by", "deleted_at"';
 
 /** Generic behaviour (paging, audited update, soft delete, restore) is tested in base.repository.test.ts. */
 describe('UsersRepository (Unit)', () => {
@@ -14,6 +14,7 @@ describe('UsersRepository (Unit)', () => {
     email: 'repo@example.com',
     fullName: 'Repo User',
     passwordHash: 'hash',
+    role: 'user',
     isActive: true,
     createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
     updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),

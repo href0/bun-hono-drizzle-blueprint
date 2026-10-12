@@ -55,7 +55,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   ├── response/           # ApiResponse standardized JSON envelope
-│   │   └── security/           # Access token (JWT HS256): signAccessToken, verifyAccessToken
+│   │   └── security/           # Access token (JWT HS256): signAccessToken, verifyAccessToken; ROLES
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
 │   │   ├── audited.repository.ts # AuditedRepository: lock, diff, record_changes in the same transaction

@@ -25,6 +25,7 @@ const cachedUserSchema = z.object({
   id: z.string(),
   email: z.string(),
   fullName: z.string(),
+  role: z.string(),
   isActive: z.boolean(),
   createdAt: instantField,
   updatedAt: instantField,

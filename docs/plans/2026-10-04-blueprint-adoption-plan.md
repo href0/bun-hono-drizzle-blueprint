@@ -386,6 +386,11 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 3.1 | Penyimpangan: (1) `iat` di masa depan tidak ditolak — signature sah + `exp` sudah membatasi umur, dan menghindari penolakan palsu karena selisih jam antar instance; (2) `signAccessToken`/`verifyAccessToken` menerima `settings` & `now` opsional (default `authConfig`/`nowInstant()`) agar test tidak bergantung jam sistem; (3) barrel `src/core/security/index.ts` ditunda ke 3.4 (belum ada konsumen → knip); (4) kode error yang ditambah hanya `ERR_AUTH_TOKEN_EXPIRED`/`ERR_AUTH_TOKEN_INVALID` (+ pesan i18n) — kode L2 lain ditambah di step pemakainya | — |
 | 2026-10-12 | 3.1 | `src/utils/crypto.util.ts` (murni): `generateOpaqueToken()` (32 byte → base64url 43 karakter), `sha256Hex()`, `timingSafeEqualHex()` — hex tidak valid / panjang berbeda → `false`, bukan throw (`Buffer.from(…, 'hex')` diam-diam membuang karakter invalid: `abzz` vs `abyy` akan dianggap sama). Redaksi logger + `accessToken`, `refreshToken` (± `*.`), `cookie`, `req.headers.cookie`; test redaksi memakai output pino sungguhan | Chaos test: validasi hex dicabut, path `req.headers.cookie` / `*.refreshToken` dihapus → test gagal |
 | 2026-10-12 | 3.1 | Tambahan di luar langkah: `bun run setup` mengisi `JWT_SECRET` acak (48 byte base64url) bila `.env` belum punya atau nilainya kosong — nilai yang ada tidak pernah diganti atau dicetak; `.env.example` mendapat bagian `auth`. Dokumen: pohon struktur (project-standards, CONTRIBUTING, README — sekaligus memperbaiki README yang mencantumkan file middleware di bawah `openapi/`), `logging.md` (daftar redaksi) | Diuji di direktori sementara: file baru, dijalankan ulang (tidak berubah), baris tidak ada, nilai kosong, `--dry-run` (tidak menulis) |
+| 2026-10-12 | 3.1 | ✅ Di-commit (`c49fe51`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-12 | 3.2 | `users.role` (`varchar(20)`, default `'user'`) + `ROLES`/`DEFAULT_ROLE` di `src/core/security/roles.ts`. Schema tidak boleh meng-import core (`strict-schema-isolation`), jadi `src/database/roles-column.test.ts` mencocokkan default & panjang kolom dengan `ROLES`. Tanpa CHECK constraint (menambah role = cukup edit `ROLES`, tanpa migrasi); validasi nilai di DTO (3.5) | Chaos test: default `'member'`, role > 20 karakter → test gagal |
+| 2026-10-12 | 3.2 | `auth_refresh_tokens` (L3) di `domain/auth-refresh-tokens.schema.ts`: index `user_id` (FK `restrict`) & `family_id`, `token_hash char(64)` unik, tanpa kolom audit/soft delete. Penyimpangan: `replaced_by_id` sengaja **bukan** FK (family kedaluwarsa bisa dibersihkan dalam urutan apa pun; FK juga akan menuntut index). Test khusus di `schema-conventions.test.ts` (index `user_id`/`family_id`, `token_hash` unik, tidak ada kolom `token`). Migrasi `0005_rapid_lake.sql` di-generate dan diterapkan ke DB lokal (dicek read-only lewat `information_schema`) | Chaos test: index `family_id` / `user_id` dihapus, `token_hash` tidak unik → test gagal |
+| 2026-10-12 | 3.2 | **Pengecualian data layer** (disetujui user 2026-10-04): override satu file `src/modules/auth/auth.repository.ts` di `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) — tanpa base, hanya `tx.update(authRefreshTokens)`; `tx.update` tabel lain & `tx.delete` tetap ditolak; aturan modul lain (raw `UPDATE`, alias `tx`, `tx.execute`, `@Transactional()`) tetap berlaku. Lebih sempit dari rencana awal (`eslint-disable` + alasan): pengecualian tidak bisa meluas ke tabel lain. Dokumen `database.md` §6 & CONTRIBUTING §5.3 diperbarui | Chaos test (file sementara, dihapus): kode yang diizinkan lolos; `update(users)`, `delete(authRefreshTokens)`, kode yang sama di `tokens.repository.ts` → ditolak |
+| 2026-10-12 | 3.2 | Dampak ke `users`: `role` masuk respons user (`userResponseSchema`, transformer, OpenAPI) dan skema cache detail (entri cache lama tanpa `role` gagal di-revive → dianggap miss); fixture & snapshot SQL test diperbarui | Chaos test: `role` dihapus dari transformer → test transformer & e2e gagal |
 
 ---
 
@@ -433,8 +438,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.7 | Test konvensi schema | ✅ | 2.5 | `43bfe53` |
 | 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `27d29dc` |
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `a29524f` |
-| 3.1 | Primitif keamanan & config auth | 👀 | 1.1 |  |
-| 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ⬜ | 2.8 |  |
+| 3.1 | Primitif keamanan & config auth | ✅ | 1.1 | `c49fe51` |
+| 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | 👀 | 2.8 |  |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ⬜ | 3.1, 3.2, 1.7 |  |
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ⬜ | 3.3 |  |
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ⬜ | 3.4 |  |
@@ -900,7 +905,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Acceptance criteria**
 
-- [ ] `schema-conventions.test.ts` lulus (index FK `user_id`, `family_id`).
+- [x] `schema-conventions.test.ts` lulus (index FK `user_id`, `family_id`).
 
 ### Step 3.3 — Modul `auth`
 

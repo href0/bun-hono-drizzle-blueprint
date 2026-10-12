@@ -36,6 +36,13 @@
       "when": 1791603650722,
       "tag": "0004_overjoyed_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791771979069,
+      "tag": "0005_rapid_lake",
+      "breakpoints": true
     }
   ]
 }

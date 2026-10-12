@@ -13,6 +13,7 @@ describe('UsersService (Unit)', () => {
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'hashed_password',
+    role: 'user',
     createdBy: 'system',
     updatedBy: 'system',
     deletedAt: null,

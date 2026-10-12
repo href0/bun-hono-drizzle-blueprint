@@ -32,6 +32,7 @@ export const userResponseSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   fullName: z.string(),
+  role: z.string(),
   isActive: z.boolean(),
   createdAt: isoInstant(),
   updatedAt: isoInstant(),

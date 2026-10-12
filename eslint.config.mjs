@@ -154,7 +154,7 @@ const TRANSACTIONAL_RULES = [
   {
     selector: 'Decorator[expression.callee.name="Transactional"]',
     message:
-      '@Transactional() belongs on service methods (*.service.ts). Repositories join the caller\'s transaction through this.txHost.tx.',
+      "@Transactional() belongs on service methods (*.service.ts). Repositories join the caller's transaction through this.txHost.tx.",
   },
 ];
 
@@ -170,6 +170,24 @@ const REPOSITORY_SYNTAX_RULES = [
     selector: `CallExpression[callee.property.name=/^(update|delete)$/]${TX_OBJECT}`,
     message:
       'UPDATE / DELETE in a module repository bypasses locking and record_changes. Use the base methods (updateById, softDeleteById, restoreById, ChildRepository …).',
+  },
+];
+
+/**
+ * The one approved exception (plan 4.1, 2026-10-04): the refresh-token repository needs no base
+ * and may revoke tokens with UPDATE — rotation is high-volume security state whose own columns
+ * (`revoked_at`, `replaced_by_id`) are the trail. Only `auth_refresh_tokens` may be updated;
+ * DELETE stays banned.
+ */
+const AUTH_TOKEN_REPOSITORY_RULES = [
+  {
+    selector: `CallExpression[callee.property.name="update"]${TX_OBJECT}:not([arguments.0.name="authRefreshTokens"])`,
+    message:
+      'The auth repository may only update authRefreshTokens (approved exception, plan 4.1); other tables go through their own repository base.',
+  },
+  {
+    selector: `CallExpression[callee.property.name="delete"]${TX_OBJECT}`,
+    message: 'DELETE is not part of the refresh-token exception (plan 4.1); revoke tokens instead.',
   },
 ];
 
@@ -504,6 +522,22 @@ export default tseslint.config(
         ...TRANSACTIONAL_RULES,
       ],
       'no-restricted-imports': ['error', { patterns: MODULE_IMPORT_PATTERNS }],
+    },
+  },
+  {
+    // Refresh-token repository: approved exception to the base/no-UPDATE rules (AUTH_TOKEN_REPOSITORY_RULES).
+    files: ['src/modules/auth/auth.repository.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...SOURCE_SYNTAX_RULES,
+        ...MODULE_SYNTAX_RULES,
+        ...MODULE_ERROR_RULES,
+        ...MODULE_DATA_RULES,
+        ...AUTH_TOKEN_REPOSITORY_RULES,
+        ...RAW_QUERY_RULES,
+        ...TRANSACTIONAL_RULES,
+      ],
     },
   },
   {

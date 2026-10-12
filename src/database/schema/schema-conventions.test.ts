@@ -133,7 +133,7 @@ const staleAllowlistEntries = (
 describe('schema conventions (every exported table)', () => {
   it('finds the exported tables (guards the enumeration itself)', () => {
     expect(exportedTables.map((table) => getTableConfig(table).name)).toEqual(
-      expect.arrayContaining(['record_changes', 'users']),
+      expect.arrayContaining(['auth_refresh_tokens', 'record_changes', 'users']),
     );
   });
 
@@ -157,6 +157,26 @@ describe('schema conventions (every exported table)', () => {
       'record_changes_action_check',
       'record_changes_parent_check',
     ]);
+  });
+});
+
+describe('auth_refresh_tokens (plan L3)', () => {
+  const config = getTableConfig(schema.authRefreshTokens);
+  const leadingColumns = config.indexes.map((index) => columnNames(index.config.columns).at(0));
+
+  it('indexes user_id (foreign key) and family_id (reuse detection revokes a whole family)', () => {
+    expect(leadingColumns).toEqual(expect.arrayContaining(['user_id', 'family_id']));
+    expect(columnNames(config.foreignKeys.flatMap((key) => key.reference().columns))).toEqual([
+      'user_id',
+    ]);
+  });
+
+  it('finds a token only by its unique SHA-256 hex', () => {
+    const tokenHash = config.columns.find((column) => column.name === 'token_hash');
+
+    expect(tokenHash?.getSQLType()).toBe('char(64)');
+    expect(tokenHash?.isUnique).toBe(true);
+    expect(config.columns.map((column) => column.name)).not.toContain('token');
   });
 });
 
