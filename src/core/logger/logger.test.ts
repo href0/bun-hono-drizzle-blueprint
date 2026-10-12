@@ -36,6 +36,40 @@ describe('buildLoggerOptions (Unit)', () => {
   });
 });
 
+describe('log redaction', () => {
+  it('censors credentials, tokens and cookies at the top level, one level down and in headers', () => {
+    const lines: string[] = [];
+    const log = pino(
+      buildLoggerOptions(
+        { NODE_ENV: 'production', LOG_LEVEL: 'info', APP_NAME: 'sample-app' },
+        'UTC',
+      ),
+      { write: (line: string) => lines.push(line) },
+    );
+
+    log.info(
+      {
+        password: 'p',
+        accessToken: 'a',
+        refreshToken: 'r',
+        cookie: 'refresh_token=r',
+        session: { accessToken: 'a', refreshToken: 'r', token: 't' },
+        req: { headers: { authorization: 'Bearer a', cookie: 'refresh_token=r', accept: '*/*' } },
+      },
+      'sensitive',
+    );
+
+    expect(JSON.parse(lines.join(''))).toMatchObject({
+      password: '[REDACTED]',
+      accessToken: '[REDACTED]',
+      refreshToken: '[REDACTED]',
+      cookie: '[REDACTED]',
+      session: { accessToken: '[REDACTED]', refreshToken: '[REDACTED]', token: '[REDACTED]' },
+      req: { headers: { authorization: '[REDACTED]', cookie: '[REDACTED]', accept: '*/*' } },
+    });
+  });
+});
+
 describe('wallClockTimestamp', () => {
   it('prints the offset of the zone, so the time is unambiguous', () => {
     expect(wallClockTimestamp('UTC')()).toContain(' +00:00"');

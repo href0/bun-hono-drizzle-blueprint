@@ -42,7 +42,7 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   ├── config/                 # Environment validation, one Zod group per file (fail-fast)
 │   │   ├── env-source.ts       # The only reader of process.env (+ missing .env guard)
 │   │   ├── parse-env.ts        # parseEnv(): lists every invalid var, never prints values; RENAMED_ENV_VARS guard
-│   │   ├── <group>.config.ts   # app, database, redis, http, integrations → `<group>Config`
+│   │   ├── <group>.config.ts   # app, auth, database, redis, http, integrations → `<group>Config`
 │   │   └── index.ts            # Barrel: import configs from 'src/config'
 │   ├── core/                   # Framework-agnostic building blocks (isolated layer)
 │   │   ├── cache/              # Redis client, SSOT keys, and CacheService
@@ -54,7 +54,8 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── logger/             # Pino logger instance with PII redact
 │   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
-│   │   └── response/           # ApiResponse standardized JSON envelope
+│   │   ├── response/           # ApiResponse standardized JSON envelope
+│   │   └── security/           # Access token (JWT HS256): signAccessToken, verifyAccessToken
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
 │   │   ├── audited.repository.ts # AuditedRepository: lock, diff, record_changes in the same transaction

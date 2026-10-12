@@ -32,7 +32,7 @@ src/
 ├── config/                      # Zero-Trust Zod Configuration
 │   ├── env-source.ts            # Satu-satunya pembaca process.env
 │   ├── parse-env.ts             # Validasi per grup (fail-fast, tanpa mencetak nilai)
-│   ├── <group>.config.ts        # app, database, redis, http, integrations
+│   ├── <group>.config.ts        # app, auth, database, redis, http, integrations
 │   └── index.ts
 │
 ├── core/                        # Cross-Cutting Core Building Blocks
@@ -55,7 +55,6 @@ src/
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
 │   │   └── logger.ts
 │   ├── middlewares/             # Hono Middlewares Pipeline
-│   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   │   ├── async-handler.ts     # Wrapper untuk Pure Controllers
 │   │   ├── error-handler.ts     # Global onError handler
 │   │   ├── logger.middleware.ts # Request & response logging
@@ -63,8 +62,10 @@ src/
 │   │   ├── request-context.ts   # Request ID + RequestContext (AsyncLocalStorage)
 │   │   ├── validate.ts          # Async Zod request validator & helpers
 │   │   └── validate.test.ts     # Co-located Integration Test
-│   └── response/                # Standard Success Envelope
-│       └── api-response.ts
+│   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
+│   ├── response/                # Standard Success Envelope
+│   │   └── api-response.ts
+│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken)
 │
 ├── database/                    # Drizzle ORM Infrastructure
 │   ├── connection.ts            # PostgreSQL connection pool & Drizzle instance

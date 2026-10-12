@@ -92,7 +92,7 @@ src/
 ├── config/                      # Zero-Trust Zod Configuration (fail-fast on startup)
 │   ├── env-source.ts            # Satu-satunya pembaca process.env
 │   ├── parse-env.ts             # Validasi per grup; error berisi nama variabel, tanpa nilai
-│   ├── <group>.config.ts        # app, database, redis, http, integrations
+│   ├── <group>.config.ts        # app, auth, database, redis, http, integrations
 │   └── index.ts                 # Barrel
 │
 ├── core/                        # Cross-Cutting Core Framework (Agnostik Domain)
@@ -103,7 +103,8 @@ src/
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
 │   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
-│   └── response/                # Standard Success Response Envelope (ApiResponse)
+│   ├── response/                # Standard Success Response Envelope (ApiResponse)
+│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken)
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
 │   ├── connection.ts            # PostgreSQL connection pool via postgres driver

@@ -380,6 +380,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-10 | Review 7 | Contoh repository basi di 4 dokumen (`transactions.md` §2, project-standards Rule 3, CONTRIBUTING §5.2, README §4) — tanpa base + `tx.insert`, gagal lint bila ditiru — diganti contoh `BaseRepository` + lookup `this.scoped()`. README §4 (tutorial `products` yang juga melanggar invariant 4 & 12) diganti tabel varian template yang diverifikasi mesin + urutan langkah; aturan `@Transactional()` di CONTRIBUTING diperbarui (base repository sudah transaksional) | — |
 | 2026-10-10 | Review 7 | `AGENTS.md` invariant #14 _Audited Data Layer_; modul contoh `orders` mendapat `orders.controller.test.ts` & `orders.transformer.test.ts` (struktur wajib skill scaffold); `lint:setup` (`setup registry-check --dry-run`) di `validate` & CI — `IDENTITY_RULES`/`EXAMPLE_MODULES` yang basi gagal sekarang, bukan saat proyek baru diinisialisasi; baris `orders/` README ikut `EXAMPLE_MODULES` | Chaos test: baris README dihapus → `lint:setup` gagal menyebut barisnya |
 | 2026-10-10 | Review 7 | Dokumen: pohon struktur (project-standards, CONTRIBUTING, README: `unique-violation.ts`, `orders/`, `test/helpers`), `testing.md` §5 baru (e2e modul dengan `spyOn`, `repository-fixtures.ts`), `redis-cache.md` & `datetime.md` (`revive`, jangan cache rahasia), L11, komentar `audited.repository.test.ts` | — |
+| 2026-10-12 | Review 7 | ✅ Perbaikan Review 7 di-commit (`ed8bed5`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-12 | 3.1 | `src/config/auth.config.ts` (grup `auth`, variabel L1): `JWT_SECRET` min 32 karakter (nilai dummy hanya saat `NODE_ENV=test`), `JWT_ISSUER`/`JWT_AUDIENCE` kosong = `APP_NAME`, `AUTH_REGISTRATION_ENABLED` → boolean, `REFRESH_TOKEN_TTL_SECONDS` ≤ `REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS`; pesan error tidak pernah memuat nilai | `config.test.ts` (3 kasus baru) |
+| 2026-10-12 | 3.1 | **Temuan `hono/jwt` 4.13.9**: `verify()` hanya memeriksa `exp`/`nbf`/`iat` bila claim-nya ada → token bertanda tangan sah **tanpa `exp` tidak pernah kedaluwarsa**; selain itu `exp` diperiksa **sebelum** signature (token palsu yang kedaluwarsa terbaca "expired"). `verifyAccessToken` (`src/core/security/jwt.ts`): hono memeriksa alg HS256/signature/`iss`/`aud` (cek waktu hono dimatikan) → skema Zod mewajibkan `sub` (uuid), `role`, `jti` (uuid), `iat`, `exp` → `exp` dibandingkan dengan `now` yang bisa diinjeksi. Hanya token asli yang bisa `ERR_AUTH_TOKEN_EXPIRED`; selain itu `ERR_AUTH_TOKEN_INVALID` tanpa alasan ke klien | Probe: token tanpa `exp` diterima `verify()` hono. Chaos test: skema claim dicabut, cek `exp` dicabut, `aud` tidak dicek, cek `exp` hono + pemetaan ke EXPIRED → masing-masing test gagal |
+| 2026-10-12 | 3.1 | Penyimpangan: (1) `iat` di masa depan tidak ditolak — signature sah + `exp` sudah membatasi umur, dan menghindari penolakan palsu karena selisih jam antar instance; (2) `signAccessToken`/`verifyAccessToken` menerima `settings` & `now` opsional (default `authConfig`/`nowInstant()`) agar test tidak bergantung jam sistem; (3) barrel `src/core/security/index.ts` ditunda ke 3.4 (belum ada konsumen → knip); (4) kode error yang ditambah hanya `ERR_AUTH_TOKEN_EXPIRED`/`ERR_AUTH_TOKEN_INVALID` (+ pesan i18n) — kode L2 lain ditambah di step pemakainya | — |
+| 2026-10-12 | 3.1 | `src/utils/crypto.util.ts` (murni): `generateOpaqueToken()` (32 byte → base64url 43 karakter), `sha256Hex()`, `timingSafeEqualHex()` — hex tidak valid / panjang berbeda → `false`, bukan throw (`Buffer.from(…, 'hex')` diam-diam membuang karakter invalid: `abzz` vs `abyy` akan dianggap sama). Redaksi logger + `accessToken`, `refreshToken` (± `*.`), `cookie`, `req.headers.cookie`; test redaksi memakai output pino sungguhan | Chaos test: validasi hex dicabut, path `req.headers.cookie` / `*.refreshToken` dihapus → test gagal |
+| 2026-10-12 | 3.1 | Tambahan di luar langkah: `bun run setup` mengisi `JWT_SECRET` acak (48 byte base64url) bila `.env` belum punya atau nilainya kosong — nilai yang ada tidak pernah diganti atau dicetak; `.env.example` mendapat bagian `auth`. Dokumen: pohon struktur (project-standards, CONTRIBUTING, README — sekaligus memperbaiki README yang mencantumkan file middleware di bawah `openapi/`), `logging.md` (daftar redaksi) | Diuji di direktori sementara: file baru, dijalankan ulang (tidak berubah), baris tidak ada, nilai kosong, `--dry-run` (tidak menulis) |
 
 ---
 
@@ -427,7 +433,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.7 | Test konvensi schema | ✅ | 2.5 | `43bfe53` |
 | 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `27d29dc` |
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `a29524f` |
-| 3.1 | Primitif keamanan & config auth | ⬜ | 1.1 |  |
+| 3.1 | Primitif keamanan & config auth | 👀 | 1.1 |  |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ⬜ | 2.8 |  |
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ⬜ | 3.1, 3.2, 1.7 |  |
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ⬜ | 3.3 |  |
@@ -881,7 +887,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Acceptance criteria**
 
-- [ ] Token kedaluwarsa / `aud` salah / `iss` salah / signature salah / `alg: none` → ditolak (test per kasus).
+- [x] Token kedaluwarsa / `aud` salah / `iss` salah / signature salah / `alg: none` → ditolak (test per kasus).
 
 ### Step 3.2 — Schema auth
 

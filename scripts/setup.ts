@@ -21,6 +21,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 
 interface ProjectIdentity {
@@ -284,6 +285,24 @@ function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): v
   }
 }
 
+/**
+ * The app refuses to start without a JWT_SECRET of 32+ characters; a local .env gets a random one
+ * when it has none (empty or missing line). An existing secret is never replaced or printed.
+ */
+function ensureJwtSecret(envPath: string, dryRun: boolean): void {
+  const content = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
+  if (/^JWT_SECRET=\S/m.test(content)) return;
+
+  if (!dryRun) {
+    const line = `JWT_SECRET=${randomBytes(48).toString('base64url')}`;
+    const updated = /^JWT_SECRET=[ \t]*$/m.test(content)
+      ? content.replace(/^JWT_SECRET=[ \t]*$/m, () => line)
+      : `${content.replace(/\n?$/, '\n')}${line}\n`;
+    writeFileSync(envPath, updated, 'utf-8');
+  }
+  console.log(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} a random JWT_SECRET in .env`);
+}
+
 function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun: boolean): void {
   const envPath = resolve(rootDir, '.env');
   const envExamplePath = resolve(rootDir, '.env.example');
@@ -295,10 +314,13 @@ function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun:
     }
     if (!dryRun) copyFileSync(envExamplePath, envPath);
     console.log(`[Setup] ${dryRun ? 'Would create' : 'Created'} .env from .env.example`);
+    ensureJwtSecret(envPath, dryRun);
     return;
   }
 
-  // Existing .env holds local secrets: only APP_NAME is touched and no value is ever printed.
+  // Existing .env holds local secrets: only APP_NAME and a missing JWT_SECRET are touched, and no
+  // value is ever printed.
+  ensureJwtSecret(envPath, dryRun);
   if (id) {
     if (!dryRun) {
       const content = readFileSync(envPath, 'utf-8');
@@ -309,7 +331,7 @@ function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun:
         'Review POSTGRES_DB / DATABASE_URL manually.',
     );
   } else {
-    console.log('[Setup] Existing .env detected, leaving intact');
+    console.log('[Setup] Existing .env detected, leaving existing values intact');
   }
 }
 
