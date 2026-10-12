@@ -4,7 +4,8 @@
  * Usage: bun run verify:scaffold
  *
  * Materializes every code block of each template variant (`SKILL.md` = standalone,
- * `references/header-detail.md`, `references/record.md`) as a probe module, and the outbound
+ * `references/header-detail.md`, `references/record.md`, `references/partner.md`) as a probe
+ * module, and the outbound
  * integration template (`references/integration.md`) as a probe vendor adapter; registers them
  * exactly as the templates instruct, then runs prettier, tsc, eslint, ls-lint, dependency-cruiser,
  * knip, the generated tests and the schema conventions, plus live requests through `createApp()`.
@@ -40,10 +41,26 @@ interface Variant {
   names: Names;
   /** `[path, method]` that must be described with describeEndpoint(), relative to the base path. */
   documented: [string, string][];
-  /** A request that must be rejected with 400 by validate(). */
-  invalid: { path: string; method: string };
+  /** A request that must be rejected with 400 by validate() once authenticated. */
+  invalid: { path: string; method: string; body?: string };
   appendOnly?: boolean;
+  /** Inbound channel: users with access tokens (default) or partners with signed requests. */
+  channel?: 'partner';
 }
+
+/** Where the template registers its router (Step "Register Route in src/app.ts"). */
+const routerOf = (variant: Variant): { file: string; symbol: string; mount: string } =>
+  variant.channel === 'partner'
+    ? {
+        file: `${variant.names.name}.partner.routes`,
+        symbol: `${variant.names.camelPlural}PartnerRoutes`,
+        mount: `/partner/${variant.names.name}`,
+      }
+    : {
+        file: `${variant.names.name}.routes`,
+        symbol: `${variant.names.camelPlural}Router`,
+        mount: `/${variant.names.name}`,
+      };
 
 /** Kebab-case names with a hyphen on purpose: exercises naming rules for multi-word modules. */
 const VARIANTS: Variant[] = [
@@ -117,6 +134,30 @@ const VARIANTS: Variant[] = [
     ],
     invalid: { path: '/v1/probe-events?per_page=1000', method: 'GET' },
     appendOnly: true,
+  },
+  {
+    label: 'partner',
+    template: `${SKILL_DIR}/references/partner.md`,
+    names: {
+      name: 'probe-submissions',
+      snakePlural: 'probe_submissions',
+      snakeSingular: 'probe_submission',
+      upperSingular: 'PROBE_SUBMISSION',
+      pascalPlural: 'ProbeSubmissions',
+      camelPlural: 'probeSubmissions',
+      pascalSingular: 'ProbeSubmission',
+      camelSingular: 'probeSubmission',
+    },
+    documented: [
+      ['/v1/partner/probe-submissions', 'post'],
+      ['/v1/partner/probe-submissions/{reference}', 'get'],
+    ],
+    invalid: {
+      path: '/v1/partner/probe-submissions',
+      method: 'POST',
+      body: '{"partner_reference":"not a valid reference!","description":"x"}',
+    },
+    channel: 'partner',
   },
 ];
 
@@ -232,15 +273,16 @@ const generate = (variant: Variant): string[] => {
       ),
     );
   }
+  const router = routerOf(variant);
   editFile(APP_PATH, (content) =>
     content
       .replace(
         "import { userRoutes } from './modules/users/users.routes';",
-        `import { userRoutes } from './modules/users/users.routes';\nimport { ${names.camelPlural}Router } from './modules/${names.name}/${names.name}.routes';`,
+        `import { userRoutes } from './modules/users/users.routes';\nimport { ${router.symbol} } from './modules/${names.name}/${router.file}';`,
       )
       .replace(
         "  v1.route('/users', userRoutes);",
-        `  v1.route('/users', userRoutes);\n  v1.route('/${names.name}', ${names.camelPlural}Router);`,
+        `  v1.route('/users', userRoutes);\n  v1.route('${router.mount}', ${router.symbol});`,
       ),
   );
   return generated;
@@ -252,18 +294,34 @@ const { appConfig } = await import('./src/config/index.ts');
 const { signAccessToken } = await import('./src/core/security/jwt.ts');
 const app = createApp();
 const base = appConfig.API_BASE_PATH;
-const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid }) => ({ label, documented, invalid })))};
+const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid, channel }) => ({ label, documented, invalid, channel })))};
 const doc = await (await app.request(base + '/docs/openapi.json')).json();
 // Generated routes are protected (default-deny): without a token they must answer 401 ...
 const { token } = await signAccessToken({ userId: '0192f1d0-0000-7000-8000-00000000a11c', role: 'admin' });
+// Partner routes need a signed request: a probe credential behind the real partnerAuth() lookup.
+const { partnerCredentialsService } = await import('./src/modules/partner-credentials/partner-credentials.service.ts');
+const { hashPartnerApiKey, partnerSecretCipher } = await import('./src/core/security/partner-credentials.ts');
+const { partnerSignatureHeaders } = await import('./src/utils/partner-signature.util.ts');
+const probeKey = 'pk_verify_scaffold_probe';
+const probeSecret = 'verify-scaffold-probe-secret';
+partnerCredentialsService.findForGateway = async (hash) => hash === hashPartnerApiKey(probeKey)
+  ? { partnerCode: 'scaffold-probe', encryptedSecret: partnerSecretCipher.encrypt(probeSecret), ipWhitelist: [], allowedRoutes: ['/*'], rateLimitRpm: 1000, isActive: true }
+  : null;
+let nonce = 0;
 for (const variant of variants) {
-  const anonymous = await app.request(base + variant.invalid.path, { method: variant.invalid.method });
-  if (anonymous.status !== 401) {
-    console.error(variant.label + ': expected 401 without a token (default-deny), got', anonymous.status);
+  const { path, method, body: requestBody } = variant.invalid;
+  const anonymous = await app.request(base + path, { method, body: requestBody });
+  const anonymousCode = (await anonymous.json()).error?.code;
+  const expectedCode = variant.channel === 'partner' ? 'ERR_PARTNER_HEADERS_MISSING' : 'ERR_UNAUTHORIZED';
+  if (anonymous.status !== 401 || anonymousCode !== expectedCode) {
+    console.error(variant.label + ': expected 401 ' + expectedCode + ' without credentials (default-deny), got', anonymous.status, anonymousCode);
     process.exit(1);
   }
-  // ... and validate their input once authenticated.
-  const res = await app.request(base + variant.invalid.path, { method: variant.invalid.method, headers: { 'Accept-Language': 'en', Authorization: 'Bearer ' + token } });
+  // ... and validate their input once authenticated (access token or partner signature).
+  const credentials = variant.channel === 'partner'
+    ? partnerSignatureHeaders({ apiKey: probeKey, secret: probeSecret, method, url: base + path, body: requestBody ?? '', timestamp: String(Date.now()), nonce: 'verify_scaffold_' + String(++nonce).padStart(8, '0') })
+    : { Authorization: 'Bearer ' + token };
+  const res = await app.request(base + path, { method, body: requestBody, headers: { 'Accept-Language': 'en', 'Content-Type': 'application/json', ...credentials } });
   const body = await res.json();
   if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
     console.error(variant.label + ': expected 400 ERR_INVALID_INPUT, got', res.status, JSON.stringify(body));
@@ -346,6 +404,8 @@ const main = (): void => {
         ...generated.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
         // The generated tables are exported from the schema barrel: they must pass the conventions.
         './src/database/schema/schema-conventions.test.ts',
+        // File names, module/vendor naming and channel mounting (partner routers under /partner).
+        './test/structure.test.ts',
       ]) &&
       // Hermetic like the test suite: no local env file values, no real database or Redis.
       run('live requests through createApp()', [

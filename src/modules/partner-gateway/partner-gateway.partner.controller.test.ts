@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { setAuthenticatedPartner } from '../../core/context/request-context';
 import { globalErrorHandler, requestContextMiddleware } from '../../core/middlewares';
-import { partnerGatewayRoutes } from './partner-gateway.routes';
+import { partnerGatewayRoutes } from './partner-gateway.partner.routes';
 
 /** The routes behind a stand-in for partnerAuth() (signing itself: partner-auth.test.ts). */
 const buildApp = (verified: boolean): Hono => {

@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { UnauthorizedError } from '../../core/errors';
 import { asyncHandler, currentUser, getValidatedBody } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
-import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './auth-cookie';
+import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './auth-cookie.util';
 import { authService, AuthService, type ClientInfo } from './auth.service';
 import { toAccessTokenResponse, toAuthUserResponse, toLoginResponse } from './auth.transformer';
 import type { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';

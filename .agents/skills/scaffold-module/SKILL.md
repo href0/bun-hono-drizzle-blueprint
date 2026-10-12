@@ -14,6 +14,7 @@ Use this skill when asked to create, add, or scaffold a new domain/feature modul
 | Standalone (stands on its own) | Steps 2–11 below | `BaseRepository` |
 | Header with details (an order and its items) | [references/header-detail.md](references/header-detail.md) | `BaseRepository` + `ChildRepository` |
 | Record (append-only log / history) | [references/record.md](references/record.md) | `AppendOnlyRepository` |
+| Partner endpoint (partner systems call it with signed requests) | [references/partner.md](references/partner.md) — `<name>.partner.routes.ts` under `/v1/partner/<name>` | `BaseRepository` (unique `partner_code` + `partner_reference`) |
 | Reference data owned by another system | no module template — a `.existing()` view + `ReadOnlyRepository` | `ReadOnlyRepository` |
 | Outbound vendor adapter (not a module) | [references/integration.md](references/integration.md) — login-based vendor under `src/integrations/<name>/` | — (`HttpClientService` + `AccessTokenCache`) |
 

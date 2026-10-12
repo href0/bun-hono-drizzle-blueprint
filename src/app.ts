@@ -24,7 +24,7 @@ import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
 import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
-import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.routes';
+import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.partner.routes';
 import { userRoutes } from './modules/users/users.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
 import { ordersRouter } from './modules/orders/orders.routes';

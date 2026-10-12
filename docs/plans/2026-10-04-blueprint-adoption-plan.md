@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.3 selesai** (`main` @ `85e7c2a`); 5.4 menunggu review (branch `docs/partner-guide`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.4 selesai** (`main` @ `ed556d6`); 5.5 menunggu review (branch `feat/inbound-channel-conventions`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `85e7c2a` |
+| Basis kode | branch `main` @ `ed556d6` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -480,6 +480,15 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 5.4 | **Penjaga dokumen** (tambahan): vektor signing dipindah ke `test/helpers/partner-signing-vectors.ts` (satu sumber untuk unit test dan panduan); `test/partner-guide.test.ts` menuntut panduan memuat vektor (secret, signature, nonce, canonical query, canonical string #3), satu baris tabel per header `x-partner-*`, setiap kode `ERR_PARTNER_*` dari registry, dan script `partner:sign` yang terdaftar | **Chaos test** (7, semua tertangkap): signature vektor #2 di panduan diubah, canonical query diubah, canonical string #3 diubah, kode `ERR_PARTNER_*` hilang dari panduan, nama header hilang dari tabel (awalnya **lolos** karena header juga disebut di ringkasan → cek diperketat ke baris tabel), script `partner:sign` tidak terdaftar, `partnerSignatureHeaders` mengabaikan query |
 | 2026-10-12 | 5.4 | Panduan partner ditambah **§9 Checklist onboarding** (prasyarat production: keyring baru & dicadangkan, `TRUST_PROXY_HOPS`, Redis + NTP; 8 langkah per partner sampai go-live; sesudahnya); bagian developer menjadi §10 | `test/partner-guide.test.ts` tetap hijau |
 | 2026-10-12 | 5.4 | **Keputusan baru D23–D28** (diskusi user saat review 5.4: partner khusus vs webhook vendor, penamaan, standar industri): dua kanal inbound terpisah (webhook vendor di luar `/v1`), penamaan `<modul>[.<kanal>].<peran>.ts` dan `<vendor>.<peran>.ts`, modul bernama domain, `requirePartner()`, idempotensi wajib. Syarat user: setiap keputusan **ditegakkan lint / dependency-cruiser / test** dan tertulis di skills & rules, agar tetap terjaga tanpa agent AI. Fase 5 diganti nama "Inbound: Partner & Webhook Vendor"; ditambah **Step 5.5** (konvensi kanal + penegakan) dan **Step 5.6** (webhook vendor); 6.1 kini bergantung pada 5.6 | — |
+| 2026-10-12 | 5.4 | ✅ di-commit (`ed556d6`) dan di-merge ke `main` | — |
+| 2026-10-12 | 5.5 | **Temuan: ls-lint tidak pernah memeriksa nama file bertitik ganda.** ls-lint menganggap ekstensi = semua setelah titik pertama (`users.controller.ts` → `.controller.ts`), sehingga aturan `.ts` (termasuk regex kebab-case yang sudah ada sejak awal) hanya berlaku untuk nama satu titik; `Users.Controller.ts` lolos. Dibuktikan dengan probe (`.controller.ts: regex:zzz` menolak semua controller, `.ts: regex:…` tidak menolak apa pun). **Penyimpangan langkah 1–2**: penamaan ditegakkan `test/structure.test.ts` (bukan ls-lint): setiap file di `src/`, `test/`, `scripts/` kebab-case per segmen titik; file modul `<modul>[-<kualifier>][.partner\|.webhook].<peran>[.test].ts` (`<modul>` = nama folder; peran `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util`); file integrasi `<vendor>.<peran>[.test].ts` (`service`, `dto`, `webhook`, `webhook.dto`) atau `index.ts`. ls-lint tetap untuk nama folder & file satu titik; keterbatasannya dicatat di `.ls-lint.yml` | Probe ls-lint: `regex:${0}` (nama folder) didukung, tetapi tidak menolong untuk nama bertitik |
+| 2026-10-12 | 5.5 | **Penyimpangan D24**: ditambah `[-<kualifier>]` (file kedua dengan peran sama: `auth-users.repository.ts`) dan peran `util` (helper lokal modul) agar kode yang ada lolos tanpa pengecualian. Rename: `auth-cookie.ts` → `auth-cookie.util.ts`; `partner-gateway.{routes,controller,controller.test}.ts` → `partner-gateway.partner.*` (controller-nya memakai `currentPartner` — langsung tertangkap aturan kanal) | Seluruh file yang ada lolos tanpa pengecualian |
+| 2026-10-12 | 5.5 | Test struktur juga menegakkan D26 (folder `src/modules/<x>` ≠ `src/integrations/<x>`) dan pemasangan kanal: router yang di-export `*.partner.routes.ts` hanya muncul di bawah `<base>/v1/partner` dan setiap route di sana berasal dari file partner (dicocokkan lewat identitas handler di `createApp().routes`); sama untuk `*.webhook.routes.ts` ↔ `<base>/webhooks` (siap untuk 5.6). Bagian ketiga test membuktikan setiap pemeriksaan menyala pada contoh yang sengaja salah | — |
+| 2026-10-12 | 5.5 | **Penyimpangan langkah 5**: helper per kanal ditegakkan rule ESLint lokal `local/inbound-channel` (didefinisikan di `eslint.config.mjs`), bukan `no-restricted-syntax` — grup `no-restricted-syntax` per peran (controller, service, …) saling menimpa sehingga kombinasi peran × kanal rapuh. Kanal dibaca dari nama file: `*.partner.*` hanya `currentPartner`/`requirePartner`; file biasa hanya `requireRole`/`requireSelfOrRole`/`currentUser`; `*.webhook.*` tidak satu pun; import ber-alias ikut tertangkap | — |
+| 2026-10-12 | 5.5 | `requirePartner(...codes)` (`src/core/middlewares/require-partner.ts`) → 403 `ERR_PARTNER_ROUTE_FORBIDDEN` untuk partner lain, 401 tanpa partner terverifikasi, 403 terdokumentasi di OpenAPI lewat helper yang sama dengan `requireRole()` (`documentsForbidden`, di-export, tidak diduplikasi) | Unit test 4 kasus |
+| 2026-10-12 | 5.5 | Varian template `scaffold-module/references/partner.md` (13 langkah): tabel `partner_code` + `partner_reference` dengan `activeUniqueIndex` (retry → 409), repository `findByPartnerReference` (dibatasi ke partner pemanggil), service `createForPartner`/`getForPartner`, `<name>.partner.controller.ts` (`currentPartner()`), `<name>.partner.routes.ts` (tanpa `requireRole`), registrasi `v1.route('/partner/<name>', …)`, test repository/service/transformer/controller. `verify:scaffold`: varian keempat `probe-submissions` (dipasang di `/v1/partner/probe-submissions`), **live check bertanda tangan** lewat `partnerAuth()` asli dengan credential probe (tanpa header → 401 `ERR_PARTNER_HEADERS_MISSING`, signature valid + body salah → 400), dan `test/structure.test.ts` ikut dijalankan atas file hasil generate | `verify:scaffold`: 4 varian modul + integrasi lolos semua gate |
+| 2026-10-12 | 5.5 | Rules & skills: `AGENTS.md` invariant #16 _Inbound Channels & File Naming_ + daftar penegak (ESLint, ls-lint vs test struktur); project-standards Rule 14 (tabel kanal, pola nama, idempotensi, penegak) + `requirePartner` di Rule 13; tabel varian `scaffold-module`; CONTRIBUTING §11 (pola nama + subbagian kanal inbound), §4.3, pohon `test/`; `testing.md`; panduan partner §10 | **Chaos test** (14, semua tertangkap): akhiran nyaris benar `users.partner-routes.ts`, file ber-huruf besar di `core/`, file modul tanpa prefix modul, peran integrasi tak dikenal, modul bernama vendor, router partner dipasang di luar `/partner`, router user dipasang di bawah `/partner`, `currentUser()` di controller partner, `currentPartner()` di controller user, `requirePartner` ber-alias di route user, `requireRole()` di file webhook, `requirePartner()` meloloskan semua partner, template partner memakai `requireRole()` (`verify:scaffold` gagal), template partner dipasang di luar `/partner` (`verify:scaffold` gagal lewat test struktur) |
+| 2026-10-12 | 5.5 | **Insiden saat probe ls-lint**: skrip probe sempat menghapus `src/modules/users/users.controller.ts` (file ter-track, belum diubah); dipulihkan dengan `git checkout` (isi identik dengan commit) sebelum test dijalankan | `git status` bersih untuk modul `users` |
 
 ---
 
@@ -537,8 +546,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 5.1 | Utilitas kripto & signing partner | ✅ | 0.3 | `614e9d1` |
 | 5.2 | Kredensial partner (schema + admin API) | ✅ | 5.1, 2.8, 3.4 | `2ba2423` |
 | 5.3 | Middleware `partnerAuth()` | ✅ | 5.2, 1.6 | `85e7c2a` |
-| 5.4 | Panduan integrasi partner | 👀 | 5.3 |  |
-| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ⬜ | 5.4 |  |
+| 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ed556d6` |
+| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | 👀 | 5.4 |  |
 | 5.6 | Webhook vendor inbound | ⬜ | 5.5, 4.2 |  |
 | 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.6 |  |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
@@ -1136,9 +1145,9 @@ Keputusan D23–D28. Tujuan: konvensi kanal (biasa, partner, webhook) dan penama
 
 **Acceptance criteria**
 
-- [ ] Setiap aturan di langkah 1–6 dibuktikan dengan chaos test (nama file salah, modul bernama vendor, router partner dipasang di luar `/partner`, `currentUser` di route partner, `currentPartner` di route biasa, `requirePartner` dilewati).
-- [ ] `bun run verify:scaffold` menghasilkan varian partner yang lolos semua gate.
-- [ ] Seluruh file yang ada sekarang lolos konvensi baru tanpa pengecualian (atau pengecualian tercatat dengan alasan).
+- [x] Setiap aturan di langkah 1–6 dibuktikan dengan chaos test (nama file salah, modul bernama vendor, router partner dipasang di luar `/partner`, `currentUser` di route partner, `currentPartner` di route biasa, `requirePartner` dilewati).
+- [x] `bun run verify:scaffold` menghasilkan varian partner yang lolos semua gate.
+- [x] Seluruh file yang ada sekarang lolos konvensi baru tanpa pengecualian (atau pengecualian tercatat dengan alasan).
 
 ### Step 5.6 — Webhook vendor inbound
 

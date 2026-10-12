@@ -32,7 +32,7 @@ Setiap commit dan push melewati lapis proteksi otomatis:
       └─ pre-commit hook (Husky)
             ├─ lint-staged        → ESLint strictTypeChecked + Prettier (pada staged files)
             ├─ tsc --noEmit       → TypeScript strict typecheck seluruh proyek
-            └─ ls-lint            → Validasi penamaan file & folder (kebab-case)
+            └─ ls-lint            → Validasi penamaan folder & file satu titik (kebab-case)
 
 [2] Pesan commit diketik
       └─ commit-msg hook (Husky)
@@ -161,6 +161,7 @@ test/                            # End-to-End (E2E) & Blackbox API Tests
 ├── *.e2e.test.ts                # health, auth, users, orders (contoh), partner-credentials, partner-gateway, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Penjaga preload hermetik
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md tetap sama dengan kode (vektor, header, kode error)
+├── structure.test.ts            # Nama file, pola modul/integrasi, modul ≠ vendor, router kanal di prefix-nya
 └── migrations.test.ts           # Penjaga SQL migrasi hasil generate
 
 scripts/
@@ -372,7 +373,7 @@ Semua route di bawah `/api/v1` **wajib access token** (`Authorization: Bearer <t
 | Resource milik user sendiri (`/users/:id`) | `requireSelfOrRole('id', 'admin')` — pemilik atau role tersebut; selain itu 403 yang sama, baik resource ada maupun tidak |
 | Siapa pemanggilnya (di controller) | `currentUser()` → `{ id, role }`; service menerima id sebagai argumen atau membaca `getActor()` (`user:<id>`) |
 | Route publik baru | Tambahkan ke `PUBLIC_ROUTES` (review wajib) — jangan membuat "skip auth" per route |
-| Endpoint untuk sistem partner (server-to-server) | Daftarkan di modul yang di-mount di `/api/v1/partner/...`: dilindungi `partnerAuth()` (request bertanda tangan HMAC, bukan access token), lalu tambahkan polanya ke `allowed_routes` kredensial partner (relatif terhadap `/partner`). Partner pemanggil: `currentPartner()` → `{ code }`, actor `partner:<code>`. Panduan untuk partner (signing, contoh kode, vektor uji, error, rotasi): [docs/partner-integration-guide.md](docs/partner-integration-guide.md) |
+| Endpoint untuk sistem partner (server-to-server) | Generate dari skill `scaffold-module` varian `references/partner.md` (`<modul>.partner.routes.ts`, idempoten per `partner_reference`), daftarkan di `/api/v1/partner/...`. Khusus satu partner: tambah `requirePartner('<kode>')`. Selebihnya: dilindungi `partnerAuth()` (request bertanda tangan HMAC, bukan access token), lalu tambahkan polanya ke `allowed_routes` kredensial partner (relatif terhadap `/partner`). Partner pemanggil: `currentPartner()` → `{ code }`, actor `partner:<code>`. Panduan untuk partner (signing, contoh kode, vektor uji, error, rotasi): [docs/partner-integration-guide.md](docs/partner-integration-guide.md) |
 | Test kontrak modul | `authorize(createApp(), role, userId?)` dari `test/helpers/authorized-app.ts` |
 | Admin pertama | `bun run seed:admin --email <email>` (password dari prompt tersembunyi / stdin) |
 | Ganti password | User sendiri: `POST /auth/change-password`. Admin: `PUT /users/:id/password`. Keduanya mengisi `users.password_changed_at` → semua sesi lama berakhir |
@@ -631,7 +632,9 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). 
 
 | Element | Format | Contoh |
 |---|---|---|
-| Nama File & Folder | `kebab-case` | `user-profile.service.ts`, `auth/` |
+| Nama File & Folder | `kebab-case` per segmen titik | `user-profile.service.ts`, `auth/` |
+| File modul | `<modul>[-<kualifier>][.partner\|.webhook].<peran>[.test].ts` | `payments.partner.routes.ts`, `auth-users.repository.ts` |
+| File integrasi | `<vendor>.<peran>[.test].ts` (`service`, `dto`, `webhook`, `webhook.dto`) atau `index.ts` | `wahref.webhook.ts` |
 | Class & Interface | `PascalCase` | `UsersService`, `UserResponse` |
 | Method & Function | `camelCase` | `getUserById`, `createOrder` |
 | Variable & Parameter | `camelCase` | `userId`, `activeStatus` |
@@ -646,6 +649,19 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). 
 >    - **Nama tabel fisik database SQL** (Drizzle table definitions).
 >    - **Wire payload HTTP dua arah**: response (dikonversi otomatis oleh `ApiResponse` & `globalErrorHandler`) dan key body/query request (divalidasi & dikonversi oleh `validate()`).
 > 2. Seluruh elemen kode TypeScript lainnya (variabel, parameter, method, properti object, DTOs, interfaces) **DILARANG KERAS** menggunakan `snake_case` dan wajib mematuhi `camelCase` / `PascalCase` (di-enforce oleh ESLint rule `@typescript-eslint/naming-convention`).
+
+### Kanal Inbound & Penamaan File (D23–D26)
+
+| Pemanggil | File | Dipasang di | Autentikasi | Helper yang boleh |
+|---|---|---|---|---|
+| User (FE, mobile) | `<modul>.<peran>.ts` | `/api/v1/<modul>` | `authenticate()` (Bearer) | `requireRole`, `requireSelfOrRole`, `currentUser` |
+| Sistem partner | `<modul>.partner.<peran>.ts` | `/api/v1/partner/...` | `partnerAuth()` (signing v1) | `currentPartner`, `requirePartner` |
+| Webhook vendor | `<modul>.webhook.<peran>.ts` | `/api/webhooks/<vendor>` | verifier per vendor (Step 5.6) | tidak ada |
+
+- `<peran>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util` (helper lokal modul). Akhiran inilah yang dibaca ESLint & dependency-cruiser, jadi nama "nyaris benar" seperti `payments.partner-routes.ts` ditolak (ia akan lolos dari semua aturan arsitektur).
+- Modul dinamai menurut **domain** (`messaging`, `payments`), bukan vendor; vendor hanya di `src/integrations/<vendor>/`.
+- Endpoint partner yang menulis data wajib idempoten: `(partner_code, partner_reference)` unik, retry → 409. Kode partner selalu dari `currentPartner()`, tidak pernah dari body. Template: skill `scaffold-module` → `references/partner.md`.
+- Penegak: `test/structure.test.ts` (nama setiap file, kedua pola, modul bernama vendor, posisi pemasangan router per kanal) dan ESLint `local/inbound-channel` (helper per kanal). Catatan: ls-lint hanya menerapkan aturan `.ts` pada nama yang ekstensinya persis `.ts` — `users.controller.ts` berekstensi `.controller.ts` — karena itu nama file diperiksa oleh test.
 
 ---
 

@@ -321,7 +321,9 @@ Rotasi secret karena dugaan bocor: rotasi segera, kirim secret baru lewat kanal 
 
 ## 10. Untuk developer backend: menambah endpoint partner
 
-- Mount route di bawah `/api/v1/partner` (lihat `src/modules/partner-gateway/`): `partnerAuth()` sudah melindungi semua route di sana; jangan menambah `authenticate()` atau "skip auth" lain.
+- Generate modulnya dari skill `scaffold-module` varian **`references/partner.md`** (diverifikasi `bun run verify:scaffold`): file kanal `<modul>.partner.routes.ts` / `<modul>.partner.controller.ts`, tabel dengan `partner_code` + `partner_reference` unik (retry partner → 409, bukan data ganda), baca selalu dibatasi ke partner pemanggil.
+- Mount route di bawah `/api/v1/partner` (`v1.route('/partner/<modul>', …)`; contoh `src/modules/partner-gateway/`): `partnerAuth()` sudah melindungi semua route di sana; jangan menambah `authenticate()` atau "skip auth" lain. `test/structure.test.ts` gagal bila router `*.partner.routes.ts` dipasang di tempat lain, atau router lain dipasang di bawah `/partner`.
+- Endpoint khusus satu partner: tambahkan `requirePartner('<kode>')` setelah `describeEndpoint()` — tetap tertutup bagi partner lain walau admin keliru memberi `allowed_routes`.
 - Di controller, partner pemanggil dibaca dengan `currentPartner()` → `{ code }`; actor untuk kolom audit otomatis `partner:<code>`.
 - Body tetap divalidasi `validate({ body })` seperti biasa (body mentah sudah dibaca untuk signature dan di-cache).
 - Tambahkan pola route baru ke `allowed_routes` partner yang boleh memakainya — route yang tidak terdaftar ditolak 403.
