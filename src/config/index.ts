@@ -4,4 +4,5 @@ export { hostTimeZone } from './env-source';
 export * from './database.config';
 export * from './http.config';
 export * from './jsonplaceholder.config';
+export * from './partner.config';
 export * from './redis.config';

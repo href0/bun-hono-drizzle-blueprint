@@ -107,7 +107,8 @@ Time values follow [datetime.md](datetime.md): the driver hands `timestamptz`/`d
 | `id` comes from `uuidPrimaryKey()` — or `sequentialPrimaryKey()` / `sequentialId()` for tables in `APPEND_ONLY_TABLES` | One id strategy; sequential ids never become public resource ids |
 | Every `APPEND_ONLY_TABLES` entry is an exported table with a sequential id | No stale allowlist entries |
 | No `serial` / `bigserial` columns | Identity through the helpers instead |
-| A table with `deleted_at` has no plain unique (column, constraint or index without `WHERE`) | A soft-deleted row would block re-creating the value — use `activeUniqueIndex()` |
+| A table with `deleted_at` has no plain unique (column, constraint or index without `WHERE`), except a named `uniqueIndex` listed in `PERMANENT_UNIQUE_INDEXES` (`src/database/schema/permanent-unique-indexes.ts`) with its reason | A soft-deleted row would block re-creating the value — use `activeUniqueIndex()`. A value that must never be reused (e.g. `partner_credentials.partner_code`, the audit actor `partner:<code>`) is the deliberate exception |
+| Every `PERMANENT_UNIQUE_INDEXES` entry names a plain unique index of a soft-deleted exported table | No stale allowlist entries |
 | `record_changes`: primary key `(id, changed_at)`, no FK / unique, action and parent CHECKs | Partition-ready audit trail |
 
 Each check is also proven against a deliberately broken table in the same file.

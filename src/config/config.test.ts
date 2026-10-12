@@ -4,6 +4,7 @@ import { buildAuthConfig } from './auth.config';
 import { buildDatabaseConfig } from './database.config';
 import { buildHttpConfig } from './http.config';
 import { buildJsonPlaceholderConfig } from './jsonplaceholder.config';
+import { buildPartnerConfig } from './partner.config';
 import { buildRedisConfig } from './redis.config';
 
 describe('Configuration groups (Unit)', () => {
@@ -196,5 +197,78 @@ describe('Configuration groups (Unit)', () => {
     expect(() => buildJsonPlaceholderConfig({ JSONPLACEHOLDER_BASE_URL: 'not-a-url' })).toThrow(
       'JSONPLACEHOLDER_BASE_URL',
     );
+  });
+
+  const K1 = 'a'.repeat(64);
+  const K0 = 'B'.repeat(64);
+  const partnerError = (source: Record<string, string>): string => {
+    try {
+      buildPartnerConfig(source);
+      return '';
+    } catch (error) {
+      return (error as Error).message;
+    }
+  };
+
+  it('partner: requires the keyring outside test and defaults it in test', () => {
+    expect(partnerError({ NODE_ENV: 'production' })).toContain('PARTNER_SECRET_KEYS: is required');
+    expect(partnerError({ NODE_ENV: 'production' })).toContain(
+      'PARTNER_SECRET_ACTIVE_KEY_ID: is required',
+    );
+    expect(buildPartnerConfig({ NODE_ENV: 'test' })).toMatchObject({
+      PARTNER_HMAC_TOLERANCE_MS: 300000,
+      PARTNER_SECRET_ACTIVE_KEY_ID: 'test',
+    });
+  });
+
+  it('partner: parses k1:<hex>[,k0:<hex>] into a keyring (hex lowercased)', () => {
+    expect(
+      buildPartnerConfig({
+        PARTNER_SECRET_KEYS: ` k1:${K1} , k0:${K0} `,
+        PARTNER_SECRET_ACTIVE_KEY_ID: 'k1',
+        PARTNER_HMAC_TOLERANCE_MS: '60000',
+      }),
+    ).toEqual({
+      PARTNER_SECRET_KEYS: { k1: K1, k0: K0.toLowerCase() },
+      PARTNER_SECRET_ACTIVE_KEY_ID: 'k1',
+      PARTNER_HMAC_TOLERANCE_MS: 60000,
+    });
+  });
+
+  it('partner: rejects a malformed keyring or an unknown active key without echoing keys', () => {
+    const cases: [Record<string, string>, string][] = [
+      [{ PARTNER_SECRET_KEYS: ' , ', PARTNER_SECRET_ACTIVE_KEY_ID: 'k1' }, 'is required (format'],
+      [{ PARTNER_SECRET_KEYS: K1, PARTNER_SECRET_ACTIVE_KEY_ID: 'k1' }, 'entry 1: key ID'],
+      [
+        { PARTNER_SECRET_KEYS: `k.1:${K1}`, PARTNER_SECRET_ACTIVE_KEY_ID: 'k.1' },
+        'entry 1: key ID',
+      ],
+      [
+        { PARTNER_SECRET_KEYS: `k1:${K1},k1:${K0}`, PARTNER_SECRET_ACTIVE_KEY_ID: 'k1' },
+        'appears twice',
+      ],
+      [
+        { PARTNER_SECRET_KEYS: `k1:${K1.slice(1)}`, PARTNER_SECRET_ACTIVE_KEY_ID: 'k1' },
+        'key "k1" must be 64 hex',
+      ],
+      [
+        { PARTNER_SECRET_KEYS: `k1:${K1}`, PARTNER_SECRET_ACTIVE_KEY_ID: 'k2' },
+        'PARTNER_SECRET_ACTIVE_KEY_ID: must name a key',
+      ],
+      [
+        {
+          PARTNER_SECRET_KEYS: `k1:${K1}`,
+          PARTNER_SECRET_ACTIVE_KEY_ID: 'k1',
+          PARTNER_HMAC_TOLERANCE_MS: '0',
+        },
+        'PARTNER_HMAC_TOLERANCE_MS',
+      ],
+    ];
+    for (const [source, expected] of cases) {
+      const message = partnerError(source);
+      expect(message).toContain(expected);
+      expect(message).not.toContain(K1.slice(1));
+      expect(message.toLowerCase()).not.toContain(K0.toLowerCase());
+    }
   });
 });
