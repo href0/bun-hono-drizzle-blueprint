@@ -112,6 +112,7 @@ src/
 │   ├── child.repository.ts      # ChildRepository: detail hanya lewat header-nya (anti IDOR), sync
 │   ├── append-only.repository.ts # AppendOnlyRepository: tabel pencatatan (tambah + baca)
 │   ├── read-only.repository.ts  # ReadOnlyRepository: view referensi (baca saja)
+│   ├── unique-violation.ts      # isUniqueViolation(): SQLSTATE 23505 → service melempar ConflictError
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
 │   └── schema/                  # Definisi tabel (public) & view referensi
@@ -130,7 +131,8 @@ src/
 │
 ├── modules/                     # Inbound Domain Feature Modules (Client-Facing HTTP)
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, tanpa versi)
-│   └── users/                   # Modul Referensi Produksi (/api/v1/users)
+│   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)
+│   └── users/                   # Modul referensi tabel mandiri (/api/v1/users)
 │       ├── users.dto.ts         # Zod schemas (create, update, query, params)
 │       ├── users.repository.ts  # Database access via this.txHost.tx
 │       ├── users.service.ts     # Business logic orchestration + @Transactional()
@@ -145,8 +147,10 @@ src/
 └── index.ts                     # Bun Application Entrypoint (Bun.serve)
 
 test/                            # End-to-End (E2E) & Blackbox API Tests
-├── health.e2e.test.ts
-└── users.e2e.test.ts
+├── setup/hermetic-env.ts        # Preload: tanpa database/Redis asli di `bun test`
+├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji)
+├── *.e2e.test.ts                # health, users, orders (contoh), openapi, platform
+└── migrations.test.ts           # Penjaga SQL migrasi hasil generate
 ```
 
 ### 2.2 Boundary Isolation Matrix (Enforced by `dependency-cruiser`)
@@ -362,22 +366,33 @@ Service Method (@Transactional())
 
 #### Aturan Penulisan Repository:
 - **DILARANG** mengimpor root `db` langsung di dalam repository (di-enforce oleh ESLint rule).
-- Wajib menginjeksi atau menginisialisasi `TransactionHost` dan mengakses database via `this.txHost.tx`.
+- Repository meng-extend base sesuai jenis tabel (§5.3); method base (`create`, `updateById`, `softDeleteById`, …) sudah berjalan dalam transaksi dan teraudit. Lookup tambahan memakai `this.txHost.tx` langsung (tidak lewat variabel) dan `this.scoped(...)`.
 
 ```typescript
 // users.repository.ts
-export class UsersRepository {
-  constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
+import { eq } from 'drizzle-orm';
+import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
+import { users, type User } from '../../database/schema';
 
-  async findById(id: string): Promise<User | null> {
-    const result = await this.txHost.tx.select().from(users).where(eq(users.id, id));
-    return result[0] ?? null;
+export class UsersRepository extends BaseRepository<typeof users> {
+  constructor(txHost: TransactionHost = defaultTxHost) {
+    super(users, txHost, { redact: ['passwordHash'] });
+  }
+
+  // findById, findPage, count, create, updateById, softDeleteById, restoreById come from the base.
+  async findByEmail(email: string): Promise<User | null> {
+    const rows = await this.txHost.tx
+      .select()
+      .from(users)
+      .where(this.scoped(eq(users.email, email))) // live rows only
+      .limit(1);
+    return rows.at(0) ?? null;
   }
 }
 ```
 
 #### Aturan Penulisan Service:
-- Method yang memodifikasi data database wajib diberi decorator `@Transactional()`.
+- Beri `@Transactional()` pada method yang menggabungkan beberapa langkah yang harus atomik (cek lalu tulis, beberapa tulis); method base repository sudah transaksional sendiri dan otomatis bergabung ke transaksi service.
 - Operasi baca murni tidak membutuhkan `@Transactional()` (langsung mengakses connection pool).
 
 ```typescript

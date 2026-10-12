@@ -55,6 +55,9 @@ jobs:
       - name: Unused files, exports and dependencies
         run: bun run lint:deps
 
+      - name: Setup registries (IDENTITY_RULES, EXAMPLE_MODULES)
+        run: bun run lint:setup
+
       - name: Tests and coverage gate
         run: bun run test:cov
 

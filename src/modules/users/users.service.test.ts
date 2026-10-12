@@ -4,7 +4,7 @@ import { UsersService } from './users.service';
 import { ConflictError, NotFoundError } from '../../core/errors';
 import { transactionStorage } from '../../database/transaction-host';
 import type { UsersRepository } from './users.repository';
-import type { CacheService } from '../../core/cache';
+import { CacheService, type CacheClient } from '../../core/cache';
 import type { User } from '../../database/schema';
 
 describe('UsersService (Unit)', () => {
@@ -87,7 +87,56 @@ describe('UsersService (Unit)', () => {
 
     const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
     const user = await service.getUserById(mockUser.id);
-    expect(user).toEqual(mockUser);
+    // toEqual treats an undefined property as absent: the public user is the user minus the hash.
+    expect(user as unknown).toEqual({ ...mockUser, passwordHash: undefined });
+    expect(user).not.toHaveProperty('passwordHash');
+  });
+
+  it('getUserById: a cache hit equals the miss (Temporal revived), and no password hash is cached', async () => {
+    const store = new Map<string, string>();
+    const client = {
+      status: 'ready',
+      get: async (key: string) => store.get(key) ?? null,
+      set: async (key: string, value: string) => {
+        store.set(key, value);
+        return 'OK';
+      },
+    } as unknown as CacheClient;
+    const user = {
+      ...mockUser,
+      createdAt: Temporal.Instant.from('2026-10-10T03:05:24.434195Z'),
+      updatedAt: Temporal.Instant.from('2026-10-10T03:05:24Z'),
+    };
+    let fetches = 0;
+    const repo = {
+      findById: async () => {
+        fetches += 1;
+        return user;
+      },
+    } as unknown as UsersRepository;
+    const service = new UsersService(repo, new CacheService(client));
+
+    const miss = await service.getUserById(user.id);
+    const hit = await service.getUserById(user.id);
+
+    expect(fetches).toBe(1);
+    expect(hit).toEqual(miss);
+    expect(hit.createdAt).toBeInstanceOf(Temporal.Instant);
+    expect([...store.values()].join()).not.toContain(user.passwordHash);
+  });
+
+  it('getUserById: a malformed cached entry is a miss', async () => {
+    const client = {
+      status: 'ready',
+      get: async () => JSON.stringify({ id: mockUser.id, createdAt: 'not-a-date' }),
+      set: async () => 'OK',
+    } as unknown as CacheClient;
+    const service = new UsersService(
+      { findById: async () => mockUser } as unknown as UsersRepository,
+      new CacheService(client),
+    );
+
+    expect((await service.getUserById(mockUser.id)).email).toBe(mockUser.email);
   });
 
   it('should list users with pagination count', async () => {

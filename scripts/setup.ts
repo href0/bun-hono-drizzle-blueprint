@@ -128,6 +128,10 @@ const EXAMPLE_MODULES: ExampleModule[] = [
         line: "import { ordersRouter } from './modules/orders/orders.routes';",
       },
       { file: 'src/app.ts', line: "  v1.route('/orders', ordersRouter);" },
+      {
+        file: 'README.md',
+        line: '│   ├── orders/                  # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples',
+      },
     ],
   },
 ];

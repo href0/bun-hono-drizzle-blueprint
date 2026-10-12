@@ -73,6 +73,7 @@ src/
 │   ├── child.repository.ts      # ChildRepository (header/detail, anti IDOR)
 │   ├── append-only.repository.ts # AppendOnlyRepository (tabel pencatatan)
 │   ├── read-only.repository.ts  # ReadOnlyRepository (view referensi)
+│   ├── unique-violation.ts      # isUniqueViolation() → 409
 │   ├── transaction-host.ts      # TransactionHost (dynamic active tx / pool resolution)
 │   ├── transaction-host.test.ts # Co-located Unit Test
 │   ├── transactional.decorator.ts # @Transactional() decorator & runInTransaction
@@ -150,113 +151,15 @@ Aplikasi akan berjalan di dalam Docker container dengan live hot-reload (`bun --
 
 ## 4. Pola Pengembangan Fitur Baru
 
-Untuk menambahkan modul domain baru (misal: `products`):
+Modul baru dibuat dari template skill `scaffold-module` — kodenya diverifikasi mesin (`bun run verify:scaffold` di CI men-generate setiap varian dan menjalankan semua gate), sehingga tidak bisa tertinggal dari kode. Pilih varian menurut jenis tabel:
 
-### 1. Buat Schema Database (`src/database/schema/domain/products.schema.ts`)
-```typescript
-import { integer, varchar } from 'drizzle-orm/pg-core';
-import { timestamps, uuidPrimaryKey } from '../columns';
-import { appTable } from '../schemas';
+| Jenis tabel | Template | Contoh nyata |
+|---|---|---|
+| Mandiri | `.agents/skills/scaffold-module/SKILL.md` | `src/modules/users` |
+| Header + detail | `.agents/skills/scaffold-module/references/header-detail.md` | `src/modules/orders` (dihapus `bun run setup` kecuali `--keep-examples`) |
+| Pencatatan (append-only) | `.agents/skills/scaffold-module/references/record.md` | `record_changes` |
 
-// Tabel di public; id (UUID v7) & timestamp (Temporal.Instant) dari helper kolom.
-export const products = appTable('products', {
-  id: uuidPrimaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  price: integer('price').notNull(),
-  ...timestamps(),
-});
-
-export type Product = typeof products.$inferSelect;
-export type NewProduct = typeof products.$inferInsert;
-```
-*Daftarkan di `src/database/schema/domain/index.ts`.*
-
-### 2. Buat DTO Zod (`src/modules/products/products.dto.ts`)
-```typescript
-import { z } from 'zod';
-
-export const createProductSchema = z.object({
-  name: z.string().min(1, 'Product name is required'),
-  price: z.number().int().positive('Price must be a positive integer'),
-});
-
-export type CreateProductDto = z.infer<typeof createProductSchema>;
-```
-
-### 3. Buat Repository (`src/modules/products/products.repository.ts`)
-```typescript
-import { eq } from 'drizzle-orm';
-import { TransactionHost, defaultTxHost } from '../../database/transaction-host';
-import { products, type Product, type NewProduct } from '../../database/schema';
-
-export class ProductsRepository {
-  constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
-
-  async create(data: NewProduct): Promise<Product> {
-    const result = await this.txHost.tx.insert(products).values(data).returning();
-    return result[0];
-  }
-
-  async findById(id: string): Promise<Product | null> {
-    const result = await this.txHost.tx.select().from(products).where(eq(products.id, id));
-    return result[0] ?? null;
-  }
-}
-
-export const productsRepository = new ProductsRepository();
-```
-
-### 4. Buat Service (`src/modules/products/products.service.ts`)
-```typescript
-import { Transactional } from '../../database/transactional.decorator';
-import { ProductsRepository, productsRepository } from './products.repository';
-import type { CreateProductDto } from './products.dto';
-
-export class ProductsService {
-  constructor(private readonly repo: ProductsRepository = productsRepository) {}
-
-  @Transactional()
-  async createProduct(dto: CreateProductDto) {
-    return this.repo.create(dto);
-  }
-}
-
-export const productsService = new ProductsService();
-```
-
-### 5. Buat Controller (`src/modules/products/products.controller.ts`)
-```typescript
-import { asyncHandler, getValidatedBody } from '../../core/middlewares';
-import { ApiResponse } from '../../core/response';
-import { productsService, ProductsService } from './products.service';
-import type { CreateProductDto } from './products.dto';
-import { PRODUCT_MESSAGES } from './products.messages'; // { CREATED: { id: '…', en: '…' } }
-
-export class ProductsController {
-  constructor(private readonly service: ProductsService = productsService) {}
-
-  create = asyncHandler(async (c) => {
-    const dto = getValidatedBody<CreateProductDto>(c);
-    const product = await this.service.createProduct(dto);
-    return new ApiResponse(product, PRODUCT_MESSAGES.CREATED, 201);
-  });
-}
-
-export const productsController = new ProductsController();
-```
-
-### 6. Buat Route (`src/modules/products/products.routes.ts`)
-```typescript
-import { Hono } from 'hono';
-import { validate } from '../../core/middlewares';
-import { productsController } from './products.controller';
-import { createProductSchema } from './products.dto';
-
-export const productRoutes = new Hono();
-
-productRoutes.post('/', validate({ body: createProductSchema }), productsController.create);
-```
-*Daftarkan di `src/app.ts` pada router versi: ``v1.route('/products', productRoutes);`` → `/api/v1/products`*
+Urutannya selalu: schema (`appTable` + helper kolom) → `bun run db:generate` → DTO (request & response, snake_case di wire) → pesan (`id`/`en`) → repository (extend base) → transformer → service → controller (`ApiResponse`) → routes (`describeEndpoint` + `validate`) → daftarkan di `src/app.ts` (`v1.route(...)`) → test → `bun run validate:full`. Lewat AI agent: minta "scaffold module <nama>" (skill `scaffold-module`). Panduan rinci: [CONTRIBUTING.md §10](CONTRIBUTING.md).
 
 ---
 

@@ -25,28 +25,26 @@ Transaction propagation uses `AsyncLocalStorage` to store the active Drizzle tra
 
 > **ESLint Guard**: Importing `db` / `sqlClient` or `database/connection` in `src/modules/**` is prohibited by ESLint (`no-restricted-syntax` / `no-restricted-imports`) and dependency-cruiser (`no-module-direct-db-connection`). Repositories MUST use `TransactionHost`.
 
+A module repository extends the base for its table kind (`BaseRepository`, `ChildRepository`, `AppendOnlyRepository`, `ReadOnlyRepository` — [database.md §6](database.md)); the bases run every write in a transaction on `this.txHost` (joining the caller's, if any) and audit it. Custom lookups query `this.txHost.tx` directly — never through a variable (ESLint `TX_ALIAS_RULES`).
+
 ```typescript
 import { eq } from 'drizzle-orm';
-import { InternalServerError } from '../../core/errors';
-import { TransactionHost, defaultTxHost } from '../../database';
-import { users, type User, type NewUser } from '../../database/schema';
+import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
+import { users, type User } from '../../database/schema';
 
-export class UsersRepository {
-  constructor(private readonly txHost: TransactionHost = defaultTxHost) {}
-
-  async findById(id: string): Promise<User | null> {
-    const result = await this.txHost.tx.select().from(users).where(eq(users.id, id)).limit(1);
-    return result[0] ?? null;
+export class UsersRepository extends BaseRepository<typeof users> {
+  constructor(txHost: TransactionHost = defaultTxHost) {
+    super(users, txHost, { redact: ['passwordHash'] });
   }
 
-  async create(data: NewUser): Promise<User> {
-    const result = await this.txHost.tx.insert(users).values(data).returning();
-    // Drizzle types result[0] as always present; INSERT … RETURNING can still be empty at runtime.
-    const created = result[0] as User | undefined;
-    if (!created) {
-      throw new InternalServerError('INSERT INTO users returned no rows.');
-    }
-    return created;
+  // findById, findPage, count, create, updateById, softDeleteById, restoreById come from the base.
+  async findByEmail(email: string): Promise<User | null> {
+    const rows = await this.txHost.tx
+      .select()
+      .from(users)
+      .where(this.scoped(eq(users.email, email))) // live rows only
+      .limit(1);
+    return rows.at(0) ?? null;
   }
 }
 ```
