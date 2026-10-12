@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp } from '../src/app';
 import { appConfig, buildAppConfig } from '../src/config';
+import { isPublicRoute } from '../src/core/security/public-routes';
 import { isSnakeCaseKey } from '../src/utils/case-converter.util';
 
 interface Operation {
@@ -115,15 +116,22 @@ describe('OpenAPI document (createApp)', () => {
     }
   });
 
-  it('marks bearer-protected operations with bearerAuth and their 401', async () => {
-    const paths = new Map(Object.entries((await loadDocument()).paths));
-    const me = paths.get(`${appConfig.API_BASE_PATH}/v1/auth/me`)?.get;
-    const login = paths.get(`${appConfig.API_BASE_PATH}/v1/auth/login`)?.post;
+  it('marks exactly the operations authenticate() protects with bearerAuth and their 401', async () => {
+    const v1 = `${appConfig.API_BASE_PATH}/v1`;
+    const wrong = Object.entries((await loadDocument()).paths).flatMap(([path, item]) =>
+      Object.entries(item).flatMap(([method, operation]) => {
+        const routePath = path.slice(v1.length).replace(/\{(\w+)\}/g, ':$1');
+        const protectedRoute =
+          path.startsWith(`${v1}/`) && !isPublicRoute(method.toUpperCase(), routePath);
+        const documented =
+          JSON.stringify(operation.security) === JSON.stringify([{ bearerAuth: [] }]) &&
+          '401' in operation.responses;
+        const unmarked = operation.security === undefined;
+        return (protectedRoute ? documented : unmarked) ? [] : [`${method} ${path}`];
+      }),
+    );
 
-    expect(me?.security).toEqual([{ bearerAuth: [] }]);
-    expect(Object.keys(me?.responses ?? {})).toContain('401');
-    expect(login).toBeDefined();
-    expect(login?.security).toBeUndefined();
+    expect(wrong).toEqual([]);
   });
 
   it('serves the reference UI', async () => {

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { authConfig, httpConfig } from '../../config';
-import { csrfProtection, requireAuth, validate } from '../../core/middlewares';
+import { csrfProtection, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { authController } from './auth.controller';
 import {
@@ -75,9 +75,7 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       tags,
       summary: 'Log out of every session on every device',
       response: { status: 200, description: 'All sessions ended', data: z.null() },
-      auth: 'bearer',
     }),
-    requireAuth(),
     authController.logoutAll,
   );
   routes.get(
@@ -86,9 +84,7 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       tags,
       summary: 'The signed-in user',
       response: { status: 200, description: 'Profile', data: authUserSchema },
-      auth: 'bearer',
     }),
-    requireAuth(),
     authController.me,
   );
 

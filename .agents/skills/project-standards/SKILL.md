@@ -52,10 +52,10 @@ Before writing or modifying any code in this project, you MUST internalize the f
 │   │   ├── http/               # HttpClientService with connection pool
 │   │   ├── i18n/               # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting)
 │   │   ├── logger/             # Pino logger instance with PII redact
-│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, requireAuth, validate, globalErrorHandler, …
+│   │   ├── middlewares/        # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, …
 │   │   ├── openapi/            # describeEndpoint, envelope schemas, buildOpenApiDocument, mountApiDocs
 │   │   ├── response/           # ApiResponse standardized JSON envelope
-│   │   └── security/           # Access token (JWT HS256): signAccessToken, verifyAccessToken; ROLES
+│   │   └── security/           # Access token (JWT HS256), ROLES, PUBLIC_ROUTES (default-deny allowlist)
 │   ├── database/               # Database persistence & connection layer
 │   │   ├── connection.ts       # PostgreSQL connection pool & Drizzle instance
 │   │   ├── audited.repository.ts # AuditedRepository: lock, diff, record_changes in the same transaction
@@ -286,6 +286,13 @@ export class UsersService {
 - All parsing and `Date` ⇄ Temporal conversion goes through `src/utils/datetime.util.ts`; request fields use `instantField` / `calendarDateField` / `timeZoneField` (`src/core/dto/datetime.dto.ts`). Requests without a UTC offset are rejected; DST-skipped or repeated wall times are rejected, never guessed.
 - The process (`TZ=UTC`) and the database session (`timezone=UTC`) run in UTC. Responses write every instant with millisecond precision (`toWireTime()` in `ApiResponse`).
 - Enforced by ESLint `DATETIME_SYNTAX_RULES`: `new Date(...)` — even for "now" — and `Temporal.Now` (use `nowInstant()` / `nowIsoUtc()`), `Date.parse` and local-time getters/setters/formatters are rejected outside `datetime.util.ts`. Full guide: [datetime.md](references/datetime.md).
+
+### Rule 13: Default-Deny Authentication (JWT)
+- `authenticate()` guards everything under `<API_BASE_PATH>/v1`: a request needs `Authorization: Bearer <access token>` unless its method + path is in `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`). A new route is protected without doing anything; making one public is an explicit, reviewed entry in that list.
+- Roles: `requireRole('admin')` on the route (after `describeEndpoint()`, before `validate()`) → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI automatically. `ROLES` / `Role` live in `src/core/security/roles.ts`.
+- The caller: `currentUser()` (`{ id, role }`) in controllers; services receive the id as an argument or read `getActor()` (`user:<id>`, used for audit columns).
+- Enforced by `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones do not).
+- Tests of a module's contract call `authorize(createApp(), role)` (`test/helpers/authorized-app.ts`) so requests carry a token.
 
 ---
 

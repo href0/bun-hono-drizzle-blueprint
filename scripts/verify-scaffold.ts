@@ -207,12 +207,21 @@ const generate = (variant: Variant): string[] => {
 const liveCheck = (): string => `
 const { createApp } = await import('./src/app.ts');
 const { appConfig } = await import('./src/config/index.ts');
+const { signAccessToken } = await import('./src/core/security/jwt.ts');
 const app = createApp();
 const base = appConfig.API_BASE_PATH;
 const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid }) => ({ label, documented, invalid })))};
 const doc = await (await app.request(base + '/docs/openapi.json')).json();
+// Generated routes are protected (default-deny): without a token they must answer 401 ...
+const { token } = await signAccessToken({ userId: '0192f1d0-0000-7000-8000-00000000a11c', role: 'admin' });
 for (const variant of variants) {
-  const res = await app.request(base + variant.invalid.path, { method: variant.invalid.method, headers: { 'Accept-Language': 'en' } });
+  const anonymous = await app.request(base + variant.invalid.path, { method: variant.invalid.method });
+  if (anonymous.status !== 401) {
+    console.error(variant.label + ': expected 401 without a token (default-deny), got', anonymous.status);
+    process.exit(1);
+  }
+  // ... and validate their input once authenticated.
+  const res = await app.request(base + variant.invalid.path, { method: variant.invalid.method, headers: { 'Accept-Language': 'en', Authorization: 'Bearer ' + token } });
   const body = await res.json();
   if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
     console.error(variant.label + ': expected 400 ERR_INVALID_INPUT, got', res.status, JSON.stringify(body));

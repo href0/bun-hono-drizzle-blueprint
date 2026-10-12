@@ -101,10 +101,10 @@ src/
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # Enterprise HTTP Client dengan Persistent Keep-Alive Pool
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, requireAuth, validate, globalErrorHandler, dll.)
+│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, requireRole, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Response Envelope (ApiResponse)
-│   └── security/                # Access token JWT HS256 (signAccessToken, verifyAccessToken), ROLES
+│   └── security/                # Access token JWT HS256, ROLES, PUBLIC_ROUTES (allowlist default-deny)
 │
 ├── database/                    # Drizzle ORM Infrastructure & Data Layer
 │   ├── connection.ts            # PostgreSQL connection pool via postgres driver

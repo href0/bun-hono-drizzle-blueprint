@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–2 selesai**, Fase 3: 3.1–3.2 selesai (`main` @ `f50a2f8`), 3.3 menunggu review (branch `feat/auth-module`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–2 selesai**, Fase 3: 3.1–3.3 selesai (`main` @ `11087c7`), 3.4 menunggu review (branch `feat/default-deny-auth`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `f50a2f8` |
+| Basis kode | branch `main` @ `11087c7` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -400,6 +400,13 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 3.3 | Ditarik lebih awal dari 3.4: `requireAuth()` per route (`src/core/middlewares/authenticate.ts`; `Bearer` → `verifyAccessToken` → `setAuthenticatedUser` = actor `user:<id>` + role di `RequestContext.user`), `currentUser()` (401 bila route lupa `requireAuth`), opsi `describeEndpoint({ auth: 'bearer' })` (`security: bearerAuth` + 401, dijaga `test/openapi.e2e.test.ts`). Step 3.4 tinggal menjadikannya global default-deny + `PUBLIC_ROUTES` + `requireRole()` | — |
 | 2026-10-12 | 3.3 | **Uji nyata** (server sungguhan port 3999, PostgreSQL 17 + Redis 3.0 lokal, `JWT_SECRET` sementara lewat env proses — file env tidak dibaca): `Set-Cookie` persis D3; `/me` 200; rotasi → cookie baru; token lama → 401 `REUSED`; token terbaru → 401 `INVALID`; `Origin` asing → 403 `ERR_CSRF_ORIGIN_FORBIDDEN`; DB: 1 family, baris lama `revoked+rotated`, hash 64 karakter, plaintext tidak tersimpan, umur 7 hari; logout 200 dua kali → refresh 401; brute force `401×5 → 429` (`Retry-After: 899`, skrip Lua di Redis 3.0). User, token & audit uji dihapus (0 baris tersisa) | Satu-satunya baris `csrf.ts` tak tercakup = lempar ulang defensif untuk error non-403 (`hono/csrf` hanya melempar 403) |
 | 2026-10-12 | 3.3 | Dokumen: `references/openapi.md` (`auth: 'bearer'`, §6), pohon struktur & daftar middleware (project-standards, CONTRIBUTING, README), README (fitur Auth), scope commit `auth`, `.env.example` (`CORS_ORIGINS` = allowlist CSRF); header status plan diperbarui (sebelumnya masih `a29524f` / Review 7). Panduan FE (`docs/auth-guide.md`) tetap di 3.5 | — |
+| 2026-10-12 | 3.3 | ✅ Di-commit (`11087c7`) dan di-merge ke `main` atas permintaan user. Catatan diskusi user (CSRF masih perlu? `SameSite` vs subdomain) dijadwalkan masuk `docs/auth-guide.md` di 3.5 | — |
+| 2026-10-12 | 3.4 | `authenticate({ basePath })` dipasang sekali di `createApp()` untuk `<API_BASE_PATH>/v1/*` (L10 langkah 9): selain `PUBLIC_ROUTES` wajib `Bearer` → `verifyAccessToken` → actor `user:<id>` + role. `requireAuth()` per route dari 3.3 dihapus (digantikan); `currentUser()` tetap. `requireRole(...roles)` → 403 `ERR_ROLE_FORBIDDEN` (tanpa user = 401, bukan lolos diam-diam) dan mendokumentasikan 403-nya sendiri di OpenAPI (`uniqueSymbol`, seperti `validate()`). `matchRoutePattern` murni di `src/utils/route-match.util.ts` (`:param`, `*` di akhir pada batas segmen, path ber-`.`/`..`/segmen kosong tidak pernah cocok) — dipakai lagi oleh ACL partner (5.1) | Chaos test: middleware tidak dipasang, wildcard publik lebar, cek metode diabaikan, `requireRole` meloloskan semua, matcher menerima `..`, prefix mount tidak dibuang → masing-masing test gagal |
+| 2026-10-12 | 3.4 | **Penyimpangan (L4)**: `PUBLIC_ROUTES` relatif terhadap `<API_BASE_PATH>/v1` (base path bisa dikonfigurasi) dan hanya berisi `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register`; health, docs dan `/` berada di luar `/v1` sehingga publik secara desain — daftar persisnya dijaga `test/default-deny.e2e.test.ts` (route baru di luar `/v1` membuat test gagal). Path `/v1` yang tidak ada → 401 sebelum routing (tidak membocorkan route mana yang ada); user terautentikasi tetap 404 | — |
+| 2026-10-12 | 3.4 | **Penyimpangan (langkah 1)**: pengecualian `/api/v1/partner/*` **ditunda ke 5.3** bersama `partnerAuth()` — dipasang sekarang berarti setiap route `/partner/...` terbuka tanpa proteksi apa pun sampai Fase 5 | — |
+| 2026-10-12 | 3.4 | Dokumen OpenAPI: `buildOpenApiDocument(app, info, requiresAuthentication)` menandai setiap operasi yang dilindungi `authenticate()` dengan `security: bearerAuth` + 401 dari aturan yang sama (`isPublicRoute`); opsi `describeEndpoint({ auth: 'bearer' })` dari 3.3 dihapus (tidak bisa lagi lupa/menyimpang). `test/openapi.e2e.test.ts` memeriksa **setiap** operasi: dilindungi ⇔ bertanda `bearerAuth` | Chaos test: penanda dimatikan → test gagal. Uji server nyata: `/api/v1/users` 401, `/api/v1/nope` 401, `/auth/login` publik (400 validasi), health & docs 200; dokumen: `users`/`me` ber-`bearerAuth`, `login` tidak |
+| 2026-10-12 | 3.4 | Test: `test/default-deny.e2e.test.ts` (L4) mengenumerasi `app.routes` — setiap route `/v1` non-publik → 401 `ERR_UNAUTHORIZED`, route publik tidak pernah 401 karena token, route yang ditambahkan **setelah** `createApp()` otomatis terlindungi; helper `authorize(app, role)` (`test/helpers/authorized-app.ts`) untuk test kontrak modul (users, orders, validate, health); `verify:scaffold` kini memastikan route hasil template 401 tanpa token lalu 400 dengan token | — |
+| 2026-10-12 | 3.4 | Dokumen: `AGENTS.md` invariant #15 _Default-Deny Authentication_, project-standards Rule 13 + daftar middleware, `bootstrap.md` (tabel pipeline langkah 9; salinan `app.ts` disinkronkan — **tertinggal sejak 3.3**, route `auth` belum tercantum), `openapi.md`, skill `scaffold-module` (route terlindungi, `requireRole`, `authorize()`), CONTRIBUTING, README | — |
 
 ---
 
@@ -449,8 +456,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `a29524f` |
 | 3.1 | Primitif keamanan & config auth | ✅ | 1.1 | `c49fe51` |
 | 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ✅ | 2.8 | `f50a2f8` |
-| 3.3 | Modul `auth` (login, refresh, logout, me) | 👀 | 3.1, 3.2, 1.7 |  |
-| 3.4 | `authenticate()` default-deny + `requireRole()` | ⬜ | 3.3 |  |
+| 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `11087c7` |
+| 3.4 | `authenticate()` default-deny + `requireRole()` | 👀 | 3.3 |  |
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ⬜ | 3.4 |  |
 | 4.1 | Hardening `HttpClientService` | ⬜ | 1.3 |  |
 | 4.2 | Template integrasi & cache token vendor | ⬜ | 4.1 |  |
@@ -938,7 +945,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Langkah**
 
-1. `src/core/middlewares/authenticate.ts`: lewati bila route cocok `PUBLIC_ROUTES` atau di bawah `/api/v1/partner/*`; selain itu wajib `Authorization: Bearer <jwt>` → `verifyAccessToken` → `setActor('user:<id>')` + simpan `role` di context; gagal → 401.
+1. `src/core/middlewares/authenticate.ts`: lewati bila route cocok `PUBLIC_ROUTES` atau di bawah `/api/v1/partner/*` (**pengecualian partner ditunda ke 5.3**, lihat 4.1); selain itu wajib `Authorization: Bearer <jwt>` → `verifyAccessToken` → `setActor('user:<id>')` + simpan `role` di context; gagal → 401.
 2. `src/core/security/public-routes.ts`: registry `PUBLIC_ROUTES` + matcher murni `matchRoutePattern` di `src/utils/` (L4).
 3. `src/core/middlewares/require-role.ts`: `requireRole(...roles)` → 403 `ERR_ROLE_FORBIDDEN`.
 4. Dipasang di `createApp()` sesuai L10.
@@ -946,8 +953,8 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Acceptance criteria**
 
-- [ ] Test enumerasi `app.routes` (L4) hijau; menambah route baru tanpa terdaftar publik → route itu 401 tanpa token.
-- [ ] Role `user` ke endpoint `requireRole('admin')` → 403.
+- [x] Test enumerasi `app.routes` (L4) hijau; menambah route baru tanpa terdaftar publik → route itu 401 tanpa token.
+- [x] Role `user` ke endpoint `requireRole('admin')` → 403.
 
 ### Step 3.5 — Proteksi `users`, seed admin, panduan FE
 

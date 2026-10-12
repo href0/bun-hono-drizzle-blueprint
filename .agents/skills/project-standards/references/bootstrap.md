@@ -16,6 +16,7 @@ import packageJson from '../package.json';
 import { appConfig, httpConfig } from './config';
 import {
   asyncHandler,
+  authenticate,
   bodySizeLimit,
   corsMiddleware,
   globalErrorHandler,
@@ -27,7 +28,9 @@ import {
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
+import { isPublicRoute } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
+import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
 
@@ -70,10 +73,15 @@ export const createApp = (): Hono => {
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
 
+  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES
+  const v1Path = `${basePath}/v1`;
+  app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
+
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
   const v1 = new Hono();
+  v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
-  app.route(`${basePath}/v1`, v1);
+  app.route(v1Path, v1);
 
   app.get(
     '/',
@@ -101,6 +109,10 @@ export const createApp = (): Hono => {
   mountApiDocs(app, {
     basePath,
     enabled: appConfig.API_DOCS_ENABLED,
+    // Same rule as authenticate(): documents bearerAuth + 401 on every protected operation
+    requiresAuthentication: (method, path) =>
+      path.startsWith(`${v1Path}/`) &&
+      !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
     info: {
       title: appConfig.APP_NAME,
       version: packageJson.version,
@@ -226,7 +238,9 @@ if (import.meta.main) {
 | 4 | `corsMiddleware(CORS_ORIGINS)` | Mounted only when `CORS_ORIGINS` is non-empty; allowlist with credentials; unlisted origins get no `Access-Control-Allow-Origin` |
 | 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
 | 6 | `rateLimit({ keyPrefix: 'global' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped |
-| 7–10 | Routes | `<API_BASE_PATH>/health` (unversioned, public), then the versioned router `<API_BASE_PATH>/v1` holding the domain modules (`v1.route('/users', …)`; `validate()` per route, controllers return `ApiResponse`). The version is code, not env: a new version is a new router. Auth middlewares join here in phases 3 and 5 |
+| 7 | Routes | `<API_BASE_PATH>/health` (unversioned, public) |
+| 9 | `authenticate({ basePath: '<API_BASE_PATH>/v1' })` | **Default-deny**: every versioned route needs `Authorization: Bearer <access token>` except `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`); sets actor `user:<id>` + role. Unversioned routes (health, docs, `/`) are public by design (asserted by `test/default-deny.e2e.test.ts`). Partner HMAC (`/v1/partner/*`) joins in phase 5 |
+| 10 | Routes | The versioned router `<API_BASE_PATH>/v1` holding the domain modules (`v1.route('/users', …)`; `validate()` and `requireRole()` per route, controllers return `ApiResponse`). The version is code, not env: a new version is a new router |
 | — | `mountApiDocs()` | `<API_BASE_PATH>/docs` (Scalar UI) + `/docs/openapi.json`, mounted after every route so the document sees them all; not mounted when `API_DOCS_ENABLED` is false (production default) |
 | 11 | `app.onError(globalErrorHandler)` · `app.notFound(notFoundHandler)` | Standard error envelope; `ApiError` status, `HTTPException` mapping, internal 500 details never exposed |
 
