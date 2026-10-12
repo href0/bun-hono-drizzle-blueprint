@@ -7,4 +7,6 @@ import type { IntegrationIdentity } from '../core/errors';
  */
 export const INTEGRATION_REGISTRY = {
   JSONPLACEHOLDER: { code: 'JSONPLACEHOLDER', institution: 'JSONPlaceholder' },
+  /** Example webhook vendor (inbound only): `src/integrations/demo-pay/`. */
+  DEMO_PAY: { code: 'DEMO_PAY', institution: 'Demo Pay (example)' },
 } as const satisfies Record<string, IntegrationIdentity>;

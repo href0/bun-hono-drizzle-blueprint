@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createApp } from '../src/app';
+import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig } from '../src/config';
 import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
 import { authorize } from './helpers/authorized-app';
@@ -13,6 +13,7 @@ import { authorize } from './helpers/authorized-app';
 const base = appConfig.API_BASE_PATH;
 const v1 = `${base}/v1`;
 const SAMPLE_ID = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e';
+const webhooks = `${base}/webhooks`;
 
 /** Platform routes outside the versioned API: public by design (probes, docs, service identity). */
 const UNVERSIONED_PUBLIC = [
@@ -48,12 +49,51 @@ describe('default-deny authentication (every route of createApp)', () => {
     );
   });
 
-  it('routes outside /v1 are exactly the platform routes that are public by design', () => {
+  it('routes outside /v1 are exactly the platform routes that are public by design, plus vendor webhooks', () => {
     const outside = routes
-      .filter(({ path }) => !path.startsWith(`${v1}/`))
+      .filter(({ path }) => !path.startsWith(`${v1}/`) && !path.startsWith(`${webhooks}/`))
       .map(({ method, path }) => `${method} ${path}`);
 
     expect(outside.sort()).toEqual([...UNVERSIONED_PUBLIC].sort());
+  });
+
+  it('every webhook route belongs to a registered vendor and answers 401 ERR_WEBHOOK_SIGNATURE_INVALID without its signature — also with a bearer token', async () => {
+    const webhookRoutes = routes.filter(({ path }) => path.startsWith(`${webhooks}/`));
+    expect(webhookRoutes.length).toBeGreaterThan(0);
+    const vendors = new Set(WEBHOOK_VENDORS.map(({ vendor }) => vendor));
+    const withToken = await authorize(createApp(), 'admin');
+
+    const wrong: string[] = [];
+    for (const { method, path, concrete } of webhookRoutes) {
+      const vendor =
+        path
+          .slice(webhooks.length + 1)
+          .split('/')
+          .at(0) ?? '';
+      if (!vendors.has(vendor))
+        wrong.push(`${method} ${path}: vendor "${vendor}" not in WEBHOOK_VENDORS`);
+      for (const [label, target] of [
+        ['no credentials', app],
+        ['bearer token', withToken],
+      ] as const) {
+        const res = await target.request(concrete, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        const body = (await res.json()) as { error?: { code: string } };
+        if (res.status !== 401 || body.error?.code !== 'ERR_WEBHOOK_SIGNATURE_INVALID') {
+          wrong.push(`${method} ${path} (${label}) → ${String(res.status)}`);
+        }
+      }
+    }
+
+    expect(wrong).toEqual([]);
+  });
+
+  it('an unknown path under the webhook prefix is refused, not public (fail-closed)', async () => {
+    const res = await app.request(`${webhooks}/unknown-vendor`, { method: 'POST', body: '{}' });
+    expect(res.status).toBe(401);
   });
 
   it('every versioned route not in PUBLIC_ROUTES answers 401 ERR_UNAUTHORIZED without a token', async () => {

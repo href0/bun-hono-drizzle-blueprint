@@ -43,7 +43,7 @@ productRoutes.post(
 - `response.data`: wrapped in the success envelope (`success`, `status_code`, `message`, `data`).
 - `response.paginatedItem`: one item of a list; becomes `data: item[]` + `meta` (`PaginationMeta`).
 - `errors`: only the **domain** errors this route returns. Do not list 400/413/429/500 unless the route returns them for another reason (e.g. a `BadRequestError` from the service).
-- Authentication is not described per route: the document builder marks every operation that `authenticate()` protects (all of `<API_BASE_PATH>/v1` except `PUBLIC_ROUTES`) with `security: [{ bearerAuth: [] }]` and 401. `requireRole()` adds its 403 itself. Partner operations (`<API_BASE_PATH>/v1/partner/*`, `partnerAuth()`) get the four partner header schemes (`x-partner-key`, `-timestamp`, `-nonce`, `-signature`, required together) plus 401 and 403 instead of `bearerAuth`.
+- Authentication is not described per route: the document builder marks every operation that `authenticate()` protects (all of `<API_BASE_PATH>/v1` except `PUBLIC_ROUTES`) with `security: [{ bearerAuth: [] }]` and 401. `requireRole()` adds its 403 itself. Partner operations (`<API_BASE_PATH>/v1/partner/*`, `partnerAuth()`) get the four partner header schemes (`x-partner-key`, `-timestamp`, `-nonce`, `-signature`, required together) plus 401 and 403 instead of `bearerAuth`. Vendor webhook operations (`<API_BASE_PATH>/webhooks/<vendor>`) get one scheme per vendor, `<vendor>-webhook` (the vendor's signature header), plus 401.
 - Put `describeEndpoint()` first, then `validate()`, then the handler.
 
 ---

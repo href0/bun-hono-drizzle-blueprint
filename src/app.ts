@@ -15,19 +15,30 @@ import {
   partnerAuth,
   rateLimit,
   requestContextMiddleware,
+  requireVerifiedWebhook,
+  webhookAuth,
+  type WebhookVendor,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
 import { isPartnerRoute, isPublicRoute } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
+import { demoPayWebhook } from './integrations/demo-pay/demo-pay.webhook';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
 import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
 import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.partner.routes';
+import { paymentNotificationWebhookRoutes } from './modules/payment-notifications/payment-notifications.webhook.routes';
 import { userRoutes } from './modules/users/users.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
 import { ordersRouter } from './modules/orders/orders.routes';
+
+/**
+ * Vendors whose webhooks this API accepts (plan D23): each gets its verifier on
+ * `<API_BASE_PATH>/webhooks/<vendor>/*`. A webhook route of an unlisted vendor answers 401.
+ */
+export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [demoPayWebhook];
 
 const serviceInfoSchema = z.object({
   name: z.string(),
@@ -67,6 +78,15 @@ export const createApp = (): Hono => {
 
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
+
+  // 7b. Vendor webhooks — unversioned (the vendor owns the contract) and fail-closed: each vendor's
+  //     verifier, then a guard that refuses anything under the prefix no verifier accepted
+  const webhooksPath = `${basePath}/webhooks`;
+  for (const vendor of WEBHOOK_VENDORS) {
+    app.use(`${webhooksPath}/${vendor.vendor}/*`, webhookAuth(vendor));
+  }
+  app.use(`${webhooksPath}/*`, requireVerifiedWebhook());
+  app.route(`${webhooksPath}/demo-pay`, paymentNotificationWebhookRoutes);
 
   // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
   const v1Path = `${basePath}/v1`;
@@ -118,13 +138,16 @@ export const createApp = (): Hono => {
   mountApiDocs(app, {
     basePath,
     enabled: appConfig.API_DOCS_ENABLED,
-    // Same rules as authenticate() and partnerAuth(): bearerAuth or the partner signing headers
-    requiresAuthentication: (method, path) =>
-      path.startsWith(`${v1Path}/`) &&
-      !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
-    requiresPartnerSignature: (_method, path) =>
-      path.startsWith(`${v1Path}/`) &&
-      isPartnerRoute(path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+    // Same rules as authenticate(), partnerAuth() and webhookAuth()
+    security: {
+      requiresAuthentication: (method, path) =>
+        path.startsWith(`${v1Path}/`) &&
+        !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+      requiresPartnerSignature: (_method, path) =>
+        path.startsWith(`${v1Path}/`) &&
+        isPartnerRoute(path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+      webhooks: { pathPrefix: webhooksPath, vendors: WEBHOOK_VENDORS },
+    },
     info: {
       title: appConfig.APP_NAME,
       version: packageJson.version,

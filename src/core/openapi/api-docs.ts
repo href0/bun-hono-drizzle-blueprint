@@ -54,18 +54,61 @@ const PARTNER_REQUIREMENT = Object.fromEntries(
   Object.keys(PARTNER_SECURITY_SCHEMES).map((name) => [name, []]),
 );
 
+/** Vendor webhooks under one prefix (`<base>/webhooks`), each verified by its own signature header. */
+export interface WebhookDocs {
+  pathPrefix: string;
+  vendors: readonly { vendor: string; signatureHeader: string }[];
+}
+
+/** How `createApp()` authenticates each operation; the document marks them the same way. */
+export interface SecurityRules {
+  requiresAuthentication?: RequiresAuthentication;
+  /** Operations behind `partnerAuth()`: documented with the partner signing headers instead. */
+  requiresPartnerSignature?: RequiresAuthentication;
+  /** Operations behind a vendor's `webhookAuth()`: documented with that vendor's signature header. */
+  webhooks?: WebhookDocs;
+}
+
+const webhookSchemeName = (vendor: string): string => `${vendor}-webhook`;
+
+const webhookSecuritySchemes = (webhooks: WebhookDocs | undefined): Record<string, unknown> =>
+  Object.fromEntries(
+    (webhooks?.vendors ?? []).map(({ vendor, signatureHeader }) => [
+      webhookSchemeName(vendor),
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: signatureHeader,
+        description: `Signature of the ${vendor} webhook, per the vendor's documentation`,
+      },
+    ]),
+  );
+
+/** The vendor of a webhook operation (`<prefix>/<vendor>/…`), if the path is one. */
+const webhookVendorOf = (webhooks: WebhookDocs | undefined, path: string): string | undefined => {
+  if (!webhooks || !path.startsWith(`${webhooks.pathPrefix}/`)) return undefined;
+  const segment = path
+    .slice(webhooks.pathPrefix.length + 1)
+    .split('/')
+    .at(0);
+  return webhooks.vendors.find((entry) => entry.vendor === segment)?.vendor;
+};
+
 /**
- * Marks every operation that `authenticate()` protects (`bearerAuth` + 401) and every one behind
- * `partnerAuth()` (the partner signing headers + 401, 403).
+ * Marks every operation that `authenticate()` protects (`bearerAuth` + 401), every one behind
+ * `partnerAuth()` (the partner signing headers + 401, 403) and every vendor webhook (the vendor's
+ * signature header + 401).
  */
-const addSecurity = (
-  document: OpenApiDocument,
-  requiresAuthentication: RequiresAuthentication,
-  requiresPartnerSignature: RequiresAuthentication,
-): OpenApiDocument => {
+const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDocument => {
+  const requiresAuthentication = rules.requiresAuthentication ?? ((): boolean => false);
+  const requiresPartnerSignature = rules.requiresPartnerSignature ?? ((): boolean => false);
   for (const [path, item] of Object.entries(document.paths)) {
     for (const [method, operation] of Object.entries(item as Record<string, SecuredOperation>)) {
-      if (requiresPartnerSignature(method.toUpperCase(), path)) {
+      const webhookVendor = webhookVendorOf(rules.webhooks, path);
+      if (webhookVendor !== undefined) {
+        operation.security = [{ [webhookSchemeName(webhookVendor)]: [] }];
+        operation.responses = { ...operation.responses, 401: errorResponse(401) };
+      } else if (requiresPartnerSignature(method.toUpperCase(), path)) {
         operation.security = [PARTNER_REQUIREMENT];
         operation.responses = {
           ...operation.responses,
@@ -88,8 +131,7 @@ const addSecurity = (
 export const buildOpenApiDocument = async (
   app: Hono,
   info: ApiDocsInfo,
-  requiresAuthentication: RequiresAuthentication = () => false,
-  requiresPartnerSignature: RequiresAuthentication = () => false,
+  security: SecurityRules = {},
 ): Promise<OpenApiDocument> => {
   const document = await generateSpecs(app, {
     documentation: {
@@ -98,13 +140,12 @@ export const buildOpenApiDocument = async (
         securitySchemes: {
           bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
           ...PARTNER_SECURITY_SCHEMES,
+          ...webhookSecuritySchemes(security.webhooks),
         },
       },
     },
   });
-  return toSnakeCaseOpenApi(
-    addCommonHeaders(addSecurity(document, requiresAuthentication, requiresPartnerSignature)),
-  );
+  return toSnakeCaseOpenApi(addCommonHeaders(addSecurity(document, security)));
 };
 
 /**
@@ -118,9 +159,7 @@ export const mountApiDocs = (
     basePath: string;
     enabled: boolean;
     info: ApiDocsInfo;
-    requiresAuthentication?: RequiresAuthentication;
-    /** Operations behind `partnerAuth()`: documented with the partner signing headers instead. */
-    requiresPartnerSignature?: RequiresAuthentication;
+    security?: SecurityRules;
   },
 ): void => {
   if (!options.enabled) return;
@@ -129,12 +168,7 @@ export const mountApiDocs = (
   let document: Promise<OpenApiDocument> | undefined;
 
   app.get(specPath, async (c) => {
-    document ??= buildOpenApiDocument(
-      app,
-      options.info,
-      options.requiresAuthentication,
-      options.requiresPartnerSignature,
-    );
+    document ??= buildOpenApiDocument(app, options.info, options.security);
     return c.json(await document);
   });
   app.get(

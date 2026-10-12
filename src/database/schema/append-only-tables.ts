@@ -8,4 +8,6 @@
  */
 export const APPEND_ONLY_TABLES: Readonly<Record<string, string>> = {
   record_changes: 'audit trail: append-only, written in every audited transaction, partition-ready',
+  webhook_events:
+    'vendor webhook inbox: one row per (vendor, event_id), written once, never addressed by id',
 };

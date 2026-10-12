@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createApp } from '../src/app';
+import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig, buildAppConfig } from '../src/config';
 import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
 import { isSnakeCaseKey } from '../src/utils/case-converter.util';
@@ -122,6 +122,7 @@ describe('OpenAPI document (createApp)', () => {
       Object.entries(item).flatMap(([method, operation]) => {
         const routePath = path.slice(v1.length).replace(/\{(\w+)\}/g, ':$1');
         if (path.startsWith(`${v1}/`) && isPartnerRoute(routePath)) return [];
+        if (path.startsWith(`${appConfig.API_BASE_PATH}/webhooks/`)) return [];
         const protectedRoute =
           path.startsWith(`${v1}/`) && !isPublicRoute(method.toUpperCase(), routePath);
         const documented =
@@ -133,6 +134,28 @@ describe('OpenAPI document (createApp)', () => {
     );
 
     expect(wrong).toEqual([]);
+  });
+
+  it('marks webhook routes with the signature header scheme of their vendor and 401 (not bearerAuth)', async () => {
+    const document = await loadDocument();
+    const schemes = (document.components as { securitySchemes?: Record<string, { name?: string }> })
+      .securitySchemes;
+    const prefix = `${appConfig.API_BASE_PATH}/webhooks/`;
+    const operations = Object.entries(document.paths)
+      .filter(([path]) => path.startsWith(prefix))
+      .flatMap(([path, item]) => Object.values(item).map((op) => ({ path, op })));
+    expect(operations.length).toBeGreaterThan(0);
+
+    for (const { path, op } of operations) {
+      const vendor = WEBHOOK_VENDORS.find((entry) => path.startsWith(`${prefix}${entry.vendor}`));
+      expect(vendor).toBeDefined();
+      const scheme = `${vendor?.vendor ?? ''}-webhook`;
+      expect(op.security).toEqual([{ [scheme]: [] }]);
+      expect(new Map(Object.entries(schemes ?? {})).get(scheme)?.name).toBe(
+        vendor?.signatureHeader,
+      );
+      expect(Object.keys(op.responses)).toContain('401');
+    }
   });
 
   it('marks partner routes with the four signing headers (not bearerAuth), 401 and 403', async () => {

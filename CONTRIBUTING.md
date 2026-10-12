@@ -101,7 +101,7 @@ src/
 │   ├── errors/                  # Semantic ApiError Hierarchy
 │   ├── http/                    # HttpClientService (keep-alive pool, timeout wajib, X-Request-ID, masking error vendor), vendor-body.ts (redaksi body vendor untuk log), access-token-cache.ts (token vendor single-flight)
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
-│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, requireRole, validate, globalErrorHandler, dll.)
+│   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, webhookAuth, requireRole, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
 │   ├── response/                # Standard Success Response Envelope (ApiResponse)
 │   └── security/                # Access token JWT HS256, ROLES, PUBLIC_ROUTES (allowlist default-deny), API key & cipher secret partner
@@ -129,6 +129,7 @@ src/
 │
 ├── integrations/                # Outbound Third-Party Gateways (No routes, No controllers)
 │   ├── registry.ts              # INTEGRATION_REGISTRY: kode → nama institusi (error.origin / error.institution)
+│   ├── demo-pay/                # Contoh vendor webhook: demo-pay.webhook.ts (verifier) + demo-pay.webhook.dto.ts
 │   └── jsonplaceholder/         # Referensi Integrasi REST API Publik (Outbound Only)
 │       ├── jsonplaceholder.dto.ts      # Kontrak payload & respon vendor
 │       ├── jsonplaceholder.service.ts  # Service client berbasis HttpClientService
@@ -141,6 +142,7 @@ src/
 │   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)
 │   ├── partner-credentials/     # Admin API kredensial partner inbound (/api/v1/partner-credentials, admin saja)
 │   ├── partner-gateway/         # Contoh endpoint partner bertanda tangan (/api/v1/partner/ping, /echo)
+│   ├── payment-notifications/   # Contoh penerima webhook vendor (POST /api/webhooks/demo-pay, idempoten)
 │   └── users/                   # Modul referensi tabel mandiri (/api/v1/users)
 │       ├── users.dto.ts         # Zod schemas (create, update, query, params)
 │       ├── users.repository.ts  # Database access via this.txHost.tx
@@ -158,7 +160,7 @@ src/
 test/                            # End-to-End (E2E) & Blackbox API Tests
 ├── setup/hermetic-env.ts        # Preload: tanpa database/Redis asli di `bun test`
 ├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji), partner-signing-vectors.ts (vektor signing yang dipublikasikan)
-├── *.e2e.test.ts                # health, auth, users, orders (contoh), partner-credentials, partner-gateway, openapi, platform, default-deny, outbound
+├── *.e2e.test.ts                # health, auth, users, orders (contoh), partner-credentials, partner-gateway, vendor-webhooks, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Penjaga preload hermetik
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md tetap sama dengan kode (vektor, header, kode error)
 ├── structure.test.ts            # Nama file, pola modul/integrasi, modul ≠ vendor, router kanal di prefix-nya
@@ -656,10 +658,11 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). 
 |---|---|---|---|---|
 | User (FE, mobile) | `<modul>.<peran>.ts` | `/api/v1/<modul>` | `authenticate()` (Bearer) | `requireRole`, `requireSelfOrRole`, `currentUser` |
 | Sistem partner | `<modul>.partner.<peran>.ts` | `/api/v1/partner/...` | `partnerAuth()` (signing v1) | `currentPartner`, `requirePartner` |
-| Webhook vendor | `<modul>.webhook.<peran>.ts` | `/api/webhooks/<vendor>` | verifier per vendor (Step 5.6) | tidak ada |
+| Webhook vendor | `<modul>.webhook.<peran>.ts` | `/api/webhooks/<vendor>` | `webhookAuth()` + verifier vendor di `WEBHOOK_VENDORS` | `currentWebhook` |
 
 - `<peran>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util` (helper lokal modul). Akhiran inilah yang dibaca ESLint & dependency-cruiser, jadi nama "nyaris benar" seperti `payments.partner-routes.ts` ditolak (ia akan lolos dari semua aturan arsitektur).
 - Modul dinamai menurut **domain** (`messaging`, `payments`), bukan vendor; vendor hanya di `src/integrations/<vendor>/`.
+- **Webhook vendor**: verifier di `src/integrations/<vendor>/<vendor>.webhook.ts` (skema signature persis dari dokumentasi vendor), didaftarkan **hanya** di `WEBHOOK_VENDORS` (`src/app.ts`; dependency-cruiser `webhook-verifier-only-in-app`). Prefix `/api/webhooks/*` di luar `/v1` dan fail-closed (`requireVerifiedWebhook()` → 401). Payload memakai casing vendor: `validate({ body, bodyKeys: 'verbatim' })`, hanya boleh di file `*.webhook.*`. Event disimpan di `webhook_events` (unik `(vendor, event_id)`) dan diproses dalam transaksi yang sama — retry vendor dijawab 200 tanpa diproses dua kali. Template: `scaffold-module` → `references/webhook.md`; contoh: `demo-pay` + `payment-notifications`.
 - Endpoint partner yang menulis data wajib idempoten: `(partner_code, partner_reference)` unik, retry → 409. Kode partner selalu dari `currentPartner()`, tidak pernah dari body. Template: skill `scaffold-module` → `references/partner.md`.
 - Penegak: `test/structure.test.ts` (nama setiap file, kedua pola, modul bernama vendor, posisi pemasangan router per kanal) dan ESLint `local/inbound-channel` (helper per kanal). Catatan: ls-lint hanya menerapkan aturan `.ts` pada nama yang ekstensinya persis `.ts` — `users.controller.ts` berekstensi `.controller.ts` — karena itu nama file diperiksa oleh test.
 

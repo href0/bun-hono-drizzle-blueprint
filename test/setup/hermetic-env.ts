@@ -18,6 +18,8 @@ export const HERMETIC_ENV = {
   // Tests never use the developer's real partner keyring (it encrypts real partner secrets).
   PARTNER_SECRET_KEYS: `test:${'0'.repeat(64)}`,
   PARTNER_SECRET_ACTIVE_KEY_ID: 'test',
+  // The example webhook vendor is enabled in tests with a test-only secret, never a real one.
+  DEMO_PAY_WEBHOOK_SECRET: 'test-only-demo-pay-webhook-secret',
 } as const;
 
 Object.assign(process.env, HERMETIC_ENV);
