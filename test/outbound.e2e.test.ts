@@ -95,6 +95,7 @@ describe('Outbound integration contract (E2E)', () => {
       timestamp: expect.any(String),
     });
     expect(text).not.toContain(VENDOR_SECRET);
+    expect(text).not.toContain('401');
     expect(text).not.toContain('invalid_client');
     expect(res.headers.get('X-Vendor-Trace')).toBeNull();
   });

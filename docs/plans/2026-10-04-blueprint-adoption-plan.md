@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–3 selesai** (`main` @ `5bbf5dc`, termasuk perbaikan Review 8); Step 4.1 menunggu review (branch `feat/http-client-hardening`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–3 dan Step 4.1 selesai** (`main` @ `b317346`); Step 4.2 menunggu review (branch `feat/vendor-token-cache`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `5bbf5dc` |
+| Basis kode | branch `main` @ `b317346` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -431,6 +431,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 4.1 | Interceptor request mengirim `X-Request-ID` = request ID dari context (tidak menimpa header yang diisi pemanggil; di luar request — job/bootstrap — tanpa header) | Unit + `test/outbound.e2e.test.ts` |
 | 2026-10-12 | 4.1 | ESLint (`OUTBOUND_HTTP_SYNTAX_RULES`, `OUTBOUND_HTTP_IMPORT_PATTERN`): `fetch(`, `globalThis`/`Bun`/`self`/`window.fetch(`, serta import `axios`, `node-fetch`, `undici`, `got`, `ky`, `superagent`, `(node:)http`/`https`/`http2` ditolak di seluruh `src/` kecuali `src/core/http/**`; file test boleh `fetch` ke server test lokal. Ditambahkan di luar rencana: larangan juga mencakup `node:http(s)` dan klien HTTP lain, bukan hanya `axios` | Chaos ESLint: probe berisi 4 import + 3 panggilan `fetch` di `modules` (biasa/service/repository), `integrations`, `core/cache`, `utils`, `database` → masing-masing 7 error; di `core/http` → 0 |
 | 2026-10-12 | 4.1 | `test/outbound.e2e.test.ts`: panggilan HTTP nyata `GET /users/:id/external-posts` → adapter JSONPlaceholder → vendor palsu lokal yang menjawab 401 + body/header rahasia → client **502** `ERR_EXT_ERROR`, `origin` `JSONPLACEHOLDER`, `institution` `JSONPlaceholder`, tanpa body/header vendor; vendor menerima `X-Request-ID` yang sama dengan request masuk. Dokumen: project-standards Rule 4 + Rule 9, AGENTS.md (daftar ESLint), CONTRIBUTING §3.3 + §8 (registry, timeout wajib, body hanya di log, korelasi, larangan `fetch`) + struktur folder, README, L2 | **Chaos test** (9, semua tertangkap): tanpa `X-Request-ID`, header pemanggil ditimpa, body vendor ke `details`, tanpa redaksi, tanpa pemotongan, query string di-log, timeout diabaikan, `institution` hilang dari envelope, `institution` bukan dari registry. **Uji nyata** ke JSONPlaceholder publik: `GET /posts/1` sukses; path tak ada → vendor 404 → 502 `ERR_EXT_ERROR` + `institution`; `timeoutMs: 1` → 504 `ERR_EXT_TIMEOUT`; log tanpa header/query |
+| 2026-10-12 | 4.1 | ✅ Di-commit (`b317346`) dan di-merge ke `main` atas permintaan user | — |
+| 2026-10-12 | 4.2 | `AccessTokenCache` (`src/core/http/access-token-cache.ts`, bukan per vendor): `login()` dari adapter → token dipakai ulang sampai `expires_in − 60 dtk` (`refreshMarginSeconds`); token yang hidup kurang dari 2× margin dipakai setengah umurnya (tanpa ini token 30 dtk tidak pernah dipakai ulang); `expires_in` 0/negatif/NaN → dipakai sekali. **Single-flight**: pemanggil paralel berbagi satu promise login; login gagal tidak di-cache (semua penunggu menerima error, panggilan berikutnya mencoba lagi). Ditambahkan di luar rencana: `withToken()` login ulang + retry **sekali** saat vendor menjawab 401 (token dicabut/kedaluwarsa lebih awal), `invalidate(token)` tidak membuang token yang lebih baru. Untuk itu `ExternalServiceError.vendorStatus` (internal, tidak pernah diserialisasi) | `access-token-cache.test.ts`: 10 request paralel → 1 login ✅ |
+| 2026-10-12 | 4.2 | Cache token **per proses** (N instance = N login/token). Vendor yang hanya mengizinkan satu token aktif butuh cache bersama (Redis + lock) → backlog L12 | — |
+| 2026-10-12 | 4.2 | `HttpClientService.parse(schema, body)`: key body vendor → camelCase lalu Zod; tidak cocok → 502 `ERR_EXT_ERROR` + log `Outbound HTTP response rejected` (hanya path + kode issue, tanpa nilai). Ditambahkan di luar rencana — respons vendor (mis. `expires_in`) harus divalidasi sebelum dipakai | Unit test |
+| 2026-10-12 | 4.2 | Config per vendor: `integrations.config.ts` → **`jsonplaceholder.config.ts`** (`jsonPlaceholderConfig`, grup `jsonplaceholder`); vendor baru = `src/config/<vendor>.config.ts` (kredensial wajib di luar test, `TEST_DEFAULTS` seperti `auth.config.ts`). Nama env var tidak berubah | `config.test.ts` |
+| 2026-10-12 | 4.2 | Template `scaffold-module/references/integration.md` (vendor berbasis login: registry, config, DTO, adapter dengan `AccessTokenCache` + `parse()`, `index.ts`, test terhadap vendor palsu `Bun.serve`: 10 paralel → 1 login, 401 → login ulang, body salah → 502, singleton default → port tertutup `ERR_EXT_UNREACHABLE`, kredensial wajib di luar test). **`verify:scaffold` diperluas**: men-generate vendor `probe-vendor`, mendaftarkannya di registry + barrel config, lalu semua gate + test-nya (gate ini sempat menangkap 2 error lint dan 1 export tak terpakai di draf template). Panduan `project-standards/references/integrations.md`; project-standards Rule 9 + tabel referensi; scaffold-module (tabel varian, deskripsi pemicu + wrapper `.claude`); AGENTS.md; CONTRIBUTING §8; README; `.env.example` | **Chaos test** (12, semua tertangkap): tanpa single-flight, margin diabaikan, token pendek tidak dipakai ulang, promise login gagal tidak dilepas, `invalidate` membuang token baru, tanpa retry 401, retry untuk semua error, expiry tidak dijumlahkan, `vendorStatus` tidak diisi, `parse` tanpa camelCase, `parse` mencatat pesan/nilai issue (2). Cabang khusus `expires_in` tidak valid terbukti redundan oleh chaos test (perilaku sama tanpa cabang) → dihapus, test tetap |
 
 ---
 
@@ -483,8 +489,8 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `11087c7` |
 | 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `5491544` |
 | 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
-| 4.1 | Hardening `HttpClientService` | 👀 | 1.3 |  |
-| 4.2 | Template integrasi & cache token vendor | ⬜ | 4.1 |  |
+| 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `b317346` |
+| 4.2 | Template integrasi & cache token vendor | 👀 | 4.1 |  |
 | 5.1 | Utilitas kripto & signing partner | ⬜ | 0.3 |  |
 | 5.2 | Kredensial partner (schema + admin API) | ⬜ | 5.1, 2.8, 3.4 |  |
 | 5.3 | Middleware `partnerAuth()` | ⬜ | 5.2, 1.6 |  |
@@ -1025,7 +1031,7 @@ Spesifikasi lengkap di [L3](#153-l3--spesifikasi-auth) dan [L4](#154-l4--public_
 
 **Acceptance criteria**
 
-- [ ] 10 request paralel saat token kosong → 1 kali login (test).
+- [x] 10 request paralel saat token kosong → 1 kali login (test).
 
 ---
 
@@ -1485,7 +1491,7 @@ jobs:
 ```
 src/
 ├── app.ts · index.ts
-├── config/        app, database, redis, http, auth, partner, integrations (*.config.ts) + parse-env.ts
+├── config/        app, database, redis, http, auth, partner, satu per vendor (*.config.ts) + parse-env.ts
 ├── core/
 │   ├── cache/     CacheService, CACHE_KEYS/PREFIX/TTL, redis.client
 │   ├── context/   RequestContext (AsyncLocalStorage)
@@ -1514,6 +1520,7 @@ src/
 - MFA, reset password via email, verifikasi email
 - ACL berbasis permission granular
 - Retry dengan backoff & circuit breaker integrasi outbound
+- Cache token vendor bersama antar instance (Redis + lock) untuk vendor yang hanya mengizinkan satu token aktif — `AccessTokenCache` saat ini per proses (Step 4.2)
 - Rate limit per user setelah login (per IP hanya sebelum login) — Review 8 menaikkan default per IP sebagai langkah sederhana
 - Daftar & pencabutan sesi per perangkat (`GET /auth/sessions`)
 - Partisi bulanan `record_changes` + runbook retensi

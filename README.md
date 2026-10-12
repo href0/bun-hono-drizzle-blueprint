@@ -33,7 +33,7 @@ src/
 ├── config/                      # Zero-Trust Zod Configuration
 │   ├── env-source.ts            # Satu-satunya pembaca process.env
 │   ├── parse-env.ts             # Validasi per grup (fail-fast, tanpa mencetak nilai)
-│   ├── <group>.config.ts        # app, auth, database, redis, http, integrations
+│   ├── <group>.config.ts        # app, auth, database, redis, http, satu file per vendor (jsonplaceholder, …)
 │   └── index.ts
 │
 ├── core/                        # Cross-Cutting Core Building Blocks
