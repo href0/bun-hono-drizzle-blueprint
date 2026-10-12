@@ -68,7 +68,9 @@ describe('globalErrorHandler — error envelope contract', () => {
     ['SERVICE_UNAVAILABLE', new ServiceUnavailableError('Database down')],
     [
       'EXTERNAL_SERVICE_ERROR',
-      new ExternalServiceError('TIMEOUT', 'Vendor timed out', { origin: 'PAYMENTS' }),
+      new ExternalServiceError('TIMEOUT', 'Vendor timed out', {
+        integration: { code: 'PAYMENTS', institution: 'Payments Inc.' },
+      }),
     ],
   ];
 
@@ -80,7 +82,13 @@ describe('globalErrorHandler — error envelope contract', () => {
       success: false,
       status_code: error.statusCode,
       message: error.message,
-      error: { type, code: error.errorCode, origin: error.origin },
+      error: {
+        type,
+        code: error.errorCode,
+        origin: error.origin,
+        // Only an external failure names the institution behind `origin`.
+        ...(error instanceof ExternalServiceError ? { institution: 'Payments Inc.' } : {}),
+      },
       request_id: 'req-err',
       timestamp: expect.any(String),
     });

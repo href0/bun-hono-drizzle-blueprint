@@ -1,6 +1,7 @@
 import type { Locale } from '../../config';
 import { toSnakeCase } from '../../utils/case-converter.util';
 import { ApiError, type ErrorDetail } from '../errors/api-error';
+import { ExternalServiceError } from '../errors/external.error';
 import { InternalServerError } from '../errors/internal-server.error';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { translate } from '../i18n/translate';
@@ -41,6 +42,7 @@ export const buildErrorBody = (
       type: error.errorType,
       code: error.errorCode,
       origin: error.origin,
+      ...(error instanceof ExternalServiceError ? { institution: error.institution } : {}),
       ...(!isInternal && error.details.length > 0
         ? { details: error.details.map((detail) => toWireDetail(detail, locale)) }
         : {}),
