@@ -26,6 +26,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "seed:admin": "bun scripts/seed-admin.ts",
     "prepare": "husky"
   },
   "dependencies": {

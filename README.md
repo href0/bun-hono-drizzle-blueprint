@@ -133,8 +133,9 @@ bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk pre
 # 2. Pastikan PostgreSQL & Redis berjalan, lalu sesuaikan DATABASE_URL / REDIS_* di file env
 #    (opsional, bila tidak memasang layanan secara langsung: docker compose up -d)
 
-# 3. Jalankan migrasi database & start dev server
+# 3. Jalankan migrasi database, buat admin pertama & start dev server
 bun run db:migrate
+bun run seed:admin --email admin@example.com   # password ditanyakan (tidak terlihat)
 bun run dev
 ```
 
@@ -142,6 +143,7 @@ Server berjalan secara default di `http://localhost:3000` (URL juga dicatat di l
 
 - Dokumentasi API (Scalar): `http://localhost:3000/api/docs` · JSON: `/api/docs/openapi.json`
 - Health: `http://localhost:3000/api/health` (`UP` / `DEGRADED` / `DOWN`)
+- Login: `POST http://localhost:3000/api/v1/auth/login` dengan akun admin tadi; endpoint lain di `/api/v1/*` wajib `Authorization: Bearer <access_token>`. Panduan integrasi frontend (token, refresh, cookie, CSRF, domain): [docs/auth-guide.md](docs/auth-guide.md)
 
 #### Alternatif: Full Containerized Development (Zero Host Install)
 Jika Anda tidak ingin menginstall Bun di host OS:

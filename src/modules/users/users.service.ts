@@ -60,6 +60,7 @@ export class UsersService {
         email: dto.email,
         fullName: dto.fullName,
         passwordHash,
+        ...(dto.role === undefined ? {} : { role: dto.role }),
         isActive: true,
       });
     } catch (error) {

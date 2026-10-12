@@ -8,7 +8,7 @@ import type { Role } from '../security/roles';
 import { authenticate } from './authenticate';
 import { globalErrorHandler } from './error-handler';
 import { requestContextMiddleware } from './request-context';
-import { requireRole } from './require-role';
+import { requireRole, requireSelfOrRole } from './require-role';
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
@@ -70,5 +70,26 @@ describe('requireRole in the OpenAPI document', () => {
 
     const operation = new Map(Object.entries(doc.paths)).get('/v1/admin')?.get;
     expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '403', '429', '500']);
+  });
+});
+
+describe('requireSelfOrRole', () => {
+  const owned = new Hono();
+  owned.use('*', requestContextMiddleware());
+  owned.use('/v1/*', authenticate({ basePath: '/v1' }));
+  owned.get('/v1/users/:id', requireSelfOrRole('id', 'admin'), (c) => c.text('record'));
+  owned.onError(globalErrorHandler);
+
+  const OWNER = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e';
+  const OTHER = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d00';
+  const get = async (role: Role, path: string): Promise<number> => {
+    const { token } = await signAccessToken({ userId: OWNER, role });
+    return (await owned.request(path, { headers: { Authorization: `Bearer ${token}` } })).status;
+  };
+
+  it('allows the user named by the parameter and the listed roles, nobody else', async () => {
+    expect(await get('user', `/v1/users/${OWNER}`)).toBe(200);
+    expect(await get('user', `/v1/users/${OTHER}`)).toBe(403);
+    expect(await get('admin', `/v1/users/${OTHER}`)).toBe(200);
   });
 });
