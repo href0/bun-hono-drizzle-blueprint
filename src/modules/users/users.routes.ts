@@ -7,6 +7,7 @@ import { usersController } from './users.controller';
 import {
   createUserSchema,
   externalPostSchema,
+  setPasswordSchema,
   updateUserSchema,
   userResponseSchema,
 } from './users.dto';
@@ -77,6 +78,18 @@ userRoutes.delete(
   adminOnly,
   validate({ params: uuidParamSchema }),
   usersController.remove,
+);
+userRoutes.put(
+  '/:id/password',
+  describeEndpoint({
+    tags,
+    summary: "Reset a user's password (ends all of their sessions)",
+    response: { status: 200, description: 'Password changed', data: z.null() },
+    errors: [404],
+  }),
+  adminOnly,
+  validate({ params: uuidParamSchema, body: setPasswordSchema }),
+  usersController.setPassword,
 );
 userRoutes.post(
   '/:id/restore',

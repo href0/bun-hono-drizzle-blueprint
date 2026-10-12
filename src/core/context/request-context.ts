@@ -17,7 +17,7 @@ export interface RequestContext {
   /** Trusted client address (`TRUST_PROXY_HOPS`), or `unknown`; the rate-limit key. */
   readonly clientIp: string;
   actor: Actor;
-  /** Set by `requireAuth()`; absent for anonymous requests. */
+  /** Set by `authenticate()`; absent for anonymous requests and public routes. */
   user?: AuthenticatedUser;
 }
 

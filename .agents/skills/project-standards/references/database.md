@@ -177,7 +177,7 @@ class OrdersRepository extends AuditedRepository<typeof orders> {
 | Detail | Only meaningful inside one header | `uuidPrimaryKey` + `parentReference` (indexed) + `timestamps` + `auditColumns`, **no** `softDelete` | `ChildRepository` |
 | Record | Log / history, append-only | `sequentialPrimaryKey` + `timestamps` (listed in `APPEND_ONLY_TABLES`) | `AppendOnlyRepository` |
 | Reference | Owned by another system | view `.existing()` | `ReadOnlyRepository` |
-| Refresh token (exception) | `auth_refresh_tokens` only | `uuidPrimaryKey` + `parentReference(user_id)` + own `created_at` / `revoked_at` | plain class in `auth.repository.ts` (see below) |
+| Refresh token (exception) | `auth_refresh_tokens` only | `uuidPrimaryKey` + `parentReference(user_id)` + own `created_at` / `revoked_at` | plain class in `auth.repository.ts` (see below); expired rows deleted by `src/database/maintenance/purge-refresh-tokens.ts` (`bun run auth:purge-tokens`) |
 
 ```typescript
 export class OrdersRepository extends BaseRepository<typeof orders> {

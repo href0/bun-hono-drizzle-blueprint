@@ -1,11 +1,9 @@
 import { z } from 'zod';
+import { emailField, MAX_PASSWORD_LENGTH, newPasswordField } from '../../core/dto/common.dto';
 import { ROLES } from '../../core/security/roles';
 
-/** Upper bound for passwords: hashing is deliberately slow, so huge inputs would be a DoS lever. */
-const MAX_PASSWORD_LENGTH = 1024;
-
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address format').max(255),
+  email: emailField,
   // No policy hints on login: any non-empty password is checked against the stored hash.
   password: z.string().min(1, 'Password is required').max(MAX_PASSWORD_LENGTH),
 });
@@ -13,12 +11,19 @@ export const loginSchema = z.object({
 export type LoginDto = z.infer<typeof loginSchema>;
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address format').max(255),
+  email: emailField,
   fullName: z.string().min(1, 'Full name is required').max(255),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(MAX_PASSWORD_LENGTH),
+  password: newPasswordField,
 });
 
 export type RegisterDto = z.infer<typeof registerSchema>;
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required').max(MAX_PASSWORD_LENGTH),
+  newPassword: newPasswordField,
+});
+
+export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
 
 /** The signed-in user as the client sees it (login response, `GET /me`, registration). */
 export const authUserSchema = z.object({

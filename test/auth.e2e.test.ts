@@ -55,6 +55,9 @@ beforeAll(async () => {
     ),
     spyOn(authUsersRepository, 'findById').mockImplementation((id) => users().findById(id)),
     spyOn(authUsersRepository, 'create').mockImplementation((input) => users().create(input)),
+    spyOn(authUsersRepository, 'updateById').mockImplementation((id, patch) =>
+      users().updateById(id, patch),
+    ),
     // No database: transactions just run their callback.
     spyOn(defaultTxHost, 'run').mockImplementation((fn) => fn()),
     // A working Redis for the brute-force counter (the global rate limit has its own prefix).
@@ -326,5 +329,50 @@ describe('POST /register', () => {
       role: 'user',
     });
     expect((await register(enabled, ada.email)).status).toBe(409);
+  });
+});
+
+describe('POST /change-password and email normalization', () => {
+  it('login accepts the email in any case', async () => {
+    const res = await post('/login', { body: { email: '  ADA@Example.com', password: PASSWORD } });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('changes the password: new cookie here, every other session ends', async () => {
+    const other = await login();
+    const here = await login();
+    const token = (here.body.data as { access_token: string }).access_token;
+
+    const res = await app.request('/api/v1/auth/change-password', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: PASSWORD, new_password: 'a brand new password' }),
+    });
+    const fresh = refreshCookieOf(res);
+
+    expect(res.status).toBe(200);
+    expect(fresh).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect((await post('/refresh', { cookie: other.cookie })).status).toBe(401);
+    expect((await post('/refresh', { cookie: here.cookie })).status).toBe(401);
+    expect((await post('/refresh', { cookie: fresh })).status).toBe(200);
+  });
+
+  it('a wrong current password → 400 on current_password; without a token → 401', async () => {
+    const { body } = await login();
+    const token = (body.data as { access_token: string }).access_token;
+    const send = (headers: Record<string, string>) =>
+      app.request('/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ current_password: 'wrong', new_password: 'a brand new password' }),
+      });
+
+    const wrong = await send({ Authorization: `Bearer ${token}` });
+    expect(wrong.status).toBe(400);
+    expect(
+      ((await wrong.json()) as { error: { details: { field: string }[] } }).error.details,
+    ).toEqual([expect.objectContaining({ field: 'current_password' })]);
+    expect((await send({})).status).toBe(401);
   });
 });

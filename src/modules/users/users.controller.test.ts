@@ -11,6 +11,7 @@ describe('UsersController (Unit)', () => {
     fullName: 'Test User',
     passwordHash: 'hash',
     role: 'user',
+    passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
     deletedAt: null,

@@ -8,7 +8,7 @@ import { ApiResponse } from '../../core/response';
 import { usersService, UsersService } from './users.service';
 import { toUserResponse, toUserListResponse } from './users.transformer';
 import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
-import type { CreateUserDto, UpdateUserDto } from './users.dto';
+import type { CreateUserDto, SetPasswordDto, UpdateUserDto } from './users.dto';
 import { USER_MESSAGES } from './users.messages';
 
 export class UsersController {
@@ -58,6 +58,13 @@ export class UsersController {
     await this.service.deleteUser(param.id);
 
     return new ApiResponse(null, USER_MESSAGES.DELETED, 200);
+  });
+
+  setPassword = asyncHandler(async (c) => {
+    const param = getValidatedParams<UuidParamDto>(c);
+    await this.service.setPassword(param.id, getValidatedBody<SetPasswordDto>(c));
+
+    return new ApiResponse(null, USER_MESSAGES.PASSWORD_SET, 200);
   });
 
   restore = asyncHandler(async (c) => {

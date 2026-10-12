@@ -49,13 +49,15 @@ export const seedAdmin = async (
   input: SeedAdminInput,
   txHost: TransactionHost = defaultTxHost,
   hashPassword: (password: string) => Promise<string> = (password) => Bun.password.hash(password),
+  /** Called after a promotion, so cached reads (`GET /users/:id`) do not show the old role. */
+  onUserChanged: (userId: string) => Promise<void> = () => Promise.resolve(),
 ): Promise<SeedAdminResult> => {
   if (!z.string().email().safeParse(input.email).success) {
     throw new SeedAdminError(`Not a valid email address: ${input.email}`);
   }
   const repository = new SeedUsersRepository(txHost);
 
-  return txHost.run(async () => {
+  const result = await txHost.run(async (): Promise<SeedAdminResult> => {
     const existing = await repository.findByEmail(input.email);
     if (existing) {
       if (existing.role === ADMIN && existing.isActive) {
@@ -90,4 +92,6 @@ export const seedAdmin = async (
     });
     return { action: 'created', user };
   });
+  if (result.action === 'promoted') await onUserChanged(result.user.id);
+  return result;
 };

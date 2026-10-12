@@ -24,6 +24,7 @@ export const corsMiddleware = (origins: readonly string[]): MiddlewareHandler =>
     allowHeaders: ['Content-Type', 'Authorization', 'Accept-Language', REQUEST_ID_HEADER],
     exposeHeaders: [
       REQUEST_ID_HEADER,
+      'WWW-Authenticate',
       'Retry-After',
       'RateLimit-Limit',
       'RateLimit-Remaining',

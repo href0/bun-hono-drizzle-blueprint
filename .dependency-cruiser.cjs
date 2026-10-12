@@ -20,6 +20,7 @@ module.exports = {
           '^src/index\\.ts$',
           '^src/database/schema/',
           '^src/database/seeds/',
+          '^src/database/maintenance/',
           '\\.gitkeep$',
         ],
       },

@@ -21,6 +21,7 @@ const mockUser: User = {
   fullName: 'Test User',
   passwordHash: '$argon2id$v=19$m=16,t=2,p=1$abc',
   role: 'user',
+  passwordChangedAt: null,
   createdBy: 'system',
   updatedBy: 'system',
   deletedAt: null,
@@ -454,5 +455,61 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
       role: 'root',
     });
     expect(invalid.status).toBe(400);
+  });
+});
+
+describe('Users Module — E2E: password reset and email normalization', () => {
+  const spies: { mockRestore: () => void }[] = [];
+  const calls: unknown[][] = [];
+  let admin: Hono;
+  let user: Hono;
+
+  beforeAll(async () => {
+    spies.push(
+      spyOn(usersService, 'setPassword').mockImplementation(async (...args) => {
+        calls.push(args);
+      }),
+      spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
+        calls.push([dto]);
+        return { ...mockUser, email: dto.email };
+      }),
+    );
+    admin = await authorize(createApp(), 'admin');
+    user = await authorize(createApp(), 'user', mockUser.id);
+  });
+
+  afterAll(() => {
+    for (const spy of spies) spy.mockRestore();
+  });
+
+  const put = (app: Hono, id: string, body: unknown): Promise<Response> =>
+    Promise.resolve(
+      app.request(`/api/v1/users/${id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  it('PUT /:id/password: admins only, new password rules apply', async () => {
+    expect((await put(admin, mockUser.id, { password: 'new password 1' })).status).toBe(200);
+    expect(calls.at(-1)).toEqual([mockUser.id, { password: 'new password 1' }]);
+    expect((await put(admin, mockUser.id, { password: 'short' })).status).toBe(400);
+    expect((await put(user, mockUser.id, { password: 'new password 1' })).status).toBe(403);
+  });
+
+  it('emails are stored trimmed and lower-cased', async () => {
+    const res = await admin.request('/api/v1/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: '  Mixed.Case@Example.COM ',
+        full_name: 'M',
+        password: 'password123',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(calls.at(-1)).toEqual([expect.objectContaining({ email: 'mixed.case@example.com' })]);
   });
 });

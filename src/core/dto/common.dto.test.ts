@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  emailField,
+  newPasswordField,
   MAX_PER_PAGE,
   paginationQuerySchema,
   uuidChildParamSchema,
@@ -34,5 +36,21 @@ describe('shared request schemas', () => {
       false,
     );
     expect(paginationQuerySchema.safeParse({ page: '0' }).success).toBe(false);
+  });
+});
+
+describe('emailField', () => {
+  it('trims and lower-cases before validating, so one address is one account', () => {
+    expect(emailField.parse('  Ada@Example.COM ')).toBe('ada@example.com');
+    expect(emailField.safeParse('not-an-email').success).toBe(false);
+    expect(emailField.safeParse(`${'a'.repeat(250)}@x.com`).success).toBe(false);
+  });
+});
+
+describe('newPasswordField', () => {
+  it('requires 8 to 1024 characters', () => {
+    expect(newPasswordField.safeParse('1234567').success).toBe(false);
+    expect(newPasswordField.safeParse('12345678').success).toBe(true);
+    expect(newPasswordField.safeParse('x'.repeat(1025)).success).toBe(false);
   });
 });

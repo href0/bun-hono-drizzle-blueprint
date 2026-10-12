@@ -261,12 +261,12 @@ Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (di
 |---|---|---|---|---|
 | `ValidationError` | 400 | `VALIDATION_ERROR` | `ERR_INVALID_INPUT` (default) · `ERR_INVALID_JSON` · `ERR_NON_SNAKE_CASE_KEY` | Skema Zod tidak terpenuhi · body bukan JSON valid · key bukan snake_case (`field` = key persis seperti dikirim) |
 | `BadRequestError` | 400 | `BAD_REQUEST` | `ERR_BAD_REQUEST` | Pelanggaran aturan bisnis |
-| `UnauthorizedError` | 401 | `UNAUTHORIZED` | `ERR_UNAUTHORIZED` | Token tidak ada / expired |
-| `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` | Role user tidak berhak mengakses |
+| `UnauthorizedError` | 401 | `UNAUTHORIZED` | `ERR_UNAUTHORIZED` (default) · `ERR_AUTH_TOKEN_EXPIRED` · `ERR_AUTH_TOKEN_INVALID` · `ERR_AUTH_INVALID_CREDENTIALS` · `ERR_AUTH_REFRESH_INVALID` · `ERR_AUTH_REFRESH_REUSED` | Header `Authorization` tidak ada · access token habis / tidak sah · login gagal (sengaja tidak dibedakan) · refresh token tidak sah · refresh token lama dipakai lagi (sesi dicabut) |
+| `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` (default) · `ERR_ROLE_FORBIDDEN` · `ERR_CSRF_ORIGIN_FORBIDDEN` · `ERR_SELF_LOCKOUT_FORBIDDEN` | Akses ditolak · role tidak berhak (`requireRole`) · origin tidak terdaftar di endpoint ber-cookie · admin mengunci akunnya sendiri |
 | `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` | Resource entitas tidak ditemukan |
 | `ConflictError` | 409 | `CONFLICT` | `ERR_CONFLICT` | Data unik sudah terdaftar (duplikat) |
 | `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi batas |
-| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` | Rate limit (opsional `retryAfterSeconds` → header `Retry-After`) |
+| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Rate limit global · terlalu banyak percobaan login per (email, IP) (opsional `retryAfterSeconds` → header `Retry-After`) |
 | `ServiceUnavailableError` | 503 | `SERVICE_UNAVAILABLE` | `ERR_SERVICE_UNAVAILABLE` | Dependency inti (DB) tidak tersedia |
 | `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` / `ERR_EXT_UNREACHABLE` / `ERR_EXT_ERROR` | Kegagalan API vendor; status vendor tidak pernah diteruskan, vendor diidentifikasi lewat `error.origin` |
 | `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Invariant internal rusak; pesan tidak dikirim ke client |
@@ -338,9 +338,34 @@ userRoutes.post(
 
 Prefix path internal (`body.`, `query.`) otomatis dibersihkan dan nama field dikirim dalam snake_case, agar FE dapat langsung memetakan nama field ke form error.
 
-- **Schema bersama** (`src/core/dto/common.dto.ts`): `uuidParamSchema` untuk `:id` (UUID salah format → 400, bukan error database) dan `paginationQuerySchema` untuk `?page=&per_page=` (maks `MAX_PER_PAGE` = 100). Gunakan ulang, jangan didefinisikan ulang per modul.
+- **Schema bersama** (`src/core/dto/common.dto.ts`): `emailField` untuk setiap email (trim + huruf kecil sebelum divalidasi), `newPasswordField` untuk password baru (8–1024 karakter), `uuidParamSchema` untuk `:id` (UUID salah format → 400, bukan error database) dan `paginationQuerySchema` untuk `?page=&per_page=` (maks `MAX_PER_PAGE` = 100). Gunakan ulang, jangan didefinisikan ulang per modul.
 - **Dictionary bebas**: field berisi key bebas (mis. `metadata`) didaftarkan lewat `validate({ body, preserveKeys: ['metadata'] })` — isinya tidak dicek dan tidak dikonversi (hanya field top-level). Untuk kontrak publik, utamakan array `{ key, value }`.
 - **Keterbatasan — dictionary di response**: `preserveKeys` hanya berlaku untuk request. `ApiResponse` mengonversi semua key response (termasuk dictionary yang dikembalikan) ke snake_case, sehingga `{ someKey: 1 }` dikirim sebagai `{ some_key: 1 }`. Untuk kontrak publik utamakan array `{ key, value }`; opt-out di sisi response baru ditambahkan bila ada kebutuhan nyata.
+
+### 4.3 Autentikasi & Otorisasi
+
+Semua route di bawah `/api/v1` **wajib access token** (`Authorization: Bearer <token>`). `authenticate()` dipasang sekali di `createApp()`, jadi route baru otomatis terlindungi tanpa langkah tambahan. Pengecualiannya hanya daftar pendek `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`): login, refresh, logout, register. Health, docs dan `/` berada di luar `/v1` dan publik secara desain.
+
+| Kebutuhan | Cara |
+|---|---|
+| Route khusus role tertentu | `requireRole('admin')` setelah `describeEndpoint()`, sebelum `validate()` → 403 `ERR_ROLE_FORBIDDEN` (terdokumentasi di OpenAPI otomatis) |
+| Resource milik user sendiri (`/users/:id`) | `requireSelfOrRole('id', 'admin')` — pemilik atau role tersebut; selain itu 403 yang sama, baik resource ada maupun tidak |
+| Siapa pemanggilnya (di controller) | `currentUser()` → `{ id, role }`; service menerima id sebagai argumen atau membaca `getActor()` (`user:<id>`) |
+| Route publik baru | Tambahkan ke `PUBLIC_ROUTES` (review wajib) — jangan membuat "skip auth" per route |
+| Test kontrak modul | `authorize(createApp(), role, userId?)` dari `test/helpers/authorized-app.ts` |
+| Admin pertama | `bun run seed:admin --email <email>` (password dari prompt tersembunyi / stdin) |
+| Ganti password | User sendiri: `POST /auth/change-password`. Admin: `PUT /users/:id/password`. Keduanya mengisi `users.password_changed_at` → semua sesi lama berakhir |
+| Bersihkan token kedaluwarsa | `bun run auth:purge-tokens [--days 7]`, jadwalkan harian |
+
+Penegak: `test/default-deny.e2e.test.ts` (setiap route `createApp()` → 401 tanpa token kecuali publik) dan `test/openapi.e2e.test.ts` (operasi terlindungi bertanda `bearerAuth` + 401).
+
+Yang perlu diketahui:
+
+- Access token berlaku 15 menit dan tidak dicek ulang ke database. **Perubahan role, penonaktifan, dan ganti password baru berlaku penuh setelah token habis** (paling lama `ACCESS_TOKEN_TTL_SECONDS`); refresh berikutnya sudah ditolak / memakai role baru.
+- Email selalu disimpan dan dicari dalam huruf kecil (`emailField` di `src/core/dto/common.dto.ts`); gunakan field itu untuk setiap email di request.
+- Admin tidak bisa menghapus, menonaktifkan, atau mencabut role admin **akunnya sendiri** (403 `ERR_SELF_LOCKOUT_FORBIDDEN`); pemulihan terakhir: `bun run seed:admin --email <email> --promote`.
+- Endpoint ber-cookie (`/auth/login`, `/auth/refresh`, `/auth/logout`) memakai `csrfProtection()`; alasannya dan pengaruh domain/subdomain dijelaskan di [docs/auth-guide.md](docs/auth-guide.md) §7.
+- Log keamanan (tanpa email plaintext, email di-hash): `Login failed` (`reason`), `Login locked`, `Login succeeded`, `Logged out of every session`, `Password changed`, `Refresh token reused`, `Refresh refused`.
 
 ---
 

@@ -10,6 +10,14 @@ export const AUTH_MESSAGES = {
   },
   PROFILE_RETRIEVED: { id: 'Profil berhasil diambil', en: 'Profile retrieved successfully' },
   REGISTERED: { id: 'Registrasi berhasil', en: 'Registered successfully' },
+  PASSWORD_CHANGED: {
+    id: 'Password berhasil diganti; sesi di perangkat lain diakhiri',
+    en: 'Password changed; sessions on other devices have ended',
+  },
+  CURRENT_PASSWORD_INCORRECT: {
+    id: 'Password saat ini salah',
+    en: 'Current password is incorrect',
+  },
   /** Deliberately the same for an unknown email, a wrong password and an inactive account. */
   INVALID_CREDENTIALS: { id: 'Email atau password salah', en: 'Invalid email or password' },
   LOGIN_LOCKED: {

@@ -27,6 +27,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "bun scripts/seed-admin.ts",
+    "auth:purge-tokens": "bun scripts/purge-refresh-tokens.ts",
     "prepare": "husky"
   },
   "dependencies": {

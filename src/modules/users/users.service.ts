@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { UsersRepository, usersRepository } from './users.repository';
 import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../../core/cache';
 import { instantField } from '../../core/dto/datetime.dto';
-import { ConflictError, NotFoundError } from '../../core/errors';
+import { getActor } from '../../core/context/request-context';
+import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { Transactional } from '../../database/transactional.decorator';
 import {
@@ -11,11 +12,28 @@ import {
   type JsonPlaceholderPost,
 } from '../../integrations/jsonplaceholder';
 import type { PaginationQueryDto } from '../../core/dto/common.dto';
-import type { CreateUserDto, PublicUser, UpdateUserDto } from './users.dto';
+import type { CreateUserDto, PublicUser, SetPasswordDto, UpdateUserDto } from './users.dto';
+import { nowInstant } from '../../utils/datetime.util';
 import { USER_MESSAGES, userNotFoundMessage } from './users.messages';
 import type { User } from '../../database/schema';
 
-const toPublicUser = ({ passwordHash: _passwordHash, ...user }: User): PublicUser => user;
+const toPublicUser = ({
+  passwordHash: _passwordHash,
+  passwordChangedAt: _passwordChangedAt,
+  ...user
+}: User): PublicUser => user;
+
+/**
+ * An admin may not lock themselves out: delete, deactivate or demote their own account (another
+ * admin can; the last-resort recovery is `bun run seed:admin --promote`).
+ */
+const forbidSelfLockout = (id: string): void => {
+  if (getActor() === `user:${id}`) {
+    throw new ForbiddenError(USER_MESSAGES.SELF_LOCKOUT, {
+      code: APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+    });
+  }
+};
 
 /**
  * Cached users are JSON: instants come back as ISO strings. Parsing them back keeps a cache hit
@@ -100,6 +118,9 @@ export class UsersService {
 
   @Transactional()
   async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
+    if (dto.isActive === false || (dto.role !== undefined && dto.role !== 'admin')) {
+      forbidSelfLockout(id);
+    }
     if (dto.email !== undefined) {
       const holder = await this.repo.findByEmail(dto.email);
       if (holder && holder.id !== id) throw emailTaken();
@@ -118,8 +139,23 @@ export class UsersService {
 
   /** Soft delete: the user disappears from reads; `restoreUser` brings them back. */
   async deleteUser(id: string): Promise<void> {
+    forbidSelfLockout(id);
     const deleted = await this.repo.softDeleteById(id);
     if (!deleted) throw new NotFoundError(userNotFoundMessage(id));
+    await this.cache.del(CACHE_KEYS.userDetail(id));
+  }
+
+  /**
+   * Admin reset of a user's password. `password_changed_at` makes the refresh endpoint refuse every
+   * token family started before now, so all of the user's sessions end (plan Review 8).
+   */
+  async setPassword(id: string, dto: SetPasswordDto): Promise<void> {
+    const passwordHash = await Bun.password.hash(dto.password);
+    const updated = await this.repo.updateById(id, {
+      passwordHash,
+      passwordChangedAt: nowInstant(),
+    });
+    if (!updated) throw new NotFoundError(userNotFoundMessage(id));
     await this.cache.del(CACHE_KEYS.userDetail(id));
   }
 
