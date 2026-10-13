@@ -69,13 +69,15 @@ Use **Conventional Commits** format:
 The allowed types are exactly `type-enum` in `commitlint.config.ts` (there is **no** `style`: formatting-only changes are `chore`). Any other type is rejected by the `commit-msg` hook and by CI.
 
 #### Scope Mapping:
-- Feature domains: `auth`, `users`, `health`, `[feature-name]`
+- Feature domains: `auth`, `users`, `health`, `partner-credentials`, `[feature-name]`
+- Inbound channels: `partner` (partner gateway, signing), `partner-auth`, `webhooks`, `conventions` (channel and naming conventions)
 - Core components: `core/cache`, `core/context`, `core/dto`, `core/errors`, `core/http`, `core/i18n`, `core/logger`, `core/middlewares`, `core/openapi`, `core/response`
 - Database: `database` (data-layer infrastructure: repositories, transactions), `database/schema`, `database/migrations`
 - Configuration: `config`
 - Utilities: `utils/<name>` (e.g. `utils/datetime`, `utils/record-diff`)
 - Integrations: `integrations/<vendor>`
-- Quality Gates / Tooling: `quality-gates`, `deps`, `lint`, `scripts`, `ci`
+- Quality Gates / Tooling: `quality-gates`, `deps`, `lint`, `scripts`, `ci`, `scaffold` (scaffold-module templates, `verify:scaffold`), `integration` (integration suite, `test:int`)
+- Phase reviews: `review` (fixes found by a review of a plan phase)
 - Agent rules & docs: `agents`, `plans`
 
 #### Rules:

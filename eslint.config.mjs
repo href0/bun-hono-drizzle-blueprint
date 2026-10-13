@@ -314,6 +314,25 @@ const TEST_SYNTAX_RULES = [
   },
 ];
 
+/*
+ * Integration suite (test/integration/**, `bun run test:int`, plan step 6.1): real PostgreSQL and
+ * Redis, through the real code path. In Bun 1.3.0 `expect(promise).rejects` / `.resolves` wait on
+ * the promise in a way that can stall real socket I/O (a transaction stuck "idle in transaction");
+ * spies and mocks would replace exactly what the suite exists to exercise.
+ */
+const INTEGRATION_TEST_RULES = [
+  {
+    selector: 'MemberExpression[property.name=/^(rejects|resolves)$/]',
+    message:
+      'expect(promise).rejects/.resolves can stall real I/O in Bun 1.3.0. Await first: rejectionOf(promise) from test/helpers/integration.ts, then assert.',
+  },
+  {
+    selector: 'CallExpression[callee.name=/^(spyOn|mock)$/]',
+    message:
+      'Integration tests run the real code path against real services: no spyOn() / mock(). Use a unit or e2e test for fakes.',
+  },
+];
+
 const MODULE_IMPORT_PATTERNS = [
   {
     group: ['**/database/connection*'],
@@ -842,6 +861,13 @@ export default tseslint.config(
       // Tests assert the wire contract literally ('ERR_*') and may throw plain errors as fixtures;
       // only the test-specific rules apply.
       'no-restricted-syntax': ['error', ...TEST_SYNTAX_RULES],
+    },
+  },
+  {
+    // Integration suite: real services through the real code path (INTEGRATION_TEST_RULES).
+    files: ['test/integration/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', ...TEST_SYNTAX_RULES, ...INTEGRATION_TEST_RULES],
     },
   },
   {

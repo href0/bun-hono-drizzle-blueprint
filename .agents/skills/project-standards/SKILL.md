@@ -99,7 +99,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   │   ├── demo-pay/           # Example webhook vendor: <vendor>.webhook.ts (verifier) + .webhook.dto.ts
 │   │   └── jsonplaceholder/    # Reference keyless adapter: <vendor>.{dto,service}.ts + test + index.ts
 │   └── utils/                  # Pure utility functions (zero dependencies on core/modules)
-└── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder, repository fixtures)
+└── test/                       # E2E blackbox HTTP tests, setup/ (hermetic preload), helpers/ (SQL recorder, repository fixtures), integration/ (`bun run test:int`)
 ```
 
 ---
@@ -395,7 +395,7 @@ Field messages come from the Zod schema and are not translated (known limitation
    ```bash
    bun run validate:full
    ```
-   Runs `typecheck` → `lint` → `lint:ls` → `format:check` → `lint:arch` → `lint:deps` → `lint:setup` → `lint:branch` → `test:cov` (also the Husky pre-push hook). CI additionally runs `build` and `verify:scaffold`.
+   Runs `typecheck` → `lint` → `lint:ls` → `format:check` → `lint:arch` → `lint:deps` → `lint:setup` → `lint:branch` → `test:cov` (also the Husky pre-push hook). CI additionally runs `build` and `verify:scaffold`, and the job `integration` runs `bun run test:int` (real PostgreSQL + Redis) — run it yourself before finishing a change to repositories, transactions, migrations, auth, the partner gateway or the cache.
 
 ---
 
@@ -413,6 +413,6 @@ When implementing specific subsystems, consult the corresponding deep-dive refer
 | **Raw SQL Queries** | [raw-queries.md](references/raw-queries.md) | Drizzle `sql` tagged template, parameterization safety, `*.queries.ts` files |
 | **Date & Time** | [datetime.md](references/datetime.md) | Instant vs calendar date vs local schedule, `datetime.util.ts`, DTO fields, UTC runtime/session, DST rules |
 | **API Documentation** | [openapi.md](references/openapi.md) | `describeEndpoint`, response schemas in DTOs, what is generated automatically, `/api/docs`, enforcement |
-| **Testing Standards** | [testing.md](references/testing.md) | `bun:test` controller/service/repo mocking, blackbox E2E HTTP testing |
+| **Testing Standards** | [testing.md](references/testing.md) | `bun:test` controller/service/repo mocking, blackbox E2E HTTP testing, integration suite on real services (`bun run test:int`) |
 | **Outbound Integrations** | [integrations.md](references/integrations.md) | Registry, per-vendor config, `HttpClientService` guarantees, `parse()`, `AccessTokenCache` (single-flight vendor login), fake-vendor tests |
 

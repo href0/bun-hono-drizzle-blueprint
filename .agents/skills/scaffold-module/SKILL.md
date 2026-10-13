@@ -490,7 +490,7 @@ describe('<PascalPlural>Repository (Unit)', () => {
 
 ### Step 12: Create Remaining Tests & Verify Quality Gate
 
-Create unit tests covering service, transformer, and controller (see `.agents/skills/project-standards/references/testing.md`).
+Create unit tests covering service, transformer, and controller (see `.agents/skills/project-standards/references/testing.md`). If the module adds its own queries, locks, unique indexes or Redis behaviour beyond what the templates generate, also add `test/integration/<name>.int.ts` and run `bun run test:int` (testing.md §7 — real PostgreSQL + Redis, disposable database).
 
 These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from each variant (this file, `references/header-detail.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, or any core API they use, run it.
 
