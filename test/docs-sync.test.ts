@@ -115,7 +115,7 @@ const ciJobs = new Set(
   ),
 );
 const testFileNames = new Set(
-  ['src', 'test'].flatMap((dir) =>
+  ['src', 'test', 'scripts'].flatMap((dir) =>
     readdirSync(resolve(ROOT, dir), { recursive: true, encoding: 'utf8' }).map((path) =>
       basename(path),
     ),

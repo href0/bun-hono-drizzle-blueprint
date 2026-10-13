@@ -9,7 +9,9 @@ Use this skill when asked to create, add, or scaffold a new domain/feature modul
 
 **Pick the variant first**: `docs/standards/new-module.md` §1 (table kinds, templates, working examples). Standalone tables use Steps 2–12 below; the other variants are in `references/` (`header-detail.md`, `record.md`, `partner.md`, `webhook.md`, `integration.md`).
 
-The order of work and the standard behind each step: `docs/standards/new-module.md` §2. This file holds only the template code (verified by `bun run verify:scaffold`); the rules each step relies on are linked, never restated.
+**Then generate with the CLI — do not copy the templates by hand**: `bun run scaffold <module|partner|webhook|integration> <name> [options]` (commands, naming rules, refusals: `docs/standards/new-module.md` §2; `--dry-run` first to check the plan and the singular it derived). It writes every file of the variant, registers it in the shared files, formats the result and prints the next steps. Your work starts after it: the domain fields, rules, messages and tests, following the standards each step links, then `bun run validate:full`.
+
+The order of work and the standard behind each step: `docs/standards/new-module.md` §3. This file holds only the template code the CLI reads (verified by `bun run verify:scaffold`, which runs the CLI); the rules each step relies on are linked, never restated. Changing a template changes what the CLI generates: run `bun run verify:scaffold` afterwards.
 
 ---
 
@@ -478,13 +480,250 @@ describe('<PascalPlural>Repository (Unit)', () => {
 
 ---
 
-### Step 12: Create Remaining Tests & Verify Quality Gate
+### Step 12: Create Service Test (`src/modules/<name>/<name>.service.test.ts`)
 
-Create unit tests covering service, transformer, and controller, and the integration test when the module has its own queries, locks, unique indexes or Redis behaviour — `docs/standards/testing.md` (§7 for `bun run test:int`).
+The repository is replaced by a fake that knows one live row, so every branch of the service — found and missing — runs without a database.
 
-These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from each variant (this file, `references/header-detail.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, or any core API they use, run it.
+```typescript
+import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
+import { NotFoundError } from '../../core/errors';
+import type { <PascalSingular> } from '../../database/schema';
+import type { <PascalPlural>Repository } from './<name>.repository';
+import { <PascalPlural>Service } from './<name>.service';
 
-The templates are formatted for a short module name; line wrapping changes with the name length, so always format before validating:
+const ID = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e';
+const MISSING = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9f';
+
+const record: <PascalSingular> = {
+  id: ID,
+  name: 'Sample',
+  isActive: true,
+  createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  createdBy: 'system',
+  updatedBy: 'system',
+  deletedAt: null,
+};
+
+const rejectionOf = async (promise: Promise<unknown>): Promise<unknown> => {
+  try {
+    await promise;
+    return undefined;
+  } catch (error) {
+    return error;
+  }
+};
+
+/** A repository that knows exactly one live row (`ID`) and records what it was asked. */
+const fakeRepository = (calls: unknown[][]): <PascalPlural>Repository =>
+  ({
+    create: async (values: unknown) => {
+      calls.push(['create', values]);
+      return record;
+    },
+    findById: async (id: string) => (id === ID ? record : null),
+    findPage: async (options: unknown) => {
+      calls.push(['findPage', options]);
+      return [record];
+    },
+    count: async () => 1,
+    updateById: async (id: string, values: Partial<<PascalSingular>>) => {
+      calls.push(['updateById', id, values]);
+      return id === ID ? { ...record, ...values } : null;
+    },
+    softDeleteById: async (id: string) => (id === ID ? record : null),
+    restoreById: async (id: string) => (id === ID ? record : null),
+  }) as unknown as <PascalPlural>Repository;
+
+describe('<PascalPlural>Service (Unit)', () => {
+  it('creates from the DTO', async () => {
+    const calls: unknown[][] = [];
+    const service = new <PascalPlural>Service(fakeRepository(calls));
+
+    expect(await service.create<PascalSingular>({ name: 'Sample' })).toBe(record);
+    expect(calls).toEqual([['create', { name: 'Sample' }]]);
+  });
+
+  it('finds by id; a missing row is a NotFoundError', async () => {
+    const service = new <PascalPlural>Service(fakeRepository([]));
+
+    expect(await service.get<PascalSingular>ById(ID)).toBe(record);
+    expect(await rejectionOf(service.get<PascalSingular>ById(MISSING))).toBeInstanceOf(NotFoundError);
+  });
+
+  it('lists a page with the total', async () => {
+    const calls: unknown[][] = [];
+    const service = new <PascalPlural>Service(fakeRepository(calls));
+
+    expect(await service.list<PascalPlural>({ page: 2, perPage: 10 })).toEqual({ records: [record], total: 1 });
+    expect(calls).toEqual([['findPage', { page: 2, perPage: 10 }]]);
+  });
+
+  it('updates, deletes and restores; each is a NotFoundError for a missing row', async () => {
+    const calls: unknown[][] = [];
+    const service = new <PascalPlural>Service(fakeRepository(calls));
+
+    expect((await service.update<PascalSingular>(ID, { isActive: false })).isActive).toBe(false);
+    expect(calls).toContainEqual(['updateById', ID, { isActive: false }]);
+    await service.delete<PascalSingular>(ID);
+    expect(await service.restore<PascalSingular>(ID)).toBe(record);
+    for (const attempt of [
+      service.update<PascalSingular>(MISSING, { name: 'x' }),
+      service.delete<PascalSingular>(MISSING),
+      service.restore<PascalSingular>(MISSING),
+    ]) {
+      expect(await rejectionOf(attempt)).toBeInstanceOf(NotFoundError);
+    }
+  });
+});
+```
+
+---
+
+### Step 13: Create Transformer Test (`src/modules/<name>/<name>.transformer.test.ts`)
+
+```typescript
+import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
+import type { <PascalSingular> } from '../../database/schema';
+import { <camelSingular>ResponseSchema } from './<name>.dto';
+import { to<PascalSingular>ListResponse, to<PascalSingular>Response } from './<name>.transformer';
+
+const record: <PascalSingular> = {
+  id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
+  name: 'Sample',
+  isActive: true,
+  createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  createdBy: 'system',
+  updatedBy: 'system',
+  deletedAt: null,
+};
+
+describe('to<PascalSingular>Response', () => {
+  it('exposes exactly the response fields (no audit or soft-delete columns)', () => {
+    const response = to<PascalSingular>Response(record);
+
+    expect(Object.keys(response).sort()).toEqual(Object.keys(<camelSingular>ResponseSchema.shape).sort());
+    expect(response.name).toBe('Sample');
+  });
+
+  it('maps a list', () => {
+    expect(to<PascalSingular>ListResponse([record, record])).toHaveLength(2);
+  });
+});
+```
+
+---
+
+### Step 14: Create Controller Test (`src/modules/<name>/<name>.controller.test.ts`)
+
+The routes run on a bare Hono app with the request context and the error handler, the service spied: this covers routes, validation, controller and transformer together (snake_case on the wire, status codes, a `NotFoundError` becoming a 404). Authentication is not part of the module — `test/default-deny.e2e.test.ts` proves every route needs a token once mounted in `createApp()`.
+
+```typescript
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
+import { Hono } from 'hono';
+import { Temporal } from 'temporal-polyfill';
+import { NotFoundError } from '../../core/errors';
+import { globalErrorHandler, requestContextMiddleware } from '../../core/middlewares';
+import type { <PascalSingular> } from '../../database/schema';
+import { <camelSingular>NotFoundMessage } from './<name>.messages';
+import { <camelPlural>Router } from './<name>.routes';
+import { <camelPlural>Service } from './<name>.service';
+
+const ID = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e';
+const MISSING = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9f';
+
+const record: <PascalSingular> = {
+  id: ID,
+  name: 'Sample',
+  isActive: true,
+  createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  updatedAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
+  createdBy: 'system',
+  updatedBy: 'system',
+  deletedAt: null,
+};
+
+const app = new Hono();
+app.use('*', requestContextMiddleware());
+app.route('/', <camelPlural>Router);
+app.onError(globalErrorHandler);
+
+const send = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+describe('<PascalPlural>Controller (through its routes)', () => {
+  const spies: { mockRestore: () => void }[] = [];
+
+  beforeAll(() => {
+    spies.push(
+      spyOn(<camelPlural>Service, 'create<PascalSingular>').mockImplementation(async () => record),
+      spyOn(<camelPlural>Service, 'get<PascalSingular>ById').mockImplementation(async (id) => {
+        if (id !== ID) throw new NotFoundError(<camelSingular>NotFoundMessage(id));
+        return record;
+      }),
+      spyOn(<camelPlural>Service, 'list<PascalPlural>').mockImplementation(async () => ({ records: [record], total: 1 })),
+      spyOn(<camelPlural>Service, 'update<PascalSingular>').mockImplementation(async () => record),
+      spyOn(<camelPlural>Service, 'delete<PascalSingular>').mockImplementation(async () => undefined),
+      spyOn(<camelPlural>Service, 'restore<PascalSingular>').mockImplementation(async () => record),
+    );
+  });
+
+  afterAll(() => {
+    for (const spy of spies) spy.mockRestore();
+  });
+
+  it('creates (201) and answers in snake_case', async () => {
+    const res = await app.request('/', send('POST', { name: 'Sample' }));
+    const body = (await res.json()) as { data: { is_active: boolean; created_at: string } };
+
+    expect(res.status).toBe(201);
+    expect(body.data).toMatchObject({ is_active: true, created_at: '2026-10-05T03:00:00.000Z' });
+  });
+
+  it('rejects invalid input (400) before the service', async () => {
+    expect((await app.request('/', send('POST', {}))).status).toBe(400);
+  });
+
+  it('lists with pagination meta', async () => {
+    const res = await app.request('/?page=1&per_page=10');
+    const body = (await res.json()) as { meta: unknown };
+
+    expect(res.status).toBe(200);
+    expect(body.meta).toEqual({ current_page: 1, per_page: 10, total_items: 1, total_pages: 1 });
+  });
+
+  it('gets by id, and a missing id is a 404', async () => {
+    expect((await app.request(`/${ID}`)).status).toBe(200);
+    const res = await app.request(`/${MISSING}`);
+    const body = (await res.json()) as { error: { code: string } };
+
+    expect(res.status).toBe(404);
+    expect(body.error.code).toBe('ERR_NOT_FOUND');
+  });
+
+  it('updates, deletes and restores', async () => {
+    expect((await app.request(`/${ID}`, send('PATCH', { is_active: false }))).status).toBe(200);
+    expect((await app.request(`/${ID}`, { method: 'DELETE' })).status).toBe(200);
+    expect((await app.request(`/${ID}/restore`, { method: 'POST' })).status).toBe(200);
+  });
+});
+```
+
+---
+
+### Step 15: Verify the Quality Gate
+
+Add the integration test when the module has its own queries, locks, unique indexes or Redis behaviour — `docs/standards/testing.md` (§7 for `bun run test:int`).
+
+These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
+
+The templates are formatted for a short module name; `bun run scaffold` formats what it writes. After your own edits (or when copying a block by hand), format before validating:
 ```bash
 bun run format
 bun run validate:full

@@ -258,3 +258,145 @@ describe('<PascalPlural>Repository (Unit)', () => {
   });
 });
 ```
+
+---
+
+### Step 11: Create Service Test (`src/modules/<name>/<name>.service.test.ts`)
+
+```typescript
+import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
+import type { <PascalSingular> } from '../../database/schema';
+import type { <PascalPlural>Repository } from './<name>.repository';
+import { <PascalPlural>Service } from './<name>.service';
+
+const AT = Temporal.Instant.from('2026-10-05T03:00:00Z');
+const record: <PascalSingular> = { id: 1, kind: 'login', detail: null, createdAt: AT, updatedAt: AT };
+
+const fakeRepository = (calls: unknown[][]): <PascalPlural>Repository =>
+  ({
+    append: async (values: unknown) => {
+      calls.push(['append', values]);
+      return record;
+    },
+    findPage: async (options: { where?: unknown }) => {
+      calls.push(['findPage', options.where === undefined ? 'all' : 'filtered']);
+      return [record];
+    },
+    count: async (where?: unknown) => {
+      calls.push(['count', where === undefined ? 'all' : 'filtered']);
+      return 1;
+    },
+  }) as unknown as <PascalPlural>Repository;
+
+describe('<PascalPlural>Service (Unit)', () => {
+  it('appends from the DTO', async () => {
+    const calls: unknown[][] = [];
+    const service = new <PascalPlural>Service(fakeRepository(calls));
+
+    expect(await service.append<PascalSingular>({ kind: 'login' })).toBe(record);
+    expect(calls).toEqual([['append', { kind: 'login' }]]);
+  });
+
+  it('lists every record, or only one kind (the same filter for the page and the total)', async () => {
+    const all: unknown[][] = [];
+    expect(await new <PascalPlural>Service(fakeRepository(all)).list<PascalPlural>({ page: 1, perPage: 20 })).toEqual({
+      records: [record],
+      total: 1,
+    });
+    expect(all).toEqual([['findPage', 'all'], ['count', 'all']]);
+
+    const filtered: unknown[][] = [];
+    await new <PascalPlural>Service(fakeRepository(filtered)).list<PascalPlural>({ page: 1, perPage: 20, kind: 'login' });
+    expect(filtered).toEqual([['findPage', 'filtered'], ['count', 'filtered']]);
+  });
+});
+```
+
+---
+
+### Step 12: Create Transformer Test (`src/modules/<name>/<name>.transformer.test.ts`)
+
+```typescript
+import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
+import type { <PascalSingular> } from '../../database/schema';
+import { <camelSingular>ResponseSchema } from './<name>.dto';
+import { to<PascalSingular>ListResponse, to<PascalSingular>Response } from './<name>.transformer';
+
+const AT = Temporal.Instant.from('2026-10-05T03:00:00Z');
+const record: <PascalSingular> = { id: 1, kind: 'login', detail: null, createdAt: AT, updatedAt: AT };
+
+describe('to<PascalSingular>Response', () => {
+  it('exposes exactly the response fields', () => {
+    expect(Object.keys(to<PascalSingular>Response(record)).sort()).toEqual(Object.keys(<camelSingular>ResponseSchema.shape).sort());
+  });
+
+  it('maps a list', () => {
+    expect(to<PascalSingular>ListResponse([record, record])).toHaveLength(2);
+  });
+});
+```
+
+---
+
+### Step 13: Create Controller Test (`src/modules/<name>/<name>.controller.test.ts`)
+
+```typescript
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
+import { Hono } from 'hono';
+import { Temporal } from 'temporal-polyfill';
+import { globalErrorHandler, requestContextMiddleware } from '../../core/middlewares';
+import type { <PascalSingular> } from '../../database/schema';
+import { <camelPlural>Router } from './<name>.routes';
+import { <camelPlural>Service } from './<name>.service';
+
+const AT = Temporal.Instant.from('2026-10-05T03:00:00Z');
+const record: <PascalSingular> = { id: 1, kind: 'login', detail: null, createdAt: AT, updatedAt: AT };
+
+const app = new Hono();
+app.use('*', requestContextMiddleware());
+app.route('/', <camelPlural>Router);
+app.onError(globalErrorHandler);
+
+describe('<PascalPlural>Controller (through its routes)', () => {
+  const spies: { mockRestore: () => void }[] = [];
+
+  beforeAll(() => {
+    spies.push(
+      spyOn(<camelPlural>Service, 'append<PascalSingular>').mockImplementation(async () => record),
+      spyOn(<camelPlural>Service, 'list<PascalPlural>').mockImplementation(async () => ({ records: [record], total: 1 })),
+    );
+  });
+
+  afterAll(() => {
+    for (const spy of spies) spy.mockRestore();
+  });
+
+  it('appends (201) and answers in snake_case', async () => {
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'login' }),
+    });
+    const body = (await res.json()) as { data: { created_at: string } };
+
+    expect(res.status).toBe(201);
+    expect(body.data.created_at).toBe('2026-10-05T03:00:00.000Z');
+  });
+
+  it('lists with pagination meta; an oversized page is a 400', async () => {
+    const res = await app.request('/?kind=login');
+
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { meta: unknown }).meta).toEqual({ current_page: 1, per_page: 20, total_items: 1, total_pages: 1 });
+    expect((await app.request('/?per_page=1000')).status).toBe(400);
+  });
+});
+```
+
+---
+
+### Step 14: Verify the Quality Gate
+
+Same as `SKILL.md` Step 15, then `bun run validate:full`.
