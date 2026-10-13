@@ -13,6 +13,9 @@ import { appConfig } from '../src/config';
  *   dependency-cruiser find controllers, services, … by that suffix, so a near miss such as
  *   `payments.partner-routes.ts` would silently escape every architecture rule;
  * - integration files are `<vendor>.<role>[.test].ts` or `index.ts`;
+ * - the integration suite (`bun run test:int`) is `test/integration/<area>.int.ts` plus its
+ *   `setup.ts` preload — a `*.int.ts` elsewhere would never run, a `*.test.ts` there would run
+ *   in the hermetic suite without services;
  * - a module is named after its domain, never after a vendor in `src/integrations/`;
  * - routers of `*.partner.routes.ts` are mounted only under `<base>/v1/partner`, routers of
  *   `*.webhook.routes.ts` only under `<base>/webhooks`, and nothing else is mounted there.
@@ -73,6 +76,15 @@ export const fileNameViolations = (path: string): string[] => {
         `${path}: integration files are src/integrations/<vendor>/<vendor>.<role>[.test].ts (role: service, dto, webhook, webhook.dto) or index.ts`,
       );
     }
+  }
+  const inIntegrationSuite = parts[0] === 'test' && parts[1] === 'integration';
+  if (name.endsWith('.int.ts') && !(inIntegrationSuite && parts.length === 3)) {
+    problems.push(
+      `${path}: integration tests live directly in test/integration/ (bun run test:int)`,
+    );
+  }
+  if (inIntegrationSuite && (parts.length !== 3 || !/^(setup|[a-z0-9-]+.int).ts$/.test(name))) {
+    problems.push(`${path}: test/integration/ holds only <area>.int.ts files and setup.ts`);
   }
   return problems;
 };
@@ -195,6 +207,11 @@ describe('the checks themselves (deliberately broken examples)', () => {
       'src/integrations/wahref/wahref.routes.ts',
       'src/integrations/helpers.ts',
       'src/core/http/HttpClient.ts',
+      'test/data-layer.int.ts',
+      'src/modules/users/users.int.ts',
+      'test/integration/users.test.ts',
+      'test/integration/helpers/db.ts',
+      'test/integration/nested/users.int.ts',
     ]) {
       expect(`${path}: ${String(fileNameViolations(path).length > 0)}`).toBe(`${path}: true`);
     }
@@ -211,6 +228,8 @@ describe('the checks themselves (deliberately broken examples)', () => {
       'src/integrations/wahref/index.ts',
       'src/integrations/registry.test.ts',
       'src/core/middlewares/partner-auth.ts',
+      'test/integration/data-layer.int.ts',
+      'test/integration/setup.ts',
     ]) {
       expect(fileNameViolations(path)).toEqual([]);
     }

@@ -4,6 +4,7 @@
  *   bun run test:int              # every test/integration/*.int.ts
  *   bun run test:int partner      # only files whose name contains "partner"
  *   bun run test:int --keep-db    # keep the database afterwards (debugging)
+ *   bun run test:int --dry-run    # print the targets a run would use, touch nothing
  *
  * Services come from TEST_DATABASE_URL (an existing database on the test server, e.g.
  * `postgresql://postgres:postgres@localhost:5432/postgres` — the runner only creates and drops
@@ -34,9 +35,28 @@ const env = (name: string): string | undefined => {
   return value === '' ? undefined : value;
 };
 
-/** A test service from TEST_* or, for this machine only, from the development settings. */
-const pick = (testName: string, devName: string, devIsLocal: boolean): string | undefined =>
-  env(testName) ?? (devIsLocal ? env(devName) : undefined);
+type RedisTarget = Omit<Targets['redis'], 'keyPrefix'> & { source: 'TEST_REDIS_*' | 'REDIS_*' };
+
+/**
+ * Redis of the run: every setting from TEST_REDIS_* when TEST_REDIS_HOST is set, otherwise every
+ * setting from REDIS_* (developer machine, localhost only) — never a mix, so a local password or
+ * port never travels to another server.
+ */
+const resolveRedis = (developerMachine: boolean): RedisTarget => {
+  const prefix = env('TEST_REDIS_HOST') === undefined ? 'REDIS' : 'TEST_REDIS';
+  if (prefix === 'REDIS' && !(developerMachine && LOCAL_HOSTS.has(env('REDIS_HOST') ?? ''))) {
+    fail(
+      'set TEST_REDIS_HOST (REDIS_HOST is not on this machine, not set, or NODE_ENV is not development/test)',
+    );
+  }
+  return {
+    source: prefix === 'REDIS' ? 'REDIS_*' : 'TEST_REDIS_*',
+    host: env(`${prefix}_HOST`) ?? '',
+    port: Number(env(`${prefix}_PORT`) ?? 6379),
+    password: env(`${prefix}_PASSWORD`) ?? '',
+    db: Number(env(`${prefix}_DB`) ?? 0),
+  };
+};
 
 interface Targets {
   /** Where the disposable database is created from (never written to). */
@@ -45,7 +65,9 @@ interface Targets {
   databaseBase: string;
   databaseUrl: URL;
   databaseName: string;
+  databaseSource: 'TEST_DATABASE_URL' | 'DATABASE_URL';
   redis: { host: string; port: number; password: string; db: number; keyPrefix: string };
+  redisSource: RedisTarget['source'];
 }
 
 const resolveTargets = (runId: string): Targets => {
@@ -70,11 +92,7 @@ const resolveTargets = (runId: string): Targets => {
     );
   }
 
-  const devRedisIsLocal = developerMachine && LOCAL_HOSTS.has(env('REDIS_HOST') ?? '');
-  const redisHost = pick('TEST_REDIS_HOST', 'REDIS_HOST', devRedisIsLocal);
-  if (redisHost === undefined) {
-    fail('set TEST_REDIS_HOST (REDIS_HOST is not on this machine or not set)');
-  }
+  const { source: redisSource, ...redis } = resolveRedis(developerMachine);
 
   const baseName = decodeURIComponent(adminUrl.pathname.slice(1)) || 'app';
   // PostgreSQL identifiers: at most 63 bytes; keep the name plain so it never needs quoting tricks.
@@ -91,13 +109,9 @@ const resolveTargets = (runId: string): Targets => {
     databaseBase,
     databaseUrl,
     databaseName,
-    redis: {
-      host: redisHost ?? '',
-      port: Number(pick('TEST_REDIS_PORT', 'REDIS_PORT', devRedisIsLocal) ?? 6379),
-      password: pick('TEST_REDIS_PASSWORD', 'REDIS_PASSWORD', devRedisIsLocal) ?? '',
-      db: Number(pick('TEST_REDIS_DB', 'REDIS_DB', devRedisIsLocal) ?? 0),
-      keyPrefix: `${env('APP_NAME') ?? 'app'}:int-test:${runId}`,
-    },
+    databaseSource: fromDevelopment ? 'DATABASE_URL' : 'TEST_DATABASE_URL',
+    redis: { ...redis, keyPrefix: `${env('APP_NAME') ?? 'app'}:int-test:${runId}` },
+    redisSource,
   };
 };
 
@@ -162,11 +176,23 @@ const dropStaleDatabases = async (admin: postgres.Sql, baseName: string): Promis
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
   const keepDatabase = args.includes('--keep-db');
+  const dryRun = args.includes('--dry-run');
   const files = integrationFiles(args.filter((arg) => !arg.startsWith('--')));
   if (files.length === 0) fail(`no ${INTEGRATION_DIR}/*.int.ts file matches ${args.join(' ')}`);
 
   const runId = Date.now().toString(36);
   const targets = resolveTargets(runId);
+  if (dryRun) {
+    // What a run would use, without touching anything (passwords never printed).
+    console.log(
+      [
+        `[test:int] database ${targets.databaseName} on ${targets.adminUrl.host} (from ${targets.databaseSource})`,
+        `[test:int] redis ${targets.redis.host}:${String(targets.redis.port)} db ${String(targets.redis.db)}, password ${targets.redis.password === '' ? 'empty' : 'set'} (from ${targets.redisSource}), prefix ${targets.redis.keyPrefix}`,
+        `[test:int] files ${files.join(' ')}`,
+      ].join('\n'),
+    );
+    return;
+  }
   const admin = postgres(targets.adminUrl.toString(), { max: 1, onnotice: () => undefined });
 
   let exitCode = 1;

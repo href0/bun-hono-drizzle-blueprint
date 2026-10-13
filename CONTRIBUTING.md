@@ -44,17 +44,18 @@ Setiap commit dan push melewati lapis proteksi otomatis:
                                      → lint:setup (IDENTITY_RULES) → lint:branch → test + coverage gate
 
 [4] CI (GitHub Actions, .github/workflows/ci.yml) — setiap push ke main & pull request
-      └─ nama branch + commitlint (PR) → typecheck → lint → ls-lint → prettier
-         → depcruise → knip → lint:setup → test + coverage gate → build → verify:scaffold
+      ├─ job verify       → nama branch + commitlint (PR) → typecheck → lint → ls-lint → prettier
+      │                     → depcruise → knip → lint:setup → test + coverage gate → build → verify:scaffold
+      └─ job integration  → bun run test:int (PostgreSQL 16 + Redis 7 sebagai service container)
 ```
 
-Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, termasuk nama branch dan pesan commit.
+Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, termasuk nama branch dan pesan commit. `bun run test:int` sengaja **tidak** ada di pre-push (butuh PostgreSQL + Redis): jalankan sendiri saat mengubah repository/base repository, transaksi, migrasi, auth, partner gateway atau cache — job CI `integration` menjalankannya di setiap push.
 
 **Coverage gate** (`scripts/check-coverage.ts` — satu-satunya sumber ambang):
 
 - Dihitung dari file sumber saja (`*.test.ts` dan `test/` tidak ikut dihitung).
 - Ambang global (lines & functions) dan ambang per file (lines) didefinisikan di konstanta `THRESHOLDS`.
-- Test bersifat **hermetik**: `bunfig.toml` me-preload `test/setup/hermetic-env.ts` yang mengarahkan `DATABASE_URL`/`REDIS_*` ke port lokal tertutup — unit & e2e test tidak pernah menyentuh database/Redis pengembang, apa pun isi file env lokal (dijaga `test/hermetic-env.test.ts`). Integration test ke layanan asli (Step 6.1) memakai variabel `TEST_*` sendiri.
+- Test bersifat **hermetik**: `bunfig.toml` me-preload `test/setup/hermetic-env.ts` yang mengarahkan `DATABASE_URL`/`REDIS_*` ke port lokal tertutup — unit & e2e test tidak pernah menyentuh database/Redis pengembang, apa pun isi file env lokal (dijaga `test/hermetic-env.test.ts`). Hanya integration suite (`bun run test:int`, `test/integration/*.int.ts`) yang menyentuh layanan asli — di database sekali pakai yang dibuatnya sendiri, lewat preload `test/integration/setup.ts`.
 - `mock.module()` dilarang di test (ESLint): mock-nya bocor ke semua file test berikutnya dalam proses yang sama. Injeksi dependensi lewat default parameter konstruktor/fungsi.
 - Setiap file di `src/` wajib dimuat oleh minimal satu test — Bun hanya menginstrumentasi file yang di-import test, sehingga file tanpa test terlihat sebagai pelanggaran, bukan lolos diam-diam. Barrel re-export murni dikecualikan otomatis.
 - Pengecualian hanya lewat `COVERAGE_EXCLUSIONS` dengan alasan dan step rencana yang menghapusnya; daftarnya dicetak di setiap run.
@@ -67,6 +68,9 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 
 | Perintah | Deskripsi | Kapan Digunakan |
 |---|---|---|
+| `bun run dev` | Server pengembangan dengan reload otomatis (`bun --watch src/index.ts`) | Saat mengembangkan |
+| `bun run start` | Menjalankan server tanpa watch (`bun src/index.ts`) | Menjalankan hasil checkout apa adanya |
+| `bun run build` | Bundel `src/index.ts` ke `dist/` (`--target bun`); dijalankan CI | Sebelum rilis / memastikan bundel berhasil |
 | `bun run typecheck` | Menjalankan compiler TypeScript (`tsc --noEmit`) | Saat mengubah types/DTO/interface |
 | `bun run lint` | Menjalankan ESLint 9 Flat Config dengan rule `strictTypeChecked` | Sebelum melakukan git commit |
 | `bun run lint:fix` | Memperbaiki format ESLint & Prettier secara otomatis | Jika ada error format/styling |
@@ -74,13 +78,16 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 | `bun run lint:arch` | Memeriksa pelanggaran batas layer arsitektur | Saat menambah ketergantungan antar layer |
 | `bun run lint:deps` | Memeriksa file, export, dan dependency yang tidak terpakai (knip) | Saat menghapus/memindah kode atau mengelola package |
 | `bun run lint:branch` | Memvalidasi kepatuhan format nama git branch aktif | Sebelum git push |
-| `bun run lint:setup` | Memastikan setiap `IDENTITY_RULES` (`scripts/setup.ts`) masih cocok dengan file-nya | Saat mengubah nilai yang membawa nama proyek |
+| `bun run lint:setup` | Dry run `scripts/setup.ts`: setiap `IDENTITY_RULES` dan `EXAMPLE_MODULES` masih cocok dengan file-nya (di proyek hasil `bun run setup`, contoh sudah terhapus dan hanya `IDENTITY_RULES` yang dicek — `--keep-examples`) | Saat mengubah nilai yang membawa nama proyek atau file/registrasi modul contoh |
+| `bun run format` / `bun run format:check` | Prettier menulis / memeriksa format `src`, `test`, `scripts` (`*.ts`; Markdown tidak diformat) | `format` sebelum commit bila perlu; `format:check` bagian dari `validate` |
 | `bun run verify:scaffold` | Men-generate modul contoh dari setiap template skill `scaffold-module` (mandiri, header-detail, pencatatan, partner, webhook) **dan** adapter vendor dari template integrasi, lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, test hasil generate, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, openapi, database, http) atau template itu sendiri |
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
 | `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Menandatangani request partner (signing v1) lalu mencetak header + perintah curl, atau langsung mengirimnya; secret dari prompt tersembunyi / stdin | Saat menguji endpoint `/api/v1/partner/*` atau membantu partner mencocokkan signature |
 | `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
 | `bun run test:int [nama] [--keep-db]` | Integration test ke PostgreSQL + Redis asli (`test/integration/*.int.ts`): membuat database sekali pakai `<nama>_it_<run>`, migrasi asli, lalu menghapusnya; key Redis ber-prefix `<APP_NAME>:int-test:<run>` dihapus satu per satu. Layanan dari `TEST_DATABASE_URL` / `TEST_REDIS_*`, atau `DATABASE_URL` / `REDIS_*` bila menunjuk mesin ini **dan** `NODE_ENV` = `development` / `test`. Tidak pernah dijalankan di server (staging / production) — CI yang menjalankannya | Saat mengubah repository, transaksi, migrasi, auth, partner gateway atau cache (juga job CI `integration`) |
-| **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** (juga dijalankan hook pre-push) | **Wajib sebelum membuat Pull/Merge Request** |
+| `bun run validate` | Semua gate statis (typecheck → lint → ls-lint → format:check → depcruise → knip → lint:setup → lint:branch), tanpa test | Pemeriksaan cepat tanpa test |
+| **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** (`validate` + `test:cov`; juga dijalankan hook pre-push) | **Wajib sebelum membuat Pull/Merge Request** |
+| `bun run db:generate` / `bun run db:migrate` / `bun run db:studio` | drizzle-kit: membuat migrasi dari schema, menerapkannya ke `DATABASE_URL`, membuka Drizzle Studio | Setelah mengubah schema (`db:generate`); menerapkan migrasi ke database Anda sendiri (`db:migrate`) |
 
 ---
 
@@ -160,17 +167,21 @@ src/
 
 test/                            # End-to-End (E2E) & Blackbox API Tests
 ├── setup/hermetic-env.ts        # Preload: tanpa database/Redis asli di `bun test`
-├── helpers/                     # sql-recorder.ts (perekam SQL), repository-fixtures.ts (tabel uji), partner-signing-vectors.ts (vektor signing yang dipublikasikan)
+├── helpers/                     # sql-recorder.ts (+ sql-recorder.test.ts; perekam SQL), repository-fixtures.ts (tabel uji generik), auth-fakes.ts (repository auth in-memory), authorized-app.ts (token untuk test kontrak), partner-signing-vectors.ts (vektor signing yang dipublikasikan), integration.ts (asActor, rejectionOf, unique untuk test:int)
+├── integration/                 # bun run test:int: setup.ts (preload: DB sekali pakai, migrasi, fixture) + data-layer, redis, auth, partner (*.int.ts)
 ├── *.e2e.test.ts                # health, auth, users, orders (contoh), partner-credentials, partner-gateway, vendor-webhooks, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Penjaga preload hermetik
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md tetap sama dengan kode (vektor, header, kode error)
-├── structure.test.ts            # Nama file, pola modul/integrasi, modul ≠ vendor, router kanal di prefix-nya
+├── structure.test.ts            # Nama file, pola modul/integrasi, modul ≠ vendor, router kanal di prefix-nya, penempatan *.int.ts
+├── docs-sync.test.ts            # CONTRIBUTING.md menyebut setiap script, folder test, helper, modul, dan perintah package.json
+├── agent-skills.test.ts         # Setiap skill .agents punya wrapper .claude dengan name + description yang sama
 └── migrations.test.ts           # Penjaga SQL migrasi hasil generate
 
 scripts/
 ├── setup.ts                     # `bun run setup <nama>` (skill init-project, IDENTITY_RULES)
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = satu-satunya sumber ambang)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: template scaffold-module lewat semua gate
+├── test-integration.ts          # `bun run test:int`: database sekali pakai + migrasi asli, suite test/integration, lalu dibersihkan
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: menandatangani request partner untuk uji manual
 ├── lib/read-secret.ts           # Input rahasia CLI: prompt tersembunyi / stdin, tidak pernah argumen atau env

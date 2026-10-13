@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–5 + Review 10 selesai** (`main` @ `f6f8ee4`); 6.1 menunggu review (branch `test/integration-suite`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–6 selesai** (`main` @ `f77a229`); Review 11 (Fase 6 + cek silang) menunggu review (branch `fix/review-phase-6`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `f6f8ee4` |
+| Basis kode | branch `main` @ `f77a229` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -526,6 +526,13 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-13 | 6.1 | **Chaos test** (7, semua tertangkap): preload menolak database bukan `*_it_<run>`; preload menolak jalan di luar runner; runner menolak fallback `DATABASE_URL` jauh; runner menolak `NODE_ENV=production`; `FOR UPDATE` dihapus dari `lockWhere` → suite data layer gagal; nonce tidak pernah ditolak → suite partner gagal; `closeRedisClient` kembali melempar → test unit gagal | Semua file dipulihkan |
 | 2026-10-13 | 6.1 | Dokumen: `testing.md` §7 baru (cara menjalankan, layanan, siklus database sekali pakai, preload, cara menulis test, larangan `.rejects`), project-standards §6 + pohon `scripts/`, `AGENTS.md` (hermetic tests + `test:int`), CONTRIBUTING (tabel perintah), README (quality gates), `.env.example` (blok `TEST_*` sebagai komentar), komentar preload hermetik | — |
 | 2026-10-13 | 6.1 | **Pengetatan (diskusi user soal deploy ke VPS):** fallback ke `DATABASE_URL` / `REDIS_*` kini juga mensyaratkan `NODE_ENV` = `development` atau `test`. Sebelumnya hanya "host = localhost" — di VPS yang PostgreSQL-nya terpasang di mesin yang sama dan `NODE_ENV`-nya lupa diisi, runner akan membuat/menghapus database `*_it_*` di server production. Suite ini tidak pernah dijalankan di server; CI memakai `TEST_*` + service container | Chaos: `NODE_ENV` kosong dan `staging` → ditolak; `development` tetap jalan |
+| 2026-10-13 | 6.1 | ✅ di-commit (`f77a229`) dan di-merge ke `main` — **Fase 6 selesai** | — |
+| 2026-10-13 | Review 11 | Review ulang Fase 6 + cek silang skills ↔ rules ↔ docs ↔ ESLint ↔ dependency-cruiser ↔ test ↔ plan atas permintaan user (agar jalur agentic AI dan manual tertahan gate yang sama): 10 temuan, semua diperbaiki di branch `fix/review-phase-6`. Konsisten tanpa perubahan: setiap nama rule ESLint/depcruise yang dikutip docs ada; wiring `app.ts` ↔ `bootstrap.md`; wrapper skill `.claude`; hook husky ↔ diagram | — |
+| 2026-10-13 | Review 11 | **Aturan suite integrasi ditegakkan** (sebelumnya hanya tertulis di `testing.md` §7): grup ESLint `INTEGRATION_TEST_RULES` untuk `test/integration/**` menolak `expect(promise).rejects` / `.resolves` (terbukti menahan transaksi di Bun 1.3.0) dan `spyOn` / `mock` (suite ini menguji jalur asli). `test/structure.test.ts`: `*.int.ts` hanya langsung di `test/integration/`, folder itu hanya berisi `<area>.int.ts` + `setup.ts` | Chaos: probe dengan `.resolves`, `.rejects`, `spyOn`, `mock` → 4 error ESLint; lihat baris chaos |
+| 2026-10-13 | Review 11 | **Runner `test:int`**: Redis kini diambil utuh dari satu sisi — `TEST_REDIS_*` begitu `TEST_REDIS_HOST` diisi, selain itu `REDIS_*` (mesin developer, localhost). Sebelumnya port/password/DB bisa diambil dari `REDIS_*` lokal sementara host dari `TEST_REDIS_HOST`, sehingga password Redis lokal bisa terkirim ke server uji lain. Baru: `--dry-run` mencetak target (database + sumber, Redis host/port/db, password `set`/`empty`, prefix, file) tanpa menyentuh apa pun | Dibuktikan: `TEST_REDIS_HOST=10.9.9.9` → `from TEST_REDIS_*`, password `empty` (tidak mewarisi lokal) |
+| 2026-10-13 | Review 11 | **Penjaga dokumen baru** `test/docs-sync.test.ts`: CONTRIBUTING.md (pohon kanonik + tabel perintah) wajib menyebut setiap file `scripts/*.ts` dan `scripts/lib/*`, setiap folder `test/`, setiap helper, setiap area integrasi, setiap file test di akar `test/` (e2e per nama), setiap folder `src/modules/*`, dan setiap script `package.json` (perintah persis, bukan prefix). Saat dipasang ia menemukan: `scripts/test-integration.ts`, `test/integration/` + area `data-layer`, helper `auth-fakes.ts` / `integration.ts` / `sql-recorder.test.ts`, `agent-skills.test.ts`, dan perintah `dev`, `start`, `build`, `format`, `format:check`, `validate`, `db:migrate`, `db:studio` — semuanya kini tercantum. Akar masalah drift yang muncul di Review 5, 7, 9, 10 | — |
+| 2026-10-13 | Review 11 | Docs: diagram CI CONTRIBUTING §1 (job `integration`; `test:int` sengaja tidak di pre-push), kalimat basi "integration test memakai `TEST_*` sendiri", deskripsi `lint:setup` (`EXAMPLE_MODULES`, proyek pasca-setup), project-standards §6 (CI `integration`) + pohon `test/` + tabel referensi, `testing.md` (istilah e2e, kapan menambah `*.int.ts`, penegak, `--dry-run`, Redis satu sisi), skill `scaffold-module` Step 12 (kapan test integrasi), skill `generate-commit-text` (scope yang dipakai: `partner-credentials`, `partner`, `partner-auth`, `webhooks`, `conventions`, `scaffold`, `integration`, `review`), `AGENTS.md` (aturan kapan `test:int` wajib + penegak baru). Plan: DoD §14.1 (`test:int`), L1 (`TEST_*`), L8 (job `integration`) | Penegakan scope commit (`scope-enum`) tetap dijadwalkan di 7.3 |
+| 2026-10-13 | Review 11 | **Chaos test** (8 + probe ESLint, semua tertangkap): `*.test.ts` di `test/integration/`; `*.int.ts` di luar `test/integration/`; script baru tanpa entri CONTRIBUTING; script `package.json` baru tanpa baris di tabel perintah; folder modul tidak di pohon; helper dihapus dari pohon; area integrasi hilang dari baris `integration/`; grup `INTEGRATION_TEST_RULES` dicabut (probe `.rejects` tidak lagi ditolak). **Temuan saat chaos:** pencocokan substring awal meloloskan helper `integration.ts` (cocok di dalam `test-integration.ts`) → penjaga kini mencocokkan nama utuh; area integrasi dicek pada baris `integration/` di pohon. Gate: `validate:full` 809 test, `test:int` 22/22, `verify:scaffold` 8/8, `build` | Semua file dipulihkan |
 
 ---
 
@@ -586,7 +593,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ed556d6` |
 | 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bb29912` |
 | 5.6 | Webhook vendor inbound | ✅ | 5.5, 4.2 | `9e1e166` |
-| 6.1 | Integration test (Postgres + Redis asli) | 👀 | 3.5, 5.6 |  |
+| 6.1 | Integration test (Postgres + Redis asli) | ✅ | 3.5, 5.6 | `f77a229` |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
 | 7.2 | CLI scaffolder `bun run scaffold` (D31) | ⬜ | 7.1 |  |
 | 7.3 | Finalisasi skills AI | ⬜ | 7.2 |  |
@@ -1276,6 +1283,7 @@ Tujuan: modul baru bisa dibuat tanpa agent AI, dari template yang sama dengan sk
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
 - [ ] Perintah ke database dijalankan developer; AI agent hanya ke DB **lokal** developer dengan izin eksplisit (migrasi, cek read-only), SQL destruktif / baris uji selalu ditanyakan dulu, tidak pernah DB bersama/production.
 - [ ] Tabel Progres (§5) dan Log (§4.1) diperbarui di commit step tersebut.
+- [ ] `bun run test:int` hijau bila step menyentuh repository / base repository, transaksi, migrasi, auth, partner gateway atau cache (tidak ada di pre-push; job CI `integration`).
 - [ ] Perubahan dibiarkan di working tree + usulan pesan commit (skill `generate-commit-text`); commit & merge hanya setelah diminta user.
 
 ### 14.2 Template laporan review
@@ -1348,6 +1356,8 @@ Catatan   : <hal yang perlu perhatian reviewer>
 | `DEMO_PAY_WEBHOOK_SECRET` | 5.6 | kosong | contoh webhook vendor; kosong = webhook Demo Pay nonaktif (semua 401) |
 | `DEMO_PAY_WEBHOOK_TOLERANCE_SECONDS` | 5.6 | `300` | umur maksimum timestamp bertanda tangan |
 | `EXTERNAL_VENDOR_*` | 1.1 | — | **dihapus** di 1.1 (tidak pernah dipakai kode) |
+| `TEST_DATABASE_URL` | 6.1 | — | hanya `bun run test:int` (tidak dibaca aplikasi): database yang sudah ada di server uji, runner membuat/menghapus `<nama>_it_<run>` darinya; kosong = `DATABASE_URL` hanya bila `NODE_ENV` development/test dan localhost |
+| `TEST_REDIS_HOST` / `PORT` / `PASSWORD` / `DB` | 6.1 | — / `6379` / — / `0` | hanya `bun run test:int`; diisi = seluruh setelan Redis dari `TEST_REDIS_*` (tidak dicampur `REDIS_*`) |
 
 ### 15.2 L2 — Error types & `APP_ERROR_CODES`
 
@@ -1595,6 +1605,15 @@ jobs:
       - run: bun run test:cov
       - run: bun run build
       - run: bun run verify:scaffold
+  integration:            # Step 6.1: service container PostgreSQL 16 + Redis 7
+    runs-on: ubuntu-latest
+    services:             # postgres:16-alpine (POSTGRES_PASSWORD), redis:7-alpine, health checks
+    env:
+      NODE_ENV: test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      TEST_REDIS_HOST: localhost
+    steps:                # checkout, setup-bun 1.3.0, bun install --frozen-lockfile
+      - run: bun run test:int
 ```
 
 `lint:branch` lokal membaca branch git aktif; di CI (checkout detached) nama branch diberikan eksplisit lewat `-t`.
