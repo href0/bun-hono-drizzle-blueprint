@@ -95,7 +95,7 @@ src/
 │       └── *.test.ts            # Co-located unit tests
 │
 ├── utils/                       # Pure functions (datetime, crypto, case converter, partner signature, ip/route match, record diff, …)
-├── app.ts                       # createApp(): middleware pipeline, versioned router, WEBHOOK_VENDORS
+├── app.ts                       # createApp(): middleware pipeline, versioned router, WEBHOOK_VENDORS; `// scaffold:*` markers = where `bun run scaffold` registers
 └── index.ts                     # Bun.serve, startup checks, graceful shutdown
 ```
 
@@ -121,11 +121,13 @@ test/
 scripts/
 ├── setup.ts                     # `bun run setup <name>` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES)
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = the single source of thresholds)
-├── verify-scaffold.ts           # `bun run verify:scaffold`: every scaffold-module template through every gate
+├── scaffold.ts                  # `bun run scaffold <module|partner|webhook|integration> <name>`: generates from the scaffold-module templates
+├── verify-scaffold.ts           # `bun run verify:scaffold`: runs the scaffold CLI for every template, then every gate
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
+├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
 

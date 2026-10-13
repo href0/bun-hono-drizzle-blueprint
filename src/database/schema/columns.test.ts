@@ -65,8 +65,14 @@ describe('sequentialPrimaryKey', () => {
   });
 
   it('is allowed only for tables listed in APPEND_ONLY_TABLES, each with a reason', () => {
-    expect(Object.keys(APPEND_ONLY_TABLES)).toEqual(['record_changes', 'webhook_events']);
-    expect(Object.values(APPEND_ONLY_TABLES).every((reason) => reason.length > 0)).toBe(true);
+    // The platform's record tables; a project adds its own (`bun run scaffold … --variant=record`).
+    // That every entry is an exported table with a sequential key is schema-conventions.test.ts.
+    expect(Object.keys(APPEND_ONLY_TABLES)).toEqual(
+      expect.arrayContaining(['record_changes', 'webhook_events']),
+    );
+    expect(Object.values(APPEND_ONLY_TABLES).every((reason) => reason.trim().length > 0)).toBe(
+      true,
+    );
   });
 });
 

@@ -41,3 +41,4 @@ snake_case is allowed **only** for SQL names in Drizzle schemas and on the wire 
 - Module: `kebab-case` (`products`, `flight-schedules`); route `<API_BASE_PATH>/v1/<kebab-case-plural>`.
 - Table: plural `snake_case` (`products`).
 - Messages constant: singular `UPPER_SNAKE` + `_MESSAGES` (`PRODUCT_MESSAGES`).
+- `bun run scaffold` derives every form from the plural name (singular by English suffix rules, `--singular` for irregular plurals): [new-module.md](new-module.md) §2.3.

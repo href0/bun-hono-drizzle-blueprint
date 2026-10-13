@@ -196,7 +196,7 @@ Hermetic by default — `bun test` never touches a developer's database or Redis
 
 ## 10. Quality Gates
 
-pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`). Local hooks can be skipped, CI cannot. Scaffold templates are verified by generating every variant and running every gate, so they cannot fall behind the code (R67). Detail: [quality-gates.md](docs/standards/quality-gates.md).
+pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`). Local hooks can be skipped, CI cannot. New modules come from one generator, `bun run scaffold` (D31), which reads the `scaffold-module` templates — the only copy of template code; `verify:scaffold` runs that CLI for every variant and every gate, so neither the templates nor the CLI can fall behind the code (R67). Developers and agents use the same command: conventions hold without an AI agent, and an agent spends its effort on the domain, not on boilerplate. Detail: [quality-gates.md](docs/standards/quality-gates.md).
 
 ---
 
@@ -208,7 +208,7 @@ Rules for AI agents are part of the architecture: an agent produces code faster 
 |---|---|
 | `.agents/AGENTS.md` (imported by `CLAUDE.md`) | What only agents need: mandatory reading, the work plan, `.env` protection, never commit / merge unasked |
 | skill `project-standards` | Router: which `docs/standards/` file to read before touching what |
-| skill `scaffold-module` | Template code for new modules / adapters (verified) |
+| skill `scaffold-module` | Template code for new modules / adapters, generated with `bun run scaffold` (verified) |
 | skills `init-project`, `generate-commit-text`, `update-version`, `generate-logbook`, `env-protection` | Project workflows |
 | `.claude/` | Claude Code wrappers (`test/agent-skills.test.ts`); `permissions.deny` + a hook blocking active `.env` files |
 
@@ -342,7 +342,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R64 | Hermetic tests (no real DB / Redis); `mock.module()` banned | [test:hermetic-env] [eslint:TEST_SYNTAX_RULES] |
 | R65 | Integration suite: no `.rejects` / `.resolves` / `spyOn` / `mock`; runs in CI | [eslint:INTEGRATION_TEST_RULES] [ci:integration] |
 | R66 | `eslint-disable` narrow and justified (`-- <reason>`) | [eslint:@eslint-community/eslint-comments/require-description] [eslint:@eslint-community/eslint-comments/no-unused-disable] |
-| R67 | Every `scaffold-module` template variant passes every gate | [script:verify:scaffold] [ci:verify] |
+| R67 | Every `scaffold-module` template variant, generated through `bun run scaffold`, passes every gate — the coverage gate included, so a variant ships its own tests; the CLI registers through permanent anchors and fails before writing when one is missing | [script:verify:scaffold] [ci:verify] [test:scaffold] |
 | R68 | `structure.md` names every script, test folder, helper and module, `quality-gates.md` every command; labels in this index are valid | [test:docs-sync] |
 | R69 | Every `.agents` skill has a `.claude` wrapper with the same name + description | [test:agent-skills] |
 | R70 | Agents never read active `.env` files (only `.env.example`) | [hook:.claude/hooks/protect-env.mjs] |

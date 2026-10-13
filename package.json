@@ -20,6 +20,7 @@
     "lint:deps": "knip",
     "lint:branch": "validate-branch-name",
     "verify:scaffold": "bun scripts/verify-scaffold.ts",
+    "scaffold": "bun scripts/scaffold.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:setup && bun run lint:branch",

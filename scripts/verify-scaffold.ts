@@ -1,97 +1,47 @@
 /**
- * Verifies the scaffold-module skill templates against the real quality gates.
+ * Verifies the scaffold-module templates — and the `bun run scaffold` CLI that applies them —
+ * against the real quality gates.
  *
  * Usage: bun run verify:scaffold
  *
- * Materializes every code block of each template variant (`SKILL.md` = standalone,
- * `references/header-detail.md`, `references/record.md`, `references/partner.md`,
- * `references/webhook.md`) as a probe module, and the outbound
- * integration template (`references/integration.md`) as a probe vendor adapter; registers them
- * exactly as the templates instruct, then runs prettier, tsc, eslint, ls-lint, dependency-cruiser,
- * knip, the generated tests and the schema conventions, plus live requests through `createApp()`.
- * Everything it creates or edits is restored afterwards — also on failure or Ctrl+C.
+ * Runs the CLI (scripts/scaffold.ts) for every variant — standalone, header-detail, record,
+ * partner, webhook — and for an outbound vendor adapter, exactly as a developer would; then runs
+ * prettier --check, tsc, eslint, ls-lint, dependency-cruiser, knip, the generated tests and the
+ * schema conventions, plus live requests through `createApp()`. Everything the CLI created or
+ * edited is restored afterwards — also on failure or Ctrl+C.
  *
  * Why: the templates are documentation, so no other gate compiles them. The standalone template
  * drifted from the code three times before this check existed (see the adoption plan log).
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-
-const SKILL_DIR = '.agents/skills/scaffold-module';
-const APP_PATH = 'src/app.ts';
-const SCHEMA_BARREL = 'src/database/schema/domain/index.ts';
-const APPEND_ONLY_PATH = 'src/database/schema/append-only-tables.ts';
-const REGISTRY_PATH = 'src/integrations/registry.ts';
-const CONFIG_BARREL = 'src/config/index.ts';
-
-interface Names {
-  name: string;
-  snakePlural: string;
-  snakeSingular: string;
-  upperSingular: string;
-  pascalPlural: string;
-  camelPlural: string;
-  pascalSingular: string;
-  camelSingular: string;
-}
+import {
+  APP_PATH,
+  APPEND_ONLY_PATH,
+  CONFIG_BARREL,
+  planScaffold,
+  REGISTRY_PATH,
+  SCHEMA_BARREL,
+  STRUCTURE_PATH,
+  type ScaffoldRequest,
+} from './lib/scaffold';
 
 interface Variant {
   label: string;
-  template: string;
-  names: Names;
+  request: ScaffoldRequest;
   /** `[path, method]` that must be described with describeEndpoint(), relative to the base path. */
   documented: [string, string][];
   /** A request that must be rejected with 400 by validate() once authenticated. */
   invalid: { path: string; method: string; body?: string };
-  appendOnly?: boolean;
   /** Inbound channel: users with access tokens (default), partners or vendor webhooks. */
   channel?: 'partner' | 'webhook';
-  /** Webhook variant: the vendor whose verifier the template generates. */
-  vendor?: VendorNames;
 }
-
-interface VendorNames {
-  kebab: string;
-  upper: string;
-  camel: string;
-  pascal: string;
-}
-
-/** Where the template registers its router (Step "Register Route in src/app.ts"). */
-const routerOf = (variant: Variant): { file: string; symbol: string; mount: string } =>
-  variant.channel === 'webhook'
-    ? {
-        file: `${variant.names.name}.webhook.routes`,
-        symbol: `${variant.names.camelPlural}WebhookRoutes`,
-        mount: `/${variant.vendor?.kebab ?? ''}`,
-      }
-    : variant.channel === 'partner'
-      ? {
-          file: `${variant.names.name}.partner.routes`,
-          symbol: `${variant.names.camelPlural}PartnerRoutes`,
-          mount: `/partner/${variant.names.name}`,
-        }
-      : {
-          file: `${variant.names.name}.routes`,
-          symbol: `${variant.names.camelPlural}Router`,
-          mount: `/${variant.names.name}`,
-        };
 
 /** Kebab-case names with a hyphen on purpose: exercises naming rules for multi-word modules. */
 const VARIANTS: Variant[] = [
   {
     label: 'standalone',
-    template: `${SKILL_DIR}/SKILL.md`,
-    names: {
-      name: 'scaffold-probes',
-      snakePlural: 'scaffold_probes',
-      snakeSingular: 'scaffold_probe',
-      upperSingular: 'SCAFFOLD_PROBE',
-      pascalPlural: 'ScaffoldProbes',
-      camelPlural: 'scaffoldProbes',
-      pascalSingular: 'ScaffoldProbe',
-      camelSingular: 'scaffoldProbe',
-    },
+    request: { kind: 'module', name: 'scaffold-probes' },
     documented: [
       ['/v1/scaffold-probes', 'post'],
       ['/v1/scaffold-probes', 'get'],
@@ -104,17 +54,7 @@ const VARIANTS: Variant[] = [
   },
   {
     label: 'header-detail',
-    template: `${SKILL_DIR}/references/header-detail.md`,
-    names: {
-      name: 'probe-orders',
-      snakePlural: 'probe_orders',
-      snakeSingular: 'probe_order',
-      upperSingular: 'PROBE_ORDER',
-      pascalPlural: 'ProbeOrders',
-      camelPlural: 'probeOrders',
-      pascalSingular: 'ProbeOrder',
-      camelSingular: 'probeOrder',
-    },
+    request: { kind: 'module', name: 'probe-orders', variant: 'header-detail' },
     documented: [
       ['/v1/probe-orders', 'post'],
       ['/v1/probe-orders/{id}', 'patch'],
@@ -131,38 +71,39 @@ const VARIANTS: Variant[] = [
     },
   },
   {
-    label: 'record',
-    template: `${SKILL_DIR}/references/record.md`,
-    names: {
-      name: 'probe-events',
-      snakePlural: 'probe_events',
-      snakeSingular: 'probe_event',
-      upperSingular: 'PROBE_EVENT',
-      pascalPlural: 'ProbeEvents',
-      camelPlural: 'probeEvents',
-      pascalSingular: 'ProbeEvent',
-      camelSingular: 'probeEvent',
+    // A named, multi-word detail: every spelling of it (route, table, wire key, methods) is derived.
+    label: 'header-detail --detail',
+    request: {
+      kind: 'module',
+      name: 'probe-classes',
+      variant: 'header-detail',
+      detail: 'line-members',
     },
+    documented: [
+      ['/v1/probe-classes', 'post'],
+      ['/v1/probe-classes/{id}/line-members', 'get'],
+      ['/v1/probe-classes/{id}/line-members', 'put'],
+      ['/v1/probe-classes/{id}/line-members/{childId}', 'patch'],
+      ['/v1/probe-classes/{id}/line-members/{childId}', 'delete'],
+    ],
+    invalid: {
+      path: '/v1/probe-classes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/line-members',
+      method: 'PUT',
+      body: '{"line_members":[{"description":"","quantity":0}]}',
+    },
+  },
+  {
+    label: 'record',
+    request: { kind: 'module', name: 'probe-events', variant: 'record' },
     documented: [
       ['/v1/probe-events', 'post'],
       ['/v1/probe-events', 'get'],
     ],
     invalid: { path: '/v1/probe-events?per_page=1000', method: 'GET' },
-    appendOnly: true,
   },
   {
     label: 'partner',
-    template: `${SKILL_DIR}/references/partner.md`,
-    names: {
-      name: 'probe-submissions',
-      snakePlural: 'probe_submissions',
-      snakeSingular: 'probe_submission',
-      upperSingular: 'PROBE_SUBMISSION',
-      pascalPlural: 'ProbeSubmissions',
-      camelPlural: 'probeSubmissions',
-      pascalSingular: 'ProbeSubmission',
-      camelSingular: 'probeSubmission',
-    },
+    request: { kind: 'partner', name: 'probe-submissions' },
     documented: [
       ['/v1/partner/probe-submissions', 'post'],
       ['/v1/partner/probe-submissions/{reference}', 'get'],
@@ -176,23 +117,7 @@ const VARIANTS: Variant[] = [
   },
   {
     label: 'webhook',
-    template: `${SKILL_DIR}/references/webhook.md`,
-    names: {
-      name: 'probe-receipts',
-      snakePlural: 'probe_receipts',
-      snakeSingular: 'probe_receipt',
-      upperSingular: 'PROBE_RECEIPT',
-      pascalPlural: 'ProbeReceipts',
-      camelPlural: 'probeReceipts',
-      pascalSingular: 'ProbeReceipt',
-      camelSingular: 'probeReceipt',
-    },
-    vendor: {
-      kebab: 'probe-hooks',
-      upper: 'PROBE_HOOKS',
-      camel: 'probeHooks',
-      pascal: 'ProbeHooks',
-    },
+    request: { kind: 'webhook', name: 'probe-receipts', vendor: 'probe-hooks' },
     documented: [['/webhooks/probe-hooks', 'post']],
     invalid: {
       path: '/webhooks/probe-hooks',
@@ -203,95 +128,47 @@ const VARIANTS: Variant[] = [
   },
 ];
 
-const fill = (text: string, names: Names, vendor?: VendorNames): string =>
-  (
-    [
-      [/<vendorCamel>/g, vendor?.camel ?? '<vendorCamel>'],
-      [/<VendorPascal>/g, vendor?.pascal ?? '<VendorPascal>'],
-      [/<VENDOR>/g, vendor?.upper ?? '<VENDOR>'],
-      [/<vendor>/g, vendor?.kebab ?? '<vendor>'],
-      [/<snake_plural>/g, names.snakePlural],
-      [/<snake_singular>/g, names.snakeSingular],
-      [/<UPPER_SINGULAR>/g, names.upperSingular],
-      [/<PascalPlural>/g, names.pascalPlural],
-      [/<camelPlural>/g, names.camelPlural],
-      [/<PascalSingular>/g, names.pascalSingular],
-      [/<camelSingular>/g, names.camelSingular],
-      [/<name>/g, names.name],
-    ] as [RegExp, string][]
-  ).reduce((result, [pattern, value]) => result.replace(pattern, value), text);
+/** Login-based vendor adapter (references/integration.md). */
+const INTEGRATION: ScaffoldRequest = { kind: 'integration', name: 'probe-vendor' };
 
-/** Login-based vendor adapter (references/integration.md): only the singular names are used. */
-const INTEGRATION = {
-  label: 'integration',
-  template: `${SKILL_DIR}/references/integration.md`,
-  names: {
-    name: 'probe-vendor',
-    snakePlural: 'probe_vendors',
-    snakeSingular: 'probe_vendor',
-    upperSingular: 'PROBE_VENDOR',
-    pascalPlural: 'ProbeVendors',
-    camelPlural: 'probeVendors',
-    pascalSingular: 'ProbeVendor',
-    camelSingular: 'probeVendor',
-  } satisfies Names,
-};
-const integrationDir = `src/integrations/${INTEGRATION.names.name}`;
-const integrationConfig = `src/config/${INTEGRATION.names.name}.config.ts`;
+/** The CLI command line for a request — what a developer would type. */
+const cliArgs = (request: ScaffoldRequest): string[] => [
+  request.kind,
+  request.name,
+  ...(request.variant ? [`--variant=${request.variant}`] : []),
+  ...(request.vendor ? [`--vendor=${request.vendor}`] : []),
+  ...(request.detail ? [`--detail=${request.detail}`] : []),
+];
 
-const moduleDir = (names: Names): string => `src/modules/${names.name}`;
-const schemaFile = (names: Names): string => `src/database/schema/domain/${names.name}.schema.ts`;
-
-const webhookVendors = (): VendorNames[] =>
-  VARIANTS.flatMap((variant) => (variant.vendor ? [variant.vendor] : []));
-
-const originals = new Map<string, string>();
+const requests = [...VARIANTS.map((variant) => variant.request), INTEGRATION];
+/** Every file the CLI creates, from the same plan it applies. */
+const plannedFiles = requests.flatMap((request) =>
+  planScaffold(request).files.map((file) => file.path),
+);
+/** Shared files the CLI edits: restored byte for byte afterwards. */
+const SHARED = [APP_PATH, SCHEMA_BARREL, APPEND_ONLY_PATH, REGISTRY_PATH, CONFIG_BARREL];
+/** Also edited (the module tree), restored, but not code: no prettier / ESLint. */
+const SHARED_DOCS = [STRUCTURE_PATH];
+const originals = new Map(
+  [...SHARED, ...SHARED_DOCS].map((path) => [path, readFileSync(path, 'utf-8')]),
+);
 let cleanedUp = false;
+
+/** Folders created only for the probes (`src/modules/<probe>`, `src/integrations/<probe>`). */
+const probeFolders = [
+  ...new Set(
+    plannedFiles
+      .map((path) => dirname(path))
+      .filter((dir) => /^src\/(modules|integrations)\/[^/]+$/.test(dir)),
+  ),
+];
 
 const cleanup = (): void => {
   if (cleanedUp) return;
   cleanedUp = true;
-  for (const { names } of VARIANTS) {
-    rmSync(moduleDir(names), { recursive: true, force: true });
-    rmSync(schemaFile(names), { force: true });
-  }
-  rmSync(integrationDir, { recursive: true, force: true });
-  rmSync(integrationConfig, { force: true });
-  for (const vendor of webhookVendors()) {
-    rmSync(`src/integrations/${vendor.kebab}`, { recursive: true, force: true });
-    rmSync(`src/config/${vendor.kebab}.config.ts`, { force: true });
-  }
+  for (const path of plannedFiles) rmSync(path, { force: true });
+  for (const dir of probeFolders) rmSync(dir, { recursive: true, force: true });
   for (const [path, content] of originals) writeFileSync(path, content);
-};
-
-/**
- * Replaces the first match of an anchor that must be there — a missing anchor fails loudly instead
- * of leaving the registration out. `replace` gets the match and the regex groups, if any.
- */
-const replaceAnchor = (
-  content: string,
-  anchor: string | RegExp,
-  replace: (match: string, ...groups: string[]) => string,
-): string => {
-  const found = typeof anchor === 'string' ? content.includes(anchor) : anchor.test(content);
-  if (!found) throw new Error(`registration anchor not found: ${String(anchor)}`);
-  return typeof anchor === 'string'
-    ? content.replace(anchor, () => replace(anchor))
-    : // The callback receives the groups, then the offset and the whole string.
-      content.replace(anchor, (match, ...rest: unknown[]) =>
-        replace(
-          match,
-          ...rest.slice(0, -2).map((group) => (typeof group === 'string' ? group : '')),
-        ),
-      );
-};
-
-const editFile = (path: string, edit: (content: string) => string): void => {
-  const content = readFileSync(path, 'utf-8');
-  if (!originals.has(path)) originals.set(path, content);
-  const next = edit(content);
-  if (next === content) throw new Error(`template registration did not change ${path}`);
-  writeFileSync(path, next);
 };
 
 const run = (label: string, command: string[]): boolean => {
@@ -303,103 +180,6 @@ const run = (label: string, command: string[]): boolean => {
     console.log(result.stderr.toString().trim());
   }
   return ok;
-};
-
-/** Writes the code block under every `### Step N: … (path)` heading, except registration edits. */
-const materialize = (
-  templatePath: string,
-  names: Names,
-  registrations: string[],
-  vendor?: VendorNames,
-): string[] => {
-  const template = readFileSync(templatePath, 'utf-8');
-  const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
-  const generated: string[] = [];
-
-  for (const match of template.matchAll(stepPattern)) {
-    const path = fill(match[1], names, vendor);
-    if (registrations.includes(path)) continue;
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, fill(match[2], names, vendor));
-    generated.push(path);
-  }
-  if (generated.length === 0) throw new Error(`no templates found in ${templatePath}`);
-  return generated;
-};
-
-const generateIntegration = (): string[] => {
-  const { names } = INTEGRATION;
-  const generated = materialize(INTEGRATION.template, names, [REGISTRY_PATH, CONFIG_BARREL]);
-  editFile(REGISTRY_PATH, (content) =>
-    content.replace(
-      /(export const INTEGRATION_REGISTRY = \{\n)/,
-      `$1  ${names.upperSingular}: { code: '${names.upperSingular}', institution: 'Probe Vendor (verify:scaffold)' },\n`,
-    ),
-  );
-  editFile(CONFIG_BARREL, (content) => `${content}export * from './${names.name}.config';\n`);
-  return generated;
-};
-
-const generate = (variant: Variant): string[] => {
-  const { names, vendor } = variant;
-  const generated = materialize(variant.template, names, [APP_PATH], vendor);
-
-  if (vendor) {
-    // Webhook variant: no table of its own (webhook_events is shared); vendor config + registry.
-    editFile(CONFIG_BARREL, (content) => `${content}export * from './${vendor.kebab}.config';\n`);
-    editFile(REGISTRY_PATH, (content) =>
-      content.replace(
-        /(export const INTEGRATION_REGISTRY = \{\n)/,
-        `$1  ${vendor.upper}: { code: '${vendor.upper}', institution: 'Probe Hooks (verify:scaffold)' },\n`,
-      ),
-    );
-    const router = routerOf(variant);
-    // Anchors present with and without the Demo Pay example (`bun run setup` removes it).
-    editFile(APP_PATH, (content) => {
-      let next = replaceAnchor(
-        content,
-        "import { userRoutes } from './modules/users/users.routes';",
-        (anchor) =>
-          `${anchor}\nimport { ${router.symbol} } from './modules/${names.name}/${router.file}';\nimport { ${vendor.camel}Webhook } from './integrations/${vendor.kebab}/${vendor.kebab}.webhook';`,
-      );
-      next = replaceAnchor(
-        next,
-        /(WEBHOOK_VENDORS: readonly WebhookVendor\[\] = \[)([^\]]*)\]/,
-        (_match, head = '', listed = '') =>
-          `${head}${listed.trim() === '' ? '' : `${listed.trim()}, `}${vendor.camel}Webhook]`,
-      );
-      return replaceAnchor(
-        next,
-        '  app.use(`${webhooksPath}/*`, requireVerifiedWebhook());',
-        (anchor) =>
-          `${anchor}\n  app.route(\`\${webhooksPath}${router.mount}\`, ${router.symbol});`,
-      );
-    });
-    return generated;
-  }
-
-  editFile(SCHEMA_BARREL, (content) => `${content}export * from './${names.name}.schema';\n`);
-  if (variant.appendOnly) {
-    editFile(APPEND_ONLY_PATH, (content) =>
-      content.replace(
-        /(export const APPEND_ONLY_TABLES[^{]*\{\n)/,
-        `$1  ${names.snakePlural}: 'scaffold probe (verify:scaffold)',\n`,
-      ),
-    );
-  }
-  const router = routerOf(variant);
-  editFile(APP_PATH, (content) =>
-    content
-      .replace(
-        "import { userRoutes } from './modules/users/users.routes';",
-        `import { userRoutes } from './modules/users/users.routes';\nimport { ${router.symbol} } from './modules/${names.name}/${router.file}';`,
-      )
-      .replace(
-        "  v1.route('/users', userRoutes);",
-        `  v1.route('/users', userRoutes);\n  v1.route('${router.mount}', ${router.symbol});`,
-      ),
-  );
-  return generated;
 };
 
 const liveCheck = (): string => `
@@ -459,15 +239,7 @@ for (const variant of variants) {
 }`;
 
 const main = (): void => {
-  const existing = [
-    ...VARIANTS.flatMap(({ names }) => [moduleDir(names), schemaFile(names)]),
-    integrationDir,
-    integrationConfig,
-    ...webhookVendors().flatMap((vendor) => [
-      `src/integrations/${vendor.kebab}`,
-      `src/config/${vendor.kebab}.config.ts`,
-    ]),
-  ].filter((path) => existsSync(path));
+  const existing = [...plannedFiles, ...probeFolders].filter((path) => existsSync(path));
   if (existing.length > 0) {
     console.error(`Refusing to run: ${existing.join(', ')} already exist(s).`);
     process.exit(1);
@@ -480,38 +252,24 @@ const main = (): void => {
 
   let ok = false;
   try {
-    const generated = VARIANTS.flatMap((variant) => {
-      const files = generate(variant);
-      console.log(
-        `Generated ${String(files.length)} files from ${variant.template} (${variant.label})`,
-      );
-      return files;
-    });
-    const integrationFiles = generateIntegration();
-    console.log(
-      `Generated ${String(integrationFiles.length)} files from ${INTEGRATION.template} (${INTEGRATION.label})`,
-    );
-    generated.push(...integrationFiles);
-
-    // The templates are formatted for a short name; the skill instructs to format first.
+    // The CLI exactly as documented; it formats what it writes (Prettier), so --check must pass.
     ok =
-      run('prettier --write (as instructed by the skill)', [
+      requests.every((request) =>
+        run(`bun run scaffold ${cliArgs(request).join(' ')}`, [
+          'bun',
+          'scripts/scaffold.ts',
+          ...cliArgs(request),
+        ]),
+      ) &&
+      run('prettier --check (the CLI formatted what it wrote)', [
         'bunx',
         'prettier',
-        '--write',
-        ...generated,
+        '--check',
+        ...plannedFiles,
+        ...SHARED,
       ]) &&
       run('tsc --noEmit', ['bunx', 'tsc', '--noEmit']) &&
-      run('eslint', [
-        'bunx',
-        'eslint',
-        '--max-warnings',
-        '0',
-        ...generated,
-        APP_PATH,
-        REGISTRY_PATH,
-        CONFIG_BARREL,
-      ]) &&
+      run('eslint', ['bunx', 'eslint', '--max-warnings', '0', ...plannedFiles, ...SHARED]) &&
       run('ls-lint', ['bunx', 'ls-lint']) &&
       run('dependency-cruiser', [
         'bunx',
@@ -525,11 +283,13 @@ const main = (): void => {
       run('bun test (generated tests + schema conventions)', [
         'bun',
         'test',
-        ...generated.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
+        ...plannedFiles.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
         // The generated tables are exported from the schema barrel: they must pass the conventions.
         './src/database/schema/schema-conventions.test.ts',
         // File names, module/vendor naming and channel mounting (partner routers under /partner).
         './test/structure.test.ts',
+        // The CLI lists each new module in the canonical tree (docs/standards/structure.md).
+        './test/docs-sync.test.ts',
       ]) &&
       // Hermetic like the test suite: no local env file values, no real database or Redis.
       run('live requests through createApp()', [
@@ -538,6 +298,14 @@ const main = (): void => {
         './test/setup/hermetic-env.ts',
         '-e',
         liveCheck(),
+      ]) &&
+      // What a developer runs right after scaffolding: the whole suite (default-deny, OpenAPI and
+      // docs guards see the generated routes) and the coverage gate, so every generated source
+      // file must be loaded by a generated test and reach the per-file threshold.
+      run('bun run test:cov (whole suite + coverage gate, generated modules included)', [
+        'bun',
+        'run',
+        'test:cov',
       ]);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
@@ -548,8 +316,8 @@ const main = (): void => {
 
   console.log(
     ok
-      ? 'SUCCESS: every scaffold-module template (modules + integration) passes every gate.'
-      : 'FAILURE: a scaffold-module template is out of sync with the codebase.',
+      ? 'SUCCESS: `bun run scaffold` and every scaffold-module template pass every gate.'
+      : 'FAILURE: a scaffold-module template (or the scaffold CLI) is out of sync with the codebase.',
   );
   process.exit(ok ? 0 : 1);
 };

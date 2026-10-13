@@ -35,6 +35,7 @@ import { ordersRouter } from './modules/orders/orders.routes';
 // Example vendor webhook (Demo Pay → payment-notifications): removed by `bun run setup <name>` unless --keep-examples.
 import { demoPayWebhook } from './integrations/demo-pay/demo-pay.webhook';
 import { paymentNotificationWebhookRoutes } from './modules/payment-notifications/payment-notifications.webhook.routes';
+// scaffold:imports — `bun run scaffold` adds module and vendor imports above this line; keep it.
 
 /**
  * Vendors whose webhooks this API accepts (plan D23): each gets its verifier on
@@ -99,6 +100,7 @@ export const createApp = (): Hono => {
   }
   app.use(`${webhooksPath}/*`, requireVerifiedWebhook());
   app.route(`${webhooksPath}/${demoPayWebhook.vendor}`, paymentNotificationWebhookRoutes);
+  // scaffold:webhook-routes — `bun run scaffold` adds webhook receivers above this line; keep it.
 
   // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
   app.use(
@@ -120,6 +122,7 @@ export const createApp = (): Hono => {
   v1.route('/partner-credentials', partnerCredentialRoutes);
   v1.route('/partner', partnerGatewayRoutes);
   v1.route('/orders', ordersRouter);
+  // scaffold:v1-routes — `bun run scaffold` adds versioned routes above this line; keep it.
   app.route(v1Path, v1);
 
   app.get(
