@@ -102,6 +102,17 @@ describe('closeRedisClient', () => {
     expect(client.disconnect).not.toHaveBeenCalled();
   });
 
+  it('drops the socket when QUIT is rejected although the status still reads ready', async () => {
+    const client = {
+      status: 'ready',
+      quit: mock(() => Promise.reject(new Error("Stream isn't writeable"))),
+      disconnect: mock(() => {}),
+    };
+    await closeRedisClient(client as unknown as SafeRedis);
+    expect(client.quit).toHaveBeenCalledTimes(1);
+    expect(client.disconnect).toHaveBeenCalledTimes(1);
+  });
+
   it('drops the socket without QUIT when Redis is not ready (quit() would reject)', async () => {
     const client = offlineClient();
     expect((await rejectionOf(client.quit())).message).toContain('enableOfflineQueue');

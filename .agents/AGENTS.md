@@ -31,7 +31,7 @@ This project enforces strict automated Quality Gates powered by:
 - **Dependency Cruiser** strict layer boundaries (`config`, `core`, `database`, `modules`, `integrations`, `utils`)
 - **knip** unused files, exports, and dependencies
 - **Branch Naming Validation** (`validate-branch-name`)
-- **Hermetic tests** — `bunfig.toml` preloads `test/setup/hermetic-env.ts` (no real database/Redis from `bun test`); `mock.module()` is banned in tests (it leaks across files)
+- **Hermetic tests** — `bunfig.toml` preloads `test/setup/hermetic-env.ts` (no real database/Redis from `bun test`); real services only in the integration suite `bun run test:int` (`test/integration/*.int.ts`, a disposable database per run, CI job `integration`); `mock.module()` is banned in tests (it leaks across files)
 - **Coverage gate** `scripts/check-coverage.ts` — the single source of coverage thresholds (source files only, global + per-file, every source file must be loaded by a test)
 - **Scaffold template verification** `bun run verify:scaffold` (CI) — generates a module from every `scaffold-module` template variant (standalone, header-detail, record, partner, webhook) plus a vendor adapter from the integration template, and runs every gate, their tests and the schema conventions; run it after changing the template or any core API it uses (errors, response, middlewares, dto, i18n, openapi, database, http)
 

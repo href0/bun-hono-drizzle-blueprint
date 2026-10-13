@@ -118,6 +118,7 @@ Jalankan seluruh verifikasi statis, arsitektur, dan testing:
 # dependency-cruiser, knip, lint:setup, lint:branch, test + coverage gate
 bun run validate:full
 bun run verify:scaffold   # template scaffold-module (modul + integrasi) lewat semua gate (CI)
+bun run test:int          # integration test ke PostgreSQL + Redis asli (database sekali pakai; CI)
 
 # Validasi parsial:
 bun run typecheck   # Typecheck tanpa emit

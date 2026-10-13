@@ -42,6 +42,7 @@ The canonical, complete tree is CONTRIBUTING §2.1; this one lists what an agent
 │   ├── partner-sign.ts         # `bun run partner:sign` — signs a partner request (prints headers + curl, or --send)
 │   ├── lib/read-secret.ts      # CLI secrets from a hidden prompt / stdin, never argv or env
 │   ├── verify-scaffold.ts      # `bun run verify:scaffold` — every scaffold-module template through every gate
+│   ├── test-integration.ts     # `bun run test:int` — integration suite on real services (disposable database)
 │   └── setup.ts                # Project initializer (init-project skill, IDENTITY_RULES)
 ├── src/
 │   ├── app.ts                  # Hono application factory & global middleware pipeline
@@ -388,6 +389,7 @@ Field messages come from the Zod schema and are not translated (known limitation
 
 1. **Unit Tests**: Co-located in the same directory (`*.test.ts`).
 2. **E2E Tests**: Located in `test/*.e2e.test.ts` testing blackbox HTTP routes via `app.request()`.
+   - **Integration Tests** (real PostgreSQL + Redis, disposable database per run): `test/integration/*.int.ts`, run by `bun run test:int` and the CI job `integration` — for locks, rollbacks, unique indexes, Lua, races. See [testing.md §7](references/testing.md).
 3. **Mandatory Coverage**: `bun run test:cov` must pass. Thresholds live only in `scripts/check-coverage.ts` (`THRESHOLDS`): global lines & functions, per-file lines, and every `src/` file must be loaded by at least one test. Exclusions require a reason and a removal step in `COVERAGE_EXCLUSIONS`.
 4. **Verification Command**:
    ```bash

@@ -11,7 +11,8 @@ Read this file when: writing new test suites, mocking dependencies, or validatin
 - **Coverage Command**: `bun run test:cov` (coverage gate; thresholds in `scripts/check-coverage.ts`)
 - **Unit Tests**: Co-located with implementation files (`src/**/*.test.ts`).
 - **E2E Tests**: Blackbox integration tests located under `test/*.e2e.test.ts`.
-- **Hermetic by default**: `bunfig.toml` preloads `test/setup/hermetic-env.ts`, pointing `DATABASE_URL` / `REDIS_*` at a closed local port. Bun loads the local env file into `bun test` too; without the preload the suite would reach the developer's real database. `test/hermetic-env.test.ts` guards it.
+- **Integration Tests** (real PostgreSQL + Redis): `test/integration/*.int.ts`, run only by `bun run test:int` (never by `bun test`, never in the coverage gate) — §7.
+- **Hermetic by default**: `bunfig.toml` preloads `test/setup/hermetic-env.ts`, pointing `DATABASE_URL` / `REDIS_*` at a closed local port. Bun loads the local env file into `bun test` too; without the preload the suite would reach the developer's real database. `test/hermetic-env.test.ts` guards it. Only the integration suite (§7) reaches real services, in a database it creates for the run.
 - **No `mock.module()`** (ESLint): Bun applies it to every later test file in the process. Inject dependencies instead — services/controllers take constructor defaults (`new UsersService(fakeRepo)`), functions take parameters (`pingDatabase(timeout, fakeClient)`), the cache takes a client (`new CacheService(fakeClient)`), repositories take the SQL recorder's `TransactionHost`.
 - **Repositories → SQL recorder** (`test/helpers/sql-recorder.ts`): `createSqlRecorder()` gives a real Drizzle instance on a fake driver; assert `recorder.statements` (SQL + params, `BEGIN`/`COMMIT`/`ROLLBACK`), queue rows with `respondWith(rowOf(table, entity))`. Guide and example: [transactions.md §4](transactions.md#4-unit-testing-repositories-with-the-sql-recorder).
 
@@ -131,3 +132,16 @@ describe('Health E2E Probe', () => {
   });
 });
 ```
+
+---
+
+## 7. Integration Suite on Real Services (`bun run test:int`)
+
+What the SQL recorder and the fakes cannot prove — row locks, rollbacks, partial unique indexes, the audit trail as stored, refresh-token races, the Lua script, nonce claims, fail-open on a dropped Redis connection — is tested against a real PostgreSQL and Redis (plan step 6.1).
+
+- **Run**: `bun run test:int` (all files), `bun run test:int partner` (file names containing `partner`), `--keep-db` to inspect the database afterwards. CI job `integration` runs it with PostgreSQL 16 + Redis 7 service containers; locally native services are fine (the oldest Redis in use so far is 3.0 — the scripts need ≥ 2.6).
+- **Services**: `TEST_DATABASE_URL` (an existing database on the test server — the runner only creates and drops databases from it) and `TEST_REDIS_HOST` / `TEST_REDIS_PORT` / `TEST_REDIS_PASSWORD` / `TEST_REDIS_DB`. Unset, they fall back to `DATABASE_URL` / `REDIS_*` **only on a developer machine** (`NODE_ENV` `development` or `test`) **and only when those point at this machine**; `NODE_ENV=production` is refused. A server (staging, production VPS) never runs this suite — CI does, against its own service containers.
+- **Disposable per run** (`scripts/test-integration.ts`): `CREATE DATABASE <name>_it_<run>` (marked with a comment) → `bun test --preload test/integration/setup.ts <files>` → `DROP DATABASE`. Databases of killed runs are dropped by a later run after an hour — only ones carrying the marker comment, never a look-alike name. Redis keys use the prefix `<APP_NAME>:int-test:<run>` and are deleted with SCAN + DEL (never `FLUSH*`). The development database and keys are never touched.
+- **Preload** (`test/integration/setup.ts`, after the hermetic one): refuses any database not named `*_it_<run>`, points `DATABASE_URL` / `REDIS_*` at the run's targets, applies the real migrations (`drizzle/`), creates the generic fixture tables of `test/helpers/repository-fixtures.ts` (DDL generated with `drizzle-kit/api`), connects Redis, and closes both connections after the last file.
+- **Writing a test**: one file per area (`<area>.int.ts`); data from `unique()` (rows stay until the database is dropped, so never assume an empty table); writes as a request with `asActor()`; through HTTP with `createApp().request()` — the real pipeline, repositories and Redis, no spies. Helpers: `test/helpers/integration.ts`.
+- **Never `expect(promise).rejects` / `.resolves` here**: in Bun 1.3.0 they wait on the promise in a way that can stall real socket I/O — the transaction stays `idle in transaction` and the test times out. Await first with `rejectionOf(promise)`, then assert on the error.

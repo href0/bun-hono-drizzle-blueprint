@@ -66,3 +66,51 @@ jobs:
 
       - name: Scaffold template verification
         run: bun run verify:scaffold
+
+  # Integration suite (plan step 6.1): real PostgreSQL and Redis as service containers. Locally the
+  # same suite runs against native services (`bun run test:int`, see scripts/test-integration.ts).
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      TZ: UTC
+      # The runner creates and drops its own disposable database from this one.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      TEST_REDIS_HOST: localhost
+      TEST_REDIS_PORT: '6379'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Integration tests (PostgreSQL 16 + Redis 7)
+        run: bun run test:int
