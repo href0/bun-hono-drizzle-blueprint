@@ -27,6 +27,7 @@ export const APP_MARKERS = {
 } as const;
 
 export type ScaffoldKind = 'module' | 'partner' | 'webhook' | 'integration';
+/** Table kind of a module; a dependent module (`--parent`) is a standalone variant with a parent. */
 export type ModuleVariant = 'standalone' | 'header-detail' | 'record';
 export const MODULE_VARIANTS: readonly ModuleVariant[] = ['standalone', 'header-detail', 'record'];
 
@@ -85,6 +86,7 @@ export const singularOf = (
   plural: string,
   retry: Retry = (guess) => guess,
   rule = 'Module names are plural: they name the module folder, its table and its routes.',
+  flag = '--singular',
 ): string => {
   const cut = plural.lastIndexOf('-');
   const head = cut < 0 ? '' : plural.slice(0, cut + 1);
@@ -99,7 +101,7 @@ export const singularOf = (
     [
       `${why}. ${rule}`,
       `  Did you mean "${pluralGuess(plural)}"?  →  ${retry(pluralGuess(plural))}`,
-      `  If "${plural}" really is a plural, give its singular:  --singular=<name>  (e.g. people --singular=person)`,
+      `  If "${plural}" really is a plural, give its singular:  ${flag}=<name>  (e.g. people ${flag}=person)`,
     ].join('\n'),
   );
 };
@@ -214,16 +216,25 @@ export const titleOf = (kebab: string): string =>
 
 /**
  * Replaces every placeholder of the templates (vendor placeholders only when a vendor is given,
- * detail placeholders only for a header-detail module).
+ * detail placeholders only for a header-detail module, parent placeholders only for a dependent
+ * module).
  */
 export const fill = (
   text: string,
   names: Names,
   vendor?: VendorNames,
   detail?: DetailNames,
+  parent?: Names,
 ): string =>
   (
     [
+      [/<parent-name>/g, parent?.name ?? '<parent-name>'],
+      [/<parentCamelPlural>/g, parent?.camelPlural ?? '<parentCamelPlural>'],
+      [/<parent_snake_plural>/g, parent?.snakePlural ?? '<parent_snake_plural>'],
+      [/<parentCamelSingular>/g, parent?.camelSingular ?? '<parentCamelSingular>'],
+      [/<ParentPascalSingular>/g, parent?.pascalSingular ?? '<ParentPascalSingular>'],
+      [/<parent_snake_singular>/g, parent?.snakeSingular ?? '<parent_snake_singular>'],
+      [/<name-singular>/g, kebabSingularOf(names)],
       [/<DetailPascalPlural>/g, detail?.pascalPlural ?? '<DetailPascalPlural>'],
       [/<DetailPascalSingular>/g, detail?.pascalSingular ?? '<DetailPascalSingular>'],
       [/<detailCamelPlural>/g, detail?.camelPlural ?? '<detailCamelPlural>'],
@@ -247,6 +258,9 @@ export const fill = (
     ] as [RegExp, string][]
   ).reduce((result, [pattern, value]) => result.replace(pattern, () => value), text);
 
+/** `product` / `line-item`: the singular in kebab-case (routes of a 1:1 dependent). */
+const kebabSingularOf = (names: Names): string => names.snakeSingular.split('_').join('-');
+
 export interface PlannedFile {
   path: string;
   content: string;
@@ -262,14 +276,15 @@ export const materialize = (
   registrations: readonly string[],
   vendor?: VendorNames,
   detail?: DetailNames,
+  parent?: Names,
 ): PlannedFile[] => {
   const text = template.split('\r\n').join('\n');
   const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
   const files = [...text.matchAll(stepPattern)].flatMap((match) => {
-    const path = fill(match.at(1) ?? '', names, vendor, detail);
+    const path = fill(match.at(1) ?? '', names, vendor, detail, parent);
     return registrations.includes(path)
       ? []
-      : [{ path, content: fill(match.at(2) ?? '', names, vendor, detail) }];
+      : [{ path, content: fill(match.at(2) ?? '', names, vendor, detail, parent) }];
   });
   if (files.length === 0) throw new ScaffoldError('no template code blocks found');
   return files;
@@ -318,6 +333,10 @@ export interface ScaffoldRequest {
   /** Header-detail only: the detail's plural name (default `items`) and its singular. */
   detail?: string;
   detailSingular?: string;
+  /** Dependent module only (plan D33): the existing parent module, its singular, 1:1 or 1:N. */
+  parent?: string;
+  parentSingular?: string;
+  one?: boolean;
 }
 
 export interface ScaffoldPlan {
@@ -326,12 +345,17 @@ export interface ScaffoldPlan {
   files: PlannedFile[];
   edits: PlannedEdit[];
   nextSteps: string[];
+  /** Dependent module: the parent (checked against the repository by the CLI) and the route segment under it. */
+  parent?: { names: Names; segment: string };
 }
 
 const templateOf = (request: ScaffoldRequest): string => {
   if (request.kind === 'partner') return `${SKILL_DIR}/references/partner.md`;
   if (request.kind === 'webhook') return `${SKILL_DIR}/references/webhook.md`;
   if (request.kind === 'integration') return `${SKILL_DIR}/references/integration.md`;
+  if (request.parent !== undefined) {
+    return `${SKILL_DIR}/references/${request.one ? 'dependent-one' : 'dependent'}.md`;
+  }
   const variant = request.variant ?? 'standalone';
   return variant === 'standalone'
     ? `${SKILL_DIR}/SKILL.md`
@@ -369,6 +393,25 @@ const structureLine = (name: string, description: string): PlannedEdit => ({
       const folder = `${name}/`;
       return `│   ├── ${folder.padEnd(25)}${folder.length >= 25 ? ' ' : ''}# ${description}\n${found}`;
     }),
+});
+
+/**
+ * A dependent module's line in the canonical tree, right under its parent's line (and the
+ * parent's other dependents), one level deeper.
+ */
+const nestedStructureLine = (parent: string, name: string, description: string): PlannedEdit => ({
+  path: STRUCTURE_PATH,
+  label: `list src/modules/${parent}/${name}/ under its parent in the canonical tree`,
+  apply: (content) =>
+    replaceAnchor(
+      content,
+      new RegExp(`^│   ([├└])── ${parent}/[^\\n]*\\n((?:│   [│ ]   [├└]── [^\\n]*\\n)*)`, 'm'),
+      (found, connector = '├') => {
+        const folder = `${name}/`;
+        const prefix = connector === '└' ? '│       ├── ' : '│   │   ├── ';
+        return `${found}${prefix}${folder.padEnd(21)}${folder.length >= 21 ? ' ' : ''}# ${description}\n`;
+      },
+    ),
 });
 
 /** Environment variables a generated config group declares (`NAME: z.…`). */
@@ -410,6 +453,8 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
       ...(request.variant ? [`--variant=${request.variant}`] : []),
       ...(request.vendor ? [`--vendor=${request.vendor}`] : []),
       ...(request.detail ? [`--detail=${request.detail}`] : []),
+      ...(request.parent ? [`--parent=${request.parent}`] : []),
+      ...(request.one ? ['--one'] : []),
     ].join(' ');
   const names = deriveNames(
     request.name,
@@ -466,6 +511,8 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
     };
   }
 
+  if (request.parent !== undefined) return planDependent(request, text, template, names);
+
   // A module: standalone, header-detail or record (users with access tokens), or partner.
   const isHeaderDetail = request.kind === 'module' && request.variant === 'header-detail';
   const detailName = request.detail ?? DEFAULT_DETAIL;
@@ -480,6 +527,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
             detailName,
             retryDetail,
             'Detail names are plural: they name the detail table and its routes.',
+            '--detail-singular',
           ),
         retryDetail,
       )
@@ -561,6 +609,75 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
   };
 };
 
+/**
+ * A dependent module (plan D33): its own module next to an existing parent module, which is never
+ * edited. Routes in shallow nesting — the collection under the parent, rows by their own id.
+ */
+const planDependent = (
+  request: ScaffoldRequest,
+  text: string,
+  template: string,
+  names: Names,
+): ScaffoldPlan => {
+  const parentName = request.parent ?? '';
+  const retryParent: Retry = (guess) =>
+    `bun run scaffold module ${names.name} --parent=${guess}${request.one ? ' --one' : ''}`;
+  const parent = deriveNames(
+    parentName,
+    request.parentSingular ??
+      singularOf(
+        parentName,
+        retryParent,
+        'The parent is an existing module, named in the plural like its folder.',
+        '--parent-singular',
+      ),
+    retryParent,
+  );
+  if (parent.name === names.name) throw new ScaffoldError('a module cannot be its own parent');
+
+  const segment = request.one ? kebabSingularOf(names) : names.name;
+  const nested = `/${parent.name}/:${parent.camelSingular}Id/${segment}`;
+  const files = materialize(text, names, [APP_PATH], undefined, undefined, parent);
+  const routers = {
+    nested: `${names.camelPlural}ParentRouter`,
+    own: `${names.camelPlural}Router`,
+  };
+  return {
+    label: `dependent module ${names.name} in src/modules/${parent.name}/${names.name}/ (singular ${kebabSingularOf(names)}; ${request.one ? '1:1' : '1:N'}, ${nested})`,
+    template,
+    files,
+    edits: [
+      appendExport(SCHEMA_BARREL, `export ./${names.name}.schema`, `./${names.name}.schema`),
+      {
+        path: APP_PATH,
+        label: `register ${routers.nested} on ${nested} and ${routers.own} on /${names.name}`,
+        apply: (content) =>
+          aboveMarker(
+            aboveMarker(content, APP_MARKERS.imports, [
+              `import { ${routers.nested}, ${routers.own} } from './modules/${parent.name}/${names.name}/${names.name}.routes';`,
+            ]),
+            APP_MARKERS.v1Routes,
+            [
+              `  v1.route('${nested}', ${routers.nested});`,
+              `  v1.route('/${names.name}', ${routers.own});`,
+            ],
+          ),
+      },
+      nestedStructureLine(
+        parent.name,
+        names.name,
+        `Dependent ${request.one ? '1:1' : '1:N'} (/api/v1${nested}, /api/v1/${names.name}/:id)`,
+      ),
+    ],
+    nextSteps: [
+      `Adjust the domain fields in the schema, DTOs, messages (Indonesian nouns) and tests of src/modules/${parent.name}/${names.name}/.`,
+      `When ${parent.name} rows are owned (by a user or a partner), override parentScope() in src/modules/${parent.name}/${names.name}/${names.name}.repository.ts: another owner's rows then answer 404. To lock these rows by the parent's state, override assertParentWritable().`,
+      "Generate the migration: bun run db:generate (applying it is the developer's call).",
+    ],
+    parent: { names: parent, segment },
+  };
+};
+
 export interface ParsedArgs {
   request: ScaffoldRequest;
   dryRun: boolean;
@@ -570,6 +687,8 @@ export const USAGE = [
   'Usage: bun run scaffold <kind> <name> [options]',
   '  module <plural-name> [--variant=standalone|header-detail|record] [--singular=<name>]',
   '         header-detail: [--detail=<plural>] [--detail-singular=<name>]   (default detail: items)',
+  '  module <plural-name> --parent=<parent-module> [--one] [--parent-singular=<name>] [--singular=<name>]',
+  '         dependent of an existing module: 1:N, or 1:1 with --one (at most one live row per parent)',
   '  partner <plural-name> [--singular=<name>]',
   '  webhook <plural-name> --vendor=<vendor> [--singular=<name>] [--institution="<name>"]',
   '  integration <vendor> [--institution="<name>"]',
@@ -584,6 +703,8 @@ const OPTIONS = [
   'institution',
   'detail',
   'detail-singular',
+  'parent',
+  'parent-singular',
 ] as const;
 
 /** Parses `<kind> <name> [--option=value] [--dry-run]`; unknown options are errors. */
@@ -599,9 +720,14 @@ export const parseScaffoldArgs = (argv: readonly string[]): ParsedArgs => {
 
   const options = new Map<string, string>();
   let dryRun = false;
+  let one = false;
   for (const flag of flags) {
     if (flag === '--dry-run') {
       dryRun = true;
+      continue;
+    }
+    if (flag === '--one') {
+      one = true;
       continue;
     }
     const match = /^--([a-z]+(?:-[a-z]+)*)=(.+)$/.exec(flag);
@@ -628,6 +754,16 @@ export const parseScaffoldArgs = (argv: readonly string[]): ParsedArgs => {
   if (options.has('detail-singular') && detail === undefined) {
     throw new ScaffoldError('--detail-singular needs --detail=<plural>');
   }
+  const parent = options.get('parent');
+  if (parent !== undefined && (kind !== 'module' || (variant ?? 'standalone') !== 'standalone')) {
+    throw new ScaffoldError(
+      '--parent is only for "module" without --variant: a dependent module is its own table kind',
+    );
+  }
+  if (one && parent === undefined) throw new ScaffoldError('--one needs --parent=<parent-module>');
+  if (options.has('parent-singular') && parent === undefined) {
+    throw new ScaffoldError('--parent-singular needs --parent=<parent-module>');
+  }
   if (options.has('singular') && kind === 'integration') {
     throw new ScaffoldError('an integration is named after its vendor (singular): no --singular');
   }
@@ -642,6 +778,9 @@ export const parseScaffoldArgs = (argv: readonly string[]): ParsedArgs => {
       institution: options.get('institution'),
       detail,
       detailSingular: options.get('detail-singular'),
+      parent,
+      parentSingular: options.get('parent-singular'),
+      one: one || undefined,
     },
     dryRun,
   };

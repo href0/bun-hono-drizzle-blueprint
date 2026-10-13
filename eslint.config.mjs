@@ -162,7 +162,7 @@ const TX_WRITE_RULES = [
   {
     selector: `CallExpression[callee.property.name=/^(insert|update|delete)$/]${TX_OBJECT}`,
     message:
-      'Database writes belong in a *.repository.ts that extends a repository base (BaseRepository, ChildRepository, AppendOnlyRepository).',
+      'Database writes belong in a *.repository.ts that extends a repository base (BaseRepository, ChildRepository, DependentRepository, AppendOnlyRepository).',
   },
 ];
 
@@ -188,9 +188,9 @@ const TRANSACTIONAL_RULES = [
 const REPOSITORY_SYNTAX_RULES = [
   {
     selector:
-      'ClassDeclaration:not([superClass.name=/^(BaseRepository|ChildRepository|AppendOnlyRepository|ReadOnlyRepository)$/])',
+      'ClassDeclaration:not([superClass.name=/^(BaseRepository|ChildRepository|DependentRepository|AppendOnlyRepository|ReadOnlyRepository)$/])',
     message:
-      'A module repository extends BaseRepository (standalone/header), ChildRepository (detail), AppendOnlyRepository (record) or ReadOnlyRepository (reference view); see docs/standards/database.md §6.',
+      'A module repository extends BaseRepository (standalone/header), ChildRepository (detail), DependentRepository (dependent), AppendOnlyRepository (record) or ReadOnlyRepository (reference view); see docs/standards/database.md §6.',
   },
   {
     selector: `CallExpression[callee.property.name=/^(update|delete)$/]${TX_OBJECT}`,

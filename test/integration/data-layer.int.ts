@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { and, asc, eq } from 'drizzle-orm';
-import { NotFoundError } from '../../src/core/errors';
+import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
+import { ConflictError, NotFoundError } from '../../src/core/errors';
 import { db } from '../../src/database/connection';
 import { recordChanges, users } from '../../src/database/schema';
 import { defaultTxHost } from '../../src/database/transaction-host';
@@ -15,10 +15,14 @@ import {
   unique,
 } from '../helpers/integration';
 import {
+  testOrderNotes,
   testOrders,
+  testOrderShipments,
   TestEventsRepository,
   TestOrderLinesRepository,
+  TestOrderNotesRepository,
   TestOrdersRepository,
+  TestOrderShipmentsRepository,
 } from '../helpers/repository-fixtures';
 
 /**
@@ -29,6 +33,30 @@ import {
 const orders = new TestOrdersRepository(defaultTxHost);
 const lines = new TestOrderLinesRepository(defaultTxHost);
 const events = new TestEventsRepository(defaultTxHost);
+const notes = new TestOrderNotesRepository(defaultTxHost);
+const shipments = new TestOrderShipmentsRepository(defaultTxHost);
+
+/** Notes whose parent order must have been created by `owner` (ownership through parentScope). */
+class ScopedNotes extends TestOrderNotesRepository {
+  constructor(private readonly owner: string) {
+    super(defaultTxHost);
+  }
+
+  protected override parentScope(): SQL | undefined {
+    return eq(testOrders.createdBy, this.owner);
+  }
+}
+
+/** Notes that refuse writes while the order's note says `submitted`. */
+class SubmittedLockedNotes extends TestOrderNotesRepository {
+  constructor() {
+    super(defaultTxHost);
+  }
+
+  protected override assertParentWritable(parent: typeof testOrders.$inferSelect): void {
+    if (parent.note === 'submitted') throw new ConflictError();
+  }
+}
 const usersRepository = new UsersRepository();
 
 const historyOf = (table: string, recordId: string) =>
@@ -172,6 +200,122 @@ describe('ChildRepository on PostgreSQL', () => {
     await asActor(() => orders.softDeleteById(header.id));
 
     expect(await rejectionOf(lines.findAllForParent(header.id))).toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('DependentRepository on PostgreSQL (plan D33)', () => {
+  it('hides children of a deleted parent without touching them; restore brings back only the live ones', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('I') }));
+    const kept = await asActor(() => notes.createForParent(parent.id, { body: 'kept' }));
+    const removed = await asActor(() => notes.createForParent(parent.id, { body: 'removed' }));
+    await asActor(() => notes.softDeleteById(removed.id));
+
+    await asActor(() => orders.softDeleteById(parent.id));
+    expect(await notes.findById(kept.id)).toBeNull();
+    expect(
+      await rejectionOf(notes.findPageForParent(parent.id, { page: 1, perPage: 10 })),
+    ).toBeInstanceOf(NotFoundError);
+    expect(await asActor(() => notes.updateById(kept.id, { body: 'x' }))).toBeNull();
+    expect(
+      await rejectionOf(asActor(() => notes.createForParent(parent.id, { body: 'x' }))),
+    ).toBeInstanceOf(NotFoundError);
+    const stored = await db.select().from(testOrderNotes).where(eq(testOrderNotes.id, kept.id));
+    expect(stored.at(0)?.deletedAt).toBeNull();
+
+    await asActor(() => orders.restoreById(parent.id));
+    const page = await notes.findPageForParent(parent.id, { page: 1, perPage: 10 });
+    expect(page.map((note) => note.body)).toEqual(['kept']);
+    expect(await notes.countForParent(parent.id)).toBe(1);
+  });
+
+  it('audits changes under the parent and never moves a row to another parent', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('J') }));
+    const other = await asActor(() => orders.create({ code: unique('K') }));
+    const note = await asActor(() => notes.createForParent(parent.id, { body: 'v1' }));
+
+    const updated = await asActor(() =>
+      notes.updateById(note.id, { body: 'v2', orderId: other.id }),
+    );
+
+    expect(updated).toMatchObject({ body: 'v2', orderId: parent.id });
+    const history = await historyOf('test_order_notes', note.id);
+    expect(
+      history.map(({ action, parentTable, parentId }) => [action, parentTable, parentId]),
+    ).toEqual([['UPDATE', 'test_orders', parent.id]]);
+  });
+
+  it('parentScope() hides another owner’s parent from every read and write (404, not 403)', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('L') }));
+    const note = await asActor(() => notes.createForParent(parent.id, { body: 'mine' }));
+    const strangers = new ScopedNotes('user:someone-else');
+    const owners = new ScopedNotes(ACTOR);
+
+    expect(await strangers.findById(note.id)).toBeNull();
+    expect(
+      await rejectionOf(strangers.findPageForParent(parent.id, { page: 1, perPage: 10 })),
+    ).toBeInstanceOf(NotFoundError);
+    expect(
+      await rejectionOf(asActor(() => strangers.createForParent(parent.id, { body: 'x' }))),
+    ).toBeInstanceOf(NotFoundError);
+    expect(await asActor(() => strangers.updateById(note.id, { body: 'x' }))).toBeNull();
+    expect(await asActor(() => strangers.softDeleteById(note.id))).toBeNull();
+    expect((await owners.findById(note.id))?.body).toBe('mine');
+  });
+
+  it('assertParentWritable() refuses writes by the parent’s state and leaves nothing behind', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('M'), note: 'submitted' }));
+    const guarded = new SubmittedLockedNotes();
+
+    expect(
+      await rejectionOf(asActor(() => guarded.createForParent(parent.id, { body: 'x' }))),
+    ).toBeInstanceOf(ConflictError);
+    expect(await notes.countForParent(parent.id)).toBe(0);
+  });
+
+  it('1:1: concurrent upserts of one parent leave one live row; the later ones update it', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('N') }));
+
+    const results = await Promise.all(
+      ['a', 'b', 'c', 'd'].map((carrier) =>
+        asActor(() => shipments.upsertForParent(parent.id, { carrier })),
+      ),
+    );
+
+    expect(results.filter((result) => result.created)).toHaveLength(1);
+    const live = await db
+      .select()
+      .from(testOrderShipments)
+      .where(and(eq(testOrderShipments.orderId, parent.id), isNull(testOrderShipments.deletedAt)));
+    expect(live).toHaveLength(1);
+    expect(['a', 'b', 'c', 'd']).toContain(live.at(0)?.carrier ?? 'none');
+  });
+
+  it('1:1: after a delete a new row is allowed; restoring the old one then is a unique violation', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('O') }));
+    const first = await asActor(() => shipments.upsertForParent(parent.id, { carrier: 'old' }));
+    await asActor(() => shipments.softDeleteForParent(parent.id));
+    const second = await asActor(() => shipments.upsertForParent(parent.id, { carrier: 'new' }));
+
+    expect(second.created).toBe(true);
+    const conflict = await rejectionOf(asActor(() => shipments.restoreById(first.row.id)));
+    expect(isUniqueViolation(conflict)).toBe(true);
+    expect((await shipments.findOneForParent(parent.id))?.carrier).toBe('new');
+  });
+
+  it('concurrent child writes and a parent delete on one parent finish without a deadlock', async () => {
+    const parent = await asActor(() => orders.create({ code: unique('P') }));
+    const created = await Promise.all(
+      [1, 2, 3, 4].map((n) => asActor(() => notes.createForParent(parent.id, { body: `n${n}` }))),
+    );
+
+    const outcomes = await Promise.allSettled([
+      ...created.map((note) => asActor(() => notes.updateById(note.id, { body: `${note.body}!` }))),
+      asActor(() => orders.softDeleteById(parent.id)),
+      ...created.map((note) => asActor(() => notes.softDeleteById(note.id))),
+    ]);
+
+    expect(outcomes.every((outcome) => outcome.status === 'fulfilled')).toBe(true);
+    expect(await orders.findById(parent.id)).toBeNull();
   });
 });
 

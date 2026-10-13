@@ -1,6 +1,7 @@
 export * from './append-only.repository';
 export * from './base.repository';
 export * from './child.repository';
+export * from './dependent.repository';
 export * from './health-probe';
 export * from './read-only.repository';
 export * from './transaction-host';

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { BadRequestError, InternalServerError, NotFoundError } from '../core/errors';
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from '../core/errors';
 import { ChildRepository } from './child.repository';
 import { createSqlRecorder, rowOf } from '../../test/helpers/sql-recorder';
 import {
   aLine,
+  anOrder,
   ORDER_ID,
   OTHER_ORDER_ID,
   TestOrderLinesRepository,
@@ -19,7 +20,13 @@ const LIVE_PARENT =
 const TOUCH_PARENT =
   'update "test_orders" set "updated_at" = now(), "updated_by" = $1 where "test_orders"."id" = $2';
 
+const LOCKED_PARENT =
+  'select "id", "code", "note", "secret", "created_at", "updated_at", "created_by", "updated_by", "deleted_at" from "test_orders" where ("test_orders"."id" = $1 and "test_orders"."deleted_at" is null) for update';
+
+/** The header id, as the read check selects it. */
 const parentRow = [[ORDER_ID]];
+/** The whole header row, as the write lock selects it (passed to `assertParentWritable`). */
+const lockedParent = [rowOf(testOrders, anOrder())];
 
 describe('ChildRepository', () => {
   const recorder = createSqlRecorder();
@@ -64,7 +71,7 @@ describe('ChildRepository', () => {
 
   describe('createForParent', () => {
     it('locks the header, inserts under it with the actor, and touches the header', async () => {
-      recorder.respondWith(parentRow, [rowOf(testOrderLines, aLine(LINE_A))]);
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
 
       await lines.createForParent(ORDER_ID, {
         item: 'item-a',
@@ -75,7 +82,7 @@ describe('ChildRepository', () => {
 
       expect(sqls()).toEqual([
         'BEGIN',
-        `${LIVE_PARENT} for update`,
+        LOCKED_PARENT,
         expect.stringMatching(/^insert into "test_order_lines"/) as string,
         TOUCH_PARENT,
         'COMMIT',
@@ -89,11 +96,11 @@ describe('ChildRepository', () => {
 
       expect(create).rejects.toBeInstanceOf(NotFoundError);
       await create.catch(() => undefined);
-      expect(sqls()).toEqual(['BEGIN', `${LIVE_PARENT} for update`, 'ROLLBACK']);
+      expect(sqls()).toEqual(['BEGIN', LOCKED_PARENT, 'ROLLBACK']);
     });
 
     it('throws when INSERT … RETURNING yields no row', async () => {
-      recorder.respondWith(parentRow);
+      recorder.respondWith(lockedParent);
 
       expect(lines.createForParent(ORDER_ID, { item: 'x', qty: 1 })).rejects.toBeInstanceOf(
         InternalServerError,
@@ -104,7 +111,7 @@ describe('ChildRepository', () => {
   describe('updateForParent', () => {
     it('locks header then detail, updates, audits with the header, touches the header', async () => {
       recorder.respondWith(
-        parentRow,
+        lockedParent,
         [rowOf(testOrderLines, aLine(LINE_A))],
         [rowOf(testOrderLines, aLine(LINE_A, { qty: 5 }))],
       );
@@ -134,14 +141,14 @@ describe('ChildRepository', () => {
     });
 
     it('returns null for a detail of another header (IDOR) without writing', async () => {
-      recorder.respondWith(parentRow);
+      recorder.respondWith(lockedParent);
 
       expect(await lines.updateForParent(ORDER_ID, LINE_B, { qty: 5 })).toBeNull();
       expect(sqls()).toHaveLength(4);
     });
 
     it('writes nothing and does not touch the header when nothing changes', async () => {
-      recorder.respondWith(parentRow, [rowOf(testOrderLines, aLine(LINE_A))]);
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
 
       await lines.updateForParent(ORDER_ID, LINE_A, { qty: 1 });
 
@@ -152,7 +159,7 @@ describe('ChildRepository', () => {
 
   describe('deleteForParent', () => {
     it('hard-deletes, records a snapshot with the header and touches the header', async () => {
-      recorder.respondWith(parentRow, [rowOf(testOrderLines, aLine(LINE_A))]);
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
 
       expect(await lines.deleteForParent(ORDER_ID, LINE_A)).toBe(true);
       expect(sqls()[3]).toBe('delete from "test_order_lines" where "test_order_lines"."id" = $1');
@@ -168,7 +175,7 @@ describe('ChildRepository', () => {
     });
 
     it('returns false when the detail is not under this header', async () => {
-      recorder.respondWith(parentRow);
+      recorder.respondWith(lockedParent);
 
       expect(await lines.deleteForParent(ORDER_ID, LINE_A)).toBe(false);
       expect(sqls()).toHaveLength(4);
@@ -178,7 +185,7 @@ describe('ChildRepository', () => {
   describe('syncForParent', () => {
     it('deletes missing details, updates changed ones, inserts new ones — in one transaction', async () => {
       recorder.respondWith(
-        parentRow,
+        lockedParent,
         [rowOf(testOrderLines, aLine(LINE_A)), rowOf(testOrderLines, aLine(LINE_B))],
         [], // delete B
         [], // audit DELETE B
@@ -194,7 +201,7 @@ describe('ChildRepository', () => {
 
       expect(sqls().map((sql) => sql.split(' ').slice(0, 3).join(' '))).toEqual([
         'BEGIN',
-        'select "id" from',
+        'select "id", "code",',
         'select "id", "order_id",',
         'delete from "test_order_lines"',
         'insert into "record_changes"',
@@ -212,7 +219,7 @@ describe('ChildRepository', () => {
     });
 
     it('does not touch the header when the list is unchanged', async () => {
-      recorder.respondWith(parentRow, [rowOf(testOrderLines, aLine(LINE_A))]);
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
 
       await lines.syncForParent(ORDER_ID, [{ id: LINE_A, qty: 1 }]);
 
@@ -220,7 +227,7 @@ describe('ChildRepository', () => {
     });
 
     it('rejects an id that is not a detail of this header (NotFoundError, rolled back)', async () => {
-      recorder.respondWith(parentRow, [rowOf(testOrderLines, aLine(LINE_A))]);
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
 
       const sync = lines.syncForParent(ORDER_ID, [{ id: LINE_B, qty: 1 }]);
 
@@ -233,7 +240,7 @@ describe('ChildRepository', () => {
     });
 
     it('rejects the same id twice (BadRequestError)', async () => {
-      recorder.respondWith(parentRow, [rowOf(testOrderLines, aLine(LINE_A))]);
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
 
       expect(
         lines.syncForParent(ORDER_ID, [
@@ -241,6 +248,50 @@ describe('ChildRepository', () => {
           { id: LINE_A, qty: 2 },
         ]),
       ).rejects.toBeInstanceOf(BadRequestError);
+    });
+  });
+
+  describe('assertParentWritable', () => {
+    class LockedHeaderLines extends TestOrderLinesRepository {
+      readonly seen: unknown[] = [];
+
+      protected override assertParentWritable(header: typeof testOrders.$inferSelect): void {
+        this.seen.push(header);
+        if (header.note === 'submitted') throw new ConflictError();
+      }
+    }
+
+    it('receives the locked header and refuses every write by its state, before any detail SQL', async () => {
+      const guarded = new LockedHeaderLines(recorder.txHost);
+      const submitted = [rowOf(testOrders, anOrder({ note: 'submitted' }))];
+
+      for (const write of [
+        () => guarded.createForParent(ORDER_ID, { item: 'x', qty: 1 }),
+        () => guarded.updateForParent(ORDER_ID, LINE_A, { qty: 2 }),
+        () => guarded.deleteForParent(ORDER_ID, LINE_A),
+        () => guarded.syncForParent(ORDER_ID, []),
+      ]) {
+        recorder.reset();
+        recorder.respondWith(submitted);
+        const attempt = write();
+        expect(attempt).rejects.toBeInstanceOf(ConflictError);
+        await attempt.catch(() => undefined);
+        expect(sqls()).toEqual(['BEGIN', LOCKED_PARENT, 'ROLLBACK']);
+      }
+      expect(guarded.seen).toHaveLength(4);
+      expect(guarded.seen.at(0)).toEqual(anOrder({ note: 'submitted' }));
+    });
+
+    it('is not called by reads, and a writable header lets the write through', async () => {
+      const guarded = new LockedHeaderLines(recorder.txHost);
+      recorder.respondWith(parentRow);
+      await guarded.findAllForParent(ORDER_ID);
+      expect(guarded.seen).toEqual([]);
+
+      recorder.reset();
+      recorder.respondWith(lockedParent, [rowOf(testOrderLines, aLine(LINE_A))]);
+      await guarded.createForParent(ORDER_ID, { item: 'x', qty: 1 });
+      expect(guarded.seen).toHaveLength(1);
     });
   });
 

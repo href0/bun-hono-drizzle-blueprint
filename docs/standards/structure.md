@@ -52,6 +52,7 @@ src/
 │   ├── audited.repository.ts    # AuditedRepository: lock, diff, record_changes in the same transaction
 │   ├── base.repository.ts       # BaseRepository: soft-delete scope, actor stamps, audited update / soft delete / restore
 │   ├── child.repository.ts      # ChildRepository: details only through their header (no IDOR), sync
+│   ├── dependent.repository.ts  # DependentRepository: own-page rows under a live, in-scope parent (D33)
 │   ├── append-only.repository.ts # AppendOnlyRepository: record tables (append + read)
 │   ├── read-only.repository.ts  # ReadOnlyRepository: reference views (read only)
 │   ├── unique-violation.ts      # isUniqueViolation(): SQLSTATE 23505 → services throw ConflictError
@@ -84,6 +85,9 @@ src/
 │   ├── partner-credentials/     # Admin API for inbound partner credentials (/api/v1/partner-credentials, admin only)
 │   ├── partner-gateway/         # Example signed partner endpoints (/api/v1/partner/ping, /echo)
 │   ├── payment-notifications/   # Example vendor webhook receiver (POST /api/webhooks/demo-pay, idempotent)
+│   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)
+│   │   ├── tasks/               # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/tasks/:id)
+│   │   ├── budgets/             # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/budgets/:id)
 │   └── users/                   # Reference standalone-table module (/api/v1/users)
 │       ├── users.dto.ts         # Request & response schemas
 │       ├── users.messages.ts    # Localized messages
@@ -153,7 +157,7 @@ config ──► libraries only (root of the graph)
 | `src/database/schema/` | `drizzle-orm`, `utils` | `modules`, `core`, `config`, `integrations` | `strict-schema-isolation` |
 | `src/database/` | `config`, `utils`, `core` (request context, errors) | `modules`, `integrations` | `strict-database-isolation` |
 | `src/integrations/<vendor>/` | `core/http`, `config`, `utils` | `modules`, `database`, another vendor | `strict-integrations-isolation`, `no-cross-integration-deps`, `integrations-no-presentation` |
-| `src/modules/<module>/` | `core`, `database` (abstractions), `integrations`, `config`, `utils` | `database/connection.ts`, another module | `no-module-direct-db-connection`, `no-cross-module-deps` |
+| `src/modules/<module>/` (incl. its dependent subfolders `<module>/<child>/`) | `core`, `database` (abstractions), `integrations`, `config`, `utils`; parent ↔ its dependents (same module folder) | `database/connection.ts`, another module | `no-module-direct-db-connection`, `no-cross-module-deps` |
 
 A module never imports another module: a cross-module need is injected through a constructor or function parameter (e.g. `partnerAuth()` receives the credential lookup of `partner-credentials` in `src/app.ts`). Also enforced everywhere: `no-circular`, `no-orphans`, `no-test-in-src`, `not-to-unresolvable`, `not-to-unlisted-dep`; single-purpose rules (`http-client-only-in-integrations`, `redis-client-only-in-cache`, `record-changes-only-in-database`, `transaction-host-only-in-repositories`, `webhook-verifier-only-in-app`) are described in the topic that owns them.
 

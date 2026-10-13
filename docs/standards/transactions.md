@@ -25,7 +25,7 @@ Transaction propagation uses `AsyncLocalStorage` to store the active Drizzle tra
 
 > **ESLint Guard**: Importing `db` / `sqlClient` or `database/connection` in `src/modules/**` is prohibited by ESLint (`no-restricted-syntax` / `no-restricted-imports`) and dependency-cruiser (`no-module-direct-db-connection`). Repositories MUST use `TransactionHost`.
 
-A module repository extends the base for its table kind (`BaseRepository`, `ChildRepository`, `AppendOnlyRepository`, `ReadOnlyRepository` — [database.md §6](database.md)); the bases run every write in a transaction on `this.txHost` (joining the caller's, if any) and audit it. Custom lookups query `this.txHost.tx` directly — never through a variable (ESLint `TX_ALIAS_RULES`).
+A module repository extends the base for its table kind (`BaseRepository`, `ChildRepository`, `DependentRepository`, `AppendOnlyRepository`, `ReadOnlyRepository` — [database.md §6](database.md)); the bases run every write in a transaction on `this.txHost` (joining the caller's, if any) and audit it. Custom lookups query `this.txHost.tx` directly — never through a variable (ESLint `TX_ALIAS_RULES`).
 
 ```typescript
 import { eq } from 'drizzle-orm';

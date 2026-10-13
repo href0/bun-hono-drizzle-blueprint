@@ -10,6 +10,8 @@ Read this file when: creating a module, a resource, a CRUD endpoint, a partner e
 |---|---|---|---|---|
 | Standalone table (stands on its own) | `module <plural>` | `.agents/skills/scaffold-module/SKILL.md` | `BaseRepository` | `src/modules/users` |
 | Header with details (an order and its items, a class and its members) | `module <plural> --variant=header-detail [--detail=<plural>]` | `.agents/skills/scaffold-module/references/header-detail.md` | `BaseRepository` + `ChildRepository` | `src/modules/orders` (removed by `bun run setup` unless `--keep-examples`) |
+| Dependent: own page, always under one existing parent (an application's members, a project's tasks) | `module <plural> --parent=<parent-module>` | `.agents/skills/scaffold-module/references/dependent.md` | `DependentRepository` | `src/modules/projects/tasks` (removed by `bun run setup` unless `--keep-examples`) |
+| Dependent section: at most one per parent (an application's contact person, a user's profile) | `module <plural> --parent=<parent-module> --one` | `.agents/skills/scaffold-module/references/dependent-one.md` | `DependentRepository` | `src/modules/projects/budgets` (removed by `bun run setup` unless `--keep-examples`) |
 | Record (append-only log / history) | `module <plural> --variant=record` | `.agents/skills/scaffold-module/references/record.md` | `AppendOnlyRepository` | `record_changes` |
 | Reference data owned by another system | — (by hand: a `.existing()` view, [database.md](database.md) §2) | — | `ReadOnlyRepository` | — |
 | Partner endpoint (signed requests) | `partner <plural>` | `.agents/skills/scaffold-module/references/partner.md` | `BaseRepository` (unique `partner_code` + `partner_reference`) | `src/modules/partner-gateway` |
@@ -17,6 +19,8 @@ Read this file when: creating a module, a resource, a CRUD endpoint, a partner e
 | Outbound vendor adapter (not a module) | `integration <vendor>` | `.agents/skills/scaffold-module/references/integration.md` | — (`HttpClientService` + `AccessTokenCache`) | `src/integrations/jsonplaceholder` |
 
 Table kinds and what each base does: [database.md](database.md) §6.
+
+**Header-detail or dependent?** Details are *part of the header's form*: saved with it (`PUT …/items` replaces the list), hard-deleted, reached only under the header, decided when the header is created (§2.6). Dependents have *their own pages*: created step by step after the parent exists, soft-deleted and restorable, each its own module, added any time without editing the parent (§2.7).
 
 ## 2. Generating with `bun run scaffold`
 
@@ -29,6 +33,8 @@ bun run scaffold module orders --variant=header-detail     # orders + order_item
 bun run scaffold module classes --variant=header-detail --detail=members        # classes + class_members → /classes/:id/members
 bun run scaffold module invoices --variant=header-detail --detail=line-items    # invoices + invoice_line_items
 bun run scaffold module audit-events --variant=record      # append-only records
+bun run scaffold module members --parent=applications      # dependent 1:N → /applications/:applicationId/members, /members/:id
+bun run scaffold module contacts --parent=applications --one   # dependent 1:1 → /applications/:applicationId/contact
 bun run scaffold partner submissions                       # → /api/v1/partner/submissions (signed requests)
 bun run scaffold webhook payment-receipts --vendor=acme-pay   # → POST /api/webhooks/acme-pay
 bun run scaffold integration acme-pay                      # outbound adapter for a login-based vendor
@@ -43,6 +49,9 @@ bun run scaffold integration acme-pay --institution="Acme Payments"   # registry
 | `--singular=<name>` | `module`, `partner`, `webhook` | The singular, when the derived one is wrong (§2.3) |
 | `--detail=<plural>` | `module --variant=header-detail` | The detail's name (default `items`): the table is `<header singular>_<detail>`, the routes `/:id/<detail>` (§2.3) |
 | `--detail-singular=<name>` | with `--detail` | The detail's singular, when the derived one is wrong (`--detail=people --detail-singular=person`) |
+| `--parent=<parent-module>` | `module` (no `--variant`) | A dependent module of an existing standalone / header module (§2.7) |
+| `--one` | with `--parent` | At most one live row per parent (1:1 section) |
+| `--parent-singular=<name>` | with `--parent` | The parent's singular, when the derived one is wrong (`--parent=people --parent-singular=person`) |
 | `--institution="<name>"` | `webhook`, `integration` | `error.institution` in the registry (default: the vendor name in title case, `acme-pay` → `Acme Pay`) |
 | `--dry-run` | all | Print what would be created and edited, and the next steps; write nothing |
 
@@ -81,7 +90,7 @@ What each kind registers in shared files:
 
 | Kind | Shared files edited |
 |---|---|
-| `module` | schema barrel, `src/app.ts` (import + `v1.route('/<name>', …)`), `structure.md` tree; `record` also `APPEND_ONLY_TABLES` |
+| `module` | schema barrel, `src/app.ts` (import + `v1.route('/<name>', …)`), `structure.md` tree; `record` also `APPEND_ONLY_TABLES`; `--parent` two routes (`v1.route('/<parent>/:<parent>Id/<name>', …)` + `v1.route('/<name>', …)`), its line under the parent in the tree, and never a file of the parent (its files go to `src/modules/<parent>/<name>/`) |
 | `partner` | schema barrel, `src/app.ts` (`v1.route('/partner/<name>', …)`), `structure.md` tree |
 | `webhook` | `src/app.ts` (imports, `WEBHOOK_VENDORS`, `app.route(…/webhooks/<vendor>, …)`), config barrel, `INTEGRATION_REGISTRY`, `structure.md` tree |
 | `integration` | `INTEGRATION_REGISTRY`, config barrel |
@@ -106,6 +115,14 @@ A header-detail module also names its detail — `items` unless `--detail` says 
 | `module classes --variant=header-detail --detail=members` | `class_members` (FK `class_id`) | `/classes/:id/members[/:childId]` | `ClassMember`, `ClassMembersRepository`, `addMember`, `syncMembers`, `MEMBER_CREATED` |
 | `module invoices --variant=header-detail --detail=line-items` | `invoice_line_items` (FK `invoice_id`) | `/invoices/:id/line-items[/:childId]` | `InvoiceLineItem`, `addLineItem`, `syncLineItems`; sync body `{ "line_items": [...] }` |
 | `module teams --variant=header-detail --detail=people --detail-singular=person` | `team_people` | `/teams/:id/people[/:childId]` | `TeamPerson`, `addPerson`, `syncPeople` |
+
+A dependent module keeps its own name and table but lives in a subfolder of its parent (`src/modules/<parent>/<name>/`); its parent comes from `--parent` (an existing module, plural), the route segment under the parent is the module name — or its singular with `--one`:
+
+| You type | Table | Routes | Generated identifiers |
+|---|---|---|---|
+| `module members --parent=applications` | `members` (FK `application_id`, indexed) | `/applications/:applicationId/members` (list, create), `/members/:id` (get, update, delete, restore) | `MembersRepository extends DependentRepository`, `membersParentRouter`, `membersRouter` |
+| `module contacts --parent=applications --one` | `contacts` (FK `application_id`, `activeUniqueIndex`) | `/applications/:applicationId/contact` (get, `PUT` create/update, delete), `/contacts/:id` (get, restore) | `upsertForParent`, `contactsParentRouter` |
+| `module notes --parent=people --parent-singular=person` | `notes` (FK `person_id`) | `/people/:personId/notes`, `/notes/:id` | |
 
 The detail name follows the same rules as a module name (plural kebab-case, singular derived by the suffix rules below); the `--dry-run` line shows both: `header-detail module classes (singular class; detail members (singular member), table class_members)`.
 
@@ -147,6 +164,12 @@ Every refusal exits with code 1 and writes nothing.
 | `module classes --variant=header-detail --detail=member` | `"member" does not look plural … →  bun run scaffold module classes --variant=header-detail --detail=members` | Run the suggested command |
 | `module classes --detail=members` | `--detail is only for "module … --variant=header-detail"` | Add `--variant=header-detail` (details only exist under a header) |
 | `module products --variant=webhook` | `--variant is standalone \| header-detail \| record and only for "module"` | Use the `webhook` / `partner` kinds instead |
+| `module notes --parent=projects` (no such module) | `parent "projects" not found: --parent names an existing module …` | Create the parent first (`bun run scaffold module projects`) |
+| `module notes --parent=project` | `"project" does not look plural … →  bun run scaffold module notes --parent=projects` | Run the suggested command (`--parent-singular` for an irregular plural) |
+| `module notes --parent=<a dependent module>` | `parent "…" is itself a dependent module: two levels at most` | Attach to its parent instead |
+| `module notes --parent=<a table without softDelete()>` | `parent "…" has no softDelete() …` | Dependents hang off standalone / header tables only |
+| `module items --parent=orders` (orders has `/:id/items`) | `the route segment "/orders/:id/items" is already used` | Choose another module name |
+| `module notes --one` / `module notes --variant=record --parent=projects` | `--one needs --parent` / `--parent is only for "module" without --variant` | A dependent module is its own table kind |
 | any, after `src/app.ts` was hand-edited | `registration anchor not found: // scaffold:v1-routes` | Put the marker line back (see §2.2) |
 
 ### 2.5 After generating
@@ -171,7 +194,32 @@ To add details to an existing standalone module, do it **by hand or with an AI a
 5. Controller handlers and routes under `/:id/<details>` (`describeEndpoint()` + `validate()` with `uuidParamSchema` / `uuidChildParamSchema`).
 6. Tests for every new branch (the header-detail template's tests are the pattern), `bun run db:generate`, `bun run validate:full` and `bun run test:int` when the detail adds its own queries or locks.
 
-Keep the detail in the header's module (same folder): a detail is never a module of its own.
+Keep the detail in the header's module (same folder): a detail is never a module of its own. Rows with their own pages are not details — add them as a dependent module (§2.7), no hand work needed.
+
+### 2.7 Dependent modules: children added step by step
+
+A parent is created first as an ordinary standalone module; its children come later, one command each, each in a subfolder of the parent, and the parent's own files are never touched (`bun run verify:scaffold` proves it byte for byte). The example (removed by `bun run setup` unless `--keep-examples`):
+
+```bash
+bun run scaffold module projects                       # the parent, standalone
+bun run scaffold module tasks --parent=projects        # many tasks per project (1:N)
+bun run scaffold module budgets --parent=projects --one   # one budget per project (1:1)
+```
+
+```text
+src/modules/projects/
+├── projects.{dto,messages,repository,service,controller,transformer,routes}.ts (+ tests)
+├── tasks/      tasks.*.ts     → /projects/:projectId/tasks, /tasks/:id
+└── budgets/    budgets.*.ts   → /projects/:projectId/budget, /budgets/:id
+```
+
+- **Folder**: one level only, files named after the subfolder, the subfolder holds a `DependentRepository` module, and every module name is used once across `src/modules/` (`test/structure.test.ts`). Parent and dependents count as one module for `no-cross-module-deps`: the parent's service may use a dependent's repository (e.g. a completeness check before submitting) — `no-circular` still forbids cycles.
+
+- **Routes** (shallow nesting): the collection under the parent, a row by its own id — the table in §2.3. The parent always comes from the path, never from the body; no list across parents is generated (add one deliberately, with the owner filter it needs).
+- **The parent rules** live in `DependentRepository` ([database.md](database.md) §6): rows of a deleted parent are hidden (and come back with it), writes lock the parent, the parent reference never changes, changes are audited under the parent.
+- **Ownership** (who may see a parent's rows): override `parentScope()` in the generated repository — another owner's parent then answers 404 for every route of the rows. **Parent state** (rows locked once the parent is submitted, …): override `assertParentWritable(parent)`. Add a test for each override.
+- **Delete**: rows are soft-deleted and restorable on their own; a deleted parent hides them without changing them.
+- **Two levels at most**: a dependent's parent is a standalone or header table. Turning an existing standalone table into a dependent (adding the parent column to it) is a hand-written migration, not a CLI run.
 
 ## 3. Order of work (every variant)
 

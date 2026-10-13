@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
 import { createApp, WEBHOOK_VENDORS } from '../src/app';
@@ -12,6 +12,10 @@ import { appConfig } from '../src/config';
  * - module files are `<module>[-<qualifier>][.<channel>].<role>[.test].ts` — ESLint and
  *   dependency-cruiser find controllers, services, … by that suffix, so a near miss such as
  *   `payments.partner-routes.ts` would silently escape every architecture rule;
+ * - a dependent module (plan D33) lives in one subfolder of its parent,
+ *   `src/modules/<parent>/<child>/<child>.<role>.ts`: one level only, a subfolder holds a
+ *   `DependentRepository` module, and a child name is used once across `src/modules/` (it names
+ *   a table and the flat routes `/<child>/:id`);
  * - integration files are `<vendor>.<role>[.test].ts` or `index.ts`;
  * - the integration suite (`bun run test:int`) is `test/integration/<area>.int.ts` plus its
  *   `setup.ts` preload — a `*.int.ts` elsewhere would never run, a `*.test.ts` there would run
@@ -61,10 +65,16 @@ export const fileNameViolations = (path: string): string[] => {
     problems.push(`${path}: every dot-separated part of the name must be kebab-case`);
   }
   if (parts[0] === 'src' && parts[1] === 'modules') {
-    const module = parts[2] ?? '';
-    if (parts.length !== 4 || !modulePattern(module).test(name)) {
+    // src/modules/<module>/<file>, or a dependent: src/modules/<parent>/<child>/<file>.
+    const module = parts.length === 5 ? (parts[3] ?? '') : (parts[2] ?? '');
+    const nestedInItself = parts.length === 5 && parts[2] === parts[3];
+    if (
+      (parts.length !== 4 && parts.length !== 5) ||
+      nestedInItself ||
+      !modulePattern(module).test(name)
+    ) {
       problems.push(
-        `${path}: module files are src/modules/<module>/<module>[-<qualifier>][.partner|.webhook].<role>[.test].ts with <role> one of ${MODULE_ROLES.join(', ')}`,
+        `${path}: module files are src/modules/<module>/<module>[-<qualifier>][.partner|.webhook].<role>[.test].ts with <role> one of ${MODULE_ROLES.join(', ')} — a dependent module one level down: src/modules/<parent>/<child>/<child>.<role>.ts`,
       );
     }
   }
@@ -100,6 +110,54 @@ const folders = (dir: string): string[] =>
   readdirSync(resolve(ROOT, dir)).filter((entry) =>
     statSync(resolve(ROOT, dir, entry)).isDirectory(),
   );
+
+export interface ModuleFolder {
+  name: string;
+  /** The parent module of a dependent module (a subfolder of it), undefined at the top level. */
+  parent?: string;
+  /** Content of `<name>.repository.ts`, empty when the module has none. */
+  repository: string;
+}
+
+/** Problems with the module folders as a whole (pure: folder names and repository sources in). */
+export const moduleTreeViolations = (modules: readonly ModuleFolder[]): string[] => {
+  const problems: string[] = [];
+  const seen = new Map<string, string>();
+  for (const module of modules) {
+    const where = module.parent
+      ? `src/modules/${module.parent}/${module.name}/`
+      : `src/modules/${module.name}/`;
+    const other = seen.get(module.name);
+    if (other !== undefined) {
+      problems.push(
+        `${where}: the module name "${module.name}" is already used by ${other} (it names a table and routes)`,
+      );
+    }
+    seen.set(module.name, where);
+    if (module.parent !== undefined && !/extends DependentRepository\b/.test(module.repository)) {
+      problems.push(
+        `${where}: a module subfolder holds a dependent module only (its repository extends DependentRepository, plan D33)`,
+      );
+    }
+  }
+  return problems;
+};
+
+const moduleFolders = (): ModuleFolder[] =>
+  folders('src/modules').flatMap((name) => {
+    const repositoryOf = (dir: string, module: string): string => {
+      const file = resolve(ROOT, dir, `${module}.repository.ts`);
+      return existsSync(file) ? readFileSync(file, 'utf8') : '';
+    };
+    return [
+      { name, repository: repositoryOf(`src/modules/${name}`, name) },
+      ...folders(`src/modules/${name}`).map((child) => ({
+        name: child,
+        parent: name,
+        repository: repositoryOf(`src/modules/${name}/${child}`, child),
+      })),
+    ];
+  });
 
 /** Handlers of every Hono router exported by the channel's route files. */
 const channelHandlers = async (channel: Channel): Promise<Set<unknown>> => {
@@ -164,7 +222,11 @@ describe('file layout (src/, test/, scripts/)', () => {
 
   it('no module is named after a vendor (modules are named by domain)', () => {
     const vendors = new Set(folders('src/integrations'));
-    expect(folders('src/modules').filter((module) => vendors.has(module))).toEqual([]);
+    expect(moduleFolders().filter((module) => vendors.has(module.name))).toEqual([]);
+  });
+
+  it('module subfolders hold dependent modules only, and every module name is used once', () => {
+    expect(moduleTreeViolations(moduleFolders())).toEqual([]);
   });
 });
 
@@ -212,6 +274,10 @@ describe('the checks themselves (deliberately broken examples)', () => {
       'test/integration/users.test.ts',
       'test/integration/helpers/db.ts',
       'test/integration/nested/users.int.ts',
+      // Dependent modules: one level, files named after the subfolder, never a module in itself.
+      'src/modules/projects/tasks/projects.service.ts',
+      'src/modules/projects/tasks/subtasks/subtasks.service.ts',
+      'src/modules/projects/projects/projects.service.ts',
     ]) {
       expect(`${path}: ${String(fileNameViolations(path).length > 0)}`).toBe(`${path}: true`);
     }
@@ -230,9 +296,25 @@ describe('the checks themselves (deliberately broken examples)', () => {
       'src/core/middlewares/partner-auth.ts',
       'test/integration/data-layer.int.ts',
       'test/integration/setup.ts',
+      'src/modules/projects/tasks/tasks.service.ts',
+      'src/modules/projects/tasks/tasks.controller.test.ts',
     ]) {
       expect(fileNameViolations(path)).toEqual([]);
     }
+  });
+
+  it('report a non-dependent module in a subfolder and a module name used twice', () => {
+    expect(
+      moduleTreeViolations([
+        { name: 'projects', repository: 'class P extends BaseRepository {}' },
+        { name: 'tasks', parent: 'projects', repository: 'class T extends DependentRepository {}' },
+        { name: 'notes', parent: 'projects', repository: 'class N extends BaseRepository {}' },
+        { name: 'tasks', repository: 'class T extends BaseRepository {}' },
+      ]),
+    ).toEqual([
+      'src/modules/projects/notes/: a module subfolder holds a dependent module only (its repository extends DependentRepository, plan D33)',
+      'src/modules/tasks/: the module name "tasks" is already used by src/modules/projects/tasks/ (it names a table and routes)',
+    ]);
   });
 
   it('report a channel router mounted elsewhere and a foreign router under a channel prefix', () => {
