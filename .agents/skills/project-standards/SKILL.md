@@ -7,6 +7,8 @@ description: Coding standards, folder structure, layer boundaries, naming, respo
 
 Before writing or modifying any code in this project, you MUST internalize the following standards. Violations will be caught by automated quality gates (`bun run validate:full`) and will block commits and CI pipelines.
 
+The reasons behind these rules, and the index of every rule with the machine that enforces it (`R01`…, labels such as `[eslint:<name>]`, `[depcruise:<name>]`, `[test:<name>]`, `[review-only]`), are in `ARCHITECTURE.md` §12. A new rule gets a row there with its enforcer (`test/docs-sync.test.ts` checks every label).
+
 ---
 
 ## 1. Tech Stack
@@ -252,7 +254,7 @@ export class UsersService {
 - **HTTP Request Payloads (body & query)**: clients MUST send `snake_case` keys. `validate()` rejects any other casing with 400 `ERR_NON_SNAKE_CASE_KEY` (each offending key listed exactly as sent) and converts accepted payloads to camelCase before Zod, so DTOs stay camelCase. Route params are not converted. Free-form dictionary fields opt out with `validate({ body, preserveKeys: ['metadata'] })` (top-level only).
 - **Known limitation — response dictionaries**: `preserveKeys` only applies to requests. `ApiResponse` converts every key of the response (including a dictionary echoed back) to snake_case, so `{ someKey: 1 }` is returned as `{ some_key: 1 }`. In public contracts prefer `{ key, value }` arrays over dictionaries; a response-side opt-out will be added only when a real need appears.
 - **Shared request DTOs**: `uuidParamSchema` (`:id`) and `paginationQuerySchema` (`?page=&per_page=`, max `MAX_PER_PAGE`) live in `src/core/dto/common.dto.ts` — reuse them instead of redefining per module.
-- **Database Tables**: Physical SQL table names MUST be `snake_case` (e.g. `domainSchema.table('user_profiles', ...)`).
+- **Database Tables**: Physical SQL table names MUST be `snake_case` (e.g. `appTable('user_profiles', ...)`).
 - **TypeScript Codebase**: All identifiers (variables, parameters, properties, methods, DTO fields) **MUST NOT** be `snake_case`. They MUST use `camelCase` or `PascalCase` enforced by ESLint.
 
 ### Rule 7: Strict Unidirectional Intra-Module Flow

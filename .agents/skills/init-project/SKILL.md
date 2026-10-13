@@ -63,8 +63,9 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
 
 1. No leftover boilerplate identity (expect no output):
    ```bash
-   git grep -nE "bun-hono-starter|starter_db" -- ':!ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md'
+   git grep -nE "bun-hono-starter|starter_db" -- ':!.agents/skills/init-project/' ':!docs/'
    ```
+   (This skill names the defaults on purpose; `docs/` holds the plan and the archive, which quote them as history.)
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.

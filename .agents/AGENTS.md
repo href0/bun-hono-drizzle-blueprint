@@ -38,6 +38,8 @@ This project enforces strict automated Quality Gates powered by:
 
 Any code violating these standards will fail `bun run validate:full`, blocking commits/pushes locally via Husky and failing CI (`.github/workflows/ci.yml`).
 
+`ARCHITECTURE.md` explains why each invariant exists and indexes every rule with its enforcer (§12: `[tsc]`, `[eslint:<name>]`, `[depcruise:<name>]`, `[ls-lint]`, `[test:<name>]`, `[script:<name>]`, `[ci:<job>]`, `[hook:<file>]`, `[review-only]`). Adding or changing a rule means adding or updating its row there in the same change; `test/docs-sync.test.ts` fails for a label that points at nothing.
+
 When adding `no-restricted-syntax` / `no-restricted-imports` rules, compose the shared rule groups at the top of `eslint.config.mjs` — a later flat-config override replaces the whole rule array of an earlier one.
 
 ---

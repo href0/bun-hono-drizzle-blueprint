@@ -2,7 +2,7 @@
 
 Panduan standar kode, arsitektur, dan alur kerja (*workflow*) untuk seluruh engineer dan AI coding agent pada repositori ini.
 
-Semua standar di dokumen ini **di-enforce secara otomatis oleh gerbang kualitas (Quality Gates)** — pelanggaran akan memblokir proses commit dan pipeline CI/CD.
+Semua standar di dokumen ini **di-enforce secara otomatis oleh gerbang kualitas (Quality Gates)** — pelanggaran akan memblokir proses commit dan pipeline CI/CD. Alasan di balik setiap keputusan dan indeks lengkap aturan beserta penegaknya (`[eslint:<nama>]`, `[depcruise:<nama>]`, `[test:<nama>]`, …, atau `[review-only]` bila belum bisa dicek mesin) ada di [ARCHITECTURE.md](ARCHITECTURE.md#12-indeks-aturan--penegak).
 
 ---
 
@@ -15,7 +15,7 @@ Semua standar di dokumen ini **di-enforce secara otomatis oleh gerbang kualitas 
 5. [Database & Declarative ACID Transactions](#5-database--declarative-acid-transactions)
 6. [Zero-Trust Configuration](#6-zero-trust-configuration)
 7. [Enterprise Structured Logging (Pino)](#7-enterprise-structured-logging-pino)
-8. [External Service Integration (HTTP Client)](#8-external-service-integration-http-client)
+8. [External Service Integration (Outbound Adapters)](#8-external-service-integration-outbound-adapters)
 9. [Distributed Caching (Fail-Open Redis)](#9-distributed-caching-fail-open-redis)
 10. [Panduan Scaffolding Modul Fitur Baru](#10-panduan-scaffolding-modul-fitur-baru)
 11. [Konvensi Penamaan & Coding Standards](#11-konvensi-penamaan--coding-standards)
@@ -105,9 +105,11 @@ src/
 │
 ├── core/                        # Cross-Cutting Core Framework (Agnostik Domain)
 │   ├── cache/                   # Redis Fail-Open Caching & Key Generators
-│   ├── dto/                     # Schema request bersama (uuidParamSchema, paginationQuerySchema)
-│   ├── errors/                  # Semantic ApiError Hierarchy
+│   ├── context/                 # RequestContext (AsyncLocalStorage): requestId, actor, locale, clientIp
+│   ├── dto/                     # Schema request bersama (common.dto.ts: uuidParamSchema, paginationQuerySchema, emailField; datetime.dto.ts)
+│   ├── errors/                  # Semantic ApiError Hierarchy + APP_ERROR_CODES (error-codes.ts)
 │   ├── http/                    # HttpClientService (keep-alive pool, timeout wajib, X-Request-ID, masking error vendor), vendor-body.ts (redaksi body vendor untuk log), access-token-cache.ts (token vendor single-flight)
+│   ├── i18n/                    # LocalizedMessage, translate(), I18N_MESSAGES (pesan lintas modul)
 │   ├── logger/                  # Pino Logger Singleton dengan PII Redaction
 │   ├── middlewares/             # Hono Middlewares (requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, webhookAuth, requireRole, validate, globalErrorHandler, dll.)
 │   ├── openapi/                 # describeEndpoint, schema envelope, dokumen OpenAPI + UI Scalar (/api/docs)
@@ -188,7 +190,7 @@ scripts/
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
 
-Pohon ini adalah versi kanonik; README dan skill `project-standards` hanya meringkas dan merujuk ke sini.
+Pohon ini adalah versi kanonik; README dan skill `project-standards` hanya meringkas dan merujuk ke sini. Dokumen lain: `ARCHITECTURE.md` (apa & mengapa, indeks aturan R01… beserta penegaknya — dijaga `test/docs-sync.test.ts`), `docs/auth-guide.md`, `docs/partner-integration-guide.md`, `docs/plans/` (rencana & log keputusan), `docs/archive/` (blueprint NestJS asal, tidak dipelihara).
 
 ### 2.2 Boundary Isolation Matrix (Enforced by `dependency-cruiser`)
 
@@ -482,15 +484,15 @@ Setiap perubahan baris domain melewati base repository (kunci baris, scope soft 
 
 | Aturan | Berlaku di | Penegak |
 |---|---|---|
-| Class repository wajib `extends` `BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository` | `src/modules/**/*.repository.ts` | ESLint `REPOSITORY_SYNTAX_RULES` |
-| `tx.update(` / `tx.delete(` dilarang (pakai `updateById`, `softDeleteById`, `ChildRepository` …) | repository modul | ESLint `REPOSITORY_SYNTAX_RULES` |
-| `tx.insert(` / `tx.update(` / `tx.delete(` dilarang | modul selain repository | ESLint `TX_WRITE_RULES` |
-| `UPDATE` / `DELETE FROM` di dalam `` sql`…` `` dilarang | semua file modul | ESLint `RAW_WRITE_SQL_RULES` |
-| `tx.execute(` (raw query) hanya di `<name>.queries.ts` (fungsi murni, baca saja) | modul | ESLint `RAW_QUERY_RULES` |
-| `@Transactional()` hanya di `*.service.ts` | modul | ESLint `TRANSACTIONAL_RULES` |
-| `TransactionHost` / `defaultTxHost` / `transactionStorage` hanya di repository & `*.queries.ts` (test modul boleh) | modul | ESLint `TX_HOST_IMPORT_PATTERN` + depcruise `transaction-host-only-in-repositories` |
-| `recordChanges` tidak di-import di luar `src/database/` | seluruh `src/` | ESLint (`importNames`, juga lewat barrel) + depcruise `record-changes-only-in-database` |
-| `sql.raw(` dilarang (pakai `sql.identifier()`; fragmen statis = `eslint-disable` + alasan) | seluruh `src/` | ESLint `SQL_RAW_RULES` |
+| Class repository wajib `extends` `BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository` | `src/modules/**/*.repository.ts` | [eslint:REPOSITORY_SYNTAX_RULES] |
+| `tx.update(` / `tx.delete(` dilarang (pakai `updateById`, `softDeleteById`, `ChildRepository` …) | repository modul | [eslint:REPOSITORY_SYNTAX_RULES] |
+| `tx.insert(` / `tx.update(` / `tx.delete(` dilarang | modul selain repository | [eslint:TX_WRITE_RULES] |
+| `UPDATE` / `DELETE FROM` di dalam `` sql`…` `` dilarang | semua file modul | [eslint:RAW_WRITE_SQL_RULES] |
+| `tx.execute(` (raw query) hanya di `<name>.queries.ts` (fungsi murni, baca saja) | modul | [eslint:RAW_QUERY_RULES] |
+| `@Transactional()` hanya di `*.service.ts` | modul | [eslint:TRANSACTIONAL_RULES] |
+| `TransactionHost` / `defaultTxHost` / `transactionStorage` hanya di repository & `*.queries.ts` (test modul boleh) | modul | [eslint:TX_HOST_IMPORT_PATTERN] [depcruise:transaction-host-only-in-repositories] |
+| `recordChanges` tidak di-import di luar `src/database/` | seluruh `src/` | [eslint:MODULE_IMPORT_PATTERNS] (`importNames`, juga lewat barrel) [depcruise:record-changes-only-in-database] |
+| `sql.raw(` dilarang (pakai `sql.identifier()`; fragmen statis = `eslint-disable` + alasan) | seluruh `src/` | [eslint:SQL_RAW_RULES] |
 
 - Satu-satunya pengecualian yang disetujui (log 4.1, 2026-10-04): repository refresh token `src/modules/auth/auth.repository.ts` — override satu file di `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`). File itu tidak wajib `extends` base dan boleh `tx.update(authRefreshTokens)` (mencabut token); `tx.update` ke tabel lain dan `tx.delete` tetap ditolak. Tabel `auth_refresh_tokens` tidak punya kolom audit / soft delete: jejaknya adalah `revoked_at` + `replaced_by_id`.
 - Seeder (`src/database/seeds/**`) berada di lapisan database, bukan modul: aturan modul di atas tidak berlaku untuknya. Tetap menulis lewat base repository (actor `system`, audit). Contoh: `seed-admin.ts` (`bun run seed:admin --email <email>`, password dari prompt tersembunyi / stdin, tidak pernah dari argumen atau env).
@@ -501,7 +503,7 @@ Setiap perubahan baris domain melewati base repository (kunci baris, scope soft 
 
 ## 6. Zero-Trust Configuration
 
-1. **`process.env` DIBLOKIR**: Di-enforce otomatis oleh ESLint `no-process-env`. `process.env` **HANYA** boleh diakses di dalam `src/config/env-source.ts` dan `drizzle.config.ts`.
+1. **`process.env` DIBLOKIR**: Di-enforce otomatis oleh ESLint `no-process-env`. Di kode aplikasi (`src/`) `process.env` **HANYA** boleh diakses di dalam `src/config/env-source.ts`; di luar aplikasi hanya `drizzle.config.ts` (drizzle-kit berjalan sendiri), `scripts/` (CLI), dan test.
 2. **Crash-Fast on Startup**: Setiap grup (`src/config/<group>.config.ts`) divalidasi Zod lewat `parseEnv()` saat aplikasi booting. Bila ada variabel yang hilang atau salah format, aplikasi berhenti dengan daftar **semua** variabel yang salah **dalam grup pertama yang gagal** (nama + aturan, tanpa nilai — env bisa berisi secret). Grup divalidasi saat modulnya di-import, sehingga grup berikutnya baru dilaporkan setelah grup ini diperbaiki.
 3. Seluruh bagian aplikasi mengimpor konfigurasi dari barrel `src/config` (`appConfig`, `databaseConfig`, `redisConfig`, `httpConfig`, `authConfig`, dan satu config per vendor seperti `jsonPlaceholderConfig`).
 4. **Menambah variabel**: tambahkan ke schema grup yang sesuai (atau grup baru `<group>.config.ts` dengan pola `build<Group>Config(source)` + instance), tambahkan test di `src/config/config.test.ts`, dan dokumentasikan di `.env.example` pada bagian grupnya.
@@ -626,7 +628,7 @@ const user = await this.cache.getOrSet(
 
 ## 10. Panduan Scaffolding Modul Fitur Baru
 
-Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). Template lengkap per jenis tabel ada di skill `scaffold-module`: mandiri (`SKILL.md`), header + detail (`references/header-detail.md`, contoh nyata `src/modules/orders`), pencatatan (`references/record.md`); adapter vendor keluar ada di `references/integration.md` (§8) — semuanya diverifikasi `bun run verify:scaffold`. Langkah di bawah adalah ringkasan; ikuti template untuk kode lengkapnya.
+Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). Template lengkap per jenis tabel ada di skill `scaffold-module`: mandiri (`SKILL.md`), header + detail (`references/header-detail.md`, contoh nyata `src/modules/orders`), pencatatan (`references/record.md`); per kanal inbound: endpoint partner (`references/partner.md`) dan webhook vendor (`references/webhook.md`, §11); adapter vendor keluar ada di `references/integration.md` (§8) — semuanya diverifikasi `bun run verify:scaffold`. Langkah di bawah adalah ringkasan; ikuti template untuk kode lengkapnya.
 
 1. **Drizzle Schema**: Buat file `src/database/schema/domain/<feature>.schema.ts` dengan `appTable(...)` + helper kolom (`uuidPrimaryKey()`, `timestamps()`), lalu re-export di `schema/domain/index.ts`.
 2. **Generate Migration**: Jalankan `bun run db:generate`.
@@ -654,7 +656,7 @@ Gunakan urutan langkah ini setiap kali membuat modul domain baru (`<feature>`). 
 | Variable & Parameter | `camelCase` | `userId`, `activeStatus` |
 | Module Constants & Enums | `UPPER_CASE` | `CACHE_PREFIX`, `STATUS.ACTIVE` |
 | Method Decorator | `PascalCase` | `@Transactional()` |
-| Database Table Names | `snake_case` | `domainSchema.table('user_profiles', ...)` |
+| Database Table Names | `snake_case` | `appTable('user_profiles', ...)` |
 | HTTP Request & Response Payload / Envelopes | `snake_case` | `status_code`, `full_name`, `per_page` |
 
 > [!IMPORTANT]
@@ -688,14 +690,19 @@ Format commit wajib mematuhi [Conventional Commits](https://www.conventionalcomm
 <type>(<scope>): <subject>
 ```
 
-### Type yang Diizinkan:
+### Type yang Diizinkan (`commitlint.config.ts`):
 - `feat`: Fitur baru untuk pengguna
 - `fix`: Perbaikan bug
 - `refactor`: Perubahan kode tanpa mengubah fungsionalitas
 - `perf`: Optimasi performa
 - `test`: Menambah atau memperbaiki automated tests
 - `docs`: Perubahan dokumentasi
-- `chore`: Perubahan konfigurasi, build tools, atau dependensi
+- `chore`: Perubahan konfigurasi, tooling, atau dependensi
+- `build`: Perubahan sistem build / image container
+- `ci`: Perubahan pipeline CI
+- `revert`: Membatalkan commit sebelumnya
+
+Header maksimal 100 karakter, subject tanpa titik di akhir. Ditegakkan hook `commit-msg` dan job CI `verify` (untuk pull request). Nama branch: `<type>/<slug>` dengan type `feat`, `fix`, `hotfix`, `chore`, `docs`, `test`, `refactor`, `ci`, `perf`, atau branch environment (`main`, `development`, `staging`, `prod`, …) — `.validate-branch-namerc.json`, `bun run lint:branch`.
 
 ### Contoh Pesan Commit yang Valid:
 - `feat(users): add user registration endpoint with password hashing`
