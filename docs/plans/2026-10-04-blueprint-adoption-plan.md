@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–6 + Review 11 + Step 7.1–7.3b selesai** (`main` @ `9ecd483`); Step 7.4 (finalisasi skills AI) menunggu review (branch `feat/agent-skills-final`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–6 + Review 11 + Step 7.1–7.4 selesai** (`main` @ `a99f82e`); berikutnya Step 7.4b–7.4c (kontrak API: snapshot + gate, dokumen Markdown; D34–D35), lalu 7.5 release. Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `9ecd483` |
+| Basis kode | branch `main` @ `a99f82e` |
 | Sumber | [`docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan; dipindah ke arsip di Step 7.1) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -155,6 +155,8 @@ Semua keputusan **ACCEPTED** pada 2026-10-04 (Step 0.2). Perubahan berikutnya di
 | D31 | CLI scaffolder | hanya skill AI · CLI dari template yang sama | **`bun run scaffold <module\|partner\|webhook\|integration> <nama>`** membaca template `scaffold-module` (markdown = sumber tunggal) lewat library yang juga dipakai `verify:scaffold` | Konvensi tetap terjaga tanpa agent AI; agent cukup menjalankan CLI lalu menyesuaikan field domain (hemat token) | 7.3 |
 | D32 | Sumber standar | CONTRIBUTING (ID) + skill & `references/` (EN) + `AGENTS.md` berdampingan · satu sumber | **`docs/standards/` (EN), satu file per topik = satu-satunya sumber**; `ARCHITECTURE.md` = mengapa + indeks aturan; CONTRIBUTING, `AGENTS.md`, skill = router; template kode tetap di skill `scaffold-module` | Standar yang ditulis 4–5 kali dalam dua bahasa selalu drift (Review 5–11); developer dan agent kini membaca file yang sama. Ditegakkan `test/docs-sync.test.ts` | 7.2 |
 | D33 | Anak yang punya halaman / resource sendiri (parent-child) | hanya `header-detail` (bertingkat `/:id/<detail>`) · beberapa detail dalam satu modul · **modul dependent sendiri** dengan acuan parent | **Jenis tabel ke-6 "Dependent"**: modul sendiri (`bun run scaffold module <jamak> --parent=<parent-jamak>`) di ~~folder sejajar~~ → **subfolder parent `src/modules/<parent>/<anak>/`** (diubah 2026-10-13, lihat 4.1), route **shallow nesting** (koleksi di bawah parent `/<parent>/:<parent>Id/<jamak>`, baris datar `/<jamak>/:id`; parent dari path, tidak pernah dari body; tanpa list lintas parent), soft delete sendiri, `DependentRepository`: setiap read hanya melihat baris yang parent-nya hidup, setiap write mengunci parent lalu memastikan parent ada & hidup, referensi parent tidak bisa dipindah, audit dengan `parent_table` / `parent_id`. **Parent dihapus = anak dianggap terhapus** (disembunyikan, tanpa cascade; restore parent memunculkan kembali). Hook `assertParentWritable(parent)` (default: selalu boleh) di `ChildRepository` dan `DependentRepository` untuk mengunci anak menurut status parent; hook `parentScope()` (default: tanpa batasan) menambah kondisi kepemilikan parent ke setiap read & write anak — parent milik orang lain = 404. **`--one`** = section 1:1 (maksimal satu anak hidup per parent: `activeUniqueIndex` pada kolom parent, `GET` / `PUT /<parent>/:id/<section>` upsert). **Bertahap**: parent = modul standalone biasa yang sudah ada; anak 1:N atau 1:1 ditambah kapan saja tanpa mengubah modul parent | `header-detail` = komposisi (bagian form header); dependent = anak yang berdiri sendiri (halaman FE sendiri) tetapi tetap tunduk pada parent. Cek parent lewat tabel schema, bukan import modul; sebagai subfolder, parent dan anak dihitung satu modul oleh `no-cross-module-deps` (service parent boleh memakai repository anak, mis. cek kelengkapan; `no-circular` tetap berlaku). Anak baru = modul baru, header tidak diedit (selaras keputusan 7.3: tidak ada `scaffold detail`). Ditetapkan 2026-10-13 (diskusi sebelum 7.4) | 7.3b |
+| D34 | Perubahan kontrak API | tanpa penjaga (dokumen selalu ikut kode) · snapshot di-commit + gate | **Snapshot `docs/api/openapi.json` di-commit**. `bun run openapi:check` (pre-push + CI, tanpa DB) membandingkan dokumen dari `createApp()` dengan snapshot secara **semantik** (`$ref` di-resolve, setiap operasi diratakan menjadi fakta per lokasi: path / query / header / body / response per status / security) dan **gagal untuk perubahan apa pun**, dengan label `BREAKING` / aman / dokumentasi (aturan asimetris request vs response, lihat Step 7.4b). `bun run openapi:update` **hanya dijalankan developer secara sadar** — tidak pernah oleh hook, CI atau `bun run scaffold` (yang hanya mengingatkan) — dan menolak `BREAKING` tanpa `--allow-breaking`. Satu pengecualian: `bun run setup` membuat baseline proyek baru (inisialisasi, bukan perubahan kontrak; dicetak di output). Snapshot dibuat dengan config tetap (bukan env lokal), `info.title` / `info.version` dinormalisasi. Engine diff ditulis sendiri (TypeScript + unit test), bukan `oasdiff` (binary Go di setiap mesin & CI) | Dokumen di-generate dari kode (R17) sehingga tidak pernah drift, tetapi perubahan kontrak juga tidak pernah terlihat: ubah DTO → FE / partner rusak tanpa satu gate pun gagal. Diff snapshot di PR = perubahan kontrak yang disengaja dan di-review. Ditetapkan 2026-10-13 (diskusi sebelum 7.5) | 7.4b |
+| D35 | Dokumentasi kontrak per endpoint untuk integrator | Scalar runtime saja · Markdown tulis tangan · **Markdown di-generate** | **Markdown di-generate dari dokumen yang sama** ke `docs/api/` (`README.md` indeks + bagian Platform untuk route di luar modul, mis. `GET /`; **satu file per modul** bernama folder modulnya, dependent di subfolder parent mengikuti `src/` — `docs/api/<parent>.md` + `docs/api/<parent>/<anak>.md`; route yang modul asalnya tidak dikenal → generator gagal), **bahasa Indonesia** (nama field, header, kode apa adanya); ditulis `openapi:update`, diperiksa byte-per-byte oleh `openapi:check` (edit tangan = gagal). Per endpoint: auth / role, header, tabel path / query / body (tipe, wajib, aturan dari Zod), contoh request, contoh response per status (200 / 201, paginated + `meta`, 4xx, 5xx) dengan nilai deterministik dari schema atau `.openapi({ example })`. `describeEndpoint()` diperluas: `errors` menerima `{ status, codes }` (bentuk lama `409` → code default status itu) dan `response.message` (konstanta `*_MESSAGES`, tampil `id` / `en`); keduanya dicocokkan saat runtime **hanya bila `NODE_ENV=test`** (code error / pesan sukses yang tidak terdokumentasi → test gagal), tanpa biaya di production | Markdown tulis tangan pasti drift (alasan R17); Scalar butuh server berjalan dan tidak terlihat di PR; tanpa code per route integrator tidak tahu error mana yang harus ditangani. Ditetapkan 2026-10-13 | 7.4c |
 
 ### 4.1 Log Keputusan & Progres
 
@@ -585,6 +587,9 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-13 | 7.4 | **Audit skill**: tidak ada istilah instansi tersisa di `.agents/`, `.claude/`, `docs/standards/`, router; pola branch `hotfix/v1.0.1` (`update-version`) lolos `.validate-branch-namerc.json`. Diperbaiki: `scaffold-module` (deskripsi pemicu, sumber + wrapper: header-detail, dependent `--parent`, partner, webhook, `bun run scaffold`); `update-version` (entri CHANGELOG dari commit sejak tag terakhir per tipe Conventional Commit, langkah 7 "jangan commit" + `chore(release): …`); `generate-logbook` (WIB = default, zona lain ditanyakan); `generate-commit-text` (tepat satu scope sah). `env-protection`, `project-standards`: sudah router sejak 7.2 (diverifikasi) | — |
 | 2026-10-13 | 7.4 | **Temuan saat chaos test → penjaga baru**: mengganti nama / menghapus "§4 Definition of done" di `quality-gates.md` **lolos** semua gate — `AGENTS.md`, skill dan `ARCHITECTURE.md` merujuknya sebagai "`quality-gates.md` §4", sedangkan `docs-sync` hanya memeriksa tautan + `#anchor`. `test/docs-sync.test.ts` kini juga memeriksa setiap rujukan `<file>.md §N` (backtick, teks, atau tautan) di dokumen yang dipelihara: file ada dan bagian itu ada (heading bernomor `## N.` / `### N.M`; butir daftar bernomor hanya untuk dokumen tanpa heading bernomor, mis. `configuration.md`). Percobaan pertama memakai fallback butir daftar untuk semua dokumen → masih lolos (daftar DoD 1–9 di file yang sama "memenuhi" §4 / §9) → diperketat. Saat dipasang: 75 rujukan, 0 rusak. `documentation.md` + R73 diperbarui | — |
 | 2026-10-13 | 7.4 | **Chaos test** (9, semua tertangkap, `git status` tidak berubah): scope tetap ditambah di `commitlint.config.ts` tanpa tabel; scope dihapus dari tabel `git-workflow.md`; `scope-empty` dicabut → `commit-scopes.test`; router `finish-change` diberi blok kode → `docs-sync`; deskripsi wrapper `finish-change` berbeda → `agent-skills.test`; `gitHooksAdvice` menerima hooks path apa pun → `git-hooks.test`; heading DoD diganti nama; `AGENTS.md` merujuk `quality-gates.md` §9 → `docs-sync` (pesan: `… §4 → no such section`). Perilaku commitlint asli: scope `chaos-probes` ditolak, diterima begitu folder `src/modules/chaos-probes/` ada, ditolak lagi setelah dihapus; commit tanpa scope ditolak | — |
+| 2026-10-13 | 7.4 | ✅ Di-commit (`a99f82e`) dan di-merge ke `main` | — |
+| 2026-10-13 | 7.4b–7.4c | **Keputusan user (diskusi sebelum 7.5, rekomendasi agent):** kontrak API dijaga snapshot yang di-commit + `openapi:check` / `openapi:update` (D34) dan didokumentasikan sebagai Markdown per endpoint yang di-generate (D35). Rincian yang disepakati: (a) `openapi:update` hanya dijalankan developer secara sadar — hook, CI dan `scaffold` tidak pernah menulis snapshot; `setup` satu-satunya pengecualian (baseline proyek baru); (b) `check` gagal untuk perubahan apa pun, label `BREAKING` hanya menunjukkan tingkat seriusnya; `update` menolak `BREAKING` tanpa `--allow-breaking` (selaras R19: breaking di `/v1` → pertimbangkan `/v2`); (c) field request yang dihapus = `BREAKING` (R12 menolak key tak dikenal → client lama mendapat 400) dan nilai enum response yang ditambah = `BREAKING`; (d) Markdown di-generate, bukan ditulis tangan (alasan R17), berbahasa Indonesia; (e) error code per route + pesan sukses per route ikut 7.4c, dicocokkan di `NODE_ENV=test`; (f) dipecah 7.4b (snapshot, diff, gate) dan 7.4c (Markdown, code, pesan), keduanya sebelum 7.5 sehingga v1.0.0 = baseline kontrak pertama | Belum ada dokumen kontrak per endpoint yang di-commit: hanya Scalar runtime, contoh envelope generik (`http-contract.md` §4) dan panduan naratif (`auth-guide.md`, `partner-integration-guide.md`) |
+| 2026-10-13 | 7.4c | **Keputusan user (penamaan file kontrak):** satu file per **modul** (bukan per tag OpenAPI), dinamai folder modulnya — stabil walau judul tag diganti. Modul dependent: file sendiri di **subfolder parent** mengikuti `src/` (`docs/api/projects/tasks.md`; opsi C, dipilih dari A datar `tasks.md` dan B prefix `projects.tasks.md` — titik di repo ini bermakna peran), sejalan dengan keputusan subfolder di 7.3b. Route di luar modul (`GET /`) → bagian **Platform** di `docs/api/README.md` (bukan `platform.md`). Route tanpa modul asal yang dikenal → generator gagal | Nama file tidak bisa bentrok: nama modul unik di seluruh `src/modules/` (`test/structure.test.ts`) |
 
 ---
 
@@ -650,8 +655,10 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 7.2 | Docs SSOT: `docs/standards/` (D32) | ✅ | 7.1 | `0379e66` |
 | 7.3 | CLI scaffolder `bun run scaffold` (D31) | ✅ | 7.2 | `9558db5` |
 | 7.3b | Modul dependent: anak dengan acuan parent (D33) | ✅ | 7.3 | `9ecd483` |
-| 7.4 | Finalisasi skills AI | 👀 | 7.3b |  |
-| 7.5 | Release check boilerplate v1.0.0 | ⬜ | 7.4 |  |
+| 7.4 | Finalisasi skills AI | ✅ | 7.3b | `a99f82e` |
+| 7.4b | Snapshot kontrak API: `openapi:check` / `openapi:update` (D34) | ⬜ | 7.4 |  |
+| 7.4c | Kontrak API Markdown + error code & pesan per route (D35) | ⬜ | 7.4b |  |
+| 7.5 | Release check boilerplate v1.0.0 | ⬜ | 7.4c |  |
 
 ---
 
@@ -1381,9 +1388,79 @@ Hapus: anak selalu **soft delete** (1:N dan 1:1) dengan `deleted_at` sendiri, te
 - [x] Setiap skill diaudit (tanpa istilah instansi, rujukan ke `docs/standards/`, tanpa standar yang disalin).
 - [x] `bun run validate:full`, `build`, `verify:scaffold` hijau.
 
+### Step 7.4b — Snapshot kontrak API: `openapi:check` / `openapi:update` (D34)
+
+Tujuan: setiap perubahan kontrak HTTP (path, method, query, param, header, body, response, status, security) terlihat dan harus diterima developer secara sadar sebelum masuk; perubahan yang merusak client diberi label `BREAKING`.
+
+**Mekanisme**
+
+1. **Generate**: `createApp()` dengan config tetap (bukan env lokal developer) → `buildOpenApiDocument()` (fungsi yang sama dengan `/docs/openapi.json` dan `test/openapi.e2e.test.ts`); tanpa server, tanpa DB. Normalisasi: `info.title` / `info.version` diganti nilai tetap (bump versi / `APP_NAME` bukan perubahan kontrak), key diurutkan.
+2. **Ratakan**: `$ref` di-resolve (perubahan schema bersama muncul di setiap endpoint pemakainya), lalu setiap operasi menjadi daftar fakta `METHOD path | bagian | field` → atribut (`type`, `format`, `required`, `nullable`, `enum`, `minLength` / `maxLength` / `minimum` / `maximum`, `pattern`). Bagian: path param, query, header, body, response per status, security.
+3. **Bandingkan** per lokasi: hanya di lama = dihapus; hanya di baru = ditambah; atribut berbeda = diubah (per atribut). Teks (`summary`, `description`, `example`) = perubahan dokumentasi.
+4. **Klasifikasi** (asimetris — request dikirim client, response dibaca client):
+
+| Perubahan | Request (query / param / header / body) | Response |
+|---|---|---|
+| Field ditambah, opsional | aman | aman |
+| Field ditambah, wajib | **BREAKING** | aman |
+| Field dihapus | **BREAKING** (R12: key tak dikenal → 400) | **BREAKING** |
+| Opsional → wajib | **BREAKING** | aman |
+| Wajib → opsional / nullable | aman | **BREAKING** |
+| Tipe / format berubah | **BREAKING** | **BREAKING** |
+| Nilai enum ditambah | aman | **BREAKING** |
+| Nilai enum dikurangi | **BREAKING** | aman |
+| Batas diperketat (`maxLength` turun, `minimum` naik, `pattern` berubah) | **BREAKING** | aman |
+| Batas dilonggarkan | aman | aman |
+| Operasi dihapus · status sukses berubah · security diperketat / scheme diganti | **BREAKING** | **BREAKING** |
+| Operasi baru · status error ditambah | aman | aman |
+
+**Langkah**
+
+1. `scripts/lib/api-contract/` (fungsi murni): `buildContractDocument()`, `flatten(doc)`, `compare(old, new)`, `classify(change)`, `formatReport(changes)`; unit test per baris tabel klasifikasi + `$ref` bersama + operasi ditambah / dihapus.
+2. `scripts/openapi.ts` + `package.json`: `openapi:check` (exit 1 bila berbeda; ringkasan per operasi dengan label, lalu perintah yang harus dijalankan) dan `openapi:update [--allow-breaking]` (menulis snapshot; `BREAKING` tanpa flag → menolak dan tidak menulis apa pun). Snapshot pertama: `docs/api/openapi.json`.
+3. Penegakan: `openapi:check` masuk `validate` (pre-push) dan CI; tidak ada hook / job yang menjalankan `update`.
+4. `bun run scaffold`: setelah menulis file mencetak pengingat (`kontrak berubah → review lalu bun run openapi:update`), tidak menyentuh snapshot. `verify:scaffold`: setelah scaffold `check` **gagal** (endpoint baru, aman) → `update` → `check` hijau → pembersihan mengembalikan snapshot (`git status` bersih).
+5. `bun run setup`: setelah contoh dihapus, snapshot di-generate ulang sebagai baseline proyek (dicetak; `--dry-run` menampilkannya); `--keep-examples` tetap konsisten.
+6. Docs (D32): `docs/standards/openapi.md` (§ baru: snapshot kontrak, alur check / update, tabel klasifikasi), `quality-gates.md` (gate + butir DoD "kontrak berubah → `openapi:update` setelah di-review"), `new-module.md` (langkah setelah scaffold), `ARCHITECTURE.md` §12 (aturan baru + penegak), skill `scaffold-module` (jalankan `update` setelah review), README §3.
+
+**Acceptance criteria**
+
+- [ ] Mengubah DTO (field response dihapus, field request jadi wajib, tipe berubah) → `openapi:check` gagal dengan label `BREAKING` di operasi yang benar; menambah field opsional → gagal dengan label aman.
+- [ ] `openapi:update` tanpa `--allow-breaking` menolak perubahan `BREAKING` dan tidak menulis; dengan flag menulis; `check` hijau setelahnya.
+- [ ] Deterministik: `update` dua kali → tanpa diff; `APP_NAME` / versi berbeda → snapshot sama.
+- [ ] Hook, CI dan `scaffold` tidak pernah menulis snapshot; `verify:scaffold` membuktikan alur gagal → update → hijau.
+- [ ] Salinan repo + `bun run setup demo-backend` → baseline tanpa endpoint contoh, `check` hijau.
+- [ ] Chaos test: klasifikasi satu baris tabel dibalik → unit test gagal; snapshot diedit tangan → `check` gagal; `check` dicabut dari `validate` → penjaga gagal.
+- [ ] `bun run validate:full`, `build`, `verify:scaffold` hijau.
+
+### Step 7.4c — Kontrak API Markdown + error code & pesan per route (D35)
+
+Tujuan: integrator (FE, partner) membaca kontrak setiap endpoint — request, response sukses, setiap error yang mungkin beserta code-nya — dari `docs/api/` tanpa menjalankan server, dan dokumen itu tidak bisa berbeda dari kode.
+
+**Langkah**
+
+1. `describeEndpoint()` diperluas (bentuk lama tetap berlaku):
+   - `errors: (ErrorStatus | { status, codes })[]` — bentuk singkat `409` → code default status itu (tabel `http-contract.md` §5, mis. 409 → `ERR_CONFLICT`); code untuk status otomatis ditambah oleh pemiliknya: `validate()` (400 `ERR_INVALID_INPUT` / `ERR_INVALID_JSON` / `ERR_NON_SNAKE_CASE_KEY`, 413), `authenticate()` (401), `requireRole()` (403 `ERR_ROLE_FORBIDDEN`), `partnerAuth()` / `webhookAuth()` (`ERR_PARTNER_*` / `ERR_WEBHOOK_*`), 429 `ERR_RATE_LIMITED`, 500 `ERR_INTERNAL`. Ditulis di dokumen sebagai `x-error-codes` per response (ikut snapshot; code ditambah / dihapus = aman, tetap terlihat di diff).
+   - `response.message: LocalizedMessage` (wajib untuk route baru; konstanta `*_MESSAGES` yang sama dengan controller) → `x-success-message` (`id` / `en`).
+2. Penjaga runtime **hanya `NODE_ENV=test`**: `describeEndpoint()` menyimpan kontrak route di konteks request; `ApiResponse` (pesan sukses ≠ yang didokumentasikan) dan `globalErrorHandler` (code error tidak ada di daftar status itu) melaporkan pelanggaran kontrak sehingga test e2e / integration yang mengenai route itu gagal; production tidak memeriksa apa pun. Mekanisme pasti (cara membawa metadata tanpa merusak `uniqueSymbol` `hono-openapi`) diputuskan saat implementasi. Batasan dicatat: hanya jalur yang dieksekusi test yang terbukti.
+3. Semua route yang ada (`auth`, `users`, `partner-credentials`, `partner-gateway`, `health`, webhook, contoh `orders` / `projects`) dan template `scaffold-module` diperbarui; `test/openapi.e2e.test.ts`: setiap operasi punya `x-success-message`, setiap response error punya `x-error-codes` yang sah (`APP_ERROR_CODES`).
+4. Generator Markdown `scripts/lib/api-contract/markdown.ts`: `docs/api/README.md` (base URL, autentikasi, envelope, header umum, tabel seluruh error code, daftar endpoint per modul dengan tautan dan pohon parent → anak, bagian **Platform** untuk route di luar modul — saat ini `GET /`) + **satu file per modul** dinamai folder modulnya: `docs/api/<modul>.md`; modul dependent di subfolder parent mengikuti `src/modules/<parent>/<anak>/` → `docs/api/<parent>/<anak>.md` (breadcrumb `<parent> › <anak>`, memuat route bertingkat **dan** datar milik modul itu), file parent mendapat bagian "Modul turunan" yang menautkannya. Modul asal setiap route ditentukan dari router yang di-mount `createApp()` (cara yang sama dengan `test/structure.test.ts`); route yang tidak bisa dipetakan ke modul dan bukan route platform yang dikenal → generator **gagal** (tidak ada endpoint yang diam-diam hilang dari kontrak). Per endpoint: judul (`METHOD path — summary`), deskripsi, auth / role, tabel header, path / query / body (tipe, wajib, aturan), contoh request, contoh response per status (sukses dengan `message` asli; paginated dengan `meta`; setiap status error dengan `error.type` / `code` / contoh `details` untuk 400). Contoh deterministik dari schema (`uuid` / `date-time` / enum / batas tetap) kecuali ada `.openapi({ example })`.
+5. `openapi:update` menulis JSON + Markdown; `openapi:check` juga membandingkan Markdown byte-per-byte (pesan: dokumen kontrak tidak sinkron / diedit tangan → jalankan `openapi:update`). `bun run setup` dan `verify:scaffold` ikut (file modul contoh beserta subfolder dependent-nya hilang / file probe, termasuk `docs/api/<parent>/<anak>.md` dependent, muncul lalu dibersihkan).
+6. Docs (D32): `openapi.md` (field baru `describeEndpoint`, dokumen kontrak), `http-contract.md` (tautan ke `docs/api/`), `new-module.md`, `ARCHITECTURE.md` §12, README (tautan `docs/api/README.md`), `auth-guide.md` / `partner-integration-guide.md` (rincian per endpoint → `docs/api/`); `docs-sync` memperlakukan `docs/api/*.md` sebagai hasil generate (tautan tetap diperiksa, batas baris / aturan router tidak).
+
+**Acceptance criteria**
+
+- [ ] `docs/api/` memuat setiap operasi `createApp()` dengan contoh response sukses (200 / 201 / paginated) dan setiap status error beserta code-nya.
+- [ ] Satu file per modul bernama folder modulnya; `projects` → `docs/api/projects.md` + `docs/api/projects/tasks.md`, `docs/api/projects/budgets.md` (ditautkan dari `projects.md`); `GET /` di bagian Platform `README.md`; route tanpa modul asal yang dikenal → generator gagal (chaos test).
+- [ ] Controller mengirim pesan berbeda dari `response.message`, atau service melempar code yang tidak terdaftar untuk statusnya → test yang mengenai route itu gagal (`NODE_ENV=test`); production tanpa pemeriksaan.
+- [ ] Mengedit `docs/api/*.md` dengan tangan → `openapi:check` gagal; `update` dua kali → tanpa diff.
+- [ ] Modul hasil `bun run scaffold` (standalone, header-detail, dependent) lulus seluruh gate termasuk penjaga pesan / code.
+- [ ] Chaos test: `response.message` dihapus dari satu route → `openapi.e2e` gagal; code asing di `errors` → gagal; penjaga runtime dimatikan → test pelanggaran gagal.
+- [ ] `bun run validate:full`, `build`, `verify:scaffold`, `test:int` hijau.
+
 ### Step 7.5 — Release check boilerplate v1.0.0
 
-**Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → clone bersih → `/init-project demo-backend` → `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run scaffold module <probe>` + gate → `bun run build` → `docker build` + container `healthy` → `CHANGELOG.md` → tag `v1.0.0`.
+**Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → clone bersih → `/init-project demo-backend` (baseline `docs/api/` tanpa endpoint contoh, `openapi:check` hijau) → `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run scaffold module <probe>` (+ dependent `--parent`) → `openapi:check` gagal → `openapi:update` → gate → `bun run build` → `docker build` + container `healthy` → `CHANGELOG.md` → tag `v1.0.0`.
 
 **Acceptance criteria**
 
@@ -1401,7 +1478,7 @@ Hapus: anak selalu **soft delete** (1:N dan 1:1) dengan `deleted_at` sendiri, te
 - [ ] Test baru menutup perilaku baru (unit; e2e bila menyentuh HTTP). **Setiap cabang logika** (klasifikasi, pemetaan status, fallback) punya test eksplisit — coverage Bun hanya mengukur baris, bukan cabang.
 - [ ] Aturan baru ditegakkan mesin (atau ditandai `[review-only]` dengan alasan).
 - [ ] Dokumen terdampak diperbarui di commit yang sama: file topik di `docs/standards/` (satu-satunya sumber, D32) + baris aturan di `ARCHITECTURE.md` §12 bila aturan baru / penegaknya berubah; router (`CONTRIBUTING.md`, `.agents/AGENTS.md`, skill) hanya bila daftar topik berubah; `.env.example`. Bila API inti yang dipakai template berubah (errors, response, middlewares, dto, i18n, openapi, database) → `bun run verify:scaffold` hijau.
-- [ ] Endpoint baru memakai `describeEndpoint()` dengan skema response di `<module>.dto.ts` (`test/openapi.e2e.test.ts` hijau).
+- [ ] Endpoint baru memakai `describeEndpoint()` dengan skema response di `<module>.dto.ts` (`test/openapi.e2e.test.ts` hijau). Sejak 7.4b: kontrak berubah → di-review lalu `bun run openapi:update` dijalankan sadar (`openapi:check` hijau, `--allow-breaking` hanya untuk perubahan `BREAKING` yang disengaja).
 - [ ] Nilai yang membawa nama proyek → `IDENTITY_RULES`; `bun run setup demo --dry-run` lulus.
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
 - [ ] Perintah ke database dijalankan developer; AI agent hanya ke DB **lokal** developer dengan izin eksplisit (migrasi, cek read-only), SQL destruktif / baris uji selalu ditanyakan dulu, tidak pernah DB bersama/production.
