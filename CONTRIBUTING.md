@@ -79,6 +79,7 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
 | `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Menandatangani request partner (signing v1) lalu mencetak header + perintah curl, atau langsung mengirimnya; secret dari prompt tersembunyi / stdin | Saat menguji endpoint `/api/v1/partner/*` atau membantu partner mencocokkan signature |
 | `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
+| `bun run test:int [nama] [--keep-db]` | Integration test ke PostgreSQL + Redis asli (`test/integration/*.int.ts`): membuat database sekali pakai `<nama>_it_<run>`, migrasi asli, lalu menghapusnya; key Redis ber-prefix `<APP_NAME>:int-test:<run>` dihapus satu per satu. Layanan dari `TEST_DATABASE_URL` / `TEST_REDIS_*`, atau `DATABASE_URL` / `REDIS_*` bila menunjuk mesin ini **dan** `NODE_ENV` = `development` / `test`. Tidak pernah dijalankan di server (staging / production) — CI yang menjalankannya | Saat mengubah repository, transaksi, migrasi, auth, partner gateway atau cache (juga job CI `integration`) |
 | **`bun run validate:full`** | **Menjalankan seluruh gerbang kualitas secara berurutan** (juga dijalankan hook pre-push) | **Wajib sebelum membuat Pull/Merge Request** |
 
 ---

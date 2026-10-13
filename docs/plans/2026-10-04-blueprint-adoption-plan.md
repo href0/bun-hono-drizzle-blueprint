@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–5 selesai** (`main` @ `9e1e166`); Review 10 (Fase 5) menunggu review (branch `fix/review-phase-5`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–5 + Review 10 selesai** (`main` @ `f6f8ee4`); 6.1 menunggu review (branch `test/integration-suite`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `9e1e166` |
+| Basis kode | branch `main` @ `f6f8ee4` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -515,6 +515,17 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-13 | Review 10 | Plan: 5.6 ✅ `9e1e166`; header; L4 (prefix webhook), L10 (langkah 6, D29), L11 (pohon); keputusan D29–D31. **Fase 7 disusun ulang (D31):** 7.2 baru = CLI scaffolder; "Finalisasi skills AI" → 7.3 (ditambah opsi riwayat git baru + `bun run prepare` di `init-project` / README); release check → 7.4 (ditambah smoke `bun run scaffold`). Rujukan "Step 7.3" pada baris log lama berarti 7.4; `COVERAGE_EXCLUSIONS` (`scripts/check-coverage.ts`) ikut diperbarui | Usulan user (prompt "Fase 7.2"), disetujui dengan penyesuaian: logika di satu library yang dipakai CLI dan `verify:scaffold`, flag `--singular`, anchor permanen, prettier hanya pada file baru |
 | 2026-10-13 | Review 10 | **Chaos test** (7, semua tertangkap): `rejectionLimit` menghitung semua request; `rejectionLimit` tidak pernah memblokir; prefix partner kembali di bawah limit global; `rejectionLimit` tidak dipasang di prefix webhook; payload vendor kembali di-strip; vendor terdaftar tanpa route penerima; contoh tersisa sebagian (drift) → `lint:setup` gagal | Semua file dipulihkan, `git status` hanya berisi perubahan review |
 | 2026-10-13 | Review 10 | Probe Redis asli (server port 3999, `RATE_LIMIT_MAX=3`, `RATE_LIMIT_WINDOW_SECONDS=8` lewat env proses): 3× `GET /partner/ping` tanpa tanda tangan → 401, ke-4 → 429; webhook dari IP yang sama → 429 (anggaran penolakan bersama); `/` tetap memakai limit global (`RateLimit-Limit: 3`); setelah jendela habis → 401 lagi. Kunci kedaluwarsa sendiri (TTL 8 detik) | OK |
+| 2026-10-13 | Review 10 | ✅ di-commit (`f6f8ee4`) dan di-merge ke `main` | — |
+| 2026-10-13 | 6.1 | Runner `scripts/test-integration.ts` (`bun run test:int [filter] [--keep-db]`): setiap run membuat database sekali pakai `<nama>_it_<run>` (diberi `COMMENT` penanda), menjalankan `bun test --preload test/integration/setup.ts <file>`, lalu `DROP DATABASE … WITH (FORCE)`; key Redis ber-prefix `<APP_NAME>:int-test:<run>` dihapus satu per satu (SCAN + DEL, tanpa `FLUSH*`). Database sisa run yang terputus (> 1 jam) dihapus run berikutnya, **hanya** yang membawa komentar penanda. **Penyimpangan langkah 1**: tanpa `TEST_*`, runner memakai `DATABASE_URL` / `REDIS_*` — hanya bila menunjuk mesin ini (localhost); server jauh ditolak, `NODE_ENV=production` ditolak. Database pengembangan tidak pernah ditulisi (hanya `CREATE`/`DROP DATABASE` dari koneksinya) | Tanpa duplikasi kredensial di file env lokal |
+| 2026-10-13 | 6.1 | Preload `test/integration/setup.ts` (setelah preload hermetik): menolak database yang bukan `*_it_<run>`, mengarahkan `DATABASE_URL` / `REDIS_*` ke target run, menjalankan **migrasi asli** (`drizzle/`, migrator drizzle), membuat tabel fixture generik (`test_orders`, `test_order_lines`, `test_events` dari `test/helpers/repository-fixtures.ts`; DDL dari `drizzle-kit/api` = selisih schema → schema + fixture), menyambungkan Redis, dan menutup kedua koneksi lewat `afterAll` global (tanpa itu `bun test` tidak pernah keluar). File `*.int.ts` tidak cocok pola `bun test`, jadi tidak ikut unit suite maupun coverage gate; knip: `test/integration/*.ts` sebagai entry | — |
+| 2026-10-13 | 6.1 | Skenario (22 test, 4 file): **data layer** — update + audit (actor, request ID, kolom redacted), rollback transaksi membatalkan update dan audit, soft delete/restore + audit, 4 update paralel pada satu baris berantai utuh (row lock), `syncForParent` (update/insert/delete, audit di bawah header, header tersentuh), rollback seluruh sync bila satu item asing, detail header terhapus tersembunyi, `activeUniqueIndex` (`users.email`: duplikat hidup → `isUniqueViolation`, boleh lagi setelah soft delete), append-only berurutan; **Redis** — versi ≥ 2.6 + prefix run, 50 `increment` paralel tepat 1..50 dengan satu TTL, jendela tidak diperpanjang, 20 `setIfAbsent` paralel tepat satu menang, `getOrSet` + negative cache, fail-open saat koneksi putus lalu pulih; **auth** lewat `createApp()` — login dengan hash tersimpan + `/auth/me`, lock setelah `AUTH_LOGIN_MAX_ATTEMPTS` (counter Redis), rotasi + reuse mencabut seluruh family (dicek di tabel), dua refresh bersamaan dengan token sama → tepat satu 200; **partner** lewat `createApp()` — signed ping 200, nonce sama → 401 replay, `rate_limit_rpm` sendiri → 429, deactivate / rotasi API key berlaku seketika (cache dibuang) | Lokal: PostgreSQL 17.6 + Redis 3.0 (tertua yang dipakai), 22/22, ±3 detik |
+| 2026-10-13 | 6.1 | **Temuan (Bun 1.3.0):** `expect(promise).rejects` / `.resolves` menunggu promise dengan cara yang bisa menghentikan I/O socket — transaksi tertahan `idle in transaction` (dibuktikan lewat `pg_stat_activity`) dan test timeout, sedangkan `try/catch` biasa lancar. Helper `rejectionOf()` (`test/helpers/integration.ts`) dipakai di suite ini; aturan ditulis di `testing.md` §7 | Bukan bug aplikasi |
+| 2026-10-13 | 6.1 | **Temuan (bug kecil):** tepat setelah koneksi Redis putus, `status` ioredis masih `ready` padahal socket sudah tidak bisa ditulis → `closeRedisClient()` melempar error dari `QUIT` (shutdown gagal). Perbaikan: `QUIT` yang ditolak jatuh ke `disconnect()` + log `warn`; test unit baru | — |
+| 2026-10-13 | 6.1 | **Temuan saat membersihkan DB sisa:** pola `LIKE '%\_it\_%'` di skrip pembersih sementara ikut mencocokkan database lain di server lokal user; regex nama menahannya, **tidak ada yang tersentuh**. Pelajaran diterapkan di runner: pembersihan basi memilih lewat komentar penanda, bukan nama (`_` adalah wildcard `LIKE`, dan nama proyek bisa mirip). Dibuktikan: DB tiruan `<nama>_it_aaaaaaaa` tanpa penanda selamat, DB lama bertanda dihapus | — |
+| 2026-10-13 | 6.1 | CI: job `integration` (service container PostgreSQL 16 + Redis 7, `TEST_DATABASE_URL` / `TEST_REDIS_*`) — **belum pernah jalan** (belum ada remote GitHub). Kombinasi versi: CI = terbaru, lokal = Redis 3.0 tertua. **Penyimpangan langkah 1**: `docker-compose.test.yml` (opsional) tidak dibuat — CI memakai service container, lokal memakai layanan native | — |
+| 2026-10-13 | 6.1 | **Chaos test** (7, semua tertangkap): preload menolak database bukan `*_it_<run>`; preload menolak jalan di luar runner; runner menolak fallback `DATABASE_URL` jauh; runner menolak `NODE_ENV=production`; `FOR UPDATE` dihapus dari `lockWhere` → suite data layer gagal; nonce tidak pernah ditolak → suite partner gagal; `closeRedisClient` kembali melempar → test unit gagal | Semua file dipulihkan |
+| 2026-10-13 | 6.1 | Dokumen: `testing.md` §7 baru (cara menjalankan, layanan, siklus database sekali pakai, preload, cara menulis test, larangan `.rejects`), project-standards §6 + pohon `scripts/`, `AGENTS.md` (hermetic tests + `test:int`), CONTRIBUTING (tabel perintah), README (quality gates), `.env.example` (blok `TEST_*` sebagai komentar), komentar preload hermetik | — |
+| 2026-10-13 | 6.1 | **Pengetatan (diskusi user soal deploy ke VPS):** fallback ke `DATABASE_URL` / `REDIS_*` kini juga mensyaratkan `NODE_ENV` = `development` atau `test`. Sebelumnya hanya "host = localhost" — di VPS yang PostgreSQL-nya terpasang di mesin yang sama dan `NODE_ENV`-nya lupa diisi, runner akan membuat/menghapus database `*_it_*` di server production. Suite ini tidak pernah dijalankan di server; CI memakai `TEST_*` + service container | Chaos: `NODE_ENV` kosong dan `staging` → ditolak; `development` tetap jalan |
 
 ---
 
@@ -575,7 +586,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ed556d6` |
 | 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bb29912` |
 | 5.6 | Webhook vendor inbound | ✅ | 5.5, 4.2 | `9e1e166` |
-| 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.6 |  |
+| 6.1 | Integration test (Postgres + Redis asli) | 👀 | 3.5, 5.6 |  |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
 | 7.2 | CLI scaffolder `bun run scaffold` (D31) | ⬜ | 7.1 |  |
 | 7.3 | Finalisasi skills AI | ⬜ | 7.2 |  |
@@ -1211,7 +1222,7 @@ Keputusan D23, D25, D28. Kontrak milik vendor; kita hanya memverifikasi dan meny
 
 **Acceptance criteria**
 
-- [ ] `bun run test:int` hijau lokal dan di CI.
+- [x] `bun run test:int` hijau lokal (22 test, PostgreSQL 17.6 + Redis 3.0). Job CI `integration` (PostgreSQL 16 + Redis 7) ditulis, **belum pernah jalan** — belum ada remote GitHub.
 
 ---
 
