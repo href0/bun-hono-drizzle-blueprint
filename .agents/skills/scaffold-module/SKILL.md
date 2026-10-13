@@ -7,7 +7,7 @@ description: Scaffold a new feature/domain module under src/modules/<name>/ (sch
 
 Use this skill when asked to create, add, or scaffold a new domain/feature module under `src/modules/<module-name>/`.
 
-**Pick the variant first**: `docs/standards/new-module.md` §1 (table kinds, templates, working examples). Standalone tables use Steps 2–12 below; the other variants are in `references/` (`header-detail.md`, `record.md`, `partner.md`, `webhook.md`, `integration.md`).
+**Pick the variant first**: `docs/standards/new-module.md` §1 (table kinds, templates, working examples). Standalone tables use Steps 2–12 below; the other variants are in `references/` (`header-detail.md`, `dependent.md`, `dependent-one.md`, `record.md`, `partner.md`, `webhook.md`, `integration.md`).
 
 **Then generate with the CLI — do not copy the templates by hand**: `bun run scaffold <module|partner|webhook|integration> <name> [options]` (commands, naming rules, refusals: `docs/standards/new-module.md` §2; `--dry-run` first to check the plan and the singular it derived). It writes every file of the variant, registers it in the shared files, formats the result and prints the next steps. Your work starts after it: the domain fields, rules, messages and tests, following the standards each step links, then `bun run validate:full`.
 
@@ -721,7 +721,7 @@ describe('<PascalPlural>Controller (through its routes)', () => {
 
 Add the integration test when the module has its own queries, locks, unique indexes or Redis behaviour — `docs/standards/testing.md` (§7 for `bun run test:int`).
 
-These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
+These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/dependent.md`, `references/dependent-one.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
 
 The templates are formatted for a short module name; `bun run scaffold` formats what it writes. After your own edits (or when copying a block by hand), format before validating:
 ```bash

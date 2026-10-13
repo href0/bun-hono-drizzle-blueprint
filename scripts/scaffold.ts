@@ -22,13 +22,20 @@ const folders = (dir: string): string[] =>
         .map((entry) => entry.name)
     : [];
 
+/** Dependent modules: one subfolder of their parent (`src/modules/<parent>/<child>/`, plan D33). */
+const nestedModules = (): { parent: string; name: string }[] =>
+  folders('src/modules').flatMap((parent) =>
+    folders(`src/modules/${parent}`).map((name) => ({ parent, name })),
+  );
+
 /** Names that would break the conventions (plan D26) or overwrite existing work. */
 const refusals = (
   plan: ScaffoldPlan,
   request: ReturnType<typeof parseScaffoldArgs>['request'],
 ): string[] => {
   const vendors = folders('src/integrations');
-  const modules = folders('src/modules');
+  const nested = nestedModules();
+  const modules = [...folders('src/modules'), ...nested.map((module) => module.name)];
   const problems: string[] = [];
   if (request.kind !== 'integration' && vendors.includes(request.name)) {
     problems.push(
@@ -53,8 +60,67 @@ const refusals = (
       `src/modules/${request.name}/ already exists: the CLI does not add details to an existing module — add them by hand or with an AI agent (docs/standards/new-module.md §2.6)`,
     );
   }
+  if (modules.includes(request.name) && request.kind !== 'integration') {
+    problems.push(
+      `the module name "${request.name}" is already used in src/modules/ (it names a table and routes)`,
+    );
+  }
+  if (plan.parent) problems.push(...parentProblems(plan.parent, nested));
   for (const file of plan.files) {
     if (existsSync(resolve(ROOT, file.path))) problems.push(`${file.path} already exists`);
+  }
+  return problems;
+};
+
+const textOf = (path: string): string =>
+  existsSync(resolve(ROOT, path)) ? readFileSync(resolve(ROOT, path), 'utf8') : '';
+
+/**
+ * A dependent module needs a parent that exists, is soft-deletable (its children are hidden through
+ * `deleted_at`) and is not a dependent itself (two levels at most, plan D33); its route segment
+ * under the parent must be free.
+ */
+const parentProblems = (
+  { names, segment }: NonNullable<ScaffoldPlan['parent']>,
+  nested: { parent: string; name: string }[],
+): string[] => {
+  const nestedParent = nested.find((module) => module.name === names.name);
+  if (nestedParent) {
+    return [
+      `parent "${names.name}" is itself a dependent module (src/modules/${nestedParent.parent}/${names.name}/): two levels at most (plan D33) — attach to "${nestedParent.parent}" instead`,
+    ];
+  }
+  const schemaPath = `src/database/schema/domain/${names.name}.schema.ts`;
+  const schema = textOf(schemaPath);
+  if (!folders('src/modules').includes(names.name) || schema === '') {
+    return [
+      `parent "${names.name}" not found: --parent names an existing module (src/modules/${names.name}/ and ${schemaPath}) — create it first, e.g. bun run scaffold module ${names.name}`,
+    ];
+  }
+  const problems: string[] = [];
+  if (!schema.includes(`export const ${names.camelPlural} = appTable(`)) {
+    problems.push(
+      `${schemaPath} does not export the table "${names.camelPlural}" (irregular plural? use --parent-singular=<name>)`,
+    );
+  } else if (!schema.includes('softDelete()')) {
+    problems.push(
+      `parent "${names.name}" has no softDelete(): a dependent hides its rows through the parent's deleted_at — the parent must be a standalone or header table`,
+    );
+  }
+  if (
+    textOf(`src/modules/${names.name}/${names.name}.repository.ts`).includes('DependentRepository')
+  ) {
+    problems.push(
+      `parent "${names.name}" is itself a dependent module: two levels at most (plan D33) — attach to its parent instead`,
+    );
+  }
+  const taken =
+    textOf(`src/modules/${names.name}/${names.name}.routes.ts`).includes(`'/:id/${segment}`) ||
+    textOf('src/app.ts').includes(`/${names.name}/:${names.camelSingular}Id/${segment}'`);
+  if (taken) {
+    problems.push(
+      `the route segment "/${names.name}/:id/${segment}" is already used: choose another module name`,
+    );
   }
   return problems;
 };

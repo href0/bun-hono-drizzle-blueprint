@@ -139,6 +139,57 @@ const EXAMPLE_MODULES: ExampleModule[] = [
     ],
   },
   {
+    label: 'projects + tasks (1:N) + budgets (1:1) (dependent modules example)',
+    paths: [
+      'src/modules/projects',
+      'src/database/schema/domain/projects.schema.ts',
+      'src/database/schema/domain/tasks.schema.ts',
+      'src/database/schema/domain/budgets.schema.ts',
+      'test/projects.e2e.test.ts',
+    ],
+    lines: [
+      { file: 'src/database/schema/domain/index.ts', line: "export * from './projects.schema';" },
+      { file: 'src/database/schema/domain/index.ts', line: "export * from './tasks.schema';" },
+      { file: 'src/database/schema/domain/index.ts', line: "export * from './budgets.schema';" },
+      {
+        file: 'src/app.ts',
+        line: '// Example modules (parent + dependents 1:N / 1:1): removed by `bun run setup <name>` unless --keep-examples.',
+      },
+      {
+        file: 'src/app.ts',
+        line: "import { projectsRouter } from './modules/projects/projects.routes';",
+      },
+      {
+        file: 'src/app.ts',
+        line: "import { tasksParentRouter, tasksRouter } from './modules/projects/tasks/tasks.routes';",
+      },
+      {
+        file: 'src/app.ts',
+        line: "import { budgetsParentRouter, budgetsRouter } from './modules/projects/budgets/budgets.routes';",
+      },
+      { file: 'src/app.ts', line: "  v1.route('/projects', projectsRouter);" },
+      { file: 'src/app.ts', line: "  v1.route('/projects/:projectId/tasks', tasksParentRouter);" },
+      { file: 'src/app.ts', line: "  v1.route('/tasks', tasksRouter);" },
+      {
+        file: 'src/app.ts',
+        line: "  v1.route('/projects/:projectId/budget', budgetsParentRouter);",
+      },
+      { file: 'src/app.ts', line: "  v1.route('/budgets', budgetsRouter);" },
+      {
+        file: 'docs/standards/structure.md',
+        line: '│   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)',
+      },
+      {
+        file: 'docs/standards/structure.md',
+        line: '│   │   ├── tasks/               # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/tasks/:id)',
+      },
+      {
+        file: 'docs/standards/structure.md',
+        line: '│   │   ├── budgets/             # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/budgets/:id)',
+      },
+    ],
+  },
+  {
     label: 'demo-pay + payment-notifications (vendor webhook example)',
     paths: [
       'src/integrations/demo-pay',

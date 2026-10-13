@@ -5,7 +5,9 @@
  * Usage: bun run verify:scaffold
  *
  * Runs the CLI (scripts/scaffold.ts) for every variant — standalone, header-detail, record,
- * partner, webhook — and for an outbound vendor adapter, exactly as a developer would; then runs
+ * dependent (1:N and 1:1, attached afterwards to the standalone probe, whose files must stay
+ * byte-identical), partner, webhook — and for an outbound vendor adapter, exactly as a developer
+ * would; then runs
  * prettier --check, tsc, eslint, ls-lint, dependency-cruiser, knip, the generated tests and the
  * schema conventions, plus live requests through `createApp()`. Everything the CLI created or
  * edited is restored afterwards — also on failure or Ctrl+C.
@@ -13,7 +15,7 @@
  * Why: the templates are documentation, so no other gate compiles them. The standalone template
  * drifted from the code three times before this check existed (see the adoption plan log).
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
   APP_PATH,
@@ -102,6 +104,40 @@ const VARIANTS: Variant[] = [
     invalid: { path: '/v1/probe-events?per_page=1000', method: 'GET' },
   },
   {
+    // Attached to the standalone probe above, generated earlier in the same run (incremental).
+    label: 'dependent (1:N)',
+    request: { kind: 'module', name: 'probe-notes', parent: 'scaffold-probes' },
+    documented: [
+      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-notes', 'post'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-notes', 'get'],
+      ['/v1/probe-notes/{id}', 'get'],
+      ['/v1/probe-notes/{id}', 'patch'],
+      ['/v1/probe-notes/{id}', 'delete'],
+      ['/v1/probe-notes/{id}/restore', 'post'],
+    ],
+    invalid: {
+      path: '/v1/scaffold-probes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/probe-notes',
+      method: 'POST',
+      body: '{}',
+    },
+  },
+  {
+    label: 'dependent (1:1)',
+    request: { kind: 'module', name: 'probe-profiles', parent: 'scaffold-probes', one: true },
+    documented: [
+      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-profile', 'get'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-profile', 'put'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-profile', 'delete'],
+      ['/v1/probe-profiles/{id}', 'get'],
+      ['/v1/probe-profiles/{id}/restore', 'post'],
+    ],
+    invalid: {
+      path: '/v1/scaffold-probes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/probe-profile',
+      method: 'PUT',
+      body: '{}',
+    },
+  },
+  {
     label: 'partner',
     request: { kind: 'partner', name: 'probe-submissions' },
     documented: [
@@ -138,7 +174,57 @@ const cliArgs = (request: ScaffoldRequest): string[] => [
   ...(request.variant ? [`--variant=${request.variant}`] : []),
   ...(request.vendor ? [`--vendor=${request.vendor}`] : []),
   ...(request.detail ? [`--detail=${request.detail}`] : []),
+  ...(request.parent ? [`--parent=${request.parent}`] : []),
+  ...(request.one ? ['--one'] : []),
 ];
+
+/** The parent probe of the dependent variants: attaching children must not change a byte of it. */
+const PARENT_PROBE = 'scaffold-probes';
+const parentProbeFiles = (): Map<string, string> => {
+  const folder = `src/modules/${PARENT_PROBE}`;
+  // The parent's own files; its dependents are subfolders (src/modules/<parent>/<child>/) on purpose.
+  const paths = [
+    `src/database/schema/domain/${PARENT_PROBE}.schema.ts`,
+    ...(existsSync(folder)
+      ? readdirSync(folder, { withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => `${folder}/${entry.name}`)
+      : []),
+  ];
+  return new Map(paths.map((path) => [path, readFileSync(path, 'utf-8')]));
+};
+let parentSnapshot = new Map<string, string>();
+
+/** Runs the CLI for every request in order; snapshots the parent probe right after it is created. */
+const runCli = (): boolean =>
+  requests.every((request) => {
+    const ok = run(`bun run scaffold ${cliArgs(request).join(' ')}`, [
+      'bun',
+      'scripts/scaffold.ts',
+      ...cliArgs(request),
+    ]);
+    if (ok && request.name === PARENT_PROBE) parentSnapshot = parentProbeFiles();
+    return ok;
+  });
+
+const parentUntouched = (): boolean => {
+  const now = parentProbeFiles();
+  const changed = [...parentSnapshot.keys()].filter(
+    (path) => now.get(path) !== parentSnapshot.get(path),
+  );
+  const added = [...now.keys()].filter((path) => !parentSnapshot.has(path));
+  const ok = parentSnapshot.size > 0 && changed.length === 0 && added.length === 0;
+  console.log(`${ok ? 'PASS' : 'FAIL'}  dependent modules leave their parent module untouched`);
+  if (!ok) {
+    console.log(
+      [
+        ...changed.map((path) => `  changed: ${path}`),
+        ...added.map((path) => `  added: ${path}`),
+      ].join('\n'),
+    );
+  }
+  return ok;
+};
 
 const requests = [...VARIANTS.map((variant) => variant.request), INTEGRATION];
 /** Every file the CLI creates, from the same plan it applies. */
@@ -254,13 +340,8 @@ const main = (): void => {
   try {
     // The CLI exactly as documented; it formats what it writes (Prettier), so --check must pass.
     ok =
-      requests.every((request) =>
-        run(`bun run scaffold ${cliArgs(request).join(' ')}`, [
-          'bun',
-          'scripts/scaffold.ts',
-          ...cliArgs(request),
-        ]),
-      ) &&
+      runCli() &&
+      parentUntouched() &&
       run('prettier --check (the CLI formatted what it wrote)', [
         'bunx',
         'prettier',

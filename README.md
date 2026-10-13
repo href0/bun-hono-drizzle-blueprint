@@ -31,7 +31,8 @@ git clone <repo_url> my-backend
 cd my-backend
 bun install
 bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk preview
-#    modul contoh orders (header + detail) dan contoh webhook vendor (demo-pay +
+#    modul contoh orders (header + detail), projects (parent + dependent tasks /
+#    budgets) dan contoh webhook vendor (demo-pay +
 #    payment-notifications) dihapus & migrasi dibuat ulang dari awal;
 #    tambahkan --keep-examples untuk mempertahankannya sebagai referensi
 # atau via AI agent (Claude Code): /init-project my-backend

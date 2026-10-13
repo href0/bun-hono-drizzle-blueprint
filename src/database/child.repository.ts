@@ -39,7 +39,8 @@ export type SyncItem<TChild extends PgTable> = ChildInput<TChild> & { id?: strin
  * writer), touch the header's `updated_at`, and record each detail change in `record_changes`
  * with the header in `parent_table` / `parent_id`. Details are hard-deleted, with a snapshot.
  *
- * A missing or soft-deleted header is a `NotFoundError`.
+ * A missing or soft-deleted header is a `NotFoundError`. Override `assertParentWritable(header)` to
+ * refuse writes by the header's state (e.g. a submitted order).
  */
 export abstract class ChildRepository<
   TChild extends ChildTable,
@@ -63,6 +64,14 @@ export abstract class ChildRepository<
       throw new InternalServerError(`${this.tableName}: parentColumn is not a column of the table`);
     }
     this.parentKey = key;
+  }
+
+  /**
+   * Called with the locked header before every write; throw (e.g. `ConflictError`) to refuse it,
+   * e.g. while the header's status no longer allows changes. Default: always writable.
+   */
+  protected assertParentWritable(_parent: TParent['$inferSelect']): void | Promise<void> {
+    return undefined;
   }
 
   /** The header's details, oldest first. */
@@ -182,15 +191,26 @@ export abstract class ChildRepository<
       .orderBy(asc(this.table.createdAt), asc(this.table.id));
   }
 
-  /** The header must exist and be live; with `lock`, it is locked first (`FOR UPDATE`). */
+  /**
+   * The header must exist and be live. With `lock` (writes) it is locked first (`FOR UPDATE`) and
+   * passed to `assertParentWritable`.
+   */
   private async requireLiveParent(parentId: string, lock: boolean): Promise<void> {
     const parent: PgTable = this.parent;
-    const query = this.txHost.tx
-      .select({ id: this.parent.id })
+    const live = and(eq(this.parent.id, parentId), isNull(this.parent.deletedAt));
+    if (!lock) {
+      const rows = await this.txHost.tx.select({ id: this.parent.id }).from(parent).where(live);
+      if (rows.length === 0) throw new NotFoundError();
+      return;
+    }
+    const rows: TParent['$inferSelect'][] = await this.txHost.tx
+      .select()
       .from(parent)
-      .where(and(eq(this.parent.id, parentId), isNull(this.parent.deletedAt)));
-    const rows = lock ? await query.for('update') : await query;
-    if (rows.length === 0) throw new NotFoundError();
+      .where(live)
+      .for('update');
+    const header = rows.at(0);
+    if (!header) throw new NotFoundError();
+    await this.assertParentWritable(header);
   }
 
   /** `updated_at = now()` on the header: a change of its details is a change of the header. */

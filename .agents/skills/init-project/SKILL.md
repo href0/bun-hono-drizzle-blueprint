@@ -39,7 +39,7 @@ Show the user the derived identity and the files that will change:
 | Database | `<project_name>_db` |
 | README title | `<Project Name>` |
 
-Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`) and the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are).
+Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`), `src/modules/projects` (a parent with its dependents `tasks/` 1:N and `budgets/` 1:1) and the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are).
 
 Ask for confirmation before continuing.
 
@@ -69,7 +69,7 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.
-4. Without `--keep-examples`: `src/modules/orders`, `src/modules/payment-notifications` and `src/integrations/demo-pay` are gone, `WEBHOOK_VENDORS` is empty, and `drizzle/` holds a single `0000_*.sql` (the platform tables: users, auth_refresh_tokens, record_changes, partner_credentials, webhook_events). `src/modules/partner-gateway` stays (partners test their signing with its ping/echo).
+4. Without `--keep-examples`: `src/modules/orders`, `src/modules/projects`, `src/modules/payment-notifications` and `src/integrations/demo-pay` are gone, `WEBHOOK_VENDORS` is empty, and `drizzle/` holds a single `0000_*.sql` (the platform tables: users, auth_refresh_tokens, record_changes, partner_credentials, webhook_events). `src/modules/partner-gateway` stays (partners test their signing with its ping/echo).
 
 ### 7. Git History (Optional — Ask, Never Assume)
 

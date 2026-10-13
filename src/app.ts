@@ -35,6 +35,10 @@ import { ordersRouter } from './modules/orders/orders.routes';
 // Example vendor webhook (Demo Pay → payment-notifications): removed by `bun run setup <name>` unless --keep-examples.
 import { demoPayWebhook } from './integrations/demo-pay/demo-pay.webhook';
 import { paymentNotificationWebhookRoutes } from './modules/payment-notifications/payment-notifications.webhook.routes';
+// Example modules (parent + dependents 1:N / 1:1): removed by `bun run setup <name>` unless --keep-examples.
+import { projectsRouter } from './modules/projects/projects.routes';
+import { tasksParentRouter, tasksRouter } from './modules/projects/tasks/tasks.routes';
+import { budgetsParentRouter, budgetsRouter } from './modules/projects/budgets/budgets.routes';
 // scaffold:imports — `bun run scaffold` adds module and vendor imports above this line; keep it.
 
 /**
@@ -122,6 +126,11 @@ export const createApp = (): Hono => {
   v1.route('/partner-credentials', partnerCredentialRoutes);
   v1.route('/partner', partnerGatewayRoutes);
   v1.route('/orders', ordersRouter);
+  v1.route('/projects', projectsRouter);
+  v1.route('/projects/:projectId/tasks', tasksParentRouter);
+  v1.route('/tasks', tasksRouter);
+  v1.route('/projects/:projectId/budget', budgetsParentRouter);
+  v1.route('/budgets', budgetsRouter);
   // scaffold:v1-routes — `bun run scaffold` adds versioned routes above this line; keep it.
   app.route(v1Path, v1);
 

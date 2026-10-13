@@ -45,13 +45,16 @@ const fixtures = await import('../helpers/repository-fixtures');
 
 await migrate(db, { migrationsFolder: 'drizzle' });
 
-// The generic data-layer fixtures (test_orders, test_order_lines, test_events) are not in the
-// schema barrel, so no migration creates them: their DDL is the difference schema → schema + them.
+// The generic data-layer fixtures (test_orders, its detail and dependent tables, test_events) are
+// not in the schema barrel, so no migration creates them: their DDL is the difference
+// schema → schema + them.
 const platform = generateDrizzleJson({ ...schema });
 const withFixtures = generateDrizzleJson({
   ...schema,
   testOrders: fixtures.testOrders,
   testOrderLines: fixtures.testOrderLines,
+  testOrderNotes: fixtures.testOrderNotes,
+  testOrderShipments: fixtures.testOrderShipments,
   testEvents: fixtures.testEvents,
 });
 for (const statement of await generateMigration(platform, withFixtures)) {
