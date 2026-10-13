@@ -134,6 +134,50 @@ describe('buildOpenApiDocument', () => {
   });
 });
 
+describe('buildOpenApiDocument security rules', () => {
+  const documented = (summary: string): ReturnType<typeof describeEndpoint> =>
+    describeEndpoint({
+      tags: ['Probe'],
+      summary,
+      response: { status: 200, description: 'OK', data: z.object({ ok: z.boolean() }) },
+    });
+
+  it('marks vendor webhook, partner and bearer operations each with its own scheme', async () => {
+    const app = new Hono();
+    app.post('/api/webhooks/acme', documented('Acme webhook'), (c) => c.text('ok'));
+    app.post('/api/webhooks/unlisted', documented('Unlisted vendor'), (c) => c.text('ok'));
+    app.get('/api/v1/partner/ping', documented('Partner ping'), (c) => c.text('ok'));
+    app.get('/api/v1/users', documented('Users'), (c) => c.text('ok'));
+    app.get('/public', documented('Public'), (c) => c.text('ok'));
+
+    const doc = await buildOpenApiDocument(app, info, {
+      requiresAuthentication: (_method, path) => path.startsWith('/api/v1/'),
+      requiresPartnerSignature: (_method, path) => path.startsWith('/api/v1/partner/'),
+      webhooks: {
+        pathPrefix: '/api/webhooks',
+        vendors: [{ vendor: 'acme', signatureHeader: 'x-acme-signature' }],
+      },
+    });
+    const operation = (path: string, method: string): Record<string, unknown> =>
+      new Map(Object.entries(doc.paths[path] as Record<string, Record<string, unknown>>)).get(
+        method,
+      ) ?? {};
+
+    expect(doc.components.securitySchemes).toMatchObject({
+      'acme-webhook': { type: 'apiKey', in: 'header', name: 'x-acme-signature' },
+    });
+    expect(operation('/api/webhooks/acme', 'post').security).toEqual([{ 'acme-webhook': [] }]);
+    expect(Object.keys(operation('/api/webhooks/acme', 'post').responses ?? {})).toContain('401');
+    // A path under the prefix whose vendor is not listed gets no webhook scheme.
+    expect(operation('/api/webhooks/unlisted', 'post').security).toBeUndefined();
+    expect(Object.keys(operation('/api/v1/partner/ping', 'get').responses ?? {})).toEqual(
+      expect.arrayContaining(['401', '403']),
+    );
+    expect(operation('/api/v1/users', 'get').security).toEqual([{ bearerAuth: [] }]);
+    expect(operation('/public', 'get').security).toBeUndefined();
+  });
+});
+
 describe('describeRequest', () => {
   it('describes nothing without schemas, and no parameters for non-object schemas', () => {
     expect(describeRequest({})).toEqual({});

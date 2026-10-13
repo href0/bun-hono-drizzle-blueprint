@@ -1,6 +1,6 @@
 # Scaffold Variant — Vendor Webhook (Inbound, Vendor-Owned Contract)
 
-Use this variant when a **vendor** (payment gateway, messaging gateway, …) calls this API to notify events. The vendor owns the contract — URL is ours, but payload, signature scheme and retries are theirs (plan D23). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. Working example in this repository: `src/integrations/demo-pay/` + `src/modules/payment-notifications/`.
+Use this variant when a **vendor** (payment gateway, messaging gateway, …) calls this API to notify events. The vendor owns the contract — URL is ours, but payload, signature scheme and retries are theirs (plan D23). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. Working example in this repository, until `bun run setup <name>` removes it (unless `--keep-examples`): `src/integrations/demo-pay/` + `src/modules/payment-notifications/`.
 
 Two parts, two places:
 
@@ -53,13 +53,19 @@ Export it from `src/config/index.ts` (`export * from './<vendor>.config';`), add
 ```typescript
 import { z } from 'zod';
 
-/** The vendor's webhook payload, exactly as sent (its casing). Unknown fields are ignored. */
-export const <vendorCamel>WebhookPayloadSchema = z.object({
-  /** The vendor's event id: the deduplication key (`webhook_events.event_id`). */
-  id: z.string().min(1).max(200),
-  type: z.string().min(1).max(100),
-  data: z.record(z.string(), z.unknown()),
-});
+/**
+ * The vendor's webhook payload, exactly as sent (its casing). Fields we do not use are kept
+ * (`.passthrough()`), so the stored event (`webhook_events.payload`) is the whole event and a new
+ * vendor field never breaks us.
+ */
+export const <vendorCamel>WebhookPayloadSchema = z
+  .object({
+    /** The vendor's event id: the deduplication key (`webhook_events.event_id`). */
+    id: z.string().min(1).max(200),
+    type: z.string().min(1).max(100),
+    data: z.record(z.string(), z.unknown()),
+  })
+  .passthrough();
 
 export type <VendorPascal>WebhookPayload = z.infer<typeof <vendorCamel>WebhookPayloadSchema>;
 ```
@@ -320,11 +326,13 @@ export const <camelPlural>WebhookRoutes = new Hono();
 import { <vendorCamel>Webhook } from './integrations/<vendor>/<vendor>.webhook';
 import { <camelPlural>WebhookRoutes } from './modules/<name>/<name>.webhook.routes';
 
-// The vendor's verifier: add it to WEBHOOK_VENDORS (mounted with webhookAuth() on its prefix)
-export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [demoPayWebhook, <vendorCamel>Webhook];
+// The vendor's verifier: append it to WEBHOOK_VENDORS, keeping the vendors already listed
+// (createApp() mounts webhookAuth() on its prefix)
+export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [<vendorCamel>Webhook];
 
-// Inside createApp(), next to the other webhook routes — under <base>/webhooks/<vendor>, never elsewhere
-app.route(`${webhooksPath}/<vendor>`, <camelPlural>WebhookRoutes);
+// Inside createApp(), after app.use(`${webhooksPath}/*`, requireVerifiedWebhook()) — under
+// <base>/webhooks/<vendor>, never elsewhere (test/structure.test.ts, default-deny test)
+app.route(`${webhooksPath}/${<vendorCamel>Webhook.vendor}`, <camelPlural>WebhookRoutes);
 ```
 
 ---
@@ -427,8 +435,8 @@ describe('<PascalPlural>WebhookController', () => {
     receive.mockRestore();
   });
 
-  it('passes the payload in the vendor casing with the verified vendor', async () => {
-    const event = { id: 'evt_1', type: 'thing.happened', data: { someField: 1 } };
+  it('passes the whole payload in the vendor casing with the verified vendor', async () => {
+    const event = { id: 'evt_1', type: 'thing.happened', data: { someField: 1 }, createdAt: 1 };
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

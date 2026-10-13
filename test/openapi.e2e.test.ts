@@ -144,7 +144,8 @@ describe('OpenAPI document (createApp)', () => {
     const operations = Object.entries(document.paths)
       .filter(([path]) => path.startsWith(prefix))
       .flatMap(([path, item]) => Object.values(item).map((op) => ({ path, op })));
-    expect(operations.length).toBeGreaterThan(0);
+    // No vendor (a fresh project after `bun run setup`) = no webhook operations.
+    expect(operations.length > 0).toBe(WEBHOOK_VENDORS.length > 0);
 
     for (const { path, op } of operations) {
       const vendor = WEBHOOK_VENDORS.find((entry) => path.startsWith(`${prefix}${entry.vendor}`));

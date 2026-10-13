@@ -75,7 +75,7 @@ Hook lokal bisa dilewati dengan `--no-verify`; CI menjalankan ulang semuanya, te
 | `bun run lint:deps` | Memeriksa file, export, dan dependency yang tidak terpakai (knip) | Saat menghapus/memindah kode atau mengelola package |
 | `bun run lint:branch` | Memvalidasi kepatuhan format nama git branch aktif | Sebelum git push |
 | `bun run lint:setup` | Memastikan setiap `IDENTITY_RULES` (`scripts/setup.ts`) masih cocok dengan file-nya | Saat mengubah nilai yang membawa nama proyek |
-| `bun run verify:scaffold` | Men-generate modul contoh dari setiap template skill `scaffold-module` (mandiri, header-detail, pencatatan) **dan** adapter vendor dari template integrasi, lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, test hasil generate, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, openapi, database, http) atau template itu sendiri |
+| `bun run verify:scaffold` | Men-generate modul contoh dari setiap template skill `scaffold-module` (mandiri, header-detail, pencatatan, partner, webhook) **dan** adapter vendor dari template integrasi, lalu menjalankan prettier, tsc, ESLint, ls-lint, depcruise, knip, test hasil generate, dan request nyata; semua file dikembalikan setelahnya | Setiap mengubah API inti (errors, response, middlewares, dto, i18n, openapi, database, http) atau template itu sendiri |
 | `bun test` | Menjalankan seluruh Unit Test dan E2E Test | Setelah modifikasi logika bisnis |
 | `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Menandatangani request partner (signing v1) lalu mencetak header + perintah curl, atau langsung mengirimnya; secret dari prompt tersembunyi / stdin | Saat menguji endpoint `/api/v1/partner/*` atau membantu partner mencocokkan signature |
 | `bun run test:cov` | Menjalankan test + coverage gate (`scripts/check-coverage.ts`) | Saat memastikan kelayakan test coverage |
@@ -289,7 +289,7 @@ Dilarang melempar error string mentah atau plain `Error` di `src/modules/**` (di
 | `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` (default) · `ERR_ROUTE_NOT_FOUND` | Resource entitas tidak ditemukan · route tidak ada (`notFoundHandler`) |
 | `ConflictError` | 409 | `CONFLICT` | `ERR_CONFLICT` | Data unik sudah terdaftar (duplikat) |
 | `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi batas |
-| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Rate limit global · terlalu banyak percobaan login per (email, IP) (opsional `retryAfterSeconds` → header `Retry-After`) |
+| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Rate limit global · percobaan ditolak per IP di prefix partner/webhook (`rejectionLimit()`) · kuota `rate_limit_rpm` partner · terlalu banyak percobaan login per (email, IP) (opsional `retryAfterSeconds` → header `Retry-After`) |
 | `ServiceUnavailableError` | 503 | `SERVICE_UNAVAILABLE` | `ERR_SERVICE_UNAVAILABLE` | Dependency inti (DB) tidak tersedia |
 | `ExternalServiceError` | 502/504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` / `ERR_EXT_UNREACHABLE` / `ERR_EXT_ERROR` | Kegagalan API vendor; status dan body vendor tidak pernah diteruskan (body hanya di log), vendor diidentifikasi lewat `error.origin` (kode) + `error.institution` (nama) |
 | `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Invariant internal rusak; pesan tidak dikirim ke client |

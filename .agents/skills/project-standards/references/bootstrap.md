@@ -23,8 +23,13 @@ import {
   loggerMiddleware,
   notFoundHandler,
   isUnderPath,
+  partnerAuth,
   rateLimit,
+  rejectionLimit,
   requestContextMiddleware,
+  requireVerifiedWebhook,
+  webhookAuth,
+  type WebhookVendor,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
@@ -33,6 +38,9 @@ import { ApiResponse } from './core/response';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { userRoutes } from './modules/users/users.routes';
+
+/** Vendor verifiers (`src/integrations/<vendor>/<vendor>.webhook.ts`), e.g. `[demoPayWebhook]`. */
+export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [];
 
 const serviceInfoSchema = z.object({
   name: z.string(),
@@ -45,6 +53,9 @@ export const createApp = (): Hono => {
   const app = new Hono();
   const basePath = appConfig.API_BASE_PATH;
   const healthPath = `${basePath}/health`;
+  const webhooksPath = `${basePath}/webhooks`;
+  const v1Path = `${basePath}/v1`;
+  const partnerPath = `${v1Path}/partner`;
 
   // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
@@ -59,23 +70,36 @@ export const createApp = (): Hono => {
   // 5. Body size limit → 413 in the standard error envelope
   app.use('*', bodySizeLimit(httpConfig.HTTP_BODY_LIMIT_BYTES));
 
-  // 6. Global rate limit per trusted client IP (Redis, fail-open); probes are exempt
+  // 6. Global rate limit per trusted client IP (Redis, fail-open). Exempt: probes, and the partner
+  //    and webhook prefixes — they authenticate the caller themselves (per-partner rate_limit_rpm),
+  //    so per IP only their refused attempts are limited
+  const limitWindow = {
+    windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
+    max: httpConfig.RATE_LIMIT_MAX,
+  };
   app.use(
     '*',
     rateLimit({
-      windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
-      max: httpConfig.RATE_LIMIT_MAX,
+      ...limitWindow,
       keyPrefix: 'global',
-      skip: isUnderPath(healthPath),
+      skip: isUnderPath(healthPath, partnerPath, webhooksPath),
     }),
   );
+  for (const prefix of [partnerPath, webhooksPath]) {
+    app.use(`${prefix}/*`, rejectionLimit({ ...limitWindow, keyPrefix: 'inbound-rejected' }));
+  }
 
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
 
+  // 7b. Vendor webhooks — unversioned and fail-closed: each vendor's verifier, then a guard that
+  //     refuses anything under the prefix no verifier accepted; receivers mounted after it
+  for (const vendor of WEBHOOK_VENDORS) {
+    app.use(`${webhooksPath}/${vendor.vendor}/*`, webhookAuth(vendor));
+  }
+  app.use(`${webhooksPath}/*`, requireVerifiedWebhook());
+
   // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
-  const v1Path = `${basePath}/v1`;
-  const partnerPath = `${v1Path}/partner`;
   app.use(
     `${partnerPath}/*`,
     partnerAuth({
@@ -248,7 +272,7 @@ if (import.meta.main) {
 | 3 | `secureHeaders()` | `X-Content-Type-Options`, `X-Frame-Options`, HSTS, … |
 | 4 | `corsMiddleware(CORS_ORIGINS)` | Mounted only when `CORS_ORIGINS` is non-empty; allowlist with credentials; unlisted origins get no `Access-Control-Allow-Origin` |
 | 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
-| 6 | `rateLimit({ keyPrefix: 'global' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped |
+| 6 | `rateLimit({ keyPrefix: 'global' })` · `rejectionLimit({ keyPrefix: 'inbound-rejected' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped. The partner and webhook prefixes skip the global limit (a partner has its own `rate_limit_rpm`, vendors send bursts of retries from few IPs): there `rejectionLimit()` counts only refused attempts (401 / 403) per IP, so key or signature guessing still gets 429 before the credential lookup |
 | 7 | Routes | `<API_BASE_PATH>/health` (unversioned, public) |
 | 7b | `webhookAuth(vendor)` per `WEBHOOK_VENDORS` entry, then `requireVerifiedWebhook()` | `<API_BASE_PATH>/webhooks/*`, outside `/v1`: each vendor's verifier on `/webhooks/<vendor>/*`, then a fail-closed guard (401 `ERR_WEBHOOK_SIGNATURE_INVALID` for anything no verifier accepted); actor `webhook:<vendor>` |
 | 8 | `partnerAuth({ basePath: '<API_BASE_PATH>/v1/partner', lookup })` | Partner gateway: request signed per spec v1 (headers, timestamp window, API key → active credential, IP whitelist, `allowed_routes`, signature over the raw body read once, nonce, per-partner rate limit); actor `partner:<code>`; one audit log line per request. Lookup injected from the `partner-credentials` module |

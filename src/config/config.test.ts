@@ -3,7 +3,6 @@ import { buildAppConfig } from './app.config';
 import { buildAuthConfig } from './auth.config';
 import { buildDatabaseConfig } from './database.config';
 import { buildHttpConfig } from './http.config';
-import { buildDemoPayConfig } from './demo-pay.config';
 import { buildJsonPlaceholderConfig } from './jsonplaceholder.config';
 import { buildPartnerConfig } from './partner.config';
 import { buildRedisConfig } from './redis.config';
@@ -191,16 +190,6 @@ describe('Configuration groups (Unit)', () => {
     })();
     expect(message).toContain('JWT_SECRET');
     expect(message).not.toContain(leak);
-  });
-
-  it('demo-pay: an empty secret is allowed (webhooks disabled), the tolerance must be positive', () => {
-    expect(buildDemoPayConfig({})).toEqual({
-      DEMO_PAY_WEBHOOK_SECRET: '',
-      DEMO_PAY_WEBHOOK_TOLERANCE_SECONDS: 300,
-    });
-    expect(() => buildDemoPayConfig({ DEMO_PAY_WEBHOOK_TOLERANCE_SECONDS: '0' })).toThrow(
-      'DEMO_PAY_WEBHOOK_TOLERANCE_SECONDS',
-    );
   });
 
   it('jsonplaceholder: should reject an invalid base URL', () => {

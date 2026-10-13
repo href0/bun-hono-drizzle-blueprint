@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–4 + 5.1–5.5 selesai** (`main` @ `bb29912`); 5.6 menunggu review (branch `feat/vendor-webhooks`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–5 selesai** (`main` @ `9e1e166`); Review 10 (Fase 5) menunggu review (branch `fix/review-phase-5`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `bb29912` |
+| Basis kode | branch `main` @ `9e1e166` |
 | Sumber | [`ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../../ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -150,6 +150,9 @@ Semua keputusan **ACCEPTED** pada 2026-10-04 (Step 0.2). Perubahan berikutnya di
 | D26 | Nama modul | nama vendor · nama domain | **Domain** (mis. `messaging`, bukan `wahref`); vendor hanya di `integrations/` | Ganti vendor = adapter baru, modul tetap. Ditegakkan test struktur | 5.5 |
 | D27 | Endpoint khusus satu partner | hanya `allowed_routes` · + penjaga di kode | **`requirePartner(...codes)`** di route, selain `allowed_routes` | Salah konfigurasi `allowed_routes` oleh admin tidak membuka endpoint ke partner lain | 5.5 |
 | D28 | Idempotensi inbound | opsional · wajib | **Wajib**: webhook → `webhook_events` unique (vendor, event ID); endpoint partner yang menulis → unique (`partner_code`, `partner_reference`) | Nonce partner dan Redis fail-open tidak menjamin "sekali proses"; vendor mengirim ulang event yang sama | 5.5, 5.6 |
+| D29 | Rate limit kanal inbound | ikut limit global per IP · dikecualikan + limit penolakan per IP | **Prefix partner & webhook di luar limit global**; per IP hanya percobaan yang ditolak (401/403) yang dihitung (`rejectionLimit()`, `RATE_LIMIT_*` yang sama) | Limit global (default 1000/15 menit ≈ 66 rpm) diam-diam menjadi plafon `rate_limit_rpm` partner (sampai 100.000) dan menolak burst retry vendor; tebakan key/signature tetap kena 429 sebelum lookup kredensial | Review 10 |
+| D30 | Contoh kanal inbound saat `bun run setup` | dipertahankan · dihapus semua · sebagian | **Contoh webhook (`demo-pay` + `payment-notifications`) dihapus** seperti `orders` (kecuali `--keep-examples`); `partner-gateway` (ping/echo) **tetap** | Proyek baru mulai tanpa vendor fiktif; ping/echo dipakai onboarding partner (panduan §9) | Review 10 |
+| D31 | CLI scaffolder | hanya skill AI · CLI dari template yang sama | **`bun run scaffold <module\|partner\|webhook\|integration> <nama>`** membaca template `scaffold-module` (markdown = sumber tunggal) lewat library yang juga dipakai `verify:scaffold` | Konvensi tetap terjaga tanpa agent AI; agent cukup menjalankan CLI lalu menyesuaikan field domain (hemat token) | 7.2 |
 
 ### 4.1 Log Keputusan & Progres
 
@@ -497,6 +500,21 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-12 | 5.6 | Penjaga: `test/default-deny.e2e.test.ts` — route di luar `/v1` = platform publik **atau** webhook; setiap route webhook harus milik vendor di `WEBHOOK_VENDORS` dan menjawab 401 `ERR_WEBHOOK_SIGNATURE_INVALID` tanpa signature (juga dengan bearer token admin); path vendor tak dikenal 401. `test/openapi.e2e.test.ts` — operasi webhook bertanda skema vendornya. `test/vendor-webhooks.e2e.test.ts` — signed lewat `createApp()`. Test struktur (5.5) kini aktif untuk kanal webhook. Template `scaffold-module/references/webhook.md` (15 langkah: config, DTO payload, verifier + test vektor, `index.ts`, DTO/pesan/repository/service/controller/routes modul + test) dengan placeholder vendor baru; `verify:scaffold` varian kelima `probe-receipts` ← vendor `probe-hooks`, registrasi `WEBHOOK_VENDORS` + route, live check bertanda tangan (tanpa signature → 401, signature valid + payload salah → 400) | **Chaos test** (14, semua tertangkap): prefix webhook tanpa verifier & guard, guard dicabut + penerima dipasang untuk vendor tak terdaftar, vendor dihapus dari `WEBHOOK_VENDORS`, `webhookAuth` tidak mencatat vendor, toleransi timestamp diabaikan, signature apa pun diterima, secret kosong tidak fail-closed, insert inbox tanpa `ON CONFLICT DO NOTHING`, duplikat diproses ulang, `bodyKeys: 'verbatim'` di route user, `currentWebhook()` di controller partner, service modul mengimpor verifier, OpenAPI tidak menandai webhook, template controller mengimpor verifier (`verify:scaffold` gagal) |
 | 2026-10-12 | 5.6 | Probe layanan asli (migrasi `0008` diterapkan ke DB lokal; server port 3999, secret demo lewat env proses): webhook bertanda tangan → 200; retry event sama → 200 `duplicate: true`; tepat satu baris `webhook_events` dengan payload ber-casing vendor; signature palsu → 401; timestamp 1 jam → 401; path vendor tak dikenal → 401 (fail-closed); signature valid + payload salah → 400 tanpa baris; log audit accepted/rejected (`no_verifier`) tanpa nilai signature, actor `webhook:demo-pay`. Baris uji dihapus | 9/9 OK |
 | 2026-10-12 | 5.6 | Dokumen: `AGENTS.md` invariant #16 (bagian webhook), project-standards Rule 14 (tabel kanal + bullet webhook) & pohon, `integrations.md` §5 baru _Inbound webhooks_, `openapi.md`, `bootstrap.md` (langkah 7b), `testing.md`, tabel varian `scaffold-module`, CONTRIBUTING (pohon, tabel kanal, aturan webhook), README, `.env.example`, L1/L2/L10/L11 | — |
+| 2026-10-12 | 5.6 | ✅ di-commit (`9e1e166`) dan di-merge ke `main` — **Fase 5 selesai** | — |
+| 2026-10-13 | Review 10 | Review ulang Fase 5 (5.1–5.6) + cek silang skills ↔ rules ↔ lint ↔ docs ↔ plan atas permintaan user: 10 temuan, ditambah 1 temuan saat perbaikan. User menyetujui semua rekomendasi (keputusan C → D29, E → D30) dan usulan CLI scaffolder (D31, Fase 7 disusun ulang); diperbaiki di branch `fix/review-phase-5` | Baseline sebelum perbaikan: `validate:full` hijau, 795 test |
+| 2026-10-13 | Review 10 | **D29 — rate limit kanal inbound.** Temuan: limiter global (`'*'`, hanya health yang dikecualikan) memotong trafik partner dan webhook — default 1000/900 detik ≈ 66 rpm per IP, sementara `rate_limit_rpm` partner boleh sampai 100.000, dan burst retry vendor bisa 429. Perbaikan: `isUnderPath(...prefixes)`; limiter global melewati `<base>/v1/partner` dan `<base>/webhooks`; `rejectionLimit()` baru (`src/core/middlewares/rate-limit.ts`) di kedua prefix menghitung **hanya** jawaban 401/403 per IP (`rate-limit:inbound-rejected:<ip>`, `RATE_LIMIT_*` yang sama, fail-open, tanpa header `RateLimit-*` agar kuota partner tetap pemiliknya); request yang diterima tidak pernah dihitung | Test unit `rejectionLimit` (4) + `isUnderPath` banyak prefix; `test/platform.e2e.test.ts` (spy `cacheService`): `/` → `global`, partner & webhook → `inbound-rejected` |
+| 2026-10-13 | Review 10 | **Payload webhook utuh.** Temuan: Zod membuang field vendor yang tidak dikenal sebelum event disimpan, padahal komentar menyebut "payload as the vendor sent it" (dibuktikan: `createdAt` dan `data.extra` hilang). Perbaikan: `.passthrough()` di skema payload `demo-pay` (atas + `data`) dan template `webhook.md`; test controller dan template mengirim field tambahan | Rule 14 menyebut `.passthrough()` |
+| 2026-10-13 | Review 10 | **D30 — contoh webhook dihapus `bun run setup`.** `EXAMPLE_MODULES` entri kedua: `src/integrations/demo-pay`, `src/modules/payment-notifications`, `src/config/demo-pay.config.ts` + test, `test/vendor-webhooks.e2e.test.ts`; baris di `app.ts`, `config/index.ts`, registry, `.env.example`, preload hermetik, pohon docs, `testing.md`. `lines` kini menerima blok beberapa baris dan `replaceWith` (`WEBHOOK_VENDORS = [demoPayWebhook]` → `[]`). Test config demo-pay dipindah ke `src/config/demo-pay.config.test.ts`. Test kanal menerima nol vendor: `default-deny`, `openapi` dan `structure` kini menuntut "ada route webhook ⇔ `WEBHOOK_VENDORS` tidak kosong". `app.ts`: route memakai `demoPayWebhook.vendor` (bukan string). `partner-gateway` tetap | — |
+| 2026-10-13 | Review 10 | `verify-scaffold.ts`: anchor registrasi webhook tidak lagi bergantung pada contoh Demo Pay (`import userRoutes`, daftar `WEBHOOK_VENDORS` apa pun isinya, baris `requireVerifiedWebhook()`); `replaceAnchor()` gagal keras bila anchor hilang (sebelumnya `.replace()` berantai bisa diam-diam tidak mendaftarkan). Template `webhook.md` langkah 12 tanpa `demoPayWebhook` | `verify:scaffold` hijau di repo **dan** di proyek hasil setup |
+| 2026-10-13 | Review 10 | **Temuan saat perbaikan (bug sejak 2.9):** setelah `bun run setup <nama>`, `lint:setup` (bagian `validate`, hook pre-push, CI) **gagal** di proyek baru karena contoh sudah terhapus (dibuktikan di salinan); dan menjalankan ulang setup akan men-generate ulang `drizzle/` milik proyek. Perbaikan: contoh yang seluruh file dan registrasinya sudah tidak ada dilewati ("already removed"); bila semua sudah terhapus, tidak ada yang disentuh (migrasi proyek aman); contoh yang tersisa sebagian tetap error drift. Setelah menghapus contoh, setup menambah `--keep-examples` ke script `lint:setup` proyek, sehingga modul proyek bernama sama dengan contoh (mis. `orders` sendiri) tidak dilaporkan sebagai drift | Setup ulang di salinan: "Example already removed" ×2, `drizzle/` tidak berubah |
+| 2026-10-13 | Review 10 | **Temuan uji salinan:** tanpa vendor webhook, `src/core/openapi/api-docs.ts` jatuh ke 87.62% (< 90%) karena cabang skema webhook hanya teruji lewat demo-pay → test unit baru di `api-docs.test.ts` (vendor palsu: skema `<vendor>-webhook`, vendor tak terdaftar, partner 401/403, bearer, publik) | — |
+| 2026-10-13 | Review 10 | Uji salinan repo (tanpa file env selain `.env.example`, git baru di `main`): `bun run setup demo-backend` → kedua contoh terhapus, `WEBHOOK_VENDORS = []`, `drizzle/` = satu `0000` (`auth_refresh_tokens`, `partner_credentials`, `record_changes`, `users`, `webhook_events`); `validate:full` hijau (770 test, termasuk `lint:setup` dan `lint:branch`), `verify:scaffold` hijau (8 gate), `build` hijau. Migrasi `0000` hasil regenerasi tidak diterapkan ke database (skema sama dengan migrasi 0000–0008 yang sudah terpasang di DB lokal) | Repo: `validate:full` 803 test, `verify:scaffold` hijau |
+| 2026-10-13 | Review 10 | `.ls-lint.yml` disederhanakan menjadi 3 entri (`src`, `test`, `scripts`: `.dir` + `.ts: kebab-case`). Dibuktikan dengan probe: aturan direktori induk berlaku ke subdirektori, dan alternatif `regex:` lama tidak pernah dipakai (nama bertitik tidak dicek ls-lint). Chaos: `src/core/BadProbe.ts`, `scripts/BadProbe.ts`, `src/modules/Bad_Probe/`, `test/Bad_Probe/` tertangkap | — |
+| 2026-10-13 | Review 10 | Docs basi diperbaiki: daftar varian `verify:scaffold` (AGENTS.md, SKILL `scaffold-module`, CONTRIBUTING) kini memuat partner + webhook; tabel varian README §4 + baris partner/webhook/adapter; `init-project` (nasib kedua contoh, isi `0000` yang benar, `partner-gateway` tetap) dan README Quick Start; snippet `bootstrap.md` (path, 7b webhook, limiter); `redis-cache.md`, Rule 13/14, panduan partner (429), CONTRIBUTING (429) untuk D29 | — |
+| 2026-10-13 | Review 10 | **Penyimpangan 5.6 yang belum tercatat:** rencana menyebut kolom `received_at`, implementasi memakai `timestamps()` (`created_at` = saat diterima, + `updated_at`), sesuai konvensi tabel Record (`database.md` §6). Diterima apa adanya, tanpa migrasi | — |
+| 2026-10-13 | Review 10 | Plan: 5.6 ✅ `9e1e166`; header; L4 (prefix webhook), L10 (langkah 6, D29), L11 (pohon); keputusan D29–D31. **Fase 7 disusun ulang (D31):** 7.2 baru = CLI scaffolder; "Finalisasi skills AI" → 7.3 (ditambah opsi riwayat git baru + `bun run prepare` di `init-project` / README); release check → 7.4 (ditambah smoke `bun run scaffold`). Rujukan "Step 7.3" pada baris log lama berarti 7.4; `COVERAGE_EXCLUSIONS` (`scripts/check-coverage.ts`) ikut diperbarui | Usulan user (prompt "Fase 7.2"), disetujui dengan penyesuaian: logika di satu library yang dipakai CLI dan `verify:scaffold`, flag `--singular`, anchor permanen, prettier hanya pada file baru |
+| 2026-10-13 | Review 10 | **Chaos test** (7, semua tertangkap): `rejectionLimit` menghitung semua request; `rejectionLimit` tidak pernah memblokir; prefix partner kembali di bawah limit global; `rejectionLimit` tidak dipasang di prefix webhook; payload vendor kembali di-strip; vendor terdaftar tanpa route penerima; contoh tersisa sebagian (drift) → `lint:setup` gagal | Semua file dipulihkan, `git status` hanya berisi perubahan review |
+| 2026-10-13 | Review 10 | Probe Redis asli (server port 3999, `RATE_LIMIT_MAX=3`, `RATE_LIMIT_WINDOW_SECONDS=8` lewat env proses): 3× `GET /partner/ping` tanpa tanda tangan → 401, ke-4 → 429; webhook dari IP yang sama → 429 (anggaran penolakan bersama); `/` tetap memakai limit global (`RateLimit-Limit: 3`); setelah jendela habis → 401 lagi. Kunci kedaluwarsa sendiri (TTL 8 detik) | OK |
 
 ---
 
@@ -556,11 +574,12 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 5.3 | Middleware `partnerAuth()` | ✅ | 5.2, 1.6 | `85e7c2a` |
 | 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ed556d6` |
 | 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bb29912` |
-| 5.6 | Webhook vendor inbound | 👀 | 5.5, 4.2 |  |
+| 5.6 | Webhook vendor inbound | ✅ | 5.5, 4.2 | `9e1e166` |
 | 6.1 | Integration test (Postgres + Redis asli) | ⬜ | 3.5, 5.6 |  |
 | 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ⬜ | 6.1 |  |
-| 7.2 | Finalisasi skills AI | ⬜ | 7.1 |  |
-| 7.3 | Release check boilerplate v1.0.0 | ⬜ | 7.2 |  |
+| 7.2 | CLI scaffolder `bun run scaffold` (D31) | ⬜ | 7.1 |  |
+| 7.3 | Finalisasi skills AI | ⬜ | 7.2 |  |
+| 7.4 | Release check boilerplate v1.0.0 | ⬜ | 7.3 |  |
 
 ---
 
@@ -1202,13 +1221,30 @@ Keputusan D23, D25, D28. Kontrak milik vendor; kita hanya memverifikasi dan meny
 
 **Langkah**: tulis `ARCHITECTURE.md` (struktur seperti blueprint: apa & mengapa + rujukan ke sumber detail, isi Bun/Hono, generik); pindahkan `ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md` ke `docs/archive/`; sinkronkan `README.md` (quickstart ≤ 150 baris) & `CONTRIBUTING.md`; setiap aturan diberi label penegak `[tsc]`, `[eslint:<rule>]`, `[depcruise:<rule>]`, `[ls-lint]`, `[test]`, `[ci]`, `[review-only]`.
 
-### Step 7.2 — Finalisasi skills AI
+### Step 7.2 — CLI scaffolder `bun run scaffold` (D31)
 
-**Langkah**: skill baru `review-code` (gate review memakai §14.1, dipanggil sebelum step dinyatakan selesai); evaluasi pemisahan skill `database-standards` dari `project-standards/references`; perbarui `scaffold-module`, `init-project`, `project-standards`, `generate-commit-text` (scope baru: `auth`, `partner-credentials`, …); wrapper `.claude/skills/` untuk skill baru; `CLAUDE.md` tetap hanya import.
+Tujuan: modul baru bisa dibuat tanpa agent AI, dari template yang sama dengan skill `scaffold-module` (markdown tetap satu-satunya sumber; tidak ada string template di script).
 
-### Step 7.3 — Release check boilerplate v1.0.0
+**Langkah**
 
-**Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → clone bersih → `/init-project demo-backend` → `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run build` → `docker build` + container `healthy` → `CHANGELOG.md` → tag `v1.0.0`.
+1. Library `scripts/lib/scaffold.ts`: parser template (dipindah dari `materialize` / `fill` di `verify-scaffold.ts`), turunan nama dari kebab-case (snake, Pascal, camel; jamak/tunggal dengan aturan sederhana + `--singular=<nama>` untuk bentuk tak beraturan), wiring dengan anchor permanen yang gagal keras (`replaceAnchor`, Review 10).
+2. `scripts/scaffold.ts` + script `scaffold` di `package.json`: `module <nama> [--variant=standalone|header-detail|record]`, `partner <nama>`, `webhook <nama> --vendor=<vendor>`, `integration <vendor>`; validasi kebab-case, tolak modul bernama vendor (D26) dan file yang sudah ada, `--dry-run`; wiring (`app.ts`, barrel schema, `APPEND_ONLY_TABLES`, `WEBHOOK_VENDORS`, registry, barrel config); prettier hanya pada file yang dibuat/diubah; mencetak langkah berikutnya (`bun run db:generate`, isi field domain) tanpa menjalankan migrasi.
+3. `verify:scaffold` memakai CLI (generate → semua gate → bersihkan), sehingga CLI ikut terverifikasi di CI.
+4. Skill `scaffold-module`: jalankan CLI dulu, lalu sesuaikan field domain; README §4 dan CONTRIBUTING.
+
+**Acceptance criteria**
+
+- [ ] `bun run scaffold module <probe>` → typecheck, lint, test modul hijau; setelah dihapus `git status` bersih.
+- [ ] Setiap varian lewat `verify:scaffold` memakai CLI; tidak ada string template di luar markdown skill.
+- [ ] Berfungsi juga di proyek hasil `bun run setup` (tanpa contoh).
+
+### Step 7.3 — Finalisasi skills AI
+
+**Langkah**: skill baru `review-code` (gate review memakai §14.1, dipanggil sebelum step dinyatakan selesai); evaluasi pemisahan skill `database-standards` dari `project-standards/references`; perbarui `scaffold-module`, `init-project`, `project-standards`, `generate-commit-text` (scope baru: `auth`, `partner-credentials`, …); wrapper `.claude/skills/` untuk skill baru; `CLAUDE.md` tetap hanya import. `init-project` dan README: opsi riwayat git baru = hapus `.git` (konfirmasi eksplisit tepat sebelum menghapus) → `git init -b main` → `bun run prepare` (wajib: Husky menyimpan `core.hooksPath` di `.git/config`, tanpa ini hook mati diam-diam) → commit awal hanya atas persetujuan user (hook pre-commit ikut berjalan).
+
+### Step 7.4 — Release check boilerplate v1.0.0
+
+**Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → clone bersih → `/init-project demo-backend` → `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run scaffold module <probe>` + gate → `bun run build` → `docker build` + container `healthy` → `CHANGELOG.md` → tag `v1.0.0`.
 
 **Acceptance criteria**
 
@@ -1409,7 +1445,7 @@ COMMIT
 
 ### 15.4 L4 — `PUBLIC_ROUTES` & test default-deny
 
-> **Diubah di Step 3.4 (lihat 4.1)**: `PUBLIC_ROUTES` relatif terhadap `<API_BASE_PATH>/v1` dan hanya berisi `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register`; health, docs dan `/` publik karena berada di luar `/v1`. Pengecualian `/partner/*` ditambahkan di 5.3 — `authenticate()` melewatinya hanya setelah `partnerAuth()` memverifikasi partner (fail-closed); test default-deny menuntut 401 `ERR_PARTNER_HEADERS_MISSING` untuk route partner. Implementasi: `src/core/security/public-routes.ts`, `test/default-deny.e2e.test.ts`. Snippet di bawah adalah rancangan awal.
+> **Diubah di Step 3.4 (lihat 4.1)**: `PUBLIC_ROUTES` relatif terhadap `<API_BASE_PATH>/v1` dan hanya berisi `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register`; health, docs dan `/` publik karena berada di luar `/v1`. Pengecualian `/partner/*` ditambahkan di 5.3 — `authenticate()` melewatinya hanya setelah `partnerAuth()` memverifikasi partner (fail-closed); test default-deny menuntut 401 `ERR_PARTNER_HEADERS_MISSING` untuk route partner. Prefix `<API_BASE_PATH>/webhooks/*` (5.6) di luar `/v1` dan fail-closed: setiap route webhook harus milik vendor di `WEBHOOK_VENDORS` dan menjawab 401 `ERR_WEBHOOK_SIGNATURE_INVALID` tanpa signature. Implementasi: `src/core/security/public-routes.ts`, `test/default-deny.e2e.test.ts`. Snippet di bawah adalah rancangan awal.
 
 ```ts
 // src/core/security/public-routes.ts
@@ -1583,7 +1619,8 @@ jobs:
  3. secureHeaders()
  4. cors()                  allowlist CORS_ORIGINS, credentials
  5. bodyLimit()             413
- 6. rateLimit()             global per IP (fail-open)
+ 6. rateLimit()             global per IP (fail-open), kecuali health, /v1/partner/*, /webhooks/*;
+    rejectionLimit()        di dua prefix itu: per IP hanya jawaban 401/403 yang dihitung (D29)
  7. /api/health/*, /api/docs*                      publik
 7b. app.use('/api/webhooks/<vendor>/*', webhookAuth(vendor)) per WEBHOOK_VENDORS,
     lalu app.use('/api/webhooks/*', requireVerifiedWebhook())   fail-closed (Fase 5.6)
@@ -1608,7 +1645,7 @@ src/
 │   ├── http/      HttpClientService (hanya untuk integrations/)
 │   ├── i18n/      messages.ts
 │   ├── logger/
-│   ├── middlewares/ request-context, client-ip, rate-limit, authenticate, require-role, validate, …
+│   ├── middlewares/ request-context, client-ip, rate-limit (+ rejectionLimit), authenticate, require-role, partner-auth, require-partner, webhook-auth, validate, …
 │   ├── openapi/   describeEndpoint, schemas (envelopes), common-headers, api-docs (document + Scalar)
 │   ├── response/  ApiResponse
 │   └── security/  jwt.ts, roles.ts, public-routes.ts
@@ -1617,8 +1654,8 @@ src/
 │   ├── connection.ts · transaction-host.ts · transactional.decorator.ts · health-probe.ts · unique-violation.ts
 │   ├── schema/    schemas.ts · columns.ts · domain/ · reference/
 │   └── seeds/
-├── integrations/  registry.ts · <vendor>/ (<vendor>.service.ts outbound, <vendor>.webhook.ts verifier inbound)
-├── modules/       auth/ · users/ · partner-credentials/ · health/ · orders/ (contoh, dihapus init-project)
+├── integrations/  registry.ts · <vendor>/ (<vendor>.service.ts outbound, <vendor>.webhook.ts verifier inbound); contoh: jsonplaceholder/ (outbound), demo-pay/ (webhook, dihapus init-project)
+├── modules/       auth/ · users/ · partner-credentials/ · partner-gateway/ (ping/echo) · health/ · orders/ + payment-notifications/ (contoh, dihapus init-project)
 └── utils/         datetime, crypto, secret-cipher, partner-signature, ip-match, route-match, record-diff, request-id, locale, case-converter
 ```
 
