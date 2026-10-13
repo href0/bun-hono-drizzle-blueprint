@@ -95,5 +95,4 @@ export type ProductResponse = z.infer<typeof productResponseSchema>;
 ## 6. Not covered yet
 
 - Cookie-authenticated endpoints (`/auth/refresh`, `/auth/logout`) describe the `refresh_token` cookie in their `description`; it is not a declared security scheme.
-- Partner HMAC headers (phase 5).
 - Non-JSON endpoints (file upload/download): describe the body/response with `describeRoute()` from `hono-openapi` directly and add a test.

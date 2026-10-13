@@ -8,7 +8,7 @@ import { defaultTxHost, type TransactionHost } from './transaction-host';
 
 /**
  * A standalone ("mandiri") or header table: `uuidPrimaryKey()` + `timestamps()` +
- * `auditColumns()` + `softDelete()` (see references/database.md).
+ * `auditColumns()` + `softDelete()` (see docs/standards/database.md).
  */
 export type BaseTable = AuditedTable & {
   createdAt: PgColumn;

@@ -5,95 +5,12 @@ description: Generate a Conventional Commits message from staged changes (git di
 
 # Generate Commit Text
 
-Generate a commit message from currently staged changes (`git diff --cached`). Output text only — **do NOT run `git commit`**.
-
----
+Generate a commit message from the staged changes. Output text only — **do NOT run `git commit`**. The message format (types, scopes, subject and body rules) has one source: `docs/standards/git-workflow.md` §2 — read it first.
 
 ## Steps
 
-### 1. Check Staged Changes Exist
-
-Run:
-```bash
-git diff --cached --stat
-```
-
-If output is empty, inform the user: "No staged changes found. Run `git add` first." Stop here.
-
----
-
-### 2. Get Diff Details
-
-Run:
-```bash
-git diff --cached
-```
-
-Read the full diff output.
-
----
-
-### 3. Analyze Changes
-
-For each changed file, identify:
-- What module/component it belongs to (e.g. `users`, `health`, `core/errors`, `database`, `config`, `scripts`)
-- What type of change: new feature, bugfix, refactor, chore, docs, test, ci, perf, build, revert
-- The core purpose of the change
-
----
-
-### 4. Generate Commit Message
-
-Use **Conventional Commits** format:
-
-```
-<type>(<scope>): <short description>
-
-<optional body — bullet points explaining what changed>
-```
-
-#### Type Mapping:
-| Change Type | Conventional Type |
-|---|---|
-| New feature, endpoint, service | `feat` |
-| Bug fix | `fix` |
-| Code restructure without behavior change | `refactor` |
-| Config, dependency, build tooling | `chore` |
-| Documentation | `docs` |
-| Test additions/changes | `test` |
-| CI/CD pipeline changes | `ci` |
-| Performance improvement | `perf` |
-| Build system / bundling | `build` |
-| Reverting a previous commit | `revert` |
-
-The allowed types are exactly `type-enum` in `commitlint.config.ts` (there is **no** `style`: formatting-only changes are `chore`). Any other type is rejected by the `commit-msg` hook and by CI.
-
-#### Scope Mapping:
-- Feature domains: `auth`, `users`, `health`, `partner-credentials`, `[feature-name]`
-- Inbound channels: `partner` (partner gateway, signing), `partner-auth`, `webhooks`, `conventions` (channel and naming conventions)
-- Core components: `core/cache`, `core/context`, `core/dto`, `core/errors`, `core/http`, `core/i18n`, `core/logger`, `core/middlewares`, `core/openapi`, `core/response`
-- Database: `database` (data-layer infrastructure: repositories, transactions), `database/schema`, `database/migrations`
-- Configuration: `config`
-- Utilities: `utils/<name>` (e.g. `utils/datetime`, `utils/record-diff`)
-- Integrations: `integrations/<vendor>`
-- Quality Gates / Tooling: `quality-gates`, `deps`, `lint`, `scripts`, `ci`, `scaffold` (scaffold-module templates, `verify:scaffold`), `integration` (integration suite, `test:int`)
-- Phase reviews: `review` (fixes found by a review of a plan phase)
-- Agent rules & docs: `agents`, `plans`
-
-#### Rules:
-- Short description in lowercase, imperative mood ("add", "fix", "update", NOT "added", "fixes")
-- No period at end of subject line
-- Maximum 72 characters for subject line (commitlint hard limit for the header: 100)
-- Body lines: **maximum 100 characters each** (commitlint `body-max-line-length`) — wrap long bullets
-- Blank line between subject and body
-- Indonesian or English according to user preference, defaulting to concise English
-
----
-
-### 5. Output
-
-Present the suggested commit message to the user in a fenced code block:
-
-```bash
-git commit -m "<type>(<scope>): <short description>" -m "<body line 1>" -m "<body line 2>"
-```
+1. **Check staged changes**: `git diff --cached --stat`. Empty → tell the user "No staged changes found. Run `git add` first." and stop. (When the user asked for a message for the working tree instead, use `git status` / `git diff` the same way.)
+2. **Read the diff**: `git diff --cached`.
+3. **Analyze**: for each file, the area it belongs to (→ scope), the kind of change (→ type), and its purpose.
+4. **Write the message** per `docs/standards/git-workflow.md` §2: one `<type>(<scope>): <subject>`, then a body of bullets (what and why), every line ≤ 100 characters.
+5. **Output** it in a fenced block, ready to paste (`git commit -m "<header>" -m "<body line>" …`, or the plain message when the user commits through an editor).

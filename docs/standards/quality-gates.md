@@ -1,0 +1,78 @@
+# Quality Gates & Commands
+
+Read this file when: running checks before finishing a change, adding a `package.json` script, adding an ESLint rule, or wondering why a commit / push / CI job failed. `test/docs-sync.test.ts` fails when a `package.json` script is missing from the command table (§3).
+
+---
+
+## 1. Where each gate runs
+
+```
+[1] git commit                                (fast — staged files and types)
+      └─ pre-commit (Husky)
+            ├─ lint-staged        → ESLint strictTypeChecked --fix + Prettier on staged files
+            ├─ tsc --noEmit       → strict typecheck of the whole project
+            └─ ls-lint            → folder and single-dot file names (kebab-case)
+
+[2] commit message
+      └─ commit-msg (Husky)
+            └─ commitlint         → Conventional Commits (git-workflow.md)
+
+[3] git push                                  (whole project)
+      └─ pre-push (Husky)
+            └─ validate:full      → typecheck → lint → ls-lint → format:check → depcruise → knip
+                                     → lint:setup → lint:branch → test + coverage gate
+
+[4] CI (GitHub Actions, .github/workflows/ci.yml) — every push to main and every pull request
+      ├─ job verify       → branch name + commitlint (PR) → typecheck → lint → ls-lint → format:check
+      │                     → depcruise → knip → lint:setup → test + coverage gate → build → verify:scaffold
+      └─ job integration  → bun run test:int (PostgreSQL 16 + Redis 7 service containers)
+```
+
+Local hooks can be skipped with `--no-verify`; CI runs everything again, branch name and commit messages included. `bun run test:int` is deliberately **not** in pre-push (it needs PostgreSQL + Redis): run it yourself before finishing a change to repositories or repository bases, transactions, migrations, auth, the partner gateway or the cache — the CI job `integration` runs it on every push. Run `bun run verify:scaffold` after changing a scaffold template or a core API the templates use (errors, response, middlewares, dto, i18n, openapi, database, http).
+
+Before a change is finished: `bun run validate:full` and `bun run build` (plus the two above when they apply).
+
+## 2. Gate rules
+
+**Coverage gate** (`scripts/check-coverage.ts` — the single source of thresholds, `THRESHOLDS`):
+
+- Counted over source files only (`*.test.ts` and `test/` are excluded): global lines & functions, per-file lines.
+- Every file in `src/` must be loaded by at least one test — Bun instruments only imported files, so an untested file shows up as a violation instead of passing silently. Pure barrel re-exports are exempt automatically.
+- Bun reports no branch coverage: give every logic branch (classification, status mapping, fallback) an explicit test.
+- Exclusions only through `COVERAGE_EXCLUSIONS`, each with a reason and the plan step that removes it; the list is printed on every run.
+
+Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](testing.md).
+
+**ESLint `eslint-disable`** must be narrow and justified: `// eslint-disable-next-line <rule> -- <reason>`. A directive without a reason, without a rule name, or no longer needed fails lint.
+
+**Composing ESLint rules**: in flat config a later override **replaces** the whole `no-restricted-syntax` / `no-restricted-imports` array of an earlier one for files matched by both. Never redefine those rules ad hoc in an override — compose the group constants at the top of `eslint.config.mjs` (`MODULE_SYNTAX_RULES`, `CONTROLLER_SYNTAX_RULES`, …). A new group needs a row in the rule index (`ARCHITECTURE.md` §12) — `test/docs-sync.test.ts` fails otherwise.
+
+**Prettier** formats `*.ts` only. Markdown is excluded (`.prettierignore`): see [documentation.md](documentation.md).
+
+## 3. Commands
+
+| Command | What it does | When |
+|---|---|---|
+| `bun run dev` | Development server with reload (`bun --watch src/index.ts`) | While developing |
+| `bun run start` | Server without watch (`bun src/index.ts`) | Running a checkout as is |
+| `bun run build` | Bundles `src/index.ts` into `dist/` (`--target bun`); run by CI | Before a release / to prove the bundle builds |
+| `bun run typecheck` | TypeScript compiler (`tsc --noEmit`) | After changing types, DTOs, interfaces |
+| `bun run lint` | ESLint 9 flat config (`strictTypeChecked` + project rules) | Before committing |
+| `bun run lint:fix` | ESLint autofix | On fixable lint errors |
+| `bun run lint:ls` | File & folder naming (ls-lint) | After adding files or folders |
+| `bun run lint:arch` | Layer boundaries (dependency-cruiser) | After adding imports between layers |
+| `bun run lint:deps` | Unused files, exports and dependencies (knip) | After removing / moving code or changing packages |
+| `bun run lint:branch` | Branch name format | Before pushing |
+| `bun run lint:setup` | Dry run of `scripts/setup.ts`: every `IDENTITY_RULES` and `EXAMPLE_MODULES` entry still matches its file (in a project after `bun run setup`, the examples are gone and only `IDENTITY_RULES` is checked — `--keep-examples`) | After changing a value that carries the project name, or an example module's files / registrations |
+| `bun run format` / `bun run format:check` | Prettier writes / checks `src`, `test`, `scripts` (`*.ts`; Markdown never) | `format` before committing if needed; `format:check` is part of `validate` |
+| `bun run verify:scaffold` | Generates a module from every `scaffold-module` template (standalone, header-detail, record, partner, webhook) **and** a vendor adapter from the integration template, then runs prettier, tsc, ESLint, ls-lint, depcruise, knip, the generated tests and real requests; restores every file afterwards | After changing a core API the templates use or a template itself |
+| `bun test` | Unit and e2e tests (hermetic: no real database / Redis) | After changing logic |
+| `bun run test:cov` | Tests + coverage gate (`scripts/check-coverage.ts`) | To prove coverage |
+| `bun run test:int [name] [--keep-db]` | Integration suite on real PostgreSQL + Redis (`test/integration/*.int.ts`): a disposable database `<name>_it_<run>`, real migrations, dropped afterwards; Redis keys under `<APP_NAME>:int-test:<run>` deleted one by one. Services from `TEST_DATABASE_URL` / `TEST_REDIS_*`, or `DATABASE_URL` / `REDIS_*` when they point at this machine **and** `NODE_ENV` is `development` / `test`; `--dry-run` prints the targets. Never run on a server (staging / production) — CI runs it | After changing repositories, transactions, migrations, auth, the partner gateway or the cache (also CI job `integration`) |
+| `bun run validate` | Every static gate (typecheck → lint → ls-lint → format:check → depcruise → knip → lint:setup → lint:branch), no tests | Quick check without tests |
+| **`bun run validate:full`** | **Every gate in order** (`validate` + `test:cov`; also the pre-push hook) | **Required before a pull request** |
+| `bun run db:generate` / `bun run db:migrate` / `bun run db:studio` | drizzle-kit: generate a migration from the schema, apply migrations to `DATABASE_URL`, open Drizzle Studio | After changing the schema (`db:generate`); applying migrations to your own database (`db:migrate`) |
+| `bun run setup <name> [--description "…"] [--keep-examples] [--dry-run]` | Initializes a fresh clone as a named project (identity, examples removed, migrations regenerated) — skill `init-project` | Once per new project |
+| `bun run seed:admin --email <email> [--promote]` | Creates the first admin (password from a hidden prompt / stdin) | After the first migration; recovery of a locked-out admin |
+| `bun run auth:purge-tokens [--days N]` | Deletes expired refresh tokens | Schedule daily |
+| `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Signs a partner request (signing v1) and prints headers + curl, or sends it; secret from a hidden prompt / stdin | Testing `/api/v1/partner/*` or helping a partner match a signature |

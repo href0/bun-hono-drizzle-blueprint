@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import packageJson from '../package.json';
 
 /**
- * CONTRIBUTING.md is the canonical map of the repository (§2.1 tree, §1 command table) that
- * developers and agents both follow. Every review so far found it behind the code; this test makes
- * that drift fail instead: each script, test area, helper and module must be named there.
+ * Every coding standard lives in one file under docs/standards/ (documentation.md), read by
+ * developers and agents alike. Every review so far found a document behind the code or two
+ * documents disagreeing; these guards make that drift fail instead.
  */
 
 const ROOT = resolve(import.meta.dir, '..');
-const contributing = readFileSync(resolve(ROOT, 'CONTRIBUTING.md'), 'utf8');
-
+const read = (path: string): string => readFileSync(resolve(ROOT, path), 'utf8');
 const entries = (dir: string): string[] => readdirSync(resolve(ROOT, dir));
 const isDirectory = (path: string): boolean => statSync(resolve(ROOT, path)).isDirectory();
+const lines = (text: string): string[] => text.split(/\r?\n/);
+
+const STANDARDS_DIR = 'docs/standards';
+const standards = entries(STANDARDS_DIR).filter((name) => name.endsWith('.md'));
+const structure = read(`${STANDARDS_DIR}/structure.md`);
+const qualityGates = read(`${STANDARDS_DIR}/quality-gates.md`);
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -29,11 +34,11 @@ const missingFrom = (text: string, names: string[], label = (name: string) => na
     return !new RegExp(`(?<![\\w./-])${escapeRegExp(wanted)}${end}`).test(text);
   });
 
-describe('CONTRIBUTING.md names everything a contributor works with', () => {
+describe('structure.md and quality-gates.md name everything a contributor works with', () => {
   it('every script in scripts/ and scripts/lib/', () => {
     const scripts = entries('scripts').filter((name) => name.endsWith('.ts'));
     const libs = entries('scripts/lib').map((name) => `lib/${name}`);
-    expect(missingFrom(contributing, [...scripts, ...libs])).toEqual([]);
+    expect(missingFrom(structure, [...scripts, ...libs])).toEqual([]);
   });
 
   it('every folder under test/, every helper and every integration area', () => {
@@ -43,11 +48,10 @@ describe('CONTRIBUTING.md names everything a contributor works with', () => {
       .filter((name) => name.endsWith('.int.ts'))
       .map((name) => name.replace(/\.int\.ts$/, ''));
     // Areas are short words (auth, redis): they must appear on the tree line of integration/.
-    const integrationLine =
-      contributing.split('\n').find((line) => line.includes('── integration/')) ?? '';
+    const integrationLine = lines(structure).find((line) => line.includes('── integration/')) ?? '';
     expect([
-      ...missingFrom(contributing, folders, (name) => `${name}/`),
-      ...missingFrom(contributing, helpers),
+      ...missingFrom(structure, folders, (name) => `${name}/`),
+      ...missingFrom(structure, helpers),
       ...missingFrom(integrationLine, areas),
     ]).toEqual([]);
   });
@@ -58,12 +62,12 @@ describe('CONTRIBUTING.md names everything a contributor works with', () => {
       .filter((name) => name.endsWith('.e2e.test.ts'))
       .map((name) => name.replace(/\.e2e\.test\.ts$/, ''));
     const guards = files.filter((name) => !name.endsWith('.e2e.test.ts'));
-    expect([...missingFrom(contributing, e2e), ...missingFrom(contributing, guards)]).toEqual([]);
+    expect([...missingFrom(structure, e2e), ...missingFrom(structure, guards)]).toEqual([]);
   });
 
   it('every module folder in src/modules/', () => {
     const modules = entries('src/modules').filter((name) => isDirectory(`src/modules/${name}`));
-    expect(missingFrom(contributing, modules, (name) => `${name}/`)).toEqual([]);
+    expect(missingFrom(structure, modules, (name) => `${name}/`)).toEqual([]);
   });
 
   it('every package.json script in the command table', () => {
@@ -71,7 +75,7 @@ describe('CONTRIBUTING.md names everything a contributor works with', () => {
     // Exact command, not a prefix: `bun run lint` must not be satisfied by `bun run lint:ls`.
     const listed = (name: string): boolean => {
       const command = name === 'test' ? 'bun test' : `bun run ${name}`;
-      return contributing.includes(`\`${command}\``) || contributing.includes(`\`${command} `);
+      return qualityGates.includes(`\`${command}\``) || qualityGates.includes(`\`${command} `);
     };
     expect(scripts.filter((name) => !listed(name))).toEqual([]);
   });
@@ -83,7 +87,6 @@ describe('CONTRIBUTING.md names everything a contributor works with', () => {
  * ESLint or dependency-cruiser without a row would stay unexplained: both fail here.
  */
 
-const read = (path: string): string => readFileSync(resolve(ROOT, path), 'utf8');
 const architecture = read('ARCHITECTURE.md');
 const eslintConfig = read('eslint.config.mjs');
 const depcruiseConfig = read('.dependency-cruiser.cjs');
@@ -94,6 +97,7 @@ const LABELLED_DOCS = [
   'CONTRIBUTING.md',
   '.agents/AGENTS.md',
   '.agents/skills/project-standards/SKILL.md',
+  ...standards.map((name) => `${STANDARDS_DIR}/${name}`),
 ];
 
 /** ESLint groups made only of other groups: indexed through their parts. */
@@ -163,7 +167,7 @@ const labelsIn = (text: string): string[] =>
     .filter((match) => LABEL_TARGETS.has(match.at(1) ?? ''))
     .map((m) => m[0]);
 
-const indexRows = architecture.split('\n').filter((line) => /^\| R\d{2} \|/.test(line));
+const indexRows = lines(architecture).filter((line) => /^\| R\d{2} \|/.test(line));
 const indexIds = indexRows.map((row) => row.slice(2, 5));
 
 describe('ARCHITECTURE.md rule index (R01…) and enforcer labels', () => {
@@ -209,8 +213,118 @@ describe('ARCHITECTURE.md rule index (R01…) and enforcer labels', () => {
   });
 });
 
-describe('README.md', () => {
-  it('stays a quickstart (at most 150 lines; details live in ARCHITECTURE and CONTRIBUTING)', () => {
-    expect(read('README.md').trimEnd().split('\n').length).toBeLessThanOrEqual(150);
+/**
+ * One source per topic: routers (AGENTS.md, CONTRIBUTING.md, the project-standards and
+ * env-protection skills) point at docs/standards/ instead of restating it, and every link between
+ * documents keeps working when a file or section moves.
+ */
+
+/** Maintained documents (plans and the archive are history: their links are not maintained). */
+const markdownBelow = (dir: string): string[] =>
+  readdirSync(resolve(ROOT, dir), { recursive: true, encoding: 'utf8' })
+    .filter((path) => path.endsWith('.md'))
+    .map((path) => `${dir}/${path.split('\\').join('/')}`);
+const MAINTAINED_DOCS = [
+  'ARCHITECTURE.md',
+  'CONTRIBUTING.md',
+  'README.md',
+  'CLAUDE.md',
+  ...entries('docs')
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => `docs/${name}`),
+  ...markdownBelow(STANDARDS_DIR),
+  ...markdownBelow('.agents'),
+  ...markdownBelow('.claude'),
+];
+
+/** Routers and their line budgets: they grow only by restating a standard. */
+const ROUTERS = new Map([
+  ['.agents/AGENTS.md', 60],
+  ['CONTRIBUTING.md', 70],
+  ['.agents/skills/project-standards/SKILL.md', 45],
+  ['.agents/skills/env-protection/SKILL.md', 15],
+]);
+
+/** The text outside fenced code blocks (``` … ```). */
+const prose = (text: string): string => text.replace(/^```[\s\S]*?^```/gm, '');
+
+/** GitHub heading anchors of a document, duplicates numbered (`-1`, `-2`). */
+const anchorsOf = (text: string): Set<string> => {
+  const seen = new Map<string, number>();
+  const anchors = new Set<string>();
+  for (const line of lines(prose(text))) {
+    const heading = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line)?.at(1);
+    if (heading === undefined) continue;
+    const slug = heading
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+      .replace(/\s/g, '-');
+    const count = seen.get(slug) ?? 0;
+    anchors.add(count === 0 ? slug : `${slug}-${String(count)}`);
+    seen.set(slug, count + 1);
+  }
+  return anchors;
+};
+
+/** Relative markdown links (file and `#anchor`) in `path` that point at nothing. */
+const brokenLinks = (path: string): string[] => {
+  const text = read(path);
+  return [...prose(text).matchAll(/\]\(([^)\s]+)\)/g)].flatMap((match) => {
+    const link = match.at(1) ?? '';
+    if (/^[a-z]+:/i.test(link)) return [];
+    const parts = link.split('#');
+    const file = parts.at(0) ?? '';
+    const anchor = parts.at(1);
+    const target = file === '' ? resolve(ROOT, path) : resolve(ROOT, dirname(path), file);
+    if (!existsSync(target)) return [`${path}: ${link}`];
+    if (anchor === undefined || !target.endsWith('.md')) return [];
+    const targetText = readFileSync(target, 'utf8');
+    return anchorsOf(targetText).has(anchor) ? [] : [`${path}: ${link}`];
+  });
+};
+
+describe('docs/standards/ is the single source of the standards', () => {
+  it('every relative link and #anchor in the maintained documents resolves', () => {
+    expect(MAINTAINED_DOCS.flatMap(brokenLinks)).toEqual([]);
+  });
+
+  it('every docs/standards/… or .agents/….md path named in a document exists', () => {
+    const missing = MAINTAINED_DOCS.flatMap((path) =>
+      firstCaptures(read(path), /((?:docs\/standards|\.agents)\/[\w./-]+\.md)/g)
+        .filter((named) => !existsSync(resolve(ROOT, named)))
+        .map((named) => `${path}: ${named}`),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('every standards file is listed in CONTRIBUTING.md and in the project-standards router', () => {
+    const contributing = read('CONTRIBUTING.md');
+    const router = read('.agents/skills/project-standards/SKILL.md');
+    const unlisted = standards.flatMap((name) => [
+      ...(contributing.includes(`${STANDARDS_DIR}/${name}`) ? [] : [`CONTRIBUTING.md: ${name}`]),
+      ...(router.includes(`${STANDARDS_DIR}/${name}`) ? [] : [`project-standards: ${name}`]),
+    ]);
+    expect(unlisted).toEqual([]);
+  });
+
+  it('routers hold no code blocks and stay within their line budget', () => {
+    const offending = [...ROUTERS].flatMap(([path, budget]) => {
+      const text = read(path);
+      const size = lines(text.trimEnd()).length;
+      return [
+        ...(text.includes('```') ? [`${path}: code block`] : []),
+        ...(size > budget ? [`${path}: ${String(size)} lines > ${String(budget)}`] : []),
+      ];
+    });
+    expect(offending).toEqual([]);
+  });
+
+  it('the project-standards skill keeps no references/ of its own', () => {
+    const folder = resolve(ROOT, '.agents/skills/project-standards/references');
+    expect(existsSync(folder) ? [relative(ROOT, folder)] : []).toEqual([]);
+  });
+
+  it('README.md stays a quickstart (at most 150 lines)', () => {
+    expect(lines(read('README.md').trimEnd()).length).toBeLessThanOrEqual(150);
   });
 });

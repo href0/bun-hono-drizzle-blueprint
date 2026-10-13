@@ -133,16 +133,8 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       },
       { file: 'src/app.ts', line: "  v1.route('/orders', ordersRouter);" },
       {
-        file: 'README.md',
-        line: '│   └── orders/    # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples',
-      },
-      {
-        file: 'CONTRIBUTING.md',
-        line: '│   ├── orders/                  # Modul contoh header + detail (dihapus `bun run setup` kecuali --keep-examples)',
-      },
-      {
-        file: '.agents/skills/project-standards/SKILL.md',
-        line: '│   │   ├── orders/             # Example header + detail module (removed by `bun run setup` unless --keep-examples)',
+        file: 'docs/standards/structure.md',
+        line: '│   ├── orders/                  # Example header + detail module (removed by `bun run setup` unless --keep-examples)',
       },
     ],
   },
@@ -200,23 +192,15 @@ const EXAMPLE_MODULES: ExampleModule[] = [
         ].join('\n'),
       },
       {
-        file: 'CONTRIBUTING.md',
-        line: '│   ├── demo-pay/                # Contoh vendor webhook: demo-pay.webhook.ts (verifier) + demo-pay.webhook.dto.ts',
+        file: 'docs/standards/structure.md',
+        line: '│   ├── demo-pay/                # Example webhook vendor: demo-pay.webhook.ts (verifier) + demo-pay.webhook.dto.ts',
       },
       {
-        file: 'CONTRIBUTING.md',
-        line: '│   ├── payment-notifications/   # Contoh penerima webhook vendor (POST /api/webhooks/demo-pay, idempoten)',
+        file: 'docs/standards/structure.md',
+        line: '│   ├── payment-notifications/   # Example vendor webhook receiver (POST /api/webhooks/demo-pay, idempotent)',
       },
       {
-        file: '.agents/skills/project-standards/SKILL.md',
-        line: '│   │   ├── payment-notifications/ # Example vendor webhook receiver (POST /webhooks/demo-pay, idempotent)',
-      },
-      {
-        file: '.agents/skills/project-standards/SKILL.md',
-        line: '│   │   ├── demo-pay/           # Example webhook vendor: <vendor>.webhook.ts (verifier) + .webhook.dto.ts',
-      },
-      {
-        file: '.agents/skills/project-standards/references/testing.md',
+        file: 'docs/standards/testing.md',
         line: '- `test/vendor-webhooks.e2e.test.ts` — signed Demo Pay webhooks through `createApp()` (service spied): accepted as `webhook:demo-pay`; forged, tampered, stale or unsigned → 401.',
       },
     ],

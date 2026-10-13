@@ -47,7 +47,7 @@ export const sequentialPrimaryKey = () => sequentialId().primaryKey();
 export const sequentialId = () => bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity();
 
 // ---------------------------------------------------------------------------------------------
-// Time (plan D13 — see .agents/skills/project-standards/references/datetime.md)
+// Time (plan D13 — see docs/standards/datetime.md)
 // ---------------------------------------------------------------------------------------------
 
 /**

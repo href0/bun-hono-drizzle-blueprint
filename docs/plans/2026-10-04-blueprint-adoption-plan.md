@@ -2,9 +2,9 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–6 + Review 11 selesai** (`main` @ `bbe36d9`); Step 7.1 menunggu review (branch `docs/architecture-sync`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–6 + Review 11 + Step 7.1 selesai** (`main` @ `8c08e0a`); Step 7.2 (Docs SSOT, D32) menunggu review (branch `docs/standards-ssot`). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
-| Basis kode | branch `main` @ `bbe36d9` |
+| Basis kode | branch `main` @ `8c08e0a` |
 | Sumber | [`docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan; dipindah ke arsip di Step 7.1) |
 | Target | Boilerplate umum Bun + Hono + Drizzle: `git clone` → `/init-project <nama>` → siap dikembangkan |
 | Baseline | Semua gate hijau: typecheck, lint, ls-lint, format, depcruise, depcheck, 74 test (unit + e2e). Coverage 98.46% — **menggelembung** (ikut menghitung file test) |
@@ -152,7 +152,8 @@ Semua keputusan **ACCEPTED** pada 2026-10-04 (Step 0.2). Perubahan berikutnya di
 | D28 | Idempotensi inbound | opsional · wajib | **Wajib**: webhook → `webhook_events` unique (vendor, event ID); endpoint partner yang menulis → unique (`partner_code`, `partner_reference`) | Nonce partner dan Redis fail-open tidak menjamin "sekali proses"; vendor mengirim ulang event yang sama | 5.5, 5.6 |
 | D29 | Rate limit kanal inbound | ikut limit global per IP · dikecualikan + limit penolakan per IP | **Prefix partner & webhook di luar limit global**; per IP hanya percobaan yang ditolak (401/403) yang dihitung (`rejectionLimit()`, `RATE_LIMIT_*` yang sama) | Limit global (default 1000/15 menit ≈ 66 rpm) diam-diam menjadi plafon `rate_limit_rpm` partner (sampai 100.000) dan menolak burst retry vendor; tebakan key/signature tetap kena 429 sebelum lookup kredensial | Review 10 |
 | D30 | Contoh kanal inbound saat `bun run setup` | dipertahankan · dihapus semua · sebagian | **Contoh webhook (`demo-pay` + `payment-notifications`) dihapus** seperti `orders` (kecuali `--keep-examples`); `partner-gateway` (ping/echo) **tetap** | Proyek baru mulai tanpa vendor fiktif; ping/echo dipakai onboarding partner (panduan §9) | Review 10 |
-| D31 | CLI scaffolder | hanya skill AI · CLI dari template yang sama | **`bun run scaffold <module\|partner\|webhook\|integration> <nama>`** membaca template `scaffold-module` (markdown = sumber tunggal) lewat library yang juga dipakai `verify:scaffold` | Konvensi tetap terjaga tanpa agent AI; agent cukup menjalankan CLI lalu menyesuaikan field domain (hemat token) | 7.2 |
+| D31 | CLI scaffolder | hanya skill AI · CLI dari template yang sama | **`bun run scaffold <module\|partner\|webhook\|integration> <nama>`** membaca template `scaffold-module` (markdown = sumber tunggal) lewat library yang juga dipakai `verify:scaffold` | Konvensi tetap terjaga tanpa agent AI; agent cukup menjalankan CLI lalu menyesuaikan field domain (hemat token) | 7.3 |
+| D32 | Sumber standar | CONTRIBUTING (ID) + skill & `references/` (EN) + `AGENTS.md` berdampingan · satu sumber | **`docs/standards/` (EN), satu file per topik = satu-satunya sumber**; `ARCHITECTURE.md` = mengapa + indeks aturan; CONTRIBUTING, `AGENTS.md`, skill = router; template kode tetap di skill `scaffold-module` | Standar yang ditulis 4–5 kali dalam dua bahasa selalu drift (Review 5–11); developer dan agent kini membaca file yang sama. Ditegakkan `test/docs-sync.test.ts` | 7.2 |
 
 ### 4.1 Log Keputusan & Progres
 
@@ -540,6 +541,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-13 | 7.1 | Sinkronisasi docs: README ditulis ulang (137 baris: fitur ringkas, pohon, quickstart, pola modul, gate, indeks dokumen; baris `orders/` untuk `EXAMPLE_MODULES` tetap persis). CONTRIBUTING: rujukan ke indeks aturan, anchor daftar isi §8 rusak, pohon `core/` (`context/`, `i18n/`, isi `dto/` & `errors/`), kalimat `process.env` (di `src/` hanya `env-source.ts`; `drizzle.config.ts`, `scripts/`, test di luar aplikasi), varian scaffold partner/webhook di §10, contoh basi `domainSchema.table` → `appTable` (juga di skill `project-standards`), type commit `build` / `ci` / `revert` + aturan header & nama branch di §12, kolom penegak §5.3 memakai label, daftar dokumen root. `AGENTS.md` + skill `project-standards`: rujukan ke indeks dan kewajiban menambah baris untuk aturan baru | — |
 | 2026-10-13 | 7.1 | **Temuan (bug kecil di skill `init-project` §6):** perintah cek sisa identitas mengecualikan `ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md` (yang tidak berisi `bun-hono-starter` / `starter_db`), padahal hit yang selalu muncul berasal dari skill itu sendiri dan `docs/plans/` — perintah "expect no output" tidak pernah bisa kosong. Pathspec kini `':!.agents/skills/init-project/' ':!docs/'`; dibuktikan: sisa hit hanya file yang terdaftar di `IDENTITY_RULES` | — |
 | 2026-10-13 | 7.1 | **Chaos test** (12, semua tertangkap): label grup ESLint yang tidak ada; label test yang tidak ada; typo job CI; file hook yang tidak ada; `[depcruise]` tanpa target; typo label di CONTRIBUTING; baris indeks dihapus (celah ID); baris tanpa penegak; teks merujuk `R99`; rule depcruise tidak terindeks; grup ESLint tidak terindeks; README > 150 baris | Semua file dipulihkan |
+| 2026-10-13 | 7.1 | ✅ di-commit (`8c08e0a`) dan di-merge ke `main` | — |
+| 2026-10-13 | 7.2 (baru) | **Keputusan D32 (diskusi user setelah 7.1):** CONTRIBUTING terlalu besar (712 baris) dan standar ditulis berulang di CONTRIBUTING (ID), skill `project-standards` + `references/` (EN), `AGENTS.md` (EN) dan `ARCHITECTURE.md` — contoh: default-deny tertulis 5 kali. Perubahan harus mengedit semuanya; drift ditemukan di Review 5, 7, 9, 10, 11. User: "tetap hanya bersumber dari 1 file terpercaya … manual code ataupun agentic skills/rules", bahasa Inggris tidak masalah. **Fase 7 disusun ulang**: step baru 7.2 Docs SSOT; CLI scaffolder → 7.3, skills → 7.4, release → 7.5 | Bahasa: semua dokumen standar EN; README, plan, panduan untuk pihak luar tetap ID |
+| 2026-10-13 | 7.2 | `docs/standards/` = satu-satunya sumber standar, satu file per topik (19): `git mv` 10 file `project-standards/references/*.md` (riwayat terjaga; `redis-cache.md` → `cache.md`), ditambah `structure.md` (pohon kanonik + batas lapisan, dari CONTRIBUTING §2 + skill §2–3), `quality-gates.md` (diagram gate, coverage, `eslint-disable`, komposisi grup, tabel perintah), `http-contract.md` (CONTRIBUTING §3–4.2 + skill Rule 1/2/4/5/6/10 + §5), `auth-and-inbound.md` (CONTRIBUTING §4.3 + skill Rule 13–14 + bagian webhook dari `integrations.md`), `configuration.md`, `naming.md`, `git-workflow.md` (+ tabel type/scope dari skill `generate-commit-text`), `new-module.md` (pilihan varian + urutan kerja; template kode tetap di skill `scaffold-module`), `documentation.md` (aturan SSOT itu sendiri). Isi digabung, bukan ditulis ulang; bagian yang berbeda antar sumber diselaraskan ke kode | — |
+| 2026-10-13 | 7.2 | Router: `CONTRIBUTING.md` (712 → 47 baris, EN: langkah awal, tabel topik, alur perubahan), `.agents/AGENTS.md` (81 → 42: bacaan wajib, rencana kerja, database lokal, kebijakan `.env` — kini sumber tunggalnya; 16 invariant dihapus karena = indeks `ARCHITECTURE.md` §12), skill `project-standards` (420 → 36: tabel "menyentuh apa → baca file apa"), `env-protection` (→ menunjuk `AGENTS.md`), `generate-commit-text` (langkah saja; format di `git-workflow.md` §2), prosa skill `scaffold-module` (aturan diganti rujukan; kode template tidak diubah — parser `verify:scaffold` hanya membaca heading `### Step N: … (\`src/…\`)` + blok kode). `ARCHITECTURE.md` diterjemahkan ke EN, rujukan ke `docs/standards/`, aturan baru **R73** (SSOT dokumen). README (137 → 72 baris): quickstart + tautan, tanpa pohon / tabel template / daftar gate | — |
+| 2026-10-13 | 7.2 | **Temuan:** `bootstrap.md` menyalin `src/app.ts` dan `src/index.ts` hampir utuh (±180 baris kode) — salinan seperti itu pasti drift; kini ringkasan + "source of truth: `src/app.ts`", tabel urutan pipeline tetap. `openapi.md` §6 masih menyebut header partner "belum didukung (fase 5)" padahal sudah didokumentasikan sejak 5.3 → dihapus. Rujukan lama di kode diperbarui: pesan ESLint (`RAW_QUERY_RULES`, `REPOSITORY_SYNTAX_RULES`), komentar `access-token-cache.ts`, `base.repository.ts`, `columns.ts`, template `integration.md`. `EXAMPLE_MODULES` (`scripts/setup.ts`): baris pohon contoh kini di `structure.md` (README dan skill tidak lagi punya pohon) | — |
+| 2026-10-13 | 7.2 | **Penjaga baru** (`test/docs-sync.test.ts`, 16 test): pohon & perintah dibaca dari `structure.md` / `quality-gates.md`; label penegak dicek di semua file `docs/standards/` juga; setiap tautan relatif **dan #anchor** (slug GitHub) di dokumen yang dipelihara (README, CONTRIBUTING, ARCHITECTURE, CLAUDE, `docs/*.md`, `docs/standards/`, `.agents/`, `.claude/`) resolve; setiap path `docs/standards/….md` / `.agents/….md` yang disebut ada; setiap file standar tercantum di CONTRIBUTING dan router skill; router tanpa blok kode dan dalam batas baris (AGENTS 60, CONTRIBUTING 70, `project-standards` 45, `env-protection` 15); `project-standards/references/` tidak boleh ada lagi; README ≤ 150 | Plan dan arsip tidak dicek (riwayat) |
 
 ---
 
@@ -601,10 +608,11 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 | 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bb29912` |
 | 5.6 | Webhook vendor inbound | ✅ | 5.5, 4.2 | `9e1e166` |
 | 6.1 | Integration test (Postgres + Redis asli) | ✅ | 3.5, 5.6 | `f77a229` |
-| 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | 👀 | 6.1 |  |
-| 7.2 | CLI scaffolder `bun run scaffold` (D31) | ⬜ | 7.1 |  |
-| 7.3 | Finalisasi skills AI | ⬜ | 7.2 |  |
-| 7.4 | Release check boilerplate v1.0.0 | ⬜ | 7.3 |  |
+| 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ✅ | 6.1 | `8c08e0a` |
+| 7.2 | Docs SSOT: `docs/standards/` (D32) | 👀 | 7.1 |  |
+| 7.3 | CLI scaffolder `bun run scaffold` (D31) | ⬜ | 7.2 |  |
+| 7.4 | Finalisasi skills AI | ⬜ | 7.3 |  |
+| 7.5 | Release check boilerplate v1.0.0 | ⬜ | 7.4 |  |
 
 ---
 
@@ -1246,7 +1254,19 @@ Keputusan D23, D25, D28. Kontrak milik vendor; kita hanya memverifikasi dan meny
 
 **Langkah**: tulis `ARCHITECTURE.md` (struktur seperti blueprint: apa & mengapa + rujukan ke sumber detail, isi Bun/Hono, generik); pindahkan `ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md` ke `docs/archive/`; sinkronkan `README.md` (quickstart ≤ 150 baris) & `CONTRIBUTING.md`; setiap aturan diberi label penegak `[tsc]`, `[eslint:<rule>]`, `[depcruise:<rule>]`, `[ls-lint]`, `[test]`, `[ci]`, `[review-only]`.
 
-### Step 7.2 — CLI scaffolder `bun run scaffold` (D31)
+### Step 7.2 — Docs SSOT: `docs/standards/` (D32)
+
+Tujuan: setiap standar ditulis **sekali**, di satu file per topik, dan dibaca developer maupun agent dari file yang sama; dokumen lain hanya merujuk.
+
+**Langkah**: pindahkan `project-standards/references/*.md` ke `docs/standards/`; pecah CONTRIBUTING per topik ke sana (EN); gabungkan aturan dari skill `project-standards` dan `AGENTS.md`; CONTRIBUTING, `AGENTS.md`, skill `project-standards` / `env-protection` / `generate-commit-text` menjadi router; prosa skill `scaffold-module` merujuk; `ARCHITECTURE.md` EN; README hanya quickstart + tautan; `EXAMPLE_MODULES`, `docs-sync` dan rujukan di kode mengikuti; penjaga anti-duplikasi.
+
+**Acceptance criteria**
+
+- [x] Setiap standar punya tepat satu file di `docs/standards/`; router tidak berisi blok kode dan dalam batas barisnya (`test/docs-sync.test.ts`).
+- [x] Setiap tautan relatif + anchor di dokumen yang dipelihara resolve; tidak ada rujukan ke `project-standards/references/`.
+- [x] `bun run lint:setup`, `validate:full`, `build`, `verify:scaffold` hijau.
+
+### Step 7.3 — CLI scaffolder `bun run scaffold` (D31)
 
 Tujuan: modul baru bisa dibuat tanpa agent AI, dari template yang sama dengan skill `scaffold-module` (markdown tetap satu-satunya sumber; tidak ada string template di script).
 
@@ -1255,7 +1275,7 @@ Tujuan: modul baru bisa dibuat tanpa agent AI, dari template yang sama dengan sk
 1. Library `scripts/lib/scaffold.ts`: parser template (dipindah dari `materialize` / `fill` di `verify-scaffold.ts`), turunan nama dari kebab-case (snake, Pascal, camel; jamak/tunggal dengan aturan sederhana + `--singular=<nama>` untuk bentuk tak beraturan), wiring dengan anchor permanen yang gagal keras (`replaceAnchor`, Review 10).
 2. `scripts/scaffold.ts` + script `scaffold` di `package.json`: `module <nama> [--variant=standalone|header-detail|record]`, `partner <nama>`, `webhook <nama> --vendor=<vendor>`, `integration <vendor>`; validasi kebab-case, tolak modul bernama vendor (D26) dan file yang sudah ada, `--dry-run`; wiring (`app.ts`, barrel schema, `APPEND_ONLY_TABLES`, `WEBHOOK_VENDORS`, registry, barrel config); prettier hanya pada file yang dibuat/diubah; mencetak langkah berikutnya (`bun run db:generate`, isi field domain) tanpa menjalankan migrasi.
 3. `verify:scaffold` memakai CLI (generate → semua gate → bersihkan), sehingga CLI ikut terverifikasi di CI.
-4. Skill `scaffold-module`: jalankan CLI dulu, lalu sesuaikan field domain; README §4 dan CONTRIBUTING.
+4. Skill `scaffold-module`: jalankan CLI dulu, lalu sesuaikan field domain; `docs/standards/new-module.md` dan `quality-gates.md` (tabel perintah).
 
 **Acceptance criteria**
 
@@ -1263,11 +1283,11 @@ Tujuan: modul baru bisa dibuat tanpa agent AI, dari template yang sama dengan sk
 - [ ] Setiap varian lewat `verify:scaffold` memakai CLI; tidak ada string template di luar markdown skill.
 - [ ] Berfungsi juga di proyek hasil `bun run setup` (tanpa contoh).
 
-### Step 7.3 — Finalisasi skills AI
+### Step 7.4 — Finalisasi skills AI
 
-**Langkah**: skill baru `review-code` (gate review memakai §14.1, dipanggil sebelum step dinyatakan selesai); evaluasi pemisahan skill `database-standards` dari `project-standards/references`; perbarui `scaffold-module`, `init-project`, `project-standards`, `generate-commit-text` (scope baru: `auth`, `partner-credentials`, …); wrapper `.claude/skills/` untuk skill baru; `CLAUDE.md` tetap hanya import. `init-project` dan README: opsi riwayat git baru = hapus `.git` (konfirmasi eksplisit tepat sebelum menghapus) → `git init -b main` → `bun run prepare` (wajib: Husky menyimpan `core.hooksPath` di `.git/config`, tanpa ini hook mati diam-diam) → commit awal hanya atas persetujuan user (hook pre-commit ikut berjalan).
+**Langkah**: skill baru `review-code` (gate review memakai §14.1, dipanggil sebelum step dinyatakan selesai); (pemisahan `database-standards` tidak perlu lagi: standar database ada di `docs/standards/database.md`, D32); perbarui `scaffold-module`, `init-project`, `project-standards`, `generate-commit-text` (scope baru: `auth`, `partner-credentials`, …); wrapper `.claude/skills/` untuk skill baru; `CLAUDE.md` tetap hanya import. `init-project` dan README: opsi riwayat git baru = hapus `.git` (konfirmasi eksplisit tepat sebelum menghapus) → `git init -b main` → `bun run prepare` (wajib: Husky menyimpan `core.hooksPath` di `.git/config`, tanpa ini hook mati diam-diam) → commit awal hanya atas persetujuan user (hook pre-commit ikut berjalan).
 
-### Step 7.4 — Release check boilerplate v1.0.0
+### Step 7.5 — Release check boilerplate v1.0.0
 
 **Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → clone bersih → `/init-project demo-backend` → `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run scaffold module <probe>` + gate → `bun run build` → `docker build` + container `healthy` → `CHANGELOG.md` → tag `v1.0.0`.
 
@@ -1284,7 +1304,7 @@ Tujuan: modul baru bisa dibuat tanpa agent AI, dari template yang sama dengan sk
 - [ ] `bun run validate:full` hijau dan `bun run build` sukses.
 - [ ] Test baru menutup perilaku baru (unit; e2e bila menyentuh HTTP). **Setiap cabang logika** (klasifikasi, pemetaan status, fallback) punya test eksplisit — coverage Bun hanya mengukur baris, bukan cabang.
 - [ ] Aturan baru ditegakkan mesin (atau ditandai `[review-only]` dengan alasan).
-- [ ] Dokumen terdampak diperbarui di commit yang sama: `.agents/AGENTS.md`, `.agents/skills/**`, `CONTRIBUTING.md`, `README.md`, `.env.example`. Bila API inti yang dipakai template berubah (errors, response, middlewares, dto, i18n, openapi, database) → `bun run verify:scaffold` hijau.
+- [ ] Dokumen terdampak diperbarui di commit yang sama: file topik di `docs/standards/` (satu-satunya sumber, D32) + baris aturan di `ARCHITECTURE.md` §12 bila aturan baru / penegaknya berubah; router (`CONTRIBUTING.md`, `.agents/AGENTS.md`, skill) hanya bila daftar topik berubah; `.env.example`. Bila API inti yang dipakai template berubah (errors, response, middlewares, dto, i18n, openapi, database) → `bun run verify:scaffold` hijau.
 - [ ] Endpoint baru memakai `describeEndpoint()` dengan skema response di `<module>.dto.ts` (`test/openapi.e2e.test.ts` hijau).
 - [ ] Nilai yang membawa nama proyek → `IDENTITY_RULES`; `bun run setup demo --dry-run` lulus.
 - [ ] Env var baru → Zod di `src/config/` + `.env.example` + [L1](#151-l1--registry-env-var).
