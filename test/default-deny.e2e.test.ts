@@ -59,7 +59,8 @@ describe('default-deny authentication (every route of createApp)', () => {
 
   it('every webhook route belongs to a registered vendor and answers 401 ERR_WEBHOOK_SIGNATURE_INVALID without its signature — also with a bearer token', async () => {
     const webhookRoutes = routes.filter(({ path }) => path.startsWith(`${webhooks}/`));
-    expect(webhookRoutes.length).toBeGreaterThan(0);
+    // Guards the enumeration; no vendor (a fresh project after `bun run setup`) = no routes.
+    expect(webhookRoutes.length > 0).toBe(WEBHOOK_VENDORS.length > 0);
     const vendors = new Set(WEBHOOK_VENDORS.map(({ vendor }) => vendor));
     const withToken = await authorize(createApp(), 'admin');
 

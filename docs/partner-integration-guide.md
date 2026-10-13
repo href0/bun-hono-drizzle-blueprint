@@ -264,7 +264,7 @@ Respons error memakai envelope standar (`error.type`, `error.code`, `request_id`
 | 401 | `ERR_PARTNER_SIGNATURE_INVALID` | Signature tidak cocok: secret salah, path/query/body yang dikirim berbeda dari yang ditandatangani | Bandingkan dengan vektor uji §5; pastikan body yang dikirim adalah string yang sama dengan yang ditandatangani |
 | 403 | `ERR_PARTNER_IP_FORBIDDEN` | IP asal tidak ada di `ip_whitelist` | Minta admin menambahkan IP / blok CIDR keluar Anda |
 | 403 | `ERR_PARTNER_ROUTE_FORBIDDEN` | Route tidak ada di `allowed_routes` | Minta admin menambahkan pola route |
-| 429 | `ERR_RATE_LIMITED` | Melebihi `rate_limit_rpm` (jendela 60 detik) atau batas global per IP | Tunggu sesuai header `Retry-After` (detik); header `RateLimit-*` menunjukkan sisa kuota |
+| 429 | `ERR_RATE_LIMITED` | Melebihi `rate_limit_rpm` (jendela 60 detik), atau terlalu banyak request yang **ditolak** (401/403) dari IP yang sama — request yang diterima tidak ikut batas global per IP | Tunggu sesuai header `Retry-After` (detik); header `RateLimit-*` menunjukkan sisa kuota |
 | 400 / 404 / 409 / … | lainnya | Error domain endpoint (validasi body, data tidak ada, …) | Seperti API lainnya |
 | 5xx | `ERR_INTERNAL`, … | Masalah di sisi API | Retry dengan backoff, **dengan nonce & timestamp baru** |
 

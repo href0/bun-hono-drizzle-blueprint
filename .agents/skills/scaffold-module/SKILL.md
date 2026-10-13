@@ -19,7 +19,7 @@ Use this skill when asked to create, add, or scaffold a new domain/feature modul
 | Vendor webhook (a vendor notifies events; its contract) | [references/webhook.md](references/webhook.md) — verifier in `src/integrations/<vendor>/`, receiver `<name>.webhook.routes.ts` under `/webhooks/<vendor>` | `AppendOnlyRepository` over `webhook_events` |
 | Outbound vendor adapter (not a module) | [references/integration.md](references/integration.md) — login-based vendor under `src/integrations/<name>/` | — (`HttpClientService` + `AccessTokenCache`) |
 
-Every variant, the integration template included, is generated and run through all gates by `bun run verify:scaffold` (CI). Working references in this repository: `src/modules/users` (standalone) and, until `bun run setup <name>` removes it, `src/modules/orders` (header + detail, generated from the header-detail template).
+Every variant, the integration template included, is generated and run through all gates by `bun run verify:scaffold` (CI). Working references in this repository: `src/modules/users` (standalone) and, until `bun run setup <name>` removes them, `src/modules/orders` (header + detail, generated from the header-detail template) and `src/integrations/demo-pay` + `src/modules/payment-notifications` (vendor webhook). `src/modules/partner-gateway` (partner endpoints) stays: partners use its ping/echo to test their signing.
 
 ---
 
@@ -492,7 +492,7 @@ describe('<PascalPlural>Repository (Unit)', () => {
 
 Create unit tests covering service, transformer, and controller (see `.agents/skills/project-standards/references/testing.md`).
 
-These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from each variant (this file, `references/header-detail.md`, `references/record.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, or any core API they use, run it.
+These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it generates a probe module from each variant (this file, `references/header-detail.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, or any core API they use, run it.
 
 The templates are formatted for a short module name; line wrapping changes with the name length, so always format before validating:
 ```bash

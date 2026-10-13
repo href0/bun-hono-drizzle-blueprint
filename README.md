@@ -13,7 +13,7 @@ Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, da
 5. **Zero-Trust Configuration**: Konfigurasi divalidasi ketat dengan Zod saat aplikasi booting (`src/config/<group>.config.ts`, satu grup per file). Aplikasi *fail-fast* jika ada variabel wajib yang tidak valid. Dilarang mengakses `process.env` di luar direktori config.
 6. **Resilient Infrastructure**:
    - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
-   - **Platform Hardening**: Rate limit global per IP klien tepercaya lewat Redis (berlaku lintas instance, fail-open), `TRUST_PROXY_HOPS` (`X-Forwarded-For` tidak dipercaya mentah), batas ukuran body (413), CORS allowlist (`CORS_ORIGINS`, kosong = mati), dan security headers.
+   - **Platform Hardening**: Rate limit global per IP klien tepercaya lewat Redis (berlaku lintas instance, fail-open; prefix partner & webhook hanya menghitung percobaan yang ditolak), `TRUST_PROXY_HOPS` (`X-Forwarded-For` tidak dipercaya mentah), batas ukuran body (413), CORS allowlist (`CORS_ORIGINS`, kosong = mati), dan security headers.
    - **API Docs (OpenAPI 3.1)**: `GET /api/docs` (UI Scalar) dan `/api/docs/openapi.json`, dihasilkan dari schema Zod yang sama dengan validasi (snake_case, envelope standar). Aktif kecuali di production (`API_DOCS_ENABLED`).
    - **Standar Waktu (Temporal, UTC)**: instant (`*_at`, ISO 8601 UTC, request wajib ber-offset), tanggal kalender (`*_date`, `YYYY-MM-DD`), jadwal lokal (+ `*_timezone` IANA); runtime & sesi database UTC; jam yang dilompati/terulang oleh DST ditolak.
    - **Health Probes**: `GET /api/health` (selalu 200, `UP`/`DEGRADED`/`DOWN` + status komponen), `/api/health/readiness` (503 hanya bila database mati; Redis mati = `DEGRADED`), `/api/health/liveness` (tanpa cek dependency). Probe database dibatasi 2 detik.
@@ -62,7 +62,8 @@ git clone <repo_url> my-backend
 cd my-backend
 bun install
 bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk preview
-#    modul contoh orders (header + detail) dihapus & migrasi dibuat ulang dari awal;
+#    modul contoh orders (header + detail) dan contoh webhook vendor (demo-pay +
+#    payment-notifications) dihapus & migrasi dibuat ulang dari awal;
 #    tambahkan --keep-examples untuk mempertahankannya sebagai referensi
 # atau via AI agent (Claude Code): /init-project my-backend
 
@@ -93,13 +94,16 @@ Aplikasi akan berjalan di dalam Docker container dengan live hot-reload (`bun --
 
 ## 4. Pola Pengembangan Fitur Baru
 
-Modul baru dibuat dari template skill `scaffold-module` — kodenya diverifikasi mesin (`bun run verify:scaffold` di CI men-generate setiap varian dan menjalankan semua gate), sehingga tidak bisa tertinggal dari kode. Pilih varian menurut jenis tabel:
+Modul baru dibuat dari template skill `scaffold-module` — kodenya diverifikasi mesin (`bun run verify:scaffold` di CI men-generate setiap varian dan menjalankan semua gate), sehingga tidak bisa tertinggal dari kode. Pilih varian menurut jenis tabel / kanal:
 
 | Jenis tabel | Template | Contoh nyata |
 |---|---|---|
 | Mandiri | `.agents/skills/scaffold-module/SKILL.md` | `src/modules/users` |
 | Header + detail | `.agents/skills/scaffold-module/references/header-detail.md` | `src/modules/orders` (dihapus `bun run setup` kecuali `--keep-examples`) |
 | Pencatatan (append-only) | `.agents/skills/scaffold-module/references/record.md` | `record_changes` |
+| Endpoint partner (request bertanda tangan) | `.agents/skills/scaffold-module/references/partner.md` | `src/modules/partner-gateway` |
+| Webhook vendor (kontrak milik vendor) | `.agents/skills/scaffold-module/references/webhook.md` | `src/modules/payment-notifications` + `src/integrations/demo-pay` (dihapus `bun run setup` kecuali `--keep-examples`) |
+| Adapter vendor outbound (bukan modul) | `.agents/skills/scaffold-module/references/integration.md` | `src/integrations/jsonplaceholder` |
 
 Urutannya selalu: schema (`appTable` + helper kolom) → `bun run db:generate` → DTO (request & response, snake_case di wire) → pesan (`id`/`en`) → repository (extend base) → transformer → service → controller (`ApiResponse`) → routes (`describeEndpoint` + `validate`) → daftarkan di `src/app.ts` (`v1.route(...)`) → test → `bun run validate:full`. Lewat AI agent: minta "scaffold module <nama>" (skill `scaffold-module`). Panduan rinci: [CONTRIBUTING.md §10](CONTRIBUTING.md).
 

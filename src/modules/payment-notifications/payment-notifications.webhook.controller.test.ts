@@ -64,6 +64,17 @@ describe('PaymentNotificationsWebhookController', () => {
     expect(calls.at(0)).toEqual(['demo-pay', payload]);
   });
 
+  it('keeps the vendor fields it does not use (the stored event is the whole event)', async () => {
+    const extended = {
+      ...payload,
+      id: 'evt_2',
+      livemode: false,
+      data: { ...payload.data, customerRef: 'cus_9' },
+    };
+    expect((await post(extended)).status).toBe(200);
+    expect(calls.at(-1)).toEqual(['demo-pay', extended]);
+  });
+
   it('rejects a payload that does not match the vendor contract with 400', async () => {
     const res = await post({ ...payload, data: { ...payload.data, status: 'unknown' } });
     expect(res.status).toBe(400);

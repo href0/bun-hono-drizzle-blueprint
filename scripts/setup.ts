@@ -106,8 +106,11 @@ interface ExampleModule {
   label: string;
   /** Files and directories that belong only to the example. */
   paths: string[];
-  /** Registrations in shared files, removed line by line (exact text, any line ending). */
-  lines: { file: string; line: string }[];
+  /**
+   * Registrations in shared files (exact text, any line ending): `line` is one line or a block of
+   * consecutive lines joined with `\n`; it is removed, or replaced by `replaceWith`.
+   */
+  lines: { file: string; line: string; replaceWith?: string }[];
 }
 
 const EXAMPLE_MODULES: ExampleModule[] = [
@@ -143,37 +146,144 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       },
     ],
   },
+  {
+    label: 'demo-pay + payment-notifications (vendor webhook example)',
+    paths: [
+      'src/integrations/demo-pay',
+      'src/modules/payment-notifications',
+      'src/config/demo-pay.config.ts',
+      'src/config/demo-pay.config.test.ts',
+      'test/vendor-webhooks.e2e.test.ts',
+    ],
+    lines: [
+      {
+        file: 'src/app.ts',
+        line: [
+          '// Example vendor webhook (Demo Pay → payment-notifications): removed by `bun run setup <name>` unless --keep-examples.',
+          "import { demoPayWebhook } from './integrations/demo-pay/demo-pay.webhook';",
+          "import { paymentNotificationWebhookRoutes } from './modules/payment-notifications/payment-notifications.webhook.routes';",
+        ].join('\n'),
+      },
+      {
+        file: 'src/app.ts',
+        line: 'export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [demoPayWebhook];',
+        replaceWith: 'export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [];',
+      },
+      {
+        file: 'src/app.ts',
+        line: '  app.route(`${webhooksPath}/${demoPayWebhook.vendor}`, paymentNotificationWebhookRoutes);',
+      },
+      { file: 'src/config/index.ts', line: "export * from './demo-pay.config';" },
+      {
+        file: 'src/integrations/registry.ts',
+        line: [
+          '  /** Example webhook vendor (inbound only): `src/integrations/demo-pay/`. */',
+          "  DEMO_PAY: { code: 'DEMO_PAY', institution: 'Demo Pay (example)' },",
+        ].join('\n'),
+      },
+      {
+        file: 'test/setup/hermetic-env.ts',
+        line: [
+          '  // The example webhook vendor is enabled in tests with a test-only secret, never a real one.',
+          "  DEMO_PAY_WEBHOOK_SECRET: 'test-only-demo-pay-webhook-secret',",
+        ].join('\n'),
+      },
+      {
+        file: '.env.example',
+        line: [
+          '',
+          '# --- demo-pay (src/config/demo-pay.config.ts) — example webhook vendor (POST /api/webhooks/demo-pay) ---',
+          '# The signing secret from the vendor dashboard. Empty = Demo Pay webhooks are disabled (all 401).',
+          'DEMO_PAY_WEBHOOK_SECRET=',
+          '# Signed timestamps older (or newer) than this are refused as replays.',
+          'DEMO_PAY_WEBHOOK_TOLERANCE_SECONDS=300',
+        ].join('\n'),
+      },
+      {
+        file: 'CONTRIBUTING.md',
+        line: '│   ├── demo-pay/                # Contoh vendor webhook: demo-pay.webhook.ts (verifier) + demo-pay.webhook.dto.ts',
+      },
+      {
+        file: 'CONTRIBUTING.md',
+        line: '│   ├── payment-notifications/   # Contoh penerima webhook vendor (POST /api/webhooks/demo-pay, idempoten)',
+      },
+      {
+        file: '.agents/skills/project-standards/SKILL.md',
+        line: '│   │   ├── payment-notifications/ # Example vendor webhook receiver (POST /webhooks/demo-pay, idempotent)',
+      },
+      {
+        file: '.agents/skills/project-standards/SKILL.md',
+        line: '│   │   ├── demo-pay/           # Example webhook vendor: <vendor>.webhook.ts (verifier) + .webhook.dto.ts',
+      },
+      {
+        file: '.agents/skills/project-standards/references/testing.md',
+        line: '- `test/vendor-webhooks.e2e.test.ts` — signed Demo Pay webhooks through `createApp()` (service spied): accepted as `webhook:demo-pay`; forged, tampered, stale or unsigned → 401.',
+      },
+    ],
+  },
 ];
 
-/** Removes one whole line, keeping the file's line endings (`core.autocrlf` checkouts use CRLF). */
-const withoutLine = (content: string, line: string): string | null => {
+/**
+ * Removes (or replaces) one whole line or block of consecutive lines, keeping the file's line
+ * endings (`core.autocrlf` checkouts use CRLF). `null` when the block is not there.
+ */
+const withoutLines = (content: string, block: string, replaceWith?: string): string | null => {
   const eol = content.includes('\r\n') ? '\r\n' : '\n';
   const lines = content.split(eol);
-  const index = lines.indexOf(line);
+  const wanted = block.split('\n');
+  const index = lines.findIndex((_, start) =>
+    wanted.every((line, offset) => lines[start + offset] === line),
+  );
   if (index < 0) return null;
-  lines.splice(index, 1);
+  lines.splice(index, wanted.length, ...(replaceWith === undefined ? [] : [replaceWith]));
   return lines.join(eol);
 };
 
+/**
+ * Removes the example modules, then regenerates the migrations from scratch. An example whose
+ * files and registrations are all gone was removed by an earlier run (an initialized project): it
+ * is skipped, and when every example is gone nothing is touched — the migrations of a real project
+ * are never regenerated. A partly present example is drift and aborts before writing anything.
+ */
 function removeExamples(rootDir: string, dryRun: boolean): void {
   const pending = new Map<string, string>();
   const failures: string[] = [];
+  const present: ExampleModule[] = [];
 
   for (const example of EXAMPLE_MODULES) {
+    const found: string[] = [];
+    const missing: string[] = [];
+    const edits = new Map<string, string>();
     for (const path of example.paths) {
-      if (!existsSync(resolve(rootDir, path)))
-        failures.push(`${path}: not found (${example.label})`);
+      if (existsSync(resolve(rootDir, path))) found.push(path);
+      else missing.push(`${path}: not found`);
     }
-    for (const { file, line } of example.lines) {
+    for (const { file, line, replaceWith } of example.lines) {
       const path = resolve(rootDir, file);
       if (!existsSync(path)) {
-        failures.push(`${file}: file not found (${example.label})`);
+        missing.push(`${file}: file not found`);
         continue;
       }
-      const next = withoutLine(pending.get(file) ?? readFileSync(path, 'utf-8'), line);
-      if (next === null) failures.push(`${file}: line not found: ${line}`);
-      else pending.set(file, next);
+      const current = edits.get(file) ?? pending.get(file) ?? readFileSync(path, 'utf-8');
+      const next = withoutLines(current, line, replaceWith);
+      if (next === null) {
+        missing.push(`${file}: line not found: ${line.split('\n').join(' ⏎ ')}`);
+      } else {
+        found.push(file);
+        edits.set(file, next);
+      }
     }
+
+    if (found.length === 0) {
+      console.log(`[Setup] Example already removed: ${example.label}`);
+      continue;
+    }
+    if (missing.length > 0) {
+      failures.push(...missing.map((problem) => `${problem} (${example.label})`));
+      continue;
+    }
+    present.push(example);
+    for (const [file, content] of edits) pending.set(file, content);
   }
 
   if (failures.length > 0) {
@@ -187,7 +297,8 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
     process.exit(1);
   }
 
-  for (const example of EXAMPLE_MODULES) {
+  if (present.length === 0) return;
+  for (const example of present) {
     console.log(`[Setup] ${dryRun ? 'Would remove' : 'Remove'} example: ${example.label}`);
   }
   console.log(
@@ -195,11 +306,23 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
   );
   if (dryRun) return;
 
-  for (const example of EXAMPLE_MODULES) {
+  for (const example of present) {
     for (const path of example.paths)
       rmSync(resolve(rootDir, path), { recursive: true, force: true });
   }
   for (const [file, content] of pending) writeFileSync(resolve(rootDir, file), content, 'utf-8');
+
+  // The project has no examples left to guard: `lint:setup` keeps checking IDENTITY_RULES only, so a
+  // module the project later names like an example (e.g. its own `orders`) is not reported as drift.
+  const packagePath = resolve(rootDir, 'package.json');
+  const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+    scripts?: Record<string, string>;
+  };
+  const lintSetup = packageJson.scripts?.['lint:setup'];
+  if (packageJson.scripts && lintSetup && !lintSetup.includes('--keep-examples')) {
+    packageJson.scripts['lint:setup'] = `${lintSetup} --keep-examples`;
+    writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf-8');
+  }
 
   const migrations = resolve(rootDir, 'drizzle');
   for (const entry of existsSync(migrations) ? readdirSync(migrations) : []) {

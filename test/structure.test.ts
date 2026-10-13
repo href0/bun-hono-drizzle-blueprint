@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
-import { createApp } from '../src/app';
+import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig } from '../src/config';
 
 /**
@@ -171,7 +171,10 @@ describe('inbound channels are mounted where their name says', () => {
         handlers: await channelHandlers('webhook'),
       },
     ];
+    // Guards the enumeration: partner-gateway is permanent; webhook receivers exist only with
+    // a registered vendor (none in a fresh project after `bun run setup`).
     expect(channels.at(0)?.handlers.size).toBeGreaterThan(0);
+    expect((channels.at(1)?.handlers.size ?? 0) > 0).toBe(WEBHOOK_VENDORS.length > 0);
 
     expect(channelMountViolations(createApp().routes, channels)).toEqual([]);
   });

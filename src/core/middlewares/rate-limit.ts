@@ -5,13 +5,13 @@ import { TooManyRequestsError } from '../errors';
 import { UNKNOWN_CLIENT_IP } from './client-ip';
 
 /**
- * `skip` helper: true for `prefix` itself and paths below it, on segment boundaries —
+ * `skip` helper: true for each `prefix` itself and paths below it, on segment boundaries —
  * `/api/health` matches `/api/health/readiness` but not `/api/health-records`.
  */
 export const isUnderPath =
-  (prefix: string) =>
+  (...prefixes: [string, ...string[]]) =>
   (c: Context): boolean =>
-    c.req.path === prefix || c.req.path.startsWith(`${prefix}/`);
+    prefixes.some((prefix) => c.req.path === prefix || c.req.path.startsWith(`${prefix}/`));
 
 export interface RateLimitOptions {
   /** Length of the fixed window; it starts with the caller's first request. */
@@ -59,5 +59,36 @@ export const rateLimit = ({
       throw new TooManyRequestsError(undefined, { retryAfterSeconds: resetSeconds });
     }
     await next();
+  };
+};
+
+/** Statuses that count as a refused attempt for `rejectionLimit()`. */
+const REJECTED_STATUSES: ReadonlySet<number> = new Set([401, 403]);
+
+/**
+ * Fixed-window limit on **refused** attempts (401 / 403) per trusted client IP, for routes that
+ * authenticate the caller themselves and bypass the global `rateLimit()` — the partner gateway
+ * (its own per-partner `rate_limit_rpm`) and vendor webhooks (bursts of retries from a few IPs).
+ * Accepted requests never count, so a busy partner is limited only by its own quota, while a
+ * client guessing keys or signatures gets 429 (`Retry-After` = the window, an upper bound) before
+ * its requests reach the credential lookup. No `RateLimit-*` headers: the partner quota owns them.
+ * Fails open like `rateLimit()`.
+ */
+export const rejectionLimit = ({
+  windowSeconds,
+  max,
+  keyPrefix,
+  cache = cacheService,
+}: Omit<RateLimitOptions, 'skip'>): MiddlewareHandler => {
+  return async (c, next) => {
+    const key = CACHE_KEYS.rateLimit(keyPrefix, getClientIp() ?? UNKNOWN_CLIENT_IP);
+    const refused = await cache.get<unknown>(key);
+    if (typeof refused === 'number' && refused >= max) {
+      throw new TooManyRequestsError(undefined, { retryAfterSeconds: windowSeconds });
+    }
+    await next();
+    if (REJECTED_STATUSES.has(c.res.status)) {
+      await cache.increment(key, windowSeconds);
+    }
   };
 };

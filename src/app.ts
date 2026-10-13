@@ -14,6 +14,7 @@ import {
   isUnderPath,
   partnerAuth,
   rateLimit,
+  rejectionLimit,
   requestContextMiddleware,
   requireVerifiedWebhook,
   webhookAuth,
@@ -23,16 +24,17 @@ import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
 import { isPartnerRoute, isPublicRoute } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
-import { demoPayWebhook } from './integrations/demo-pay/demo-pay.webhook';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
 import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
 import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.partner.routes';
-import { paymentNotificationWebhookRoutes } from './modules/payment-notifications/payment-notifications.webhook.routes';
 import { userRoutes } from './modules/users/users.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
 import { ordersRouter } from './modules/orders/orders.routes';
+// Example vendor webhook (Demo Pay → payment-notifications): removed by `bun run setup <name>` unless --keep-examples.
+import { demoPayWebhook } from './integrations/demo-pay/demo-pay.webhook';
+import { paymentNotificationWebhookRoutes } from './modules/payment-notifications/payment-notifications.webhook.routes';
 
 /**
  * Vendors whose webhooks this API accepts (plan D23): each gets its verifier on
@@ -51,6 +53,9 @@ export const createApp = (): Hono => {
   const app = new Hono();
   const basePath = appConfig.API_BASE_PATH;
   const healthPath = `${basePath}/health`;
+  const webhooksPath = `${basePath}/webhooks`;
+  const v1Path = `${basePath}/v1`;
+  const partnerPath = `${v1Path}/partner`;
 
   // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
@@ -65,32 +70,37 @@ export const createApp = (): Hono => {
   // 5. Body size limit → 413 in the standard error envelope
   app.use('*', bodySizeLimit(httpConfig.HTTP_BODY_LIMIT_BYTES));
 
-  // 6. Global rate limit per trusted client IP (Redis, fail-open); probes are exempt
+  // 6. Global rate limit per trusted client IP (Redis, fail-open). Exempt: probes, and the partner
+  //    and webhook prefixes — they authenticate the caller themselves (per-partner rate_limit_rpm),
+  //    so per IP only their refused attempts are limited
+  const limitWindow = {
+    windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
+    max: httpConfig.RATE_LIMIT_MAX,
+  };
   app.use(
     '*',
     rateLimit({
-      windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
-      max: httpConfig.RATE_LIMIT_MAX,
+      ...limitWindow,
       keyPrefix: 'global',
-      skip: isUnderPath(healthPath),
+      skip: isUnderPath(healthPath, partnerPath, webhooksPath),
     }),
   );
+  for (const prefix of [partnerPath, webhooksPath]) {
+    app.use(`${prefix}/*`, rejectionLimit({ ...limitWindow, keyPrefix: 'inbound-rejected' }));
+  }
 
   // 7. Unversioned, public: health probes
   app.route(healthPath, healthRoutes);
 
   // 7b. Vendor webhooks — unversioned (the vendor owns the contract) and fail-closed: each vendor's
   //     verifier, then a guard that refuses anything under the prefix no verifier accepted
-  const webhooksPath = `${basePath}/webhooks`;
   for (const vendor of WEBHOOK_VENDORS) {
     app.use(`${webhooksPath}/${vendor.vendor}/*`, webhookAuth(vendor));
   }
   app.use(`${webhooksPath}/*`, requireVerifiedWebhook());
-  app.route(`${webhooksPath}/demo-pay`, paymentNotificationWebhookRoutes);
+  app.route(`${webhooksPath}/${demoPayWebhook.vendor}`, paymentNotificationWebhookRoutes);
 
   // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
-  const v1Path = `${basePath}/v1`;
-  const partnerPath = `${v1Path}/partner`;
   app.use(
     `${partnerPath}/*`,
     partnerAuth({

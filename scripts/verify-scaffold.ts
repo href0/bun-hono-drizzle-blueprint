@@ -264,6 +264,28 @@ const cleanup = (): void => {
   for (const [path, content] of originals) writeFileSync(path, content);
 };
 
+/**
+ * Replaces the first match of an anchor that must be there — a missing anchor fails loudly instead
+ * of leaving the registration out. `replace` gets the match and the regex groups, if any.
+ */
+const replaceAnchor = (
+  content: string,
+  anchor: string | RegExp,
+  replace: (match: string, ...groups: string[]) => string,
+): string => {
+  const found = typeof anchor === 'string' ? content.includes(anchor) : anchor.test(content);
+  if (!found) throw new Error(`registration anchor not found: ${String(anchor)}`);
+  return typeof anchor === 'string'
+    ? content.replace(anchor, () => replace(anchor))
+    : // The callback receives the groups, then the offset and the whole string.
+      content.replace(anchor, (match, ...rest: unknown[]) =>
+        replace(
+          match,
+          ...rest.slice(0, -2).map((group) => (typeof group === 'string' ? group : '')),
+        ),
+      );
+};
+
 const editFile = (path: string, edit: (content: string) => string): void => {
   const content = readFileSync(path, 'utf-8');
   if (!originals.has(path)) originals.set(path, content);
@@ -332,18 +354,27 @@ const generate = (variant: Variant): string[] => {
       ),
     );
     const router = routerOf(variant);
-    editFile(APP_PATH, (content) =>
-      content
-        .replace(
-          "import { userRoutes } from './modules/users/users.routes';",
-          `import { userRoutes } from './modules/users/users.routes';\nimport { ${router.symbol} } from './modules/${names.name}/${router.file}';\nimport { ${vendor.camel}Webhook } from './integrations/${vendor.kebab}/${vendor.kebab}.webhook';`,
-        )
-        .replace('[demoPayWebhook]', `[demoPayWebhook, ${vendor.camel}Webhook]`)
-        .replace(
-          '  app.route(`${webhooksPath}/demo-pay`, paymentNotificationWebhookRoutes);',
-          `  app.route(\`\${webhooksPath}/demo-pay\`, paymentNotificationWebhookRoutes);\n  app.route(\`\${webhooksPath}${router.mount}\`, ${router.symbol});`,
-        ),
-    );
+    // Anchors present with and without the Demo Pay example (`bun run setup` removes it).
+    editFile(APP_PATH, (content) => {
+      let next = replaceAnchor(
+        content,
+        "import { userRoutes } from './modules/users/users.routes';",
+        (anchor) =>
+          `${anchor}\nimport { ${router.symbol} } from './modules/${names.name}/${router.file}';\nimport { ${vendor.camel}Webhook } from './integrations/${vendor.kebab}/${vendor.kebab}.webhook';`,
+      );
+      next = replaceAnchor(
+        next,
+        /(WEBHOOK_VENDORS: readonly WebhookVendor\[\] = \[)([^\]]*)\]/,
+        (_match, head = '', listed = '') =>
+          `${head}${listed.trim() === '' ? '' : `${listed.trim()}, `}${vendor.camel}Webhook]`,
+      );
+      return replaceAnchor(
+        next,
+        '  app.use(`${webhooksPath}/*`, requireVerifiedWebhook());',
+        (anchor) =>
+          `${anchor}\n  app.route(\`\${webhooksPath}${router.mount}\`, ${router.symbol});`,
+      );
+    });
     return generated;
   }
 
