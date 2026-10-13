@@ -33,4 +33,4 @@ The standards of this project live in `docs/standards/` — one file per topic, 
 | Any document, a new or changed rule | `docs/standards/documentation.md` |
 
 3. A change that adds or alters a rule updates that topic file and the rule's row in `ARCHITECTURE.md` §12 in the same change.
-4. Finish with the gates in `docs/standards/quality-gates.md` §1.
+4. Finish with the skill `finish-change`: gates (`docs/standards/quality-gates.md` §1) and the definition of done (§4).

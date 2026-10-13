@@ -27,11 +27,13 @@ Store `AUTHOR_NAME` as the result. All subsequent git log queries MUST filter by
 
 Ask the user which **month and year** to generate the logbook for, unless already specified.
 
-Format target range as:
-- `TARGET_START`: first day of target month in WIB (e.g. `2026-09-01`)
-- `TARGET_END`: last day of target month in WIB (e.g. `2026-09-30`)
+The logbook uses the user's local working time zone: **WIB (`+07:00`) by default** — ask once if the user works in another zone (WITA `+08:00`, WIT `+09:00`, …) and use its offset below instead.
 
-Compute ISO 8601 timestamps with **explicit WIB offset (`+07:00`)**:
+Format target range as:
+- `TARGET_START`: first day of target month in that zone (e.g. `2026-09-01`)
+- `TARGET_END`: last day of target month in that zone (e.g. `2026-09-30`)
+
+Compute ISO 8601 timestamps with the **explicit offset** (WIB shown):
 - `AFTER_TS` = `<TARGET_START minus 1 day>T23:59:59+07:00`
 - `BEFORE_TS` = `<TARGET_END>T23:59:59+07:00`
 
@@ -46,7 +48,7 @@ git log --author="<AUTHOR_NAME>" --after="<AFTER_TS>" --before="<BEFORE_TS>" --d
 
 Parse each line into:
 - Hash
-- Timestamp (Local WIB)
+- Timestamp (local, in the chosen zone)
 - Subject / Commit Message
 
 ---

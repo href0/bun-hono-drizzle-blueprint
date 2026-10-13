@@ -78,10 +78,15 @@ Offer the choices and act only on an explicit answer:
 | Option | Commands | When |
 |---|---|---|
 | Keep history, track boilerplate upstream (recommended) | `git remote rename origin boilerplate` then the user adds their own `origin` | Wants to pull future boilerplate improvements |
-| Fresh history | delete `.git`, then `git init` and initial commit | Wants a clean repository |
+| Fresh history | the steps below | Wants a clean repository |
 | Leave as is | — | Will handle git manually |
 
-Deleting `.git` is irreversible: confirm explicitly right before running it.
+**Fresh history**, in this order:
+
+1. Confirm explicitly **right before** deleting: "This deletes `.git` — all boilerplate history and remotes. Continue?" Deleting `.git` is irreversible; proceed only on a clear yes.
+2. Delete `.git`, then `git init -b main`.
+3. `bun run prepare` — **mandatory**: Husky stores its hooks path (`core.hooksPath`) in `.git/config`, so a fresh `git init` has no hooks and commits would silently skip lint, typecheck and commitlint. `bun run setup` prints a warning whenever the hooks are not installed.
+4. The first commit only with the user's approval — the pre-commit and commit-msg hooks run on it: `git add -A` then a message such as `chore(setup): initialize <project-name> from the boilerplate` (one scope, `docs/standards/git-workflow.md` §2).
 
 ### 8. Report
 

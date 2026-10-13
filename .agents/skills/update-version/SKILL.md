@@ -5,7 +5,7 @@ description: Bump package.json version and update CHANGELOG.md according to the 
 
 # Update Version
 
-Update the `version` field in `package.json` based on the current branch and the project's branching strategy. Also generates or updates `CHANGELOG.md`.
+Update the `version` field in `package.json` based on the current branch and the project's branching strategy (branch names: `docs/standards/git-workflow.md` §1). Also generates or updates `CHANGELOG.md`.
 
 ---
 
@@ -69,3 +69,11 @@ bun install
 ### 6. Update CHANGELOG.md
 
 Update `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) standards with sections for `Added`, `Changed`, `Fixed`, and `Removed`.
+
+Build the entries from the commits since the last release tag (`git describe --tags --abbrev=0`; no tag → the whole history): `git log <tag>..HEAD --pretty=format:"%s"`. Conventional Commit types map to sections — `feat` → Added, `fix` → Fixed, `refactor` / `perf` → Changed, removals → Removed; `docs`, `test`, `chore`, `ci`, `build` only when they matter to users of the project. One line per change, in plain words, without the commit hash.
+
+---
+
+### 7. Hand Over
+
+Do NOT commit. Show the changed files and suggest the message `chore(release): bump version to <new-version>` (scope `release`, `docs/standards/git-workflow.md` §2); commit only when the user asks.

@@ -1,6 +1,6 @@
 # Quality Gates & Commands
 
-Read this file when: running checks before finishing a change, adding a `package.json` script, adding an ESLint rule, or wondering why a commit / push / CI job failed. `test/docs-sync.test.ts` fails when a `package.json` script is missing from the command table (§3).
+Read this file when: running checks before finishing a change (definition of done: §4), adding a `package.json` script, adding an ESLint rule, or wondering why a commit / push / CI job failed. `test/docs-sync.test.ts` fails when a `package.json` script is missing from the command table (§3).
 
 ---
 
@@ -30,7 +30,7 @@ Read this file when: running checks before finishing a change, adding a `package
 
 Local hooks can be skipped with `--no-verify`; CI runs everything again, branch name and commit messages included. `bun run test:int` is deliberately **not** in pre-push (it needs PostgreSQL + Redis): run it yourself before finishing a change to repositories or repository bases, transactions, migrations, auth, the partner gateway or the cache — the CI job `integration` runs it on every push. Run `bun run verify:scaffold` after changing a scaffold template, the scaffold CLI (`scripts/scaffold.ts`, `scripts/lib/scaffold.ts`) or a core API the templates use (errors, response, middlewares, dto, i18n, openapi, database, http).
 
-Before a change is finished: `bun run validate:full` and `bun run build` (plus the two above when they apply).
+Before a change is finished: `bun run validate:full` and `bun run build` (plus the two above when they apply) — the full definition of done is §4.
 
 ## 2. Gate rules
 
@@ -77,3 +77,30 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 | `bun run seed:admin --email <email> [--promote]` | Creates the first admin (password from a hidden prompt / stdin) | After the first migration; recovery of a locked-out admin |
 | `bun run auth:purge-tokens [--days N]` | Deletes expired refresh tokens | Schedule daily |
 | `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Signs a partner request (signing v1) and prints headers + curl, or sends it; secret from a hidden prompt / stdin | Testing `/api/v1/partner/*` or helping a partner match a signature |
+
+## 4. Definition of done (every change)
+
+A change is finished when every item that applies holds — for developers and agents alike (agents follow the skill `finish-change`, which routes here):
+
+1. **Gates green**: `bun run validate:full` and `bun run build`; `bun run test:int` and `bun run verify:scaffold` when §1 requires them.
+2. **Tests cover the new behaviour** — unit, plus e2e through `createApp()` when HTTP is involved. Every logic branch (classification, status mapping, fallback) has its own test: Bun's coverage counts lines, not branches.
+3. **A new rule is enforced by a machine** (or marked `[review-only]` with the reason), has its row in `ARCHITECTURE.md` §12, and is proven by a chaos test: break it, see the gate fail, restore, `git status` clean.
+4. **Docs in the same change**: the topic file in `docs/standards/` ([documentation.md](documentation.md)); routers only when their list of topics changes; `.env.example` for a new variable.
+5. **New endpoint**: `describeEndpoint()` with the response schema in `<module>.dto.ts` ([openapi.md](openapi.md)).
+6. **New environment variable**: a Zod field in `src/config/` and `.env.example` ([configuration.md](configuration.md)).
+7. **A value carrying the project name**: in `IDENTITY_RULES`; `bun run setup demo --dry-run` passes ([configuration.md](configuration.md)).
+8. **Schema change**: migration generated (`bun run db:generate`); applying it is the developer's call ([database.md](database.md) §4).
+9. **Commit**: one Conventional Commit with one valid scope ([git-workflow.md](git-workflow.md) §2); an agent leaves the change in the working tree with a suggested message and commits only when asked.
+
+Report a finished change with what was actually run — never a gate that was skipped as if it had passed:
+
+```text
+Change     : <what, in one line>
+Branch     : <type>/<slug>
+Summary    : <2–4 sentences: what and why>
+Files      : <main files>
+Verification: validate:full ✅/❌ · build ✅/❌ · test:int ✅/❌/n.a. · verify:scaffold ✅/❌/n.a. · coverage lines <x>% / functions <y>%
+Chaos tests: <each broken rule and the gate that caught it | none>
+Not verified: <what could not be checked, and why | none>
+Suggested commit: <type(scope): subject> (not committed)
+```
