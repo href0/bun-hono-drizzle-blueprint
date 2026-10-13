@@ -1,515 +1,375 @@
-# Architecture — Backend Bun + Hono + Drizzle
+# Architecture — Bun + Hono + Drizzle Backend
 
-> **Jenis dokumen**: Technical Architecture Document (TAD)
-> **Pembaca**: arsitek, tech lead, backend engineer, AI coding agent
-> **Lingkup**: arsitektur boilerplate ini dan setiap proyek yang dibuat darinya (`bun run setup <nama>`). Generik — tidak ada nama proyek, organisasi, atau vendor sungguhan.
+> **Document type**: Technical Architecture Document
+> **Readers**: architects, tech leads, backend engineers, AI coding agents
+> **Scope**: this boilerplate and every project created from it (`bun run setup <name>`). Generic — no project, institution or real vendor names.
 
-Dokumen ini menjelaskan **apa dan mengapa** setiap keputusan arsitektur. Kode lengkap, contoh, dan langkah kerja ada di sumbernya masing-masing — dokumen ini tidak menyalinnya agar tidak basi:
+This document explains **what and why** for every architectural decision. **How** — rules in detail, code patterns, commands — lives in one place per topic, [`docs/standards/`](docs/standards/), and is never restated here ([documentation.md](docs/standards/documentation.md)):
 
-| Topik | Sumber detail |
+| Topic | Source |
 |---|---|
-| Pohon direktori kanonik, perintah, contoh kode, aturan per bagian | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| Aturan untuk AI agent + standar implementasi per subsistem | [`.agents/AGENTS.md`](.agents/AGENTS.md), skill `project-standards` (+ `references/*.md`) |
-| Template modul / integrasi (terverifikasi `bun run verify:scaffold`) | skill `scaffold-module` |
-| Integrasi frontend (token, refresh, cookie, CSRF) | [`docs/auth-guide.md`](docs/auth-guide.md) |
-| Kontrak partner (signing v1, vektor uji, error) | [`docs/partner-integration-guide.md`](docs/partner-integration-guide.md) |
-| Rencana adopsi & log keputusan (D0–D31) | [`docs/plans/2026-10-04-blueprint-adoption-plan.md`](docs/plans/2026-10-04-blueprint-adoption-plan.md) |
-| Blueprint NestJS asal (arsip, tidak dipelihara) | [`docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) |
+| Directory tree, layer boundaries | [structure.md](docs/standards/structure.md) |
+| Gates and commands | [quality-gates.md](docs/standards/quality-gates.md) |
+| Controllers, validation, envelopes, errors, messages | [http-contract.md](docs/standards/http-contract.md) |
+| Authentication and inbound channels | [auth-and-inbound.md](docs/standards/auth-and-inbound.md) |
+| Data layer, transactions, raw SQL, time | [database.md](docs/standards/database.md), [transactions.md](docs/standards/transactions.md), [raw-queries.md](docs/standards/raw-queries.md), [datetime.md](docs/standards/datetime.md) |
+| Cache, logging, configuration, bootstrap | [cache.md](docs/standards/cache.md), [logging.md](docs/standards/logging.md), [configuration.md](docs/standards/configuration.md), [bootstrap.md](docs/standards/bootstrap.md) |
+| Outbound integrations, OpenAPI, testing | [integrations.md](docs/standards/integrations.md), [openapi.md](docs/standards/openapi.md), [testing.md](docs/standards/testing.md) |
+| Naming, new modules, git | [naming.md](docs/standards/naming.md), [new-module.md](docs/standards/new-module.md), [git-workflow.md](docs/standards/git-workflow.md) |
+| Frontend and partner guides | [docs/auth-guide.md](docs/auth-guide.md), [docs/partner-integration-guide.md](docs/partner-integration-guide.md) |
+| Adoption plan and decision log (D0…) | [docs/plans/2026-10-04-blueprint-adoption-plan.md](docs/plans/2026-10-04-blueprint-adoption-plan.md) |
+| Original NestJS blueprint (archive, not maintained) | [docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md](docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) |
 
-Setiap aturan di dokumen ini merujuk ke [§12 Indeks Aturan & Penegak](#12-indeks-aturan--penegak) (`R01`, `R02`, …), yang menyebut **mesin mana yang menolak pelanggarannya**.
+Every rule is referenced by its ID in [§12 Rule Index & Enforcers](#12-rule-index--enforcers) (`R01`, `R02`, …), which names **the machine that rejects a violation**.
 
 ---
 
-## 1. Ringkasan
+## 1. Summary
 
-### 1.1 Pilar Arsitektur
+### 1.1 Pillars
 
 ```
-├── [1] Pure Controllers & Kontrak Seragam → return ApiResponse; envelope, snake_case 2 arah & i18n otomatis
+├── [1] Pure Controllers & Uniform Contract → return ApiResponse; envelope, two-way snake_case, i18n built in
 ├── [2] Strict Layer Isolation              → Routes → Controller → Service → Repository (dependency-cruiser)
-├── [3] Declarative ACID Transactions       → @Transactional() di service + TransactionHost (AsyncLocalStorage)
-├── [4] Audited Data Layer                  → 4 base repository; setiap UPDATE/DELETE tercatat di record_changes
-├── [5] Default-Deny Access                 → JWT + refresh cookie (user), HMAC v1 (partner), verifier per vendor (webhook)
-├── [6] Zero-Trust Configuration            → process.env hanya di satu file; setiap grup divalidasi Zod saat start
+├── [3] Declarative ACID Transactions       → @Transactional() in services + TransactionHost (AsyncLocalStorage)
+├── [4] Audited Data Layer                  → 4 repository bases; every UPDATE/DELETE recorded in record_changes
+├── [5] Default-Deny Access                 → JWT + refresh cookie (users), HMAC v1 (partners), per-vendor verifier (webhooks)
+├── [6] Zero-Trust Configuration            → process.env read in one file; every group validated with Zod at start
 ├── [7] Resilient & Observable Platform     → Redis fail-open, Pino + request ID, health UP/DEGRADED/DOWN
-└── [8] Machine-Enforced Quality Gates      → tsc, ESLint AST, ls-lint, depcruise, knip, test penjaga, coverage, CI
+└── [8] Machine-Enforced Quality Gates      → tsc, ESLint AST, ls-lint, depcruise, knip, guard tests, coverage, CI
 ```
 
-Prinsip di balik semuanya: **aturan yang hanya tertulis akan dilanggar** — oleh manusia yang terburu-buru maupun oleh AI agent. Karena itu hampir setiap aturan ditegakkan mesin (§12); sisanya ditandai `[review-only]` beserta alasannya.
+The principle behind all of them: **a rule that is only written down will be broken** — by a hurried human as much as by an AI agent. So almost every rule is enforced by a machine (§12); the rest are marked `[review-only]` with the reason.
 
-### 1.2 Tech Stack
+### 1.2 Tech stack
 
-| Lapisan | Teknologi | Ketentuan |
+| Layer | Technology | Notes |
 |---|---|---|
-| Runtime | Bun ≥ 1.3 | `TZ=UTC` dipaksa saat start; `Bun.password` (argon2id), `Bun.randomUUIDv7()` |
-| HTTP | Hono 4 | `createApp()` dipakai server **dan** test (`app.request()`) |
-| Bahasa | TypeScript 5 strict | `noImplicitAny`, `strictNullChecks`, `noUnused*`, `noImplicitReturns` |
-| ORM | Drizzle ORM + driver `postgres` | Code-first, migrasi `drizzle-kit`, sesi DB `timezone=UTC` |
-| Database | PostgreSQL ≥ 16 | Tabel di `public`; view referensi read-only opsional |
-| Waktu | `temporal-polyfill` | Instant / tanggal kalender / jadwal lokal, tidak dicampur |
-| Cache & lock | Redis ≥ 2.6 (`ioredis`) | Fail-open, prefix otomatis, perintah berbahaya diblokir |
-| Validasi | Zod 3 | Satu schema = validasi + dokumentasi OpenAPI |
-| Dokumentasi API | OpenAPI 3.1 (`hono-openapi`) + Scalar | Dihasilkan dari kode, diuji |
-| Log | Pino | JSON, redaksi data sensitif, `requestId` + `actor` otomatis |
-| HTTP keluar | `HttpClientService` (Axios) | Hanya di `src/integrations/`, timeout wajib, error vendor di-mask |
-| Quality gate | ESLint 9, ls-lint, dependency-cruiser, knip, Prettier, `bun test`, Husky, GitHub Actions | §10 |
+| Runtime | Bun ≥ 1.3 | `TZ=UTC` forced at start; `Bun.password` (argon2id), `Bun.randomUUIDv7()` |
+| HTTP | Hono 4 | `createApp()` serves production **and** tests (`app.request()`) |
+| Language | TypeScript 5 strict | `noImplicitAny`, `strictNullChecks`, `noUnused*`, `noImplicitReturns` |
+| ORM | Drizzle ORM + `postgres` driver | Code-first, `drizzle-kit` migrations, DB session `timezone=UTC` |
+| Database | PostgreSQL ≥ 16 | Tables in `public`; optional read-only reference views |
+| Time | `temporal-polyfill` | Instant / calendar date / local schedule, never mixed |
+| Cache & locks | Redis ≥ 2.6 (`ioredis`) | Fail-open, automatic prefix, dangerous commands blocked |
+| Validation | Zod 3 | One schema validates and documents (OpenAPI) |
+| API docs | OpenAPI 3.1 (`hono-openapi`) + Scalar | Generated from the code, tested |
+| Logs | Pino | JSON, redaction, `requestId` + `actor` on every line |
+| Outbound HTTP | `HttpClientService` (Axios) | Only in `src/integrations/`, required timeout, vendor errors masked |
+| Gates | ESLint 9, ls-lint, dependency-cruiser, knip, Prettier, `bun test`, Husky, GitHub Actions | §10 |
 
 ---
 
-## 2. Struktur & Batas Lapisan
+## 2. Structure & Layers
 
-### 2.1 Struktur Direktori (ringkas)
-
-Pohon lengkap dan kanonik: [CONTRIBUTING §2.1](CONTRIBUTING.md#21-anatomi-direktori-standar) (dijaga `test/docs-sync.test.ts`).
-
-```
-src/
-├── config/        # Satu grup Zod per file; env-source.ts = satu-satunya pembaca process.env
-├── core/          # Lintas domain, tanpa domain & database: cache, context, dto, errors, http, i18n,
-│                  #   logger, middlewares, openapi, response, security
-├── database/      # Koneksi, TransactionHost, 4 base repository + AuditedRepository, schema/, seeds/, maintenance/
-├── integrations/  # Adapter vendor (registry.ts + <vendor>/): outbound service, verifier webhook — tanpa route
-├── modules/       # Modul domain (routes → controller → service → repository) per kanal inbound
-├── utils/         # Fungsi murni (datetime, crypto, case converter, signature partner, …)
-├── app.ts         # createApp(): pipeline middleware, router versi, WEBHOOK_VENDORS
-└── index.ts       # Bun.serve + graceful shutdown
-test/              # E2E (createApp().request), test penjaga kontrak, helpers, preload hermetik, integration/
-scripts/           # setup, scaffold verification, coverage gate, test:int runner, seed, partner:sign, …
-```
-
-### 2.2 Arah Dependensi
+Tree and full matrices: [structure.md](docs/standards/structure.md).
 
 ```
 modules ──► integrations ──► core ──► config
-   │             │             └────► utils (daun murni)
+   │             │             └────► utils (pure leaf)
    ├──► core     └──► config, utils
-   └──► database (TransactionHost, base repository, schema — tidak pernah connection.ts)
+   └──► database (TransactionHost, base repositories, schema — never connection.ts)
 database ──► core (request context, errors), utils, config
-database/schema ──► utils saja
-config ──► library saja (akar graf)
+database/schema ──► utils only
+config ──► libraries only (root of the graph)
 ```
 
-Mengapa: domain (`modules`) boleh bergantung pada infrastruktur, tidak sebaliknya — `core` dan `database` dipakai ulang oleh setiap modul, jadi tidak boleh tahu modul mana pun (R02). Modul tidak saling impor (R03): kebutuhan lintas modul diinjeksi lewat parameter konstruktor (contoh: `partnerAuth()` menerima lookup kredensial dari modul `partner-credentials` di `app.ts`).
+Why: the domain (`modules`) may depend on infrastructure, never the reverse — `core` and `database` are reused by every module, so they may not know any module (R02). Modules do not import each other (R03): a cross-module need is injected through a parameter (e.g. `partnerAuth()` receives the credential lookup of `partner-credentials` in `app.ts`). Inside a module the flow is one-way, Routes → Controller → Service → Repository, with pure transformers (R01).
 
-Di dalam modul alirannya satu arah (R01):
-
-```
-Routes ──► Controller ──► Service ──► Repository ──► PostgreSQL (TransactionHost)
-               │             ├──► Integrations (adapter vendor)
-               ▼             ▼
-          Transformer    Core / Utils
-```
-
-Matriks lengkap (siapa boleh mengimpor apa): [CONTRIBUTING §2.2](CONTRIBUTING.md#22-boundary-isolation-matrix-enforced-by-dependency-cruiser).
-
-### 2.3 Penamaan
-
-Nama file adalah **penanda yang dibaca mesin**: ESLint dan dependency-cruiser memilih aturan dari akhiran (`*.controller.ts`, `*.repository.ts`, `*.partner.routes.ts`). Nama yang "nyaris benar" (`x.partner-routes.ts`) akan lolos dari semua aturan, karena itu polanya diuji (R05, R06):
-
-- Modul: `<modul>[-<kualifier>][.partner|.webhook].<peran>[.test].ts`, `<peran>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util`.
-- Integrasi: `src/integrations/<vendor>/<vendor>.<peran>.ts` (`service`, `dto`, `webhook`, `webhook.dto`) atau `index.ts`.
-- Modul dinamai menurut **domain** (`messaging`), bukan vendor — ganti vendor = adapter baru, modul tetap (D26).
-- Kode TypeScript camelCase / PascalCase; `snake_case` hanya untuk nama SQL dan wire HTTP (R07).
+File names are **markers read by machines**: ESLint and dependency-cruiser choose rules by suffix (`*.controller.ts`, `*.partner.routes.ts`), so a near miss (`x.partner-routes.ts`) would escape every rule — hence the patterns are tested (R05, R06). Modules are named after their domain, never a vendor (D26). TypeScript is camelCase; snake_case is only for SQL and the wire (R07). Details: [naming.md](docs/standards/naming.md).
 
 ---
 
-## 3. HTTP Layer & Kontrak API
+## 3. HTTP Layer & API Contract
 
-### 3.1 Pipeline `createApp()`
+### 3.1 The `createApp()` pipeline
 
-Satu factory dipakai `src/index.ts` dan setiap test e2e, sehingga test menguji pipeline yang sama dengan produksi. Urutan (detail: `references/bootstrap.md`, plan L10):
+One factory serves `src/index.ts` and every e2e test, so tests run the production pipeline. Order (detail: [bootstrap.md](docs/standards/bootstrap.md) §3, plan L10):
 
 ```
- 1. requestContext()      request ID, locale, IP klien tepercaya, actor = anonymous (AsyncLocalStorage)
- 2. loggerMiddleware()    log request masuk/keluar
+ 1. requestContext()      request ID, locale, trusted client IP, actor = anonymous (AsyncLocalStorage)
+ 2. loggerMiddleware()    request in/out log
  3. secureHeaders()       security headers
- 4. cors()                hanya bila CORS_ORIGINS terisi (kosong = tanpa header CORS)
- 5. bodySizeLimit()       413 dalam envelope standar
- 6. rateLimit()           global per IP (Redis, fail-open) — kecuali health, partner, webhook;
-    rejectionLimit()      di prefix partner & webhook: per IP hanya jawaban 401/403 yang dihitung
- 7. health, docs          publik, di luar /v1
- 8. webhookAuth(vendor)   per WEBHOOK_VENDORS, lalu requireVerifiedWebhook() → fail-closed
+ 4. cors()                only when CORS_ORIGINS is set (empty = no CORS headers)
+ 5. bodySizeLimit()       413 in the standard envelope
+ 6. rateLimit()           global per IP (Redis, fail-open) — except health, partner, webhook;
+    rejectionLimit()      on the partner & webhook prefixes: per IP only 401/403 answers count
+ 7. health                public, outside /v1
+ 8. webhookAuth(vendor)   per WEBHOOK_VENDORS, then requireVerifiedWebhook() → fail-closed
  9. partnerAuth()         <base>/v1/partner/* (signing v1)
-10. authenticate()        <base>/v1/* default-deny, kecuali PUBLIC_ROUTES & partner terverifikasi
-11. v1 router             modul (requireRole per route); mountApiDocs() (mati di production)
-12. onError / notFound    globalErrorHandler, notFoundHandler (envelope error)
+10. authenticate()        <base>/v1/* default-deny, except PUBLIC_ROUTES and verified partners
+11. v1 router             modules (requireRole per route); mountApiDocs() (off in production)
+12. onError / notFound    globalErrorHandler, notFoundHandler (error envelope)
 ```
 
-### 3.2 Pure Controller
+### 3.2 Return-based controllers
 
-Controller hanya: ambil input tervalidasi (`getValidatedBody/Query/Params`) → panggil service → bentuk data lewat transformer → `return new ApiResponse(data, message, status, meta)`. Handler berupa field `name = asyncHandler(async (c) => …)` (R10, R11).
+A controller reads validated input, calls its service, shapes the result through a transformer and **returns** an `ApiResponse` (R10, R11). Why: when a controller writes its own response (`c.json()`), the envelope, snake_case conversion, message translation and time format can each be skipped; returning one object makes them happen in one place (`ApiResponse.toJSON()`), and controllers are testable without HTTP. Data leaves only through transformers typed by the response schema (R13).
 
-Mengapa: bila controller menulis response sendiri (`c.json()`), envelope, konversi snake_case, terjemahan pesan, dan format waktu bisa terlewat satu per satu. Dengan return-based controller, semua itu terjadi di satu tempat (`ApiResponse.toJSON()`), dan controller mudah diuji tanpa HTTP.
+### 3.3 Two-way snake_case
 
-### 3.3 Kontrak snake_case Dua Arah
+Responses are snake_case; request body and query must be snake_case — any other key is a 400 — and reach DTOs in camelCase (R12). Why two-way and strict: a symmetric contract (the frontend sends the names it receives), and `details[].field` on validation errors is always the name the frontend sent, so it maps straight onto a form (D10). Vendor webhooks keep the vendor's casing — it is their contract (R46).
 
-- Response selalu `snake_case` (`ApiResponse`, `globalErrorHandler`).
-- Request body & query wajib `snake_case`; key lain ditolak 400 `ERR_NON_SNAKE_CASE_KEY` (setiap key persis seperti dikirim), lalu dikonversi ke DTO camelCase. Kamus bebas: `preserveKeys`. Payload webhook vendor: `bodyKeys: 'verbatim'` (R12, R46).
-- Data keluar lewat transformer yang bertipe schema response — entity database tidak pernah dikirim mentah (R13).
+### 3.4 Envelopes & errors
 
-Mengapa dua arah dan strict: kontrak simetris (FE mengirim nama yang sama dengan yang diterima), dan `details[].field` pada error validasi selalu nama yang dikirim FE sehingga bisa dipetakan langsung ke form (D10).
+One success envelope and one error envelope (`type`, `code`, `origin`, `institution?`, `details?`, `request_id`, `timestamp`) for every endpoint. Domain failures are typed `ApiError`s (R14); `error.code` comes only from `APP_ERROR_CODES` because codes are a contract with the frontend — one list, no scattered literals (R15). A 500 never leaks internals (R18); a vendor failure never forwards the vendor's status or body (R52). 409 is `CONFLICT` (D12). Detail: [http-contract.md](docs/standards/http-contract.md).
 
-### 3.4 Envelope & Error
+### 3.5 Bilingual messages
 
-Sukses: `{ success, status_code, message, data, meta? }` — `meta` hanya untuk list terpaginasi. Error: `{ success: false, status_code, message, error: { type, code, origin, institution?, details? }, request_id, timestamp }`. Contoh lengkap: [CONTRIBUTING §3](CONTRIBUTING.md#3-standar-http-response--error-envelopes).
+Client-facing messages are `{ id, en }` (the type requires both), chosen from `Accept-Language` (default `id`, D11); `Error.message` stays English for uniform logs (R16).
 
-- Error domain = subclass `ApiError` (`ValidationError`, `BadRequestError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `ConflictError` (409, tipe `CONFLICT`), `PayloadTooLargeError`, `TooManyRequestsError`, `ServiceUnavailableError`, `ExternalServiceError`, `InternalServerError`) (R14).
-- `error.code` hanya dari registry `APP_ERROR_CODES` — kode adalah kontrak dengan FE, jadi satu daftar, tanpa literal tersebar (R15).
-- 500 tidak pernah membocorkan pesan / detail internal (R18); kegagalan vendor tidak meneruskan status maupun body vendor (R52).
+### 3.6 Routes, versions & documentation
 
-### 3.5 Pesan Dwibahasa
+The version is code, not configuration: `<API_BASE_PATH>/v1`; a breaking change is a new router (R19). Every route carries `describeEndpoint()`; body, parameters and 400/413 are documented by `validate()` from the same schemas, so documentation cannot drift from validation (R17). Detail: [openapi.md](docs/standards/openapi.md).
 
-Pesan ke client berupa `LocalizedMessage` `{ id, en }` — tipe memaksa setiap bahasa terisi. Bahasa dari `Accept-Language` (fallback `DEFAULT_LOCALE`, default `id`), diumumkan lewat `Content-Language`. `Error.message` tetap bahasa Inggris untuk log (R16).
+### 3.7 Date & time
 
-### 3.6 Route, Versi & Dokumentasi
-
-- Noun jamak kebab-case, maksimal dua level; level kedua hanya untuk detail milik header (`/<headers>/:id/<details>`).
-- Versi adalah kode, bukan env: `<API_BASE_PATH>/v1`; breaking change = router baru `v2` (R19).
-- Setiap route punya `describeEndpoint()` (summary, envelope sukses, error domain). Body, parameter, 400/413 didokumentasikan `validate()` dari schema yang sama; 429/500 dan header umum ditambahkan builder — dokumentasi tidak bisa menyimpang dari validasi (R17). Tersaji di `<API_BASE_PATH>/docs` kecuali production.
-
-### 3.7 Tanggal & Waktu
-
-Tiga jenis, tidak dicampur: **instant** (`*_at`, `timestamptz`, ISO 8601 UTC; request wajib ber-offset), **tanggal kalender** (`*_date`, `date`, `YYYY-MM-DD`), **jadwal lokal** (instant + zona IANA `*_timezone`; jam yang dilompati / terulang DST ditolak). Parsing dan konversi hanya di `src/utils/datetime.util.ts`; runtime dan sesi DB di UTC (R20–R22). Mengapa: bug zona waktu muncul diam-diam saat server, DB, dan klien berada di zona berbeda — satu jalur konversi membuatnya tidak mungkin. Panduan: `references/datetime.md`.
+Three kinds, never mixed — instant (`*_at`), calendar date (`*_date`), local schedule (instant + `*_timezone`); parsing and conversion only in `datetime.util.ts`; process and DB session in UTC; DST-skipped or repeated wall times are rejected, never guessed (R20–R22, D13). Why: time-zone bugs appear silently when server, database and client sit in different zones — one conversion path makes them impossible. Detail: [datetime.md](docs/standards/datetime.md).
 
 ---
 
-## 4. Autentikasi & Kanal Inbound
+## 4. Authentication & Inbound Channels
 
-### 4.1 Tiga Kanal, Tiga Pemilik Kontrak
+| Caller | Channel | Authenticated by | Actor |
+|---|---|---|---|
+| Users (FE, mobile) | `<base>/v1/<module>` | JWT Bearer (`authenticate()`) | `user:<id>` |
+| Partner systems | `<base>/v1/partner/...` | HMAC signing v1 (`partnerAuth()`) | `partner:<code>` |
+| Vendor webhooks | `<base>/webhooks/<vendor>` (outside `/v1`) | the vendor's verifier (`webhookAuth()`) | `webhook:<vendor>` |
+| No request (jobs, seeds) | — | — | `system` |
 
-| Pemanggil | File | Prefix | Autentikasi | Actor |
-|---|---|---|---|---|
-| User (FE, mobile) | `<modul>.<peran>.ts` | `<base>/v1/<modul>` | `authenticate()` — JWT Bearer | `user:<id>` |
-| Sistem partner | `<modul>.partner.<peran>.ts` | `<base>/v1/partner/...` | `partnerAuth()` — signing HMAC v1 | `partner:<kode>` |
-| Webhook vendor | `<modul>.webhook.<peran>.ts` | `<base>/webhooks/<vendor>` (di luar `/v1`) | `webhookAuth()` — verifier per vendor | `webhook:<vendor>` |
-| Tanpa request (job, seed) | — | — | — | `system` |
+- **Separate channels** (D23): the partner contract is ours, a webhook contract is the vendor's. Loosening `partnerAuth()` for one vendor would weaken every partner. Each channel's helpers are allowed only in its files (R43), and channel routers only under their prefix (R44).
+- **Users** (D1–D7): short-lived JWT access token (15 min) in the body; an opaque refresh token in an `HttpOnly; Secure; SameSite=Strict` cookie, stored hashed, rotated on every refresh, with reuse revoking the whole family (theft detection) (R40, R41). Opaque + database instead of a stateless JWT refresh because it must be revocable; database instead of Redis because Redis is fail-open and auth state must not vanish. **Default-deny** (D7): authentication is mounted once for all of `/v1`, with a short `PUBLIC_ROUTES` list — forgetting to add auth is no longer a hole, because there is nothing to add (R38). RBAC per route (R39).
+- **Partners** (D21, D27–D29): signed requests (timestamp, single-use nonce, signature over method + path + query + body), IP whitelist, route ACL, per-partner rate limit (R42). Nonce and rate limit use fail-open Redis — a conscious trade for gateway availability — so partner writes must be idempotent per `(partner_code, partner_reference)` (R47). An endpoint for one partner adds `requirePartner()` so an admin's ACL mistake cannot open it to others.
+- **Webhooks** (D23, D28): the verifier follows the vendor's scheme; the prefix is fail-closed (R45); events are stored unique per `(vendor, event_id)` and processed in the same transaction, so a vendor retry is answered 200 without running twice (R47).
 
-Mengapa dipisah (D23): kontrak partner milik kita (signing v1), kontrak webhook milik vendor (skema signature mereka). Melonggarkan `partnerAuth()` demi satu vendor akan melemahkan semua partner. Helper tiap kanal hanya boleh dipakai di file kanalnya (R43), dan router kanal hanya dipasang di prefix-nya (R44).
-
-### 4.2 User: JWT + Refresh Cookie
-
-- Login → access token JWT HS256 (TTL default 15 menit) di body; refresh token **opaque** di cookie `HttpOnly; Secure; SameSite=Strict`, hanya hash SHA-256 yang disimpan (`auth_refresh_tokens`) (D1–D3).
-- Setiap refresh merotasi token; token lama yang dipakai ulang mencabut seluruh *family* (deteksi pencurian). Endpoint ber-cookie memakai `csrfProtection()` (`Origin` ∈ `CORS_ORIGINS`) (R40, R41).
-- **Default-deny** (D7): `authenticate()` dipasang sekali untuk semua `<base>/v1/*`; pengecualian hanya daftar pendek `PUBLIC_ROUTES` (login, refresh, logout, register). Lupa memasang auth bukan lagi celah, karena tidak ada yang perlu dipasang (R38).
-- Otorisasi RBAC: `requireRole(...)` / `requireSelfOrRole(...)` per route → 403 `ERR_ROLE_FORBIDDEN` (R39).
-- Access token tidak dicek ulang ke DB: perubahan role / nonaktif / ganti password berlaku penuh setelah token habis; refresh berikutnya sudah ditolak.
-
-Panduan FE: [`docs/auth-guide.md`](docs/auth-guide.md).
-
-### 4.3 Partner: Signing v1
-
-`partnerAuth()` memeriksa berurutan: header lengkap → jendela timestamp → API key aktif (lookup by hash, di-cache) → IP whitelist → `allowed_routes` → signature HMAC-SHA256 atas `v1\n<timestamp>\n<nonce>\n<METHOD>\n<path>\n<query kanonik>\n<sha256(body)>` → nonce sekali pakai → rate limit per partner. API key disimpan sebagai hash, secret HMAC terenkripsi AES-256-GCM dengan keyring yang bisa dirotasi; keduanya hanya ditampilkan sekali (R42).
-
-Nonce dan rate limit memakai Redis yang fail-open: saat Redis mati, perlindungan tersisa adalah jendela timestamp — pilihan sadar demi ketersediaan gateway. Karena itu **penulisan oleh partner wajib idempoten** per `(partner_code, partner_reference)` (D28, R47). Endpoint untuk satu partner saja menambah `requirePartner('<kode>')`, agar salah konfigurasi `allowed_routes` tidak membukanya ke partner lain (D27). Spesifikasi untuk partner: [`docs/partner-integration-guide.md`](docs/partner-integration-guide.md).
-
-### 4.4 Webhook Vendor
-
-Verifier (`src/integrations/<vendor>/<vendor>.webhook.ts`) mengikuti skema signature vendor dan didaftarkan hanya di `WEBHOOK_VENDORS` (`app.ts`). Prefix `<base>/webhooks/*` **fail-closed**: request yang tidak diterima verifier mana pun → 401. Event disimpan di `webhook_events` (unik `(vendor, event_id)`) dan diproses dalam transaksi yang sama, sehingga retry vendor dijawab 200 tanpa diproses dua kali (R45, R47).
+Detail: [auth-and-inbound.md](docs/standards/auth-and-inbound.md).
 
 ---
 
 ## 5. Data Layer
 
-Panduan lengkap: `references/database.md`; tabel aturan: [CONTRIBUTING §5.3](CONTRIBUTING.md#53-aturan-data-layer-yang-ditegakkan-mesin).
+- **One database per project, tables in `public`** (D14) through `appTable`; data owned by other systems is read through `.existing()` views that are never migrated and cannot be written (R23). Columns only through helpers (R24); UUID v7 primary keys generated by the app (time-ordered B-tree inserts, not guessable), `bigint` identity only for high-volume record tables (D15). Conventions are tested on every exported table (R25).
+- **Four repository bases** by table kind — `BaseRepository` (standalone / header, soft delete, actor stamps), `ChildRepository` (details only through their live header: no IDOR, one lock order, sync from a form), `AppendOnlyRepository` (records), `ReadOnlyRepository` (reference views) (R26). One approved exception: the refresh-token repository (R27).
+- **Transactions** (D8): `@Transactional()` in services, `TransactionHost` in repositories, carried by AsyncLocalStorage — atomicity without passing `tx` around, and services stay free of the Hono `Context` (R30–R32).
+- **Audit** (D16): update, soft delete, restore and detail delete lock the row and append to `record_changes` **in the same transaction** — a rolled-back change leaves no audit row, and the shortcuts around the bases fail lint (R27–R29, R33, R35). A unique conflict is a 409, never a 500 (R36). `record_changes` is partition-ready.
+- **Raw SQL** only where the query builder cannot express it, parameterized, read-only, in `*.queries.ts` (R29, R37).
 
-### 5.1 Tabel & Kolom
-
-- Proyek memiliki database sendiri: semua tabel di `public` lewat `appTable(...)` (D14). Data milik sistem lain dibaca lewat view `referenceSchema.view(...).existing()` — tidak dimigrasi, dan `insert` gagal saat kompilasi (R23).
-- Kolom hanya lewat helper (`uuidPrimaryKey`, `timestamps`, `instant`, `calendarDate`, `auditColumns`, `softDelete`, `parentReference`, `activeUniqueIndex`) (R24). Primary key UUID v7 (dibuat aplikasi, index B-tree tetap berurutan); `bigint` identity hanya untuk tabel pencatatan di `APPEND_ONLY_TABLES` (D15).
-- Konvensi diuji pada setiap tabel yang diekspor: FK ter-index, unique di tabel soft delete memakai `activeUniqueIndex()`, `record_changes` siap partisi (R25).
-
-### 5.2 Jenis Tabel & Base Repository
-
-| Jenis | Ciri | Repository |
-|---|---|---|
-| Mandiri / header | Berdiri sendiri, soft delete, `created_by` / `updated_by` dari actor | `BaseRepository` |
-| Detail | Hanya bermakna di bawah satu header, hard delete + snapshot | `ChildRepository` (selalu lewat header hidup → anti IDOR, `syncForParent`) |
-| Pencatatan | Append-only, volume besar | `AppendOnlyRepository` |
-| Referensi | Milik sistem lain, read-only | `ReadOnlyRepository` |
-
-Setiap repository modul meng-extend salah satunya (R26). Satu-satunya pengecualian yang disetujui: repository refresh token (rotasi bervolume tinggi; jejaknya `revoked_at` + `replaced_by_id`) (R27).
-
-### 5.3 Transaksi
-
-```
-Service @Transactional()  ──►  Repository (this.txHost.tx)  ──►  PostgreSQL
-  commit / rollback otomatis     ikut transaksi aktif (AsyncLocalStorage) atau pool
-```
-
-`@Transactional()` hanya di service, `TransactionHost` hanya di repository / `*.queries.ts`, transaksi tidak pernah disimpan di variabel (aturan tulis mengenali `tx` dari namanya) (R30–R32). Mengapa AsyncLocalStorage: atomisitas tanpa mengoper `tx` ke setiap fungsi, dan service tetap bebas dari Hono `Context` (D8).
-
-### 5.4 Audit Perubahan (`record_changes`)
-
-Update (kolom yang berubah saja), soft delete, restore, dan delete detail (snapshot) **mengunci baris lalu menulis `record_changes` dalam transaksi yang sama**, dengan actor dan request ID; kolom sensitif → `redact`. INSERT tidak dicatat (baris membawa `created_*`). Jalan pintasnya ditutup: tanpa `tx.update` / `tx.delete` di repository modul, tanpa penulisan di luar repository, tanpa raw `UPDATE` / `DELETE`, tanpa menulis `recordChanges` langsung (R27–R29, R33, R35). Konflik unik selalu 409, bukan 500 (R36).
-
-### 5.5 Raw SQL
-
-Query builder dulu. Raw SQL hanya untuk yang tidak bisa diekspresikan (window function, recursive CTE): template `` sql`…` `` (parameterized; `sql.raw` dilarang), di fungsi murni `<modul>.queries.ts`, baca saja, dan wajib menulis filter `deleted_at IS NULL` sendiri (R29, R37). Panduan: `references/raw-queries.md`.
+Detail: [database.md](docs/standards/database.md), [transactions.md](docs/standards/transactions.md), [raw-queries.md](docs/standards/raw-queries.md).
 
 ---
 
-## 6. Cache (Redis Fail-Open)
+## 6. Cache (Redis, fail-open)
 
-1. Redis hanya lewat `CacheService` (R54); key dari `CACHE_KEYS`, TTL dari `CACHE_TTL` (R56).
-2. **Fail-open**: Redis mati / lambat (> `REDIS_COMMAND_TIMEOUT_MS`) → fetcher DB tetap dipanggil; request tidak gagal karena cache, health melaporkan `DEGRADED` (R55).
-3. Prefix `<APP_NAME>:<NODE_ENV>:` otomatis — banyak proyek dan environment bisa berbagi satu Redis; `FLUSHALL` / `FLUSHDB` / `KEYS` diblokir (D22).
-4. Reconnect tanpa batas (backoff ≤ 30 dtk), offline queue mati (command gagal cepat, tidak menumpuk).
-5. Primitif: `getOrSet(…, { negativeTtl })` untuk lookup dari input tak tepercaya, `setIfAbsent` (nonce / idempotensi), `increment` atomik (rate limit).
-
-Mengapa fail-open, dan konsekuensinya: cache adalah optimasi, bukan sumber kebenaran — state yang tidak boleh hilang (refresh token, idempotensi) disimpan di PostgreSQL (D1, D28). Panduan: `references/redis-cache.md`.
+Redis only through `CacheService` (R54), keys from `CACHE_KEYS` (R56). **Fail-open**: Redis down or slow → the fetcher runs, the request never fails because of the cache, health reports `DEGRADED` (R55). Automatic `<APP_NAME>:<NODE_ENV>:` prefix so projects and environments can share one Redis; `FLUSHALL` / `FLUSHDB` / `KEYS` blocked (D22). Why fail-open, and its consequence: the cache is an optimization, not a source of truth — state that must not be lost (refresh tokens, idempotency) lives in PostgreSQL (D1, D28). Detail: [cache.md](docs/standards/cache.md).
 
 ---
 
-## 7. Observability, Konfigurasi & Platform
+## 7. Observability, Configuration & Platform
 
-### 7.1 Logging
-
-`console.*` dilarang; logger Pino singleton dengan format `logger.info({ field }, 'pesan statis')`. `requestId` dan `actor` ditambahkan otomatis dari request context. Redaksi otomatis untuk key sensitif (password, token, secret, API key, header `authorization` / `cookie`, …) (R59).
-
-### 7.2 Request ID & Konteks
-
-`X-Request-ID` dari gateway diterima bila formatnya aman (`^[A-Za-z0-9._:-]{1,128}$`, mencegah log injection), selain itu UUID v7 baru (D9). Dipakai di log, envelope error, `record_changes`, dan diteruskan ke vendor. Konteks request (`requestId`, `actor`, `locale`, `clientIp`) di AsyncLocalStorage (R60).
-
-### 7.3 Konfigurasi
-
-`process.env` hanya dibaca `src/config/env-source.ts` (R57). Satu grup per file (`<group>.config.ts`), divalidasi Zod saat di-import: aplikasi berhenti dengan daftar variabel yang salah (nama + aturan, tanpa nilai). Nama variabel lama yang masih diset ditolak (`RENAMED_ENV_VARS`), agar penggantian nama tidak mematikan fitur diam-diam (R58). Registry lengkap: plan L1 + `.env.example`.
-
-### 7.4 Keamanan Platform
-
-Security headers; CORS allowlist (kosong = mati); IP klien = `TRUST_PROXY_HOPS` (bukan `X-Forwarded-For` mentah); batas body (413); rate limit global per IP via Redis (berlaku lintas instance) — prefix partner & webhook memakai limit sendiri (D29). File `.env` aktif tidak pernah dibaca AI agent (R70).
-
-### 7.5 Health
-
-| Endpoint | Untuk | Perilaku |
-|---|---|---|
-| `GET <base>/health` | Dashboard | Selalu 200; `UP` / `DEGRADED` (Redis mati) / `DOWN` (DB mati) |
-| `GET <base>/health/readiness` | Load balancer / orkestrator | 503 hanya bila database mati |
-| `GET <base>/health/liveness` | Orkestrator | Proses hidup, tanpa cek dependency |
-
-Probe database dibatasi 2 detik (R62).
-
-### 7.6 Container & Identitas Proyek
-
-`Dockerfile` multi-stage Bun Alpine, user non-root, `TZ=UTC`; `docker-compose.yml` untuk PostgreSQL 16 + Redis 7 lokal (opsional — layanan native juga didukung). Nilai yang membawa nama proyek (nama package, `APP_NAME`, database, container, judul README) terdaftar di `IDENTITY_RULES` (`scripts/setup.ts`), sehingga `bun run setup <nama>` mengganti semuanya dan gagal bila satu aturan tidak lagi cocok (R61).
+- **Logging**: no `console.*`; Pino with `requestId` and `actor` added from the request context, sensitive keys redacted (R59). Detail: [logging.md](docs/standards/logging.md).
+- **Request ID** (D9): an inbound `X-Request-ID` is accepted only in a safe format (prevents log injection), otherwise a UUID v7; it appears in logs, error envelopes, `record_changes` and outbound calls (R60).
+- **Configuration**: `process.env` read in one file (R57); every group validated with Zod at start, naming wrong variables without values; renamed variables refused so a rename never switches a feature off silently (R58). Detail: [configuration.md](docs/standards/configuration.md).
+- **Platform security**: security headers, CORS allowlist (empty = off), client IP through `TRUST_PROXY_HOPS` (never raw `X-Forwarded-For`), body limit, global per-IP rate limit in Redis (valid across instances; D18, D29). Agents never read active env files (R70).
+- **Health**: `<base>/health` always 200 with `UP` / `DEGRADED` (Redis down) / `DOWN` (DB down); readiness 503 only when the database is down; liveness without dependency checks; DB probe capped at 2 s (R62).
+- **Container & identity**: multi-stage Bun Alpine image, non-root, `TZ=UTC`; compose for local PostgreSQL 16 + Redis 7 (optional — native services work too). Values carrying the project name are `IDENTITY_RULES`, so `bun run setup <name>` rewrites them all and fails when one stops matching (R61).
 
 ---
 
-## 8. Integrasi Outbound
+## 8. Outbound Integrations
 
-- Adapter vendor hanya di `src/integrations/<vendor>/`: tanpa route / controller, tidak bergantung pada modul, database, atau vendor lain (R51). Modul domain memakai service adapter; controller tidak (R49).
-- Semua panggilan lewat `HttpClientService`: keep-alive pool, **timeout wajib**, `X-Request-ID` diteruskan, body vendor divalidasi (`parse()`); `fetch` / `axios` langsung ditolak (R49, R50, R52).
-- Kegagalan vendor → `ExternalServiceError` (504 timeout, 502 lainnya) dengan `error.origin` (kode) + `error.institution` (nama) dari `INTEGRATION_REGISTRY`; status dan body vendor **tidak** diteruskan ke client, body hanya di log dengan redaksi (R52, R53).
-- Vendor berbasis login: `AccessTokenCache` (token dipakai ulang sampai hampir habis, satu login bersama untuk request paralel, login ulang sekali saat vendor menjawab 401).
-- Backlog: retry + circuit breaker, cache token bersama antar instance (plan L12).
-
-Panduan: `references/integrations.md`; template: `scaffold-module` → `references/integration.md`.
+Vendor adapters live only in `src/integrations/<vendor>/` — no routes, no controllers, no dependency on modules, the database or other vendors (R51); domain services use them, controllers do not (R49). Every call goes through `HttpClientService`: keep-alive pool, **required timeout**, `X-Request-ID` forwarded, vendor bodies validated; raw `fetch` / `axios` is rejected (R49, R50, R52). A vendor failure becomes 504 / 502 with `error.origin` + `error.institution` from `INTEGRATION_REGISTRY` and never the vendor's status or body (R52, R53). Why: the client must not depend on a vendor's error format, and vendor bodies may carry secrets. Login-based vendors share one token per process (`AccessTokenCache`, single-flight). Backlog: retry + circuit breaker, a token shared across instances. Detail: [integrations.md](docs/standards/integrations.md).
 
 ---
 
 ## 9. Testing
 
-| Lapisan | Lokasi | Infrastruktur |
+| Layer | Location | Infrastructure |
 |---|---|---|
-| Unit | `src/**/*.test.ts` (co-located) | Dependensi diinjeksi lewat default parameter; perekam SQL (`test/helpers/sql-recorder.ts`) me-render SQL asli |
-| E2E / kontrak | `test/*.e2e.test.ts` | `createApp().request(...)`, tanpa layanan asli |
-| Penjaga | `test/*.test.ts` | Struktur, default-deny, OpenAPI, sinkron dokumen, migrasi, skill agent |
-| Integration | `test/integration/*.int.ts` | PostgreSQL + Redis asli, database sekali pakai per run (`bun run test:int`, job CI `integration`) |
+| Unit | `src/**/*.test.ts` (co-located) | Dependencies injected through default parameters; SQL recorder renders real SQL |
+| E2E / contract | `test/*.e2e.test.ts` | `createApp().request(...)`, no real services |
+| Guards | `test/*.test.ts` | Structure, default-deny, OpenAPI, docs sync, migrations, agent skills |
+| Integration | `test/integration/*.int.ts` | Real PostgreSQL + Redis, a disposable database per run |
 
-- **Hermetik**: `bun test` tidak pernah menyentuh database / Redis pengembang (preload `test/setup/hermetic-env.ts`); `mock.module()` dilarang karena bocor ke file test lain (R64).
-- **Coverage gate**: ambang hanya di `scripts/check-coverage.ts` (global lines & functions 95, per file lines 90), dihitung dari file sumber saja, dan setiap file `src/` wajib dimuat test. Bun belum melaporkan branch coverage, jadi setiap cabang logika diberi test eksplisit (R63).
-- **Integration suite** untuk yang tidak bisa dibuktikan dengan mock: lock baris, rollback, unique index, Lua Redis, race. Wajib dijalankan saat mengubah repository, transaksi, migrasi, auth, partner gateway, atau cache (R65).
-- Perilaku generik (soft delete, audit, sync detail) diuji sekali di `src/database/`; test modul hanya menguji logikanya sendiri.
-
-Panduan: `references/testing.md`.
+Hermetic by default — `bun test` never touches a developer's database or Redis, and `mock.module()` is banned because it leaks across files (R64). Coverage over source files only, every file loaded by a test; Bun reports no branch coverage, so every branch gets an explicit test (R63). The integration suite proves what mocks cannot — row locks, rollbacks, unique indexes, Lua, races (R65). Generic behaviour (soft delete, audit, detail sync) is tested once in `src/database/`. Detail: [testing.md](docs/standards/testing.md).
 
 ---
 
 ## 10. Quality Gates
 
-```
-pre-commit   lint-staged (ESLint --fix, Prettier) · tsc --noEmit · ls-lint
-commit-msg   commitlint (Conventional Commits)
-pre-push     validate:full = typecheck → lint → ls-lint → format:check → depcruise → knip
-             → lint:setup → lint:branch → test + coverage gate
-CI           job verify: nama branch + commitlint (PR) → semua gate di atas → build → verify:scaffold
-             job integration: bun run test:int (PostgreSQL + Redis sebagai service container)
-```
-
-Hook lokal bisa dilewati (`--no-verify`); CI menjalankan ulang semuanya. Template `scaffold-module` diverifikasi dengan men-generate setiap varian dan menjalankan semua gate (`verify:scaffold`), sehingga template tidak bisa tertinggal dari kode (R67). Perintah lengkap: [CONTRIBUTING §1](CONTRIBUTING.md#1-quality-gates--automated-enforcement).
+pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`). Local hooks can be skipped, CI cannot. Scaffold templates are verified by generating every variant and running every gate, so they cannot fall behind the code (R67). Detail: [quality-gates.md](docs/standards/quality-gates.md).
 
 ---
 
 ## 11. AI Agent Governance
 
-Aturan untuk AI coding agent adalah bagian dari arsitektur, bukan dokumentasi tambahan — agent menghasilkan kode lebih cepat daripada manusia bisa me-review, jadi gate yang sama berlaku untuk keduanya:
+Rules for AI agents are part of the architecture: an agent produces code faster than a human can review it, so the same gates hold both. And because agents read the **same** `docs/standards/` as humans, a standard changed in one file reaches both (R73).
 
-| Komponen | Peran |
+| Component | Role |
 |---|---|
-| `.agents/AGENTS.md` (diimpor `CLAUDE.md`) | Aturan MANDATORY: invariant arsitektur, proteksi `.env`, alur kerja per step |
-| `skills/project-standards` (+ `references/`) | Standar kode per subsistem; wajib dibaca sebelum menulis kode |
-| `skills/scaffold-module` | Template modul / integrasi yang lolos semua gate tanpa edit manual |
-| `skills/init-project`, `generate-commit-text`, `update-version`, `generate-logbook`, `env-protection` | Alur kerja proyek |
-| `.claude/` | Wrapper skill untuk Claude Code (dijaga `test/agent-skills.test.ts`); `permissions.deny` + hook memblokir pembacaan `.env` aktif |
+| `.agents/AGENTS.md` (imported by `CLAUDE.md`) | What only agents need: mandatory reading, the work plan, `.env` protection, never commit / merge unasked |
+| skill `project-standards` | Router: which `docs/standards/` file to read before touching what |
+| skill `scaffold-module` | Template code for new modules / adapters (verified) |
+| skills `init-project`, `generate-commit-text`, `update-version`, `generate-logbook`, `env-protection` | Project workflows |
+| `.claude/` | Claude Code wrappers (`test/agent-skills.test.ts`); `permissions.deny` + a hook blocking active `.env` files |
 
-Agent hanya menjalankan perintah ke database **lokal** developer dengan izin eksplisit; tidak pernah ke database bersama / production. Agent tidak melakukan commit / merge tanpa permintaan user.
+Agents run database commands only against the developer's **local** database with explicit permission — never a shared or production one.
 
 ---
 
-## 12. Indeks Aturan & Penegak
+## 12. Rule Index & Enforcers
 
-Label penegak (dicek `test/docs-sync.test.ts`: setiap baris punya label, setiap label menunjuk sesuatu yang ada):
+Labels (checked by `test/docs-sync.test.ts`: every row has one, every label points at something that exists):
 
-| Label | Artinya |
+| Label | Meaning |
 |---|---|
-| `[tsc]` | Ditolak compiler TypeScript (`bun run typecheck`) |
-| `[eslint:<nama>]` | Rule atau grup rule di `eslint.config.mjs` (`bun run lint`) |
-| `[depcruise:<nama>]` | Rule di `.dependency-cruiser.cjs` (`bun run lint:arch`) |
+| `[tsc]` | Rejected by the TypeScript compiler (`bun run typecheck`) |
+| `[eslint:<name>]` | A rule or rule group in `eslint.config.mjs` (`bun run lint`) |
+| `[depcruise:<name>]` | A rule in `.dependency-cruiser.cjs` (`bun run lint:arch`) |
 | `[ls-lint]` | `.ls-lint.yml` (`bun run lint:ls`) |
-| `[test:<nama>]` | File test `<nama>.test.ts` / `<nama>.int.ts` yang gagal saat aturan dilanggar |
-| `[script:<nama>]` | Script `package.json` yang gagal saat aturan dilanggar |
-| `[ci:<job>]` | Job di `.github/workflows/ci.yml` |
-| `[hook:<file>]` | Hook Git (Husky) atau hook Claude Code yang menolak tindakan |
-| `[review-only]` | Belum bisa dicek mesin — reviewer yang memeriksa (alasan di kolom aturan) |
+| `[test:<name>]` | The test file `<name>.test.ts` / `<name>.int.ts` that fails on a violation |
+| `[script:<name>]` | The `package.json` script that fails on a violation |
+| `[ci:<job>]` | A job in `.github/workflows/ci.yml` |
+| `[hook:<file>]` | A Git (Husky) or Claude Code hook that refuses the action |
+| `[review-only]` | Not machine-checkable yet — reviewers check it (the reason is in the rule) |
 
-### Struktur & Lapisan
+### Structure & layers
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R01 | Alur modul satu arah Routes → Controller → Service → Repository; transformer murni | [depcruise:routes-no-service-or-repo] [depcruise:controller-no-repository] [depcruise:service-no-controller-or-routes] [depcruise:service-no-transformer] [depcruise:repository-no-service-or-controller] [depcruise:transformer-pure] |
-| R02 | Batas lapisan teratas: config akar, utils murni, core tanpa domain / database / integrasi, database tanpa modul, schema hanya utils | [depcruise:strict-config-isolation] [depcruise:strict-utils-isolation] [depcruise:strict-core-isolation] [depcruise:strict-database-isolation] [depcruise:strict-schema-isolation] |
-| R03 | Modul tidak saling impor | [depcruise:no-cross-module-deps] |
-| R04 | Tanpa dependensi melingkar, file yatim, import tak ter-resolve atau tak terdaftar, kode sumber yang mengimpor test; tanpa file / export / dependency tak terpakai | [depcruise:no-circular] [depcruise:no-orphans] [depcruise:not-to-unresolvable] [depcruise:not-to-unlisted-dep] [depcruise:no-test-in-src] [script:lint:deps] |
-| R05 | Nama folder dan setiap segmen titik nama file kebab-case | [ls-lint] [test:structure] |
-| R06 | Pola nama file modul & integrasi; modul tidak dinamai vendor; `*.int.ts` hanya di `test/integration/` | [test:structure] |
-| R07 | Identifier TypeScript camelCase / PascalCase / UPPER_CASE (snake_case hanya nama SQL) | [eslint:@typescript-eslint/naming-convention] |
-| R08 | TypeScript strict, tanpa `any` dan operasi tak aman | [tsc] [eslint:@typescript-eslint/no-explicit-any] [eslint:@typescript-eslint/no-unsafe-assignment] |
-| R09 | Format kode Prettier (`*.ts`; Markdown ditulis tangan) | [script:format:check] |
+| R01 | One-way module flow Routes → Controller → Service → Repository; pure transformers | [depcruise:routes-no-service-or-repo] [depcruise:controller-no-repository] [depcruise:service-no-controller-or-routes] [depcruise:service-no-transformer] [depcruise:repository-no-service-or-controller] [depcruise:transformer-pure] |
+| R02 | Top-level layers: config is the root, utils pure, core without domain / database / integrations, database without modules, schema only utils | [depcruise:strict-config-isolation] [depcruise:strict-utils-isolation] [depcruise:strict-core-isolation] [depcruise:strict-database-isolation] [depcruise:strict-schema-isolation] |
+| R03 | Modules do not import each other | [depcruise:no-cross-module-deps] |
+| R04 | No circular dependencies, orphans, unresolvable or unlisted imports, source importing tests; no unused files / exports / dependencies | [depcruise:no-circular] [depcruise:no-orphans] [depcruise:not-to-unresolvable] [depcruise:not-to-unlisted-dep] [depcruise:no-test-in-src] [script:lint:deps] |
+| R05 | Folders and every dot segment of a file name are kebab-case | [ls-lint] [test:structure] |
+| R06 | Module and integration file patterns; modules not named after vendors; `*.int.ts` only in `test/integration/` | [test:structure] |
+| R07 | TypeScript identifiers camelCase / PascalCase / UPPER_CASE (snake_case only for SQL names) | [eslint:@typescript-eslint/naming-convention] |
+| R08 | Strict TypeScript, no `any` or unsafe operations | [tsc] [eslint:@typescript-eslint/no-explicit-any] [eslint:@typescript-eslint/no-unsafe-assignment] |
+| R09 | Code formatted by Prettier (`*.ts`; Markdown written by hand) | [script:format:check] |
 
-### Kontrak HTTP
+### HTTP contract
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R10 | Controller me-return `ApiResponse`, setiap handler dibungkus `asyncHandler`, tanpa `c.json()` / `c.text()` / `c.body()` / `c.html()` | [eslint:CONTROLLER_SYNTAX_RULES] |
-| R11 | Input hanya lewat `validate()` + `getValidated*()`; membaca `c.req` (kecuali header) di controller dilarang | [eslint:CONTROLLER_SYNTAX_RULES] [test:validate] |
-| R12 | Wire `snake_case` dua arah; key request lain → 400 `ERR_NON_SNAKE_CASE_KEY` | [test:snake-case-contract] [test:api-response] [test:openapi.e2e] |
-| R13 | Data keluar lewat transformer, bukan entity mentah — transformer bertipe schema response, tetapi entity berkolom lebih tetap lolos kompilasi | [review-only] |
-| R14 | Error domain = subclass `ApiError`; `throw new Error` di modul dilarang | [eslint:MODULE_ERROR_RULES] |
-| R15 | `error.code` hanya dari `APP_ERROR_CODES` (tanpa literal `'ERR_*'` atau kode yang dirakit) | [eslint:ERROR_CODE_SYNTAX_RULES] |
-| R16 | Pesan ke client = `LocalizedMessage` `{ id, en }`; string literal sebagai pesan di modul dilarang | [eslint:MODULE_ERROR_RULES] [tsc] [test:translate] |
-| R17 | Setiap route punya `describeEndpoint()` (summary + 2xx), properti snake_case, header umum | [test:openapi.e2e] |
-| R18 | Error 500 tidak membocorkan pesan / detail internal | [test:error-handler] |
-| R19 | Versi API adalah router di kode (`/v1`, `/v2`), bukan env; breaking change = versi baru — keputusan desain API, tidak bisa dideteksi mesin | [review-only] |
+| R10 | Controllers return `ApiResponse`, every handler wrapped in `asyncHandler`, no `c.json()` / `c.text()` / `c.body()` / `c.html()` | [eslint:CONTROLLER_SYNTAX_RULES] |
+| R11 | Input only through `validate()` + `getValidated*()`; reading `c.req` (except headers) in controllers is banned | [eslint:CONTROLLER_SYNTAX_RULES] [test:validate] |
+| R12 | snake_case wire in both directions; other request keys → 400 `ERR_NON_SNAKE_CASE_KEY` | [test:snake-case-contract] [test:api-response] [test:openapi.e2e] |
+| R13 | Data leaves through a transformer, never as a raw entity — transformers are typed by the response schema, but an entity with extra columns still compiles | [review-only] |
+| R14 | Domain errors are `ApiError` subclasses; `throw new Error` in modules is banned | [eslint:MODULE_ERROR_RULES] |
+| R15 | `error.code` only from `APP_ERROR_CODES` (no `'ERR_*'` literals or built codes) | [eslint:ERROR_CODE_SYNTAX_RULES] |
+| R16 | Client messages are `LocalizedMessage` `{ id, en }`; string literals as messages in modules are banned | [eslint:MODULE_ERROR_RULES] [tsc] [test:translate] |
+| R17 | Every route has `describeEndpoint()` (summary + 2xx), snake_case properties, common headers | [test:openapi.e2e] |
+| R18 | A 500 never exposes internal messages / details | [test:error-handler] |
+| R19 | The API version is a router in code (`/v1`, `/v2`), never env; a breaking change is a new version — an API design decision a machine cannot detect | [review-only] |
 
-### Tanggal & Waktu
+### Date & time
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R20 | `new Date(...)` (termasuk "sekarang"), `Temporal.Now`, `Date.parse`, getter / formatter waktu lokal hanya di `datetime.util.ts` | [eslint:DATETIME_SYNTAX_RULES] |
-| R21 | Field waktu request dari `datetime.dto.ts`; instant tanpa offset dan jam DST yang ambigu ditolak | [test:datetime.dto] [test:datetime.util] |
-| R22 | Proses (`TZ=UTC`, diset `env-source.ts`) dan sesi DB (`timezone=UTC`, `connection.ts`) di UTC — sesi DB tidak diuji | [test:hermetic-env] [review-only] |
+| R20 | `new Date(...)` (even "now"), `Temporal.Now`, `Date.parse`, local-time getters / formatters only in `datetime.util.ts` | [eslint:DATETIME_SYNTAX_RULES] |
+| R21 | Request time fields from `datetime.dto.ts`; instants without an offset and ambiguous DST times rejected | [test:datetime.dto] [test:datetime.util] |
+| R22 | Process (`TZ=UTC`, set by `env-source.ts`) and DB session (`timezone=UTC`, `connection.ts`) in UTC — the session setting is not tested | [test:hermetic-env] [review-only] |
 
-### Data Layer
+### Data layer
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R23 | `pgTable(` / `pgSchema(` hanya di `schemas.ts`; tabel lewat `appTable` | [eslint:SCHEMA_DECLARATION_RULES] [test:schemas] |
-| R24 | Kolom lewat helper (`timestamp(` / `date(` / `serial(` / `.defaultRandom()` dilarang di file schema) | [eslint:SCHEMA_FILE_RULES] [test:columns] |
-| R25 | Konvensi schema: FK ter-index, id dari helper, bigint hanya `APPEND_ONLY_TABLES`, unique di tabel soft delete = `activeUniqueIndex()`, `record_changes` siap partisi | [test:schema-conventions] |
-| R26 | Repository modul meng-extend satu base (`BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository`) | [eslint:REPOSITORY_SYNTAX_RULES] |
-| R27 | `tx.update` / `tx.delete` dilarang di repository modul (pengecualian tunggal: repository refresh token boleh update `auth_refresh_tokens`) | [eslint:REPOSITORY_SYNTAX_RULES] [eslint:AUTH_TOKEN_REPOSITORY_RULES] |
-| R28 | Penulisan DB hanya di repository | [eslint:TX_WRITE_RULES] |
-| R29 | Raw `UPDATE` / `DELETE` dilarang; `tx.execute` hanya di `*.queries.ts`; `sql.raw` dilarang | [eslint:RAW_WRITE_SQL_RULES] [eslint:RAW_QUERY_RULES] [eslint:SQL_RAW_RULES] |
-| R30 | Transaksi tidak disimpan di variabel atau di-destructure | [eslint:TX_ALIAS_RULES] |
-| R31 | `@Transactional()` hanya di service | [eslint:TRANSACTIONAL_RULES] |
-| R32 | `TransactionHost` hanya di repository / `*.queries.ts` | [eslint:TX_HOST_IMPORT_PATTERN] [depcruise:transaction-host-only-in-repositories] |
-| R33 | `recordChanges` hanya di `src/database/` | [eslint:MODULE_IMPORT_PATTERNS] [depcruise:record-changes-only-in-database] |
-| R34 | Modul tidak menyentuh koneksi DB (`db`, `sqlClient`, `connection.ts`) | [eslint:MODULE_SYNTAX_RULES] [eslint:MODULE_IMPORT_PATTERNS] [depcruise:no-module-direct-db-connection] |
-| R35 | Update / soft delete / restore / delete detail mengunci baris dan menulis `record_changes` dalam transaksi yang sama | [test:audited.repository] [test:base.repository] [test:child.repository] [test:data-layer] |
-| R36 | Konflik unik → 409 (`isUniqueViolation()`), bukan 500 | [test:unique-violation] [test:data-layer] |
-| R37 | Query baca kustom mulai dari `this.scoped(...)`; raw query menulis `deleted_at IS NULL` sendiri — bentuk query bebas, tidak bisa dicek AST | [review-only] |
+| R23 | `pgTable(` / `pgSchema(` only in `schemas.ts`; tables through `appTable` | [eslint:SCHEMA_DECLARATION_RULES] [test:schemas] |
+| R24 | Columns through helpers (`timestamp(` / `date(` / `serial(` / `.defaultRandom()` banned in schema files) | [eslint:SCHEMA_FILE_RULES] [test:columns] |
+| R25 | Schema conventions: indexed FKs, ids from helpers, bigint only in `APPEND_ONLY_TABLES`, uniques on soft-deleted tables via `activeUniqueIndex()`, partition-ready `record_changes` | [test:schema-conventions] |
+| R26 | A module repository extends one base (`BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository`) | [eslint:REPOSITORY_SYNTAX_RULES] |
+| R27 | No `tx.update` / `tx.delete` in module repositories (single exception: the refresh-token repository may update `auth_refresh_tokens`) | [eslint:REPOSITORY_SYNTAX_RULES] [eslint:AUTH_TOKEN_REPOSITORY_RULES] |
+| R28 | Database writes only in repositories | [eslint:TX_WRITE_RULES] |
+| R29 | No raw `UPDATE` / `DELETE`; `tx.execute` only in `*.queries.ts`; no `sql.raw` | [eslint:RAW_WRITE_SQL_RULES] [eslint:RAW_QUERY_RULES] [eslint:SQL_RAW_RULES] |
+| R30 | The transaction is never kept in a variable or destructured | [eslint:TX_ALIAS_RULES] |
+| R31 | `@Transactional()` only in services | [eslint:TRANSACTIONAL_RULES] |
+| R32 | `TransactionHost` only in repositories / `*.queries.ts` | [eslint:TX_HOST_IMPORT_PATTERN] [depcruise:transaction-host-only-in-repositories] |
+| R33 | `recordChanges` only in `src/database/` | [eslint:MODULE_IMPORT_PATTERNS] [depcruise:record-changes-only-in-database] |
+| R34 | Modules never touch the DB connection (`db`, `sqlClient`, `connection.ts`) | [eslint:MODULE_SYNTAX_RULES] [eslint:MODULE_IMPORT_PATTERNS] [depcruise:no-module-direct-db-connection] |
+| R35 | Update / soft delete / restore / detail delete lock the row and write `record_changes` in the same transaction | [test:audited.repository] [test:base.repository] [test:child.repository] [test:data-layer] |
+| R36 | A unique conflict → 409 (`isUniqueViolation()`), never 500 | [test:unique-violation] [test:data-layer] |
+| R37 | Custom reads start from `this.scoped(...)`; raw queries write `deleted_at IS NULL` themselves — query shapes are free, not checkable by AST | [review-only] |
 
-### Autentikasi & Kanal Inbound
+### Authentication & inbound channels
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R38 | Default-deny `<base>/v1/*`; publik hanya `PUBLIC_ROUTES` | [test:default-deny.e2e] [test:public-routes] [test:authenticate] |
-| R39 | Otorisasi per route `requireRole` / `requireSelfOrRole` → 403 `ERR_ROLE_FORBIDDEN`, terdokumentasi di OpenAPI | [test:require-role] [test:openapi.e2e] |
-| R40 | Refresh token hanya di cookie HttpOnly, dirotasi; reuse mencabut seluruh family | [test:auth.service] [test:auth.e2e] [test:auth] |
-| R41 | Endpoint ber-cookie memakai `csrfProtection()` | [test:csrf] [test:auth.e2e] |
-| R42 | Route partner hanya lewat `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), juga bila membawa bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] |
-| R43 | Helper per kanal: `currentPartner` / `requirePartner` hanya di `*.partner.*`, `requireRole` / `requireSelfOrRole` / `currentUser` tidak di sana, keduanya tidak di `*.webhook.*` | [eslint:local/inbound-channel] |
-| R44 | Router kanal hanya di prefix-nya (`*.partner.routes.ts` di `/v1/partner`, `*.webhook.routes.ts` di `/webhooks`) | [test:structure] |
-| R45 | Verifier webhook hanya diimpor `app.ts`; prefix webhook fail-closed (tanpa signature sah → 401) | [depcruise:webhook-verifier-only-in-app] [test:webhook-auth] [test:default-deny.e2e] |
-| R46 | `bodyKeys: 'verbatim'` (casing vendor) hanya di file `*.webhook.*` | [eslint:local/inbound-channel] [test:validate] |
-| R47 | Inbound idempoten: `webhook_events` unik `(vendor, event_id)`; penulisan partner unik `(partner_code, partner_reference)` — template `partner.md` / `webhook.md` membawanya, tetapi modul tulisan tangan tidak dicek | [script:verify:scaffold] [review-only] |
-| R48 | Panduan partner (vektor signing, header, kode error) sama dengan kode | [test:partner-guide] |
+| R38 | Default-deny `<base>/v1/*`; public only through `PUBLIC_ROUTES` | [test:default-deny.e2e] [test:public-routes] [test:authenticate] |
+| R39 | Per-route authorization `requireRole` / `requireSelfOrRole` → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI | [test:require-role] [test:openapi.e2e] |
+| R40 | Refresh token only in an HttpOnly cookie, rotated; reuse revokes the whole family | [test:auth.service] [test:auth.e2e] [test:auth] |
+| R41 | Cookie endpoints use `csrfProtection()` | [test:csrf] [test:auth.e2e] |
+| R42 | Partner routes only through `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), also with a bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] |
+| R43 | Helpers per channel: `currentPartner` / `requirePartner` only in `*.partner.*`, `requireRole` / `requireSelfOrRole` / `currentUser` never there, neither in `*.webhook.*` | [eslint:local/inbound-channel] |
+| R44 | Channel routers only under their prefix (`*.partner.routes.ts` under `/v1/partner`, `*.webhook.routes.ts` under `/webhooks`) | [test:structure] |
+| R45 | Webhook verifiers imported only by `app.ts`; the webhook prefix is fail-closed (no valid signature → 401) | [depcruise:webhook-verifier-only-in-app] [test:webhook-auth] [test:default-deny.e2e] |
+| R46 | `bodyKeys: 'verbatim'` (vendor casing) only in `*.webhook.*` files | [eslint:local/inbound-channel] [test:validate] |
+| R47 | Idempotent inbound: `webhook_events` unique `(vendor, event_id)`; partner writes unique `(partner_code, partner_reference)` — the `partner.md` / `webhook.md` templates carry it, hand-written modules are not checked | [script:verify:scaffold] [review-only] |
+| R48 | The partner guide (signing vectors, headers, error codes) matches the code | [test:partner-guide] |
 
-### Integrasi Outbound
+### Outbound integrations
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R49 | `HttpClientService` / `src/core/http` hanya di `src/integrations/`; controller tidak mengimpor integrasi | [depcruise:http-client-only-in-integrations] [depcruise:controller-no-integrations] [eslint:MODULE_SYNTAX_RULES] [eslint:MODULE_IMPORT_PATTERNS] |
-| R50 | `fetch(`, `axios`, `node:http(s)` dan klien HTTP lain dilarang di `src/` kecuali `src/core/http/` | [eslint:OUTBOUND_HTTP_SYNTAX_RULES] [eslint:OUTBOUND_HTTP_IMPORT_PATTERN] |
-| R51 | Integrasi tanpa route / controller, tidak bergantung pada modul, database, atau vendor lain | [depcruise:strict-integrations-isolation] [depcruise:no-cross-integration-deps] [depcruise:integrations-no-presentation] |
-| R52 | Timeout wajib; kegagalan vendor di-mask (`ExternalServiceError`), status & body vendor tidak diteruskan, body hanya di log teredaksi | [tsc] [test:http-client.service] [test:vendor-body] |
-| R53 | Satu entri `INTEGRATION_REGISTRY` per vendor (`error.origin` / `error.institution`) | [test:registry] |
+| R49 | `HttpClientService` / `src/core/http` only in `src/integrations/`; controllers do not import integrations | [depcruise:http-client-only-in-integrations] [depcruise:controller-no-integrations] [eslint:MODULE_SYNTAX_RULES] [eslint:MODULE_IMPORT_PATTERNS] |
+| R50 | `fetch(`, `axios`, `node:http(s)` and other HTTP clients banned in `src/` except `src/core/http/` | [eslint:OUTBOUND_HTTP_SYNTAX_RULES] [eslint:OUTBOUND_HTTP_IMPORT_PATTERN] |
+| R51 | Integrations have no routes / controllers and depend on no module, database or other vendor | [depcruise:strict-integrations-isolation] [depcruise:no-cross-integration-deps] [depcruise:integrations-no-presentation] |
+| R52 | Required timeout; vendor failures masked (`ExternalServiceError`), vendor status & body never forwarded, body only in redacted logs | [tsc] [test:http-client.service] [test:vendor-body] |
+| R53 | One `INTEGRATION_REGISTRY` entry per vendor (`error.origin` / `error.institution`) | [test:registry] |
 
 ### Cache
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R54 | Redis hanya lewat `CacheService` (`redis.client` / `ioredis` dilarang di modul & integrasi) | [eslint:CACHE_CLIENT_IMPORT_PATTERN] [depcruise:redis-client-only-in-cache] |
-| R55 | Fail-open, prefix otomatis, `FLUSHALL` / `FLUSHDB` / `KEYS` diblokir, `increment` / `setIfAbsent` atomik | [test:cache.service] [test:redis.client] [test:redis] |
-| R56 | Key dari `CACHE_KEYS` — string key tidak bisa dibedakan dari string lain oleh AST | [review-only] |
+| R54 | Redis only through `CacheService` (`redis.client` / `ioredis` banned in modules & integrations) | [eslint:CACHE_CLIENT_IMPORT_PATTERN] [depcruise:redis-client-only-in-cache] |
+| R55 | Fail-open, automatic prefix, `FLUSHALL` / `FLUSHDB` / `KEYS` blocked, atomic `increment` / `setIfAbsent` | [test:cache.service] [test:redis.client] [test:redis] |
+| R56 | Keys from `CACHE_KEYS` — an AST cannot tell a key string from any other string | [review-only] |
 
-### Konfigurasi & Platform
+### Configuration & platform
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R57 | `process.env` di `src/` hanya `env-source.ts` | [eslint:no-process-env] |
-| R58 | Setiap grup config divalidasi Zod saat start (gagal = nama variabel, tanpa nilai); nama lama di `RENAMED_ENV_VARS` ditolak | [test:config] [test:parse-env] |
-| R59 | `console.*` dilarang; log terstruktur dengan redaksi | [eslint:no-console] [test:logger] |
-| R60 | `X-Request-ID` diterima hanya dengan format aman; request context per request | [test:request-id.util] [test:request-context] |
-| R61 | Nilai yang membawa nama proyek terdaftar di `IDENTITY_RULES`; registrasi contoh di `EXAMPLE_MODULES` | [script:lint:setup] |
-| R62 | Health `UP` / `DEGRADED` / `DOWN`; readiness 503 hanya bila DB mati | [test:health.e2e] [test:health.service] |
+| R57 | `process.env` in `src/` only in `env-source.ts` | [eslint:no-process-env] |
+| R58 | Every config group validated with Zod at start (failure = variable names, no values); old names in `RENAMED_ENV_VARS` refused | [test:config] [test:parse-env] |
+| R59 | No `console.*`; structured logs with redaction | [eslint:no-console] [test:logger] |
+| R60 | `X-Request-ID` accepted only in a safe format; a request context per request | [test:request-id.util] [test:request-context] |
+| R61 | Values carrying the project name are in `IDENTITY_RULES`; example registrations in `EXAMPLE_MODULES` | [script:lint:setup] |
+| R62 | Health `UP` / `DEGRADED` / `DOWN`; readiness 503 only when the DB is down | [test:health.e2e] [test:health.service] |
 
-### Testing, Gate & Alur Kerja
+### Testing, gates & workflow
 
-| ID | Aturan | Penegak |
+| ID | Rule | Enforcer |
 |---|---|---|
-| R63 | Coverage di atas `THRESHOLDS`; setiap file `src/` dimuat test; pengecualian hanya `COVERAGE_EXCLUSIONS` beralasan | [script:test:cov] |
-| R64 | Test hermetik (tanpa DB / Redis asli); `mock.module()` dilarang | [test:hermetic-env] [eslint:TEST_SYNTAX_RULES] |
-| R65 | Suite integrasi: tanpa `.rejects` / `.resolves` / `spyOn` / `mock`; jalan di CI | [eslint:INTEGRATION_TEST_RULES] [ci:integration] |
-| R66 | `eslint-disable` sempit dan beralasan (`-- <alasan>`) | [eslint:@eslint-community/eslint-comments/require-description] [eslint:@eslint-community/eslint-comments/no-unused-disable] |
-| R67 | Setiap varian template `scaffold-module` lolos semua gate | [script:verify:scaffold] [ci:verify] |
-| R68 | CONTRIBUTING menyebut setiap script, folder test, helper, modul, dan perintah; label di dokumen ini valid | [test:docs-sync] |
-| R69 | Setiap skill `.agents` punya wrapper `.claude` dengan name + description yang sama | [test:agent-skills] |
-| R70 | File `.env` aktif tidak dibaca AI agent (kecuali `.env.example`) | [hook:.claude/hooks/protect-env.mjs] |
-| R71 | Pesan commit Conventional Commits; nama branch `<type>/<slug>` | [hook:.husky/commit-msg] [script:lint:branch] [ci:verify] |
-| R72 | Migrasi hasil generate tetap sesuai penjaga SQL | [test:migrations] |
+| R63 | Coverage above `THRESHOLDS`; every `src/` file loaded by a test; exclusions only in `COVERAGE_EXCLUSIONS` with a reason | [script:test:cov] |
+| R64 | Hermetic tests (no real DB / Redis); `mock.module()` banned | [test:hermetic-env] [eslint:TEST_SYNTAX_RULES] |
+| R65 | Integration suite: no `.rejects` / `.resolves` / `spyOn` / `mock`; runs in CI | [eslint:INTEGRATION_TEST_RULES] [ci:integration] |
+| R66 | `eslint-disable` narrow and justified (`-- <reason>`) | [eslint:@eslint-community/eslint-comments/require-description] [eslint:@eslint-community/eslint-comments/no-unused-disable] |
+| R67 | Every `scaffold-module` template variant passes every gate | [script:verify:scaffold] [ci:verify] |
+| R68 | `structure.md` names every script, test folder, helper and module, `quality-gates.md` every command; labels in this index are valid | [test:docs-sync] |
+| R69 | Every `.agents` skill has a `.claude` wrapper with the same name + description | [test:agent-skills] |
+| R70 | Agents never read active `.env` files (only `.env.example`) | [hook:.claude/hooks/protect-env.mjs] |
+| R71 | Commit messages follow Conventional Commits; branch names `<type>/<slug>` | [hook:.husky/commit-msg] [script:lint:branch] [ci:verify] |
+| R72 | Generated migrations keep matching the SQL guards | [test:migrations] |
+| R73 | Each standard lives in one `docs/standards/` file; routers (`AGENTS.md`, `CONTRIBUTING.md`, the `project-standards` / `env-protection` skills) hold no code blocks and stay within budget; every standards file is linked from `CONTRIBUTING.md` and the `project-standards` skill; every relative link resolves | [test:docs-sync] |
 
 ---
 
-## 13. Manifest Konfigurasi
+## 13. Configuration Manifests
 
-Konfigurasi tooling **tidak disalin** ke dokumen ini; sumber kebenarannya file di root repo:
+Tooling configuration is **not** copied here; the files at the repository root are the source of truth:
 
-| File | Menegakkan | Dijalankan oleh |
+| File | Enforces | Run by |
 |---|---|---|
-| `tsconfig.json` | TypeScript strict | `bun run typecheck`, pre-commit |
-| `eslint.config.mjs` | Grup `no-restricted-syntax` / `no-restricted-imports` per area (komposisi grup di bagian atas file), `local/inbound-channel`, naming, `eslint-comments` | `bun run lint`, lint-staged |
-| `.dependency-cruiser.cjs` | Batas lapisan & aliran modul | `bun run lint:arch` |
-| `.ls-lint.yml` | Nama folder & file satu titik | `bun run lint:ls`, pre-commit |
-| `knip.json` | File, export, dependency tak terpakai | `bun run lint:deps` |
-| `scripts/check-coverage.ts` | Ambang coverage (`THRESHOLDS`) | `bun run test:cov` |
-| `bunfig.toml` | Preload test hermetik | `bun test` |
+| `tsconfig.json` | Strict TypeScript | `bun run typecheck`, pre-commit |
+| `eslint.config.mjs` | `no-restricted-syntax` / `no-restricted-imports` groups per area (composed at the top), `local/inbound-channel`, naming, `eslint-comments` | `bun run lint`, lint-staged |
+| `.dependency-cruiser.cjs` | Layer boundaries and module flow | `bun run lint:arch` |
+| `.ls-lint.yml` | Folder and single-dot file names | `bun run lint:ls`, pre-commit |
+| `knip.json` | Unused files, exports, dependencies | `bun run lint:deps` |
+| `scripts/check-coverage.ts` | Coverage thresholds (`THRESHOLDS`) | `bun run test:cov` |
+| `bunfig.toml` | Hermetic test preload | `bun test` |
 | `scripts/setup.ts` | `IDENTITY_RULES`, `EXAMPLE_MODULES` | `bun run setup`, `bun run lint:setup` |
 | `.husky/*` | pre-commit, commit-msg, pre-push | Git |
-| `commitlint.config.ts` | Conventional Commits (type, panjang header) | commit-msg, CI |
-| `.validate-branch-namerc.json` | `<type>/<slug>` + branch environment | `bun run lint:branch`, CI |
-| `.prettierrc`, `.prettierignore` | Format `*.ts` (Markdown dikecualikan) | `bun run format:check` |
-| `.github/workflows/ci.yml` | Job `verify` + `integration` | GitHub Actions |
-| `drizzle.config.ts` | Migrasi dari schema `public` | `bun run db:generate` |
-| `.claude/settings.json`, `.claude/hooks/protect-env.mjs` | Proteksi `.env` untuk Claude Code | Claude Code |
-
-Contoh pelanggaran per aturan dan cara memperbaikinya: [CONTRIBUTING.md](CONTRIBUTING.md).
+| `commitlint.config.ts` | Conventional Commits (types, header length) | commit-msg, CI |
+| `.validate-branch-namerc.json` | `<type>/<slug>` + environment branches | `bun run lint:branch`, CI |
+| `.prettierrc`, `.prettierignore` | Format `*.ts` (Markdown excluded) | `bun run format:check` |
+| `.github/workflows/ci.yml` | Jobs `verify` + `integration` | GitHub Actions |
+| `drizzle.config.ts` | Migrations from the `public` schema | `bun run db:generate` |
+| `.claude/settings.json`, `.claude/hooks/protect-env.mjs` | `.env` protection for Claude Code | Claude Code |

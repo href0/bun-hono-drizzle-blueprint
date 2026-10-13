@@ -171,7 +171,7 @@ const RAW_QUERY_RULES = [
   {
     selector: `CallExpression[callee.property.name="execute"]${TX_OBJECT}`,
     message:
-      'Raw queries live in a <name>.queries.ts file (pure read-only functions); see references/raw-queries.md.',
+      'Raw queries live in a <name>.queries.ts file (pure read-only functions); see docs/standards/raw-queries.md.',
   },
 ];
 
@@ -190,7 +190,7 @@ const REPOSITORY_SYNTAX_RULES = [
     selector:
       'ClassDeclaration:not([superClass.name=/^(BaseRepository|ChildRepository|AppendOnlyRepository|ReadOnlyRepository)$/])',
     message:
-      'A module repository extends BaseRepository (standalone/header), ChildRepository (detail), AppendOnlyRepository (record) or ReadOnlyRepository (reference view); see references/database.md §6.',
+      'A module repository extends BaseRepository (standalone/header), ChildRepository (detail), AppendOnlyRepository (record) or ReadOnlyRepository (reference view); see docs/standards/database.md §6.',
   },
   {
     selector: `CallExpression[callee.property.name=/^(update|delete)$/]${TX_OBJECT}`,

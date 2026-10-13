@@ -22,7 +22,7 @@ export const db = drizzle(sqlClient, { schema });
 
 - Settings come from the validated `databaseConfig` group (`src/config/database.config.ts`), never from `process.env`.
 - The client is lazy: it connects on the first query, so importing it never opens a connection.
-- Only `src/database/**` and `src/index.ts` (startup check, shutdown `sqlClient.end()`) may import it — modules use `TransactionHost` (ESLint + depcruise `no-module-direct-db-connection`). Health checks use `pingDatabase()` (`src/database/health-probe.ts`, 2 s timeout).
+- Only `src/database/**` and `src/index.ts` (startup check, shutdown `sqlClient.end()`) may import it — modules use `TransactionHost` (§7). Health checks use `pingDatabase()` (`src/database/health-probe.ts`, 2 s timeout).
 - Tests never reach a real database: `bunfig.toml` preloads `test/setup/hermetic-env.ts`, which points `DATABASE_URL` at a closed local port whatever the local env file says.
 
 ---
@@ -117,7 +117,7 @@ Each check is also proven against a deliberately broken table in the same file.
 
 ## 4. Migrations (`drizzle.config.ts`)
 
-Source of truth: `drizzle.config.ts` (a standalone drizzle-kit config — together with `src/config/env-source.ts` the only files allowed to read `process.env`). It generates migrations from `src/database/schema/index.ts` into `./drizzle`, limited to the `public` schema (`schemaFilter: ['public']`).
+Source of truth: `drizzle.config.ts` (a standalone drizzle-kit config, allowed to read `process.env` — [configuration.md](configuration.md)). It generates migrations from `src/database/schema/index.ts` into `./drizzle`, limited to the `public` schema (`schemaFilter: ['public']`).
 
 - Generate: `bun run db:generate` (offline — compares the schema files with the last snapshot). Apply: `bun run db:migrate` — **run by the developer** by default. An AI agent may run migrations and read-only checks only against the developer's **local** database, and only with the developer's explicit permission; destructive SQL or writing test rows is always asked first; never a shared or production database.
 - `test/migrations.test.ts` guards the output: no `CREATE SCHEMA`, every table in `public`, ids without a database `gen_random_uuid()` default, the `record_changes` CHECK equal to `RECORD_CHANGE_ACTIONS`, `record_changes` keyed `(id, changed_at)` without foreign keys, `parent_table`/`parent_id` paired by a CHECK.
@@ -165,7 +165,7 @@ class OrdersRepository extends AuditedRepository<typeof orders> {
 - `lockById` and `writeChange` throw outside a transaction — use `inTransaction()` (`TransactionHost.run`).
 - Values are compared and stored in JSON form: `Temporal` values as ISO strings; `jsonb` objects with the same members in another key order are not a change.
 - Pure helpers: `diffRecords` / `snapshotRecord` in `src/utils/record-diff.util.ts`.
-- Tests use the SQL recorder: the audit `insert` and the change appear between the same `BEGIN` and `COMMIT` / `ROLLBACK` (`src/database/audited.repository.test.ts`). Real rollback against PostgreSQL: integration suite (step 6.1).
+- Tests use the SQL recorder: the audit `insert` and the change appear between the same `BEGIN` and `COMMIT` / `ROLLBACK` (`src/database/audited.repository.test.ts`). Real rollback against PostgreSQL: `test/integration/data-layer.int.ts` ([testing.md](testing.md) §7).
 
 ---
 
@@ -211,8 +211,33 @@ export class OrderLinesRepository extends ChildRepository<typeof orderLines, typ
 
 **`ReadOnlyRepository`** — `findPage({ page, perPage, where?, orderBy })` (order required: a view has no key) and `count(where?)` over a `.existing()` view. Writes are impossible twice over: no write method, and Drizzle rejects `insert` / `update` / `delete` on a view at compile time.
 
-Every module repository extends one of these four (ESLint `REPOSITORY_SYNTAX_RULES`), and module code never writes around them: no `tx.update` / `tx.delete` in repositories, no writes outside repositories, no raw `UPDATE` / `DELETE` SQL, `recordChanges` never imported outside `src/database/` (full table: CONTRIBUTING §5.3). The one approved exception is the refresh-token repository `src/modules/auth/auth.repository.ts` (table `auth_refresh_tokens`: high-volume security state, no audit columns or soft delete — `revoked_at` / `replaced_by_id` are its trail): a one-file override in `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) lets it skip the base and `tx.update(authRefreshTokens)` only; updating any other table and `tx.delete` stay rejected. Custom reads inside a `BaseRepository` subclass must start from `this.scoped(...)` so deleted rows stay hidden `[review-only]`.
+Every module repository extends one of these four and module code never writes around them — rules in §7.
 
 Reference implementations: `src/modules/orders/` (header + detail, generated from the scaffold header-detail template; removed by `bun run setup <name>` unless `--keep-examples`) and `src/modules/users/` — `UsersRepository extends BaseRepository` (redacts `passwordHash`), the service maps `null` to `NotFoundError` and a unique violation (`isUniqueViolation()` from `src/database`, SQLSTATE 23505) to `ConflictError` on create, update and restore, and evicts the cached detail after every write.
 
-Generic behaviour is tested once, with the SQL recorder and test-only tables (`test/helpers/repository-fixtures.ts`): `src/database/{base,child,append-only,read-only}.repository.test.ts`. Module repositories test only what they add.
+Generic behaviour is tested once, with the SQL recorder and test-only tables (`test/helpers/repository-fixtures.ts`): `src/database/{base,child,append-only,read-only}.repository.test.ts`, and against a real PostgreSQL in `test/integration/data-layer.int.ts`. Module repositories test only what they add.
+
+---
+
+## 7. Machine-enforced data-layer rules
+
+Every change of a domain row goes through a base repository (row lock, soft-delete scope, actor stamps, `record_changes` in the same transaction). These rules make every shortcut fail lint:
+
+| Rule | Applies to | Enforcer |
+|---|---|---|
+| A repository class `extends` `BaseRepository` / `ChildRepository` / `AppendOnlyRepository` / `ReadOnlyRepository` | `src/modules/**/*.repository.ts` | [eslint:REPOSITORY_SYNTAX_RULES] |
+| No `tx.update(` / `tx.delete(` (use `updateById`, `softDeleteById`, `ChildRepository`, …) | module repositories | [eslint:REPOSITORY_SYNTAX_RULES] |
+| No `tx.insert(` / `tx.update(` / `tx.delete(` | module files other than repositories | [eslint:TX_WRITE_RULES] |
+| No `UPDATE` / `DELETE FROM` inside `` sql`…` `` | every module file | [eslint:RAW_WRITE_SQL_RULES] |
+| `tx.execute(` (raw query) only in `<name>.queries.ts` (pure, read-only functions — [raw-queries.md](raw-queries.md)) | modules | [eslint:RAW_QUERY_RULES] |
+| The transaction is used as `this.txHost.tx`, never kept in a variable or destructured (the write rules recognize it by name) | modules | [eslint:TX_ALIAS_RULES] |
+| `@Transactional()` only in `*.service.ts` | modules | [eslint:TRANSACTIONAL_RULES] |
+| `TransactionHost` / `defaultTxHost` / `transactionStorage` only in repositories and `*.queries.ts` (module tests may use them) | modules | [eslint:TX_HOST_IMPORT_PATTERN] [depcruise:transaction-host-only-in-repositories] |
+| `db`, `sqlClient`, `database/connection` never imported | modules | [eslint:MODULE_SYNTAX_RULES] [eslint:MODULE_IMPORT_PATTERNS] [depcruise:no-module-direct-db-connection] |
+| `recordChanges` not imported outside `src/database/` (also through the barrel) | all of `src/` | [eslint:MODULE_IMPORT_PATTERNS] [depcruise:record-changes-only-in-database] |
+| No `sql.raw(` (use `sql.identifier()`; a static fragment = `eslint-disable` + reason) | all of `src/` | [eslint:SQL_RAW_RULES] |
+
+- **The one approved exception** (plan log 4.1, 2026-10-04): the refresh-token repository `src/modules/auth/auth.repository.ts` (table `auth_refresh_tokens`: high-volume security state without audit columns or soft delete — `revoked_at` + `replaced_by_id` are its trail). A one-file override in `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) lets it skip the base and `tx.update(authRefreshTokens)` only; updating any other table and `tx.delete` stay rejected.
+- **Seeders** (`src/database/seeds/**`) belong to the database layer, not to a module: the module rules do not apply, but they still write through the base repositories (actor `system`, audited). Example: `seed-admin.ts` (password from a hidden prompt / stdin, never argv or env).
+- `users.role` is matched against `ROLES` (`src/core/security/roles.ts`) by `src/database/roles-column.test.ts`.
+- `[review-only]`: custom reads inside a `BaseRepository` subclass start from `this.scoped(...)` so deleted rows stay hidden.

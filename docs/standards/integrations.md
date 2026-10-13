@@ -1,5 +1,7 @@
 # Outbound Integrations (Vendor Adapters)
 
+Read this file when: calling an external system, adding a vendor, or handling a vendor failure.
+
 How this project calls external systems. Template for a new vendor: `.agents/skills/scaffold-module/references/integration.md` (verified by `bun run verify:scaffold`). Working reference: `src/integrations/jsonplaceholder/` (keyless public API).
 
 ## 1. Layout
@@ -13,7 +15,7 @@ How this project calls external systems. Template for a new vendor: `.agents/ski
 | Entry point | `src/integrations/<vendor>/index.ts` | What domain services import |
 | Consumer | `src/modules/<module>/<module>.service.ts` | Constructor default `= <vendor>Service`; route documents `errors: [502, 504]` |
 
-Layer rules (ESLint + dependency-cruiser): only `src/integrations/**` imports `src/core/http`; integrations never import `src/modules/**` or `src/database/**`, nor another vendor's folder; controllers never import integrations. `fetch(`, `axios`, `node:http(s)` and other HTTP clients are rejected everywhere in `src/` except `src/core/http/**`.
+Layer rules (ESLint `MODULE_SYNTAX_RULES` / `MODULE_IMPORT_PATTERNS`, dependency-cruiser `http-client-only-in-integrations`, `strict-integrations-isolation`, `no-cross-integration-deps`, `integrations-no-presentation`, `controller-no-integrations`): only `src/integrations/**` imports `src/core/http`; integrations never import `src/modules/**` or `src/database/**`, nor another vendor's folder; controllers never import integrations. `fetch(`, `axios`, `node:http(s)` and other HTTP clients are rejected everywhere in `src/` except `src/core/http/**` (ESLint `OUTBOUND_HTTP_SYNTAX_RULES` / `OUTBOUND_HTTP_IMPORT_PATTERN`; tests may call `fetch` against local test servers).
 
 ## 2. What `HttpClientService` guarantees
 
@@ -60,18 +62,4 @@ const body = await this.tokens.withToken((token) =>
 
 ## 5. Inbound webhooks from a vendor
 
-A vendor that **calls us** (payment status, delivery receipts, incoming messages) owns that contract: payload, signature scheme, retries. Template: scaffold-module `references/webhook.md`; example: `src/integrations/demo-pay/` + `src/modules/payment-notifications/`.
-
-| Piece | Where |
-|---|---|
-| Verifier (`WebhookVendor`: `vendor`, `signatureHeader`, `verify()`) — exactly the vendor's documented scheme, constant-time comparison, bad input → `false` | `src/integrations/<vendor>/<vendor>.webhook.ts` |
-| Payload schema (the vendor's casing) | `src/integrations/<vendor>/<vendor>.webhook.dto.ts`, exported from `index.ts` |
-| Secret (`<VENDOR>_WEBHOOK_SECRET`; empty = disabled, every call 401) | `src/config/<vendor>.config.ts` |
-| Registration: `WEBHOOK_VENDORS` + `app.route(\`${webhooksPath}/<vendor>\`, …)` | `src/app.ts` only (dependency-cruiser `webhook-verifier-only-in-app`) |
-| Receiver: `<module>.webhook.routes.ts` / `.webhook.controller.ts`, `validate({ body, bodyKeys: 'verbatim' })`, `currentWebhook()` | the **domain** module (plan D26) |
-| Idempotency: `appendIfNew` into `webhook_events` (`ON CONFLICT (vendor, event_id) DO NOTHING`) + processing in one `@Transactional()` | the module's repository and service |
-
-- `<API_BASE_PATH>/webhooks/*` is outside `/v1` and fail-closed: `webhookAuth(vendor)` per vendor, then `requireVerifiedWebhook()` for the whole prefix — a route without a registered verifier answers 401, never 200.
-- Answer 200 for every verified, valid event, also a retry (`duplicate: true`), so the vendor stops resending; a 4xx/5xx makes it retry.
-- Keep processing short; long work needs a job queue (backlog).
-- Tests: the verifier with independent HMAC vectors, the receiver behind a stand-in for `webhookAuth()`, and signed requests through `createApp()` (`test/vendor-webhooks.e2e.test.ts`).
+A vendor that calls us (verifier, fail-closed prefix, vendor casing, idempotent `webhook_events`) is an inbound channel: [auth-and-inbound.md](auth-and-inbound.md) §5.

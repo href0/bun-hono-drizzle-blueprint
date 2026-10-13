@@ -25,7 +25,7 @@ const DEFAULT_REFRESH_MARGIN_SECONDS = 60;
  * A failed login is not cached — every waiter gets the error, the next call tries again.
  *
  * Per process: N app instances hold N tokens (one login each). Vendors that allow only one live
- * token per client need a shared cache instead (see references/integrations.md).
+ * token per client need a shared cache instead (see docs/standards/integrations.md).
  */
 export class AccessTokenCache {
   private readonly login: () => Promise<IssuedAccessToken>;

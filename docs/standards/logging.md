@@ -6,6 +6,8 @@ Read this file when: writing logs in services, configuring log redaction, or tra
 
 ## 1. Centralized Pino Logger (`src/core/logger/logger.ts`)
 
+`console.*` is rejected by ESLint `no-console` in `src/` (scripts and tests may print). Use the `logger` singleton.
+
 Logging uses [Pino](https://github.com/pinojs/pino). Source of truth: `src/core/logger/logger.ts` — options are built by the pure `buildLoggerOptions(appConfig, hostTimeZone)` so every environment branch is unit-tested, then `export const logger = pino(buildLoggerOptions(appConfig, hostTimeZone))`.
 
 | Option | Value |

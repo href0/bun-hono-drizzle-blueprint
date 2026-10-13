@@ -1,6 +1,6 @@
 # Integration Template — Login-Based Vendor (Outbound Adapter)
 
-Use this template to add an outbound adapter for a vendor that issues an access token on login (OAuth2 client credentials, `POST /login` returning `access_token` + `expires_in`, …). A keyless vendor needs only Steps 1–3, a plain `HttpClientService` adapter and its test (reference: `src/integrations/jsonplaceholder/`). Rules and background: `.agents/skills/project-standards/references/integrations.md`.
+Use this template to add an outbound adapter for a vendor that issues an access token on login (OAuth2 client credentials, `POST /login` returning `access_token` + `expires_in`, …). A keyless vendor needs only Steps 1–3, a plain `HttpClientService` adapter and its test (reference: `src/integrations/jsonplaceholder/`). Rules and background: `docs/standards/integrations.md`.
 
 Placeholders (kebab-case vendor name, e.g. `acme-pay`):
 

@@ -1,0 +1,41 @@
+# Documentation: One Source per Topic
+
+Read this file when: changing a standard, adding a rule, or editing any document of this repository.
+
+---
+
+## 1. Where things live
+
+| Document | Holds | Language |
+|---|---|---|
+| `docs/standards/*.md` | **The single source of every coding standard** ("how"): one file per topic | English |
+| `ARCHITECTURE.md` | What & why per area, and the rule index (R01…) with each rule's enforcer | English |
+| `CONTRIBUTING.md` | How to start, how to work, the index of `docs/standards/` | English |
+| `.agents/AGENTS.md` | What only agents need: mandatory reading, the work plan, `.env` protection, commit / merge policy | English |
+| `.agents/skills/*/SKILL.md` | Routers: when to read which standard, the steps of a workflow (commit text, version bump, logbook, init) | English |
+| `.agents/skills/scaffold-module/` | Template **code** for new modules and adapters (verified by `bun run verify:scaffold`) | English |
+| `.claude/skills/*/SKILL.md` | Pointer wrappers to `.agents/skills/` (`test/agent-skills.test.ts`) | English |
+| `README.md` | Quickstart (at most 150 lines) and links | Indonesian |
+| `docs/auth-guide.md`, `docs/partner-integration-guide.md` | Guides for readers outside this codebase (frontend developers, partners); the partner guide is guarded by `test/partner-guide.test.ts` | Indonesian |
+| `docs/plans/` | Adoption plan, decision log (D0…), progress | Indonesian |
+| `docs/archive/` | Original NestJS blueprint — history, not maintained | Indonesian |
+
+**The rule**: a standard is written once, in its `docs/standards/` file. Everything else links to it — by file and section (`database.md §6`) or by rule ID (`R26`) — and never restates it. Changing a standard means editing that one file (plus its row in the rule index when a rule is added or its enforcer changes); skills, `AGENTS.md`, `CONTRIBUTING.md` and the code-generation templates pick it up from there.
+
+## 2. Rule index
+
+Every rule has one row in `ARCHITECTURE.md` §12 with its enforcer labels: `[tsc]`, `[eslint:<group or rule>]`, `[depcruise:<rule>]`, `[ls-lint]`, `[test:<file name without .test.ts / .int.ts>]`, `[script:<package.json script>]`, `[ci:<job>]`, `[hook:<file>]`, or `[review-only]` with the reason a machine cannot check it. Adding an ESLint group or a dependency-cruiser rule without a row fails `test/docs-sync.test.ts`.
+
+## 3. What the guards check (`test/docs-sync.test.ts`)
+
+- `structure.md` names every script, test folder, helper, integration area, top-level test and module; `quality-gates.md` lists every `package.json` script.
+- Every enforcer label points at an existing ESLint group / rule, dependency-cruiser rule, test file, script, CI job or hook; rule IDs are consecutive; every row has a label; every ID referenced in the text exists.
+- Every relative link (file and `#anchor`) in the documents above resolves.
+- Every `docs/standards/` file is linked from `CONTRIBUTING.md` and from the `project-standards` skill.
+- Routers stay routers: `AGENTS.md`, `CONTRIBUTING.md` and the `project-standards` / `env-protection` skills contain no code blocks and stay within their line budgets; `README.md` stays within 150 lines.
+
+## 4. Writing Markdown
+
+- Never run Prettier on Markdown (`.prettierignore` excludes `*.md`): it pads every table cell to the widest one in its column, turning long tables into walls of spaces. Write compact tables (`| a | b |`, separator `|---|---|`) and tight lists by hand.
+- Code samples belong in `docs/standards/` only when they show a pattern; never copy a whole source file — link it ("source of truth: `src/app.ts`") so it cannot drift.
+- Never hardcode the project name: write "this project" (values that must carry it are `IDENTITY_RULES`, [configuration.md](configuration.md) §6).

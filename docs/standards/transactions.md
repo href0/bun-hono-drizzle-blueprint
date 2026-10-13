@@ -53,6 +53,9 @@ export class UsersRepository extends BaseRepository<typeof users> {
 
 ## 3. Usage in Services: `@Transactional()` or `runInTransaction()`
 
+- Mark a method `@Transactional()` when it combines steps that must be atomic (check then write, several writes). Base-repository methods are transactional on their own and join the service's transaction.
+- Pure reads need no transaction (they use the pool).
+
 > **ESLint Guard** (`TRANSACTIONAL_RULES`, `TX_HOST_IMPORT_PATTERN`): `@Transactional()` is accepted only in `*.service.ts`; `TransactionHost` / `defaultTxHost` / `transactionStorage` only in repositories and `*.queries.ts` (module tests may use them).
 
 ### Decorator Pattern:
