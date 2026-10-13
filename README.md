@@ -2,29 +2,21 @@
 
 Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, dan **PostgreSQL**, dengan fail-open Redis caching, structured logging (Pino), async Zod validation, declarative ACID transactions, dan multi-tier quality gates.
 
+Arsitektur (apa & mengapa, indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARCHITECTURE.md) · standar kode & alur kerja: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ---
 
-## 1. Architecture Pillars
+## 1. Fitur Utama
 
-1. **Pure Controllers**: Controller adalah pure function yang mengembalikan `ApiResponse`. Response dibungkus otomatis oleh wrapper `asyncHandler` ke dalam envelope standar.
-2. **Strict Layer Isolation**: Alur data satu arah: `Route` -> `Controller` -> `Service` -> `Repository` -> `Database`. Diverifikasi otomatis oleh `dependency-cruiser`.
-3. **Declarative ACID Transactions**: Didukung oleh Bun native `AsyncLocalStorage`. Service menandai method dengan `@Transactional()`, dan Repository cukup memanggil `this.txHost.tx` tanpa perlu *parameter drilling* (`tx` tidak perlu dioper manual).
-4. **Data Layer Teraudit**: Tabel di `public` lewat `appTable` + helper kolom (UUID v7, `timestamps()` Temporal, soft delete), dimigrasi `drizzle-kit`; data milik sistem lain dibaca lewat view referensi *read-only*. Setiap UPDATE/DELETE tercatat di `record_changes` dalam transaksi yang sama (`AuditedRepository`).
-5. **Zero-Trust Configuration**: Konfigurasi divalidasi ketat dengan Zod saat aplikasi booting (`src/config/<group>.config.ts`, satu grup per file). Aplikasi *fail-fast* jika ada variabel wajib yang tidak valid. Dilarang mengakses `process.env` di luar direktori config.
-6. **Resilient Infrastructure**:
-   - **Redis Fail-Open Cache**: Jika Redis server offline atau bermasalah, aplikasi otomatis bypass ke database fetcher tanpa membuat request user gagal.
-   - **Platform Hardening**: Rate limit global per IP klien tepercaya lewat Redis (berlaku lintas instance, fail-open; prefix partner & webhook hanya menghitung percobaan yang ditolak), `TRUST_PROXY_HOPS` (`X-Forwarded-For` tidak dipercaya mentah), batas ukuran body (413), CORS allowlist (`CORS_ORIGINS`, kosong = mati), dan security headers.
-   - **API Docs (OpenAPI 3.1)**: `GET /api/docs` (UI Scalar) dan `/api/docs/openapi.json`, dihasilkan dari schema Zod yang sama dengan validasi (snake_case, envelope standar). Aktif kecuali di production (`API_DOCS_ENABLED`).
-   - **Standar Waktu (Temporal, UTC)**: instant (`*_at`, ISO 8601 UTC, request wajib ber-offset), tanggal kalender (`*_date`, `YYYY-MM-DD`), jadwal lokal (+ `*_timezone` IANA); runtime & sesi database UTC; jam yang dilompati/terulang oleh DST ditolak.
-   - **Health Probes**: `GET /api/health` (selalu 200, `UP`/`DEGRADED`/`DOWN` + status komponen), `/api/health/readiness` (503 hanya bila database mati; Redis mati = `DEGRADED`), `/api/health/liveness` (tanpa cek dependency). Probe database dibatasi 2 detik.
-   - **Connection-Pooled HTTP Client**: Pemanggilan API eksternal menggunakan `HttpClientService` dengan persistent Keep-Alive connection pool (`http.Agent` & `https.Agent`), mandatory timeout, `X-Request-ID` ke vendor, Pino logging (body vendor teredaksi, hanya di log), dan vendor error masking (`error.origin` + `error.institution` dari `INTEGRATION_REGISTRY`).
-   - **Auth JWT + Refresh Token**: `POST /api/v1/auth/login` → access token JWT HS256 (15 menit) di body, refresh token opaque di cookie `HttpOnly; Secure; SameSite=Strict` (hanya hash SHA-256 yang disimpan). Setiap refresh merotasi token; token lama yang dipakai ulang mengakhiri seluruh sesi. Logout / logout semua perangkat, `GET /me`, batas percobaan login per (email, IP), proteksi CSRF (`Origin` ∈ `CORS_ORIGINS`). **Default-deny**: semua route `/api/v1/*` wajib `Authorization: Bearer` kecuali `PUBLIC_ROUTES` (login, refresh, logout, register); `requireRole('admin')` per route → 403. Ganti password (`POST /api/v1/auth/change-password`, reset admin `PUT /api/v1/users/:id/password`) mengakhiri sesi lama; `bun run auth:purge-tokens` membersihkan refresh token kedaluwarsa (jadwalkan harian).
-   - **Webhook Vendor (inbound)**: `POST /api/webhooks/<vendor>` di luar `/v1` (kontrak milik vendor), signature diverifikasi oleh verifier per vendor, prefix fail-closed (tanpa verifier = 401), payload dengan casing vendor, event idempoten di `webhook_events`. Contoh: `demo-pay` → `payment-notifications` (nonaktif sampai `DEMO_PAY_WEBHOOK_SECRET` diisi).
-   - **Kredensial Partner (inbound)**: admin API `/api/v1/partner-credentials` — API key (`pk_…`, hanya hash SHA-256 disimpan) dan secret HMAC (terenkripsi AES-256-GCM dengan keyring `PARTNER_SECRET_KEYS`, bisa dirotasi) ditampilkan sekali saat dibuat / dirotasi; IP whitelist (IPv4/IPv6/CIDR), daftar route, rate limit per partner. Kode partner permanen (actor audit `partner:<kode>`). Route `/api/v1/partner/*` diautentikasi request bertanda tangan HMAC-SHA256 (`partnerAuth()`: timestamp, nonce sekali pakai, signature atas method + path + query + body) — contoh `GET /api/v1/partner/ping` dan `POST /api/v1/partner/echo`.
-   - **Pino Structured Logging**: Format JSON terstruktur dengan sanitasi otomatis untuk field sensitif (PII redaction).
-7. **Pesan Dwibahasa (i18n)**: Pesan respons `id`/`en` dipilih dari header `Accept-Language` (default `DEFAULT_LOCALE=id`); string literal sebagai pesan di modul ditolak ESLint.
-8. **Kontrak snake_case Dua Arah**: Request (body & query) wajib `snake_case` — key casing lain ditolak 400 `ERR_NON_SNAKE_CASE_KEY` — lalu dikonversi ke DTO camelCase; response selalu `snake_case`.
-9. **Multi-Tier Quality Gates**: ESLint 9 Flat Config, `.ls-lint.yml` (kebab-case naming), Commitlint (Conventional Commits), dan `bun test`.
+- **Pure controllers & kontrak seragam** — controller me-return `ApiResponse`; envelope sukses/error, wire `snake_case` dua arah (key lain ditolak 400), pesan dwibahasa `id`/`en` dari `Accept-Language`.
+- **Lapisan ketat** — `Routes → Controller → Service → Repository`, diverifikasi `dependency-cruiser` dan aturan AST ESLint.
+- **Transaksi deklaratif** — `@Transactional()` di service, repository memakai `this.txHost.tx` (AsyncLocalStorage, tanpa mengoper `tx`).
+- **Data layer teraudit** — tabel `appTable` + helper kolom (UUID v7, Temporal, soft delete), empat base repository; setiap UPDATE/DELETE tercatat di `record_changes` dalam transaksi yang sama.
+- **Auth default-deny** — JWT HS256 (15 menit) + refresh token opaque di cookie `HttpOnly` dengan rotasi & deteksi reuse; semua `/api/v1/*` wajib Bearer kecuali `PUBLIC_ROUTES`; `requireRole()` per route.
+- **Kanal inbound** — partner server-to-server dengan request bertanda tangan HMAC (`/api/v1/partner/*`, kredensial dikelola admin) dan webhook vendor fail-closed dengan verifier per vendor (`/api/webhooks/<vendor>`, event idempoten).
+- **Integrasi outbound** — `HttpClientService` (keep-alive, timeout wajib, `X-Request-ID`, error vendor di-mask) hanya di `src/integrations/<vendor>/`.
+- **Platform** — konfigurasi Zod fail-fast, Redis fail-open dengan prefix otomatis, rate limit per IP lintas instance, CORS allowlist, batas body, health `UP`/`DEGRADED`/`DOWN`, OpenAPI 3.1 + Scalar dari schema yang sama dengan validasi, waktu UTC (Temporal).
+- **Quality gates** — tsc, ESLint, ls-lint, Prettier, dependency-cruiser, knip, coverage gate, test penjaga kontrak, integration test ke layanan asli, hook Husky, dan CI GitHub Actions.
 
 ---
 
@@ -37,14 +29,15 @@ src/
 ├── config/        # Satu grup Zod per file (app, auth, database, redis, http, satu per vendor); env-source.ts = satu-satunya pembaca process.env
 ├── core/          # Lintas domain: cache, context, dto, errors, http (klien outbound), i18n, logger, middlewares, openapi, response, security
 ├── database/      # Koneksi, TransactionHost, repository base teraudit, schema, seeds/, maintenance/
-├── integrations/  # Adapter vendor keluar (registry.ts + <vendor>/), tanpa route/controller
-├── modules/       # Modul domain: auth, health, users (referensi tabel mandiri), partner-credentials
+├── integrations/  # Adapter vendor (registry.ts + <vendor>/): outbound service, verifier webhook — tanpa route/controller
+├── modules/       # Modul domain: auth, health, users (referensi tabel mandiri), partner-credentials, partner-gateway
 │   └── orders/    # Modul contoh header + detail (/api/v1/orders[/:id/items]) — dihapus `bun run setup` kecuali --keep-examples
 ├── utils/         # Fungsi murni (datetime, case converter, …)
 ├── app.ts         # createApp(): pipeline middleware & router versi
 └── index.ts       # Bun.serve + graceful shutdown
-test/              # E2E (createApp().request), guard kontrak, helpers (perekam SQL), preload hermetik
-scripts/           # setup, check-coverage, verify-scaffold, seed-admin, purge-refresh-tokens
+test/              # E2E (createApp().request), test penjaga kontrak, helpers, preload hermetik, integration/ (bun run test:int)
+scripts/           # setup, check-coverage, verify-scaffold, test-integration, seed-admin, partner-sign, purge-refresh-tokens
+docs/              # Panduan auth (FE) & partner, rencana adopsi, archive/ (blueprint asal)
 ```
 
 ---
@@ -82,6 +75,7 @@ Server berjalan secara default di `http://localhost:3000` (URL juga dicatat di l
 - Health: `http://localhost:3000/api/health` (`UP` / `DEGRADED` / `DOWN`)
 - Login: `POST http://localhost:3000/api/v1/auth/login` dengan akun admin tadi; endpoint lain di `/api/v1/*` wajib `Authorization: Bearer <access_token>`. Panduan integrasi frontend (token, refresh, cookie, CSRF, domain): [docs/auth-guide.md](docs/auth-guide.md)
 - Partner (server-to-server): kredensial dibuat admin di `/api/v1/partner-credentials`, request ke `/api/v1/partner/*` ditandatangani HMAC — panduan: [docs/partner-integration-guide.md](docs/partner-integration-guide.md); uji manual: `bun run partner:sign --key <pk_…> --url http://localhost:3000/api/v1/partner/ping --send`
+- Bersihkan refresh token kedaluwarsa: `bun run auth:purge-tokens` (jadwalkan harian)
 
 #### Alternatif: Full Containerized Development (Zero Host Install)
 Jika Anda tidak ingin menginstall Bun di host OS:
@@ -105,13 +99,11 @@ Modul baru dibuat dari template skill `scaffold-module` — kodenya diverifikasi
 | Webhook vendor (kontrak milik vendor) | `.agents/skills/scaffold-module/references/webhook.md` | `src/modules/payment-notifications` + `src/integrations/demo-pay` (dihapus `bun run setup` kecuali `--keep-examples`) |
 | Adapter vendor outbound (bukan modul) | `.agents/skills/scaffold-module/references/integration.md` | `src/integrations/jsonplaceholder` |
 
-Urutannya selalu: schema (`appTable` + helper kolom) → `bun run db:generate` → DTO (request & response, snake_case di wire) → pesan (`id`/`en`) → repository (extend base) → transformer → service → controller (`ApiResponse`) → routes (`describeEndpoint` + `validate`) → daftarkan di `src/app.ts` (`v1.route(...)`) → test → `bun run validate:full`. Lewat AI agent: minta "scaffold module <nama>" (skill `scaffold-module`). Panduan rinci: [CONTRIBUTING.md §10](CONTRIBUTING.md).
+Urutannya selalu: schema (`appTable` + helper kolom) → `bun run db:generate` → DTO (request & response, snake_case di wire) → pesan (`id`/`en`) → repository (extend base) → transformer → service → controller (`ApiResponse`) → routes (`describeEndpoint` + `validate`) → daftarkan di `src/app.ts` (`v1.route(...)`) → test → `bun run validate:full`. Lewat AI agent: minta "scaffold module <nama>" (skill `scaffold-module`). Panduan rinci: [CONTRIBUTING.md §10](CONTRIBUTING.md#10-panduan-scaffolding-modul-fitur-baru).
 
 ---
 
 ## 5. Menjalankan Quality Gates
-
-Jalankan seluruh verifikasi statis, arsitektur, dan testing:
 
 ```bash
 # Seluruh quality gates (juga dijalankan hook pre-push): typecheck, lint, ls-lint, prettier,
@@ -127,3 +119,19 @@ bun run lint:ls     # Kebab-case naming check
 bun run lint:arch   # Architectural boundary isolation check
 bun test            # Unit & e2e test (hermetik: tanpa DB/Redis asli)
 ```
+
+Daftar lengkap perintah: [CONTRIBUTING.md §1](CONTRIBUTING.md#perintah-validasi-lokal).
+
+---
+
+## 6. Dokumentasi
+
+| Dokumen | Isi |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Pilar, keputusan & alasannya, indeks aturan beserta penegaknya |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Pohon kanonik, perintah, contoh kode, aturan per bagian, konvensi commit |
+| [docs/auth-guide.md](docs/auth-guide.md) | Integrasi frontend: token, refresh, cookie, CSRF, domain |
+| [docs/partner-integration-guide.md](docs/partner-integration-guide.md) | Untuk partner: signing v1, contoh kode, vektor uji, error, rotasi |
+| [.agents/AGENTS.md](.agents/AGENTS.md) | Aturan AI agent (diimpor `CLAUDE.md`) + skills di `.agents/skills/` |
+| [docs/plans/](docs/plans/) | Rencana adopsi & log keputusan |
+| [docs/archive/](docs/archive/) | Blueprint NestJS asal (arsip, tidak dipelihara) |

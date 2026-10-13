@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 import packageJson from '../package.json';
 
 /**
@@ -74,5 +74,143 @@ describe('CONTRIBUTING.md names everything a contributor works with', () => {
       return contributing.includes(`\`${command}\``) || contributing.includes(`\`${command} `);
     };
     expect(scripts.filter((name) => !listed(name))).toEqual([]);
+  });
+});
+
+/**
+ * ARCHITECTURE.md §12 indexes every rule with the machine that enforces it. A label that points at
+ * nothing (a renamed ESLint group, a deleted test) would make the index lie, and a rule added to
+ * ESLint or dependency-cruiser without a row would stay unexplained: both fail here.
+ */
+
+const read = (path: string): string => readFileSync(resolve(ROOT, path), 'utf8');
+const architecture = read('ARCHITECTURE.md');
+const eslintConfig = read('eslint.config.mjs');
+const depcruiseConfig = read('.dependency-cruiser.cjs');
+
+/** Documents that carry enforcer labels. */
+const LABELLED_DOCS = [
+  'ARCHITECTURE.md',
+  'CONTRIBUTING.md',
+  '.agents/AGENTS.md',
+  '.agents/skills/project-standards/SKILL.md',
+];
+
+/** ESLint groups made only of other groups: indexed through their parts. */
+const COMPOSITE_ESLINT_GROUPS = ['SOURCE_SYNTAX_RULES', 'MODULE_DATA_RULES'];
+
+const firstCaptures = (text: string, pattern: RegExp): string[] =>
+  [...text.matchAll(pattern)].map((match) => match.at(1) ?? '').filter((name) => name !== '');
+
+const ciJobs = new Set(
+  firstCaptures(
+    read('.github/workflows/ci.yml')
+      .split(/^jobs:\s*$/m)
+      .at(1) ?? '',
+    /^ {2}([\w-]+):/gm,
+  ),
+);
+const testFileNames = new Set(
+  ['src', 'test'].flatMap((dir) =>
+    readdirSync(resolve(ROOT, dir), { recursive: true, encoding: 'utf8' }).map((path) =>
+      basename(path),
+    ),
+  ),
+);
+
+/** Label kinds and how their target is found; `null` = the kind takes no target. */
+const LABEL_TARGETS = new Map<string, ((target: string) => boolean) | null>([
+  ['tsc', null],
+  ['ls-lint', null],
+  ['review-only', null],
+  [
+    'eslint',
+    (target) =>
+      new RegExp(`^const ${escapeRegExp(target)} =|'${escapeRegExp(target)}':`, 'm').test(
+        eslintConfig,
+      ),
+  ],
+  ['depcruise', (target) => depcruiseConfig.includes(`name: '${target}'`)],
+  [
+    'test',
+    (target) => testFileNames.has(`${target}.test.ts`) || testFileNames.has(`${target}.int.ts`),
+  ],
+  ['script', (target) => Object.keys(packageJson.scripts).includes(target)],
+  ['ci', (target) => ciJobs.has(target)],
+  ['hook', (target) => existsSync(resolve(ROOT, target))],
+]);
+
+/** `[kind]` or `[kind:target]`, not a markdown link (`[text](url)`). */
+const LABEL = /\[([a-z][a-z-]*)(?::([^\]\s]+))?\](?!\()/g;
+
+/** Labels in `text` that are malformed or point at nothing. Placeholders (`<name>`) are skipped. */
+const invalidLabels = (text: string): string[] =>
+  [...text.matchAll(LABEL)].flatMap((match) => {
+    const label = match[0];
+    const kind = match.at(1) ?? '';
+    const target = match.at(2);
+    const check = LABEL_TARGETS.get(kind);
+    if (target === undefined) {
+      // A bare word in brackets is only a label when it is a known kind.
+      return check ? [label] : [];
+    }
+    if (target.startsWith('<') && target.endsWith('>')) return [];
+    return check?.(target) ? [] : [label];
+  });
+
+const labelsIn = (text: string): string[] =>
+  [...text.matchAll(LABEL)]
+    .filter((match) => LABEL_TARGETS.has(match.at(1) ?? ''))
+    .map((m) => m[0]);
+
+const indexRows = architecture.split('\n').filter((line) => /^\| R\d{2} \|/.test(line));
+const indexIds = indexRows.map((row) => row.slice(2, 5));
+
+describe('ARCHITECTURE.md rule index (R01…) and enforcer labels', () => {
+  it('every enforcer label points at an existing rule, group, test, script, CI job or hook', () => {
+    const invalid = LABELLED_DOCS.flatMap((path) =>
+      invalidLabels(read(path)).map((label) => `${path}: ${label}`),
+    );
+    expect(invalid).toEqual([]);
+  });
+
+  it('rule IDs run R01, R02, … without gaps or duplicates', () => {
+    expect(indexIds.length).toBeGreaterThan(0);
+    expect(indexIds).toEqual(indexIds.map((_, i) => `R${String(i + 1).padStart(2, '0')}`));
+  });
+
+  it('every rule names at least one enforcer (or [review-only])', () => {
+    const unlabelled = indexRows.filter(
+      (row) => labelsIn(row.split('|').at(-2) ?? '').length === 0,
+    );
+    expect(unlabelled).toEqual([]);
+  });
+
+  it('every rule ID referenced in the text exists in the index', () => {
+    const referenced = new Set(firstCaptures(architecture, /\b(R\d{2})\b/g));
+    expect([...referenced].filter((id) => !indexIds.includes(id))).toEqual([]);
+  });
+
+  it('every dependency-cruiser rule and ESLint group has a row', () => {
+    const groups = firstCaptures(
+      eslintConfig,
+      /^const ([A-Z][A-Z_]*_(?:RULES|PATTERN|PATTERNS)) =/gm,
+    );
+    expect(COMPOSITE_ESLINT_GROUPS.filter((name) => !groups.includes(name))).toEqual([]);
+    const required = [
+      ...firstCaptures(depcruiseConfig, /name: '([\w-]+)'/g).map((name) => `[depcruise:${name}]`),
+      ...groups
+        .filter((name) => !COMPOSITE_ESLINT_GROUPS.includes(name))
+        .map((name) => `[eslint:${name}]`),
+      '[eslint:local/inbound-channel]',
+    ];
+    const indexed = indexRows.join('\n');
+    expect(required.filter((label) => !indexed.includes(label))).toEqual([]);
+  });
+});
+
+describe('README.md', () => {
+  it('stays a quickstart (at most 150 lines; details live in ARCHITECTURE and CONTRIBUTING)', () => {
+    expect(read('README.md').trimEnd().split('\n').length).toBeLessThanOrEqual(150);
   });
 });
