@@ -10,7 +10,7 @@ Before writing or modifying any code, generating files, or making architectural 
 
 This applies to modules, services, controllers, DTOs, schemas, transformers, middlewares, utilities, scripts and tests. It does not apply to commit messages, logbooks, version bumps, or questions that involve no code.
 
-Before reporting a change as finished: `bun run validate:full` and `bun run build`, plus `bun run test:int` / `bun run verify:scaffold` when `docs/standards/quality-gates.md` §1 requires them. Prove new rules with a chaos test (break the rule, see the gate fail, restore).
+Before reporting a change as finished, follow the `finish-change` skill: the gates it needs, the definition of done and the report format (`docs/standards/quality-gates.md` §4). Prove new rules with a chaos test (break the rule, see the gate fail, restore).
 
 ---
 

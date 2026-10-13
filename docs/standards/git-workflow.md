@@ -38,19 +38,19 @@ The allowed types are exactly `type-enum` in `commitlint.config.ts` — there is
 - Concise English by default (Indonesian when the user asks).
 - Enforced by the `commit-msg` hook and, for pull requests, the CI job `verify`.
 
-**Scopes** (kebab-case, the area the change belongs to):
+**Scopes** — exactly one per commit, required. `commitlint.config.ts` builds the allowed list when you commit: the fixed scopes below plus every folder of the source tree, so a new module or vendor is a valid scope the moment it exists (and a removed one stops being valid):
 
 | Area | Scopes |
 |---|---|
-| Feature domains | `auth`, `users`, `health`, `partner-credentials`, `<module>` |
+| From the source tree | `<module>` (every folder of `src/modules/`, dependent modules included: `users`, `tasks`), `core/<area>` (`core/cache`), `database/<folder>` (`database/schema`), `integrations/<vendor>`, `utils/<name>` (from `<name>.util.ts`) |
+| Application & layers | `app`, `config`, `core`, `database`, `database/migrations`, `utils`, `integrations` |
 | Inbound channels | `partner` (gateway, signing), `partner-auth`, `webhooks`, `conventions` (channel and naming conventions) |
-| Core | `core/cache`, `core/context`, `core/dto`, `core/errors`, `core/http`, `core/i18n`, `core/logger`, `core/middlewares`, `core/openapi`, `core/response` |
-| Database | `database` (repositories, transactions), `database/schema`, `database/migrations` |
-| Configuration, utilities, integrations | `config`, `utils/<name>`, `integrations/<vendor>` |
-| Quality gates & tooling | `quality-gates`, `deps`, `lint`, `scripts`, `ci`, `scaffold` (templates, `verify:scaffold`), `integration` (`test:int`) |
-| Reviews, docs, agents | `review` (fixes from a phase review), `standards`, `architecture`, `agents`, `plans` |
+| Quality gates & tooling | `quality-gates`, `deps`, `lint`, `scripts`, `ci`, `docker`, `scaffold` (templates, `verify:scaffold`), `setup` (`bun run setup`), `integration` (`test:int`) |
+| Reviews, docs, agents | `review` (fixes from a review), `standards`, `architecture`, `agents`, `skills`, `plans`, `readme`, `release` |
 
-Examples: `feat(users): add user registration endpoint with password hashing` · `fix(cache): resolve fail-open bypass on redis timeout` · `docs(standards): move coding standards into docs/standards`.
+A commit spanning several areas takes the scope of its main purpose (`feat(database): …` for a new repository base with its templates and docs). Enforced by the `commit-msg` hook and the CI job `verify`; the fixed scopes in this table and `PLATFORM_SCOPES` in `commitlint.config.ts` are kept equal by `test/commit-scopes.test.ts`.
+
+Examples: `feat(users): add user registration endpoint with password hashing` · `fix(core/cache): resolve fail-open bypass on redis timeout` · `docs(standards): move coding standards into docs/standards`.
 
 ## 3. Before opening a pull request
 

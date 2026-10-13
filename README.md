@@ -10,7 +10,7 @@ Arsitektur & alasannya (indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARC
 
 - **Kontrak HTTP seragam** — controller me-return `ApiResponse`, envelope sukses/error, wire `snake_case` dua arah, pesan `id`/`en`.
 - **Lapisan ketat** — `Routes → Controller → Service → Repository`, diverifikasi dependency-cruiser dan ESLint.
-- **Data layer teraudit** — transaksi deklaratif, empat base repository, setiap UPDATE/DELETE tercatat di `record_changes`.
+- **Data layer teraudit** — transaksi deklaratif, lima base repository (termasuk parent-child), setiap UPDATE/DELETE tercatat di `record_changes`.
 - **Auth default-deny** — JWT + refresh token di cookie `HttpOnly` (rotasi, deteksi reuse), role per route.
 - **Kanal inbound** — partner dengan request bertanda tangan HMAC, webhook vendor fail-closed dan idempoten.
 - **Platform** — konfigurasi Zod fail-fast, Redis fail-open, rate limit, health `UP`/`DEGRADED`/`DOWN`, OpenAPI + Scalar, waktu UTC (Temporal).
@@ -36,6 +36,8 @@ bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk pre
 #    payment-notifications) dihapus & migrasi dibuat ulang dari awal;
 #    tambahkan --keep-examples untuk mempertahankannya sebagai referensi
 # atau via AI agent (Claude Code): /init-project my-backend
+#    riwayat git baru (opsional): hapus .git → git init -b main → bun run prepare (wajib:
+#    memasang hook Husky; setup memberi peringatan bila hook belum aktif)
 
 # 2. Pastikan PostgreSQL & Redis berjalan, lalu sesuaikan DATABASE_URL / REDIS_* di file env
 #    (opsional, bila tidak memasang layanan secara langsung: docker compose up -d)

@@ -243,6 +243,7 @@ const ROUTERS = new Map([
   ['CONTRIBUTING.md', 70],
   ['.agents/skills/project-standards/SKILL.md', 45],
   ['.agents/skills/env-protection/SKILL.md', 15],
+  ['.agents/skills/finish-change/SKILL.md', 20],
 ]);
 
 /** The text outside fenced code blocks (``` … ```). */
@@ -283,9 +284,48 @@ const brokenLinks = (path: string): string[] => {
   });
 };
 
+/**
+ * `<file>.md §N` references (`quality-gates.md §4`, `[database.md](database.md) §6`): the file
+ * exists and has that section — a numbered heading (`## 4.`, `### 2.6`), or a numbered list item
+ * (`6. …`) in a document that has no numbered headings. Routers and skills point at sections by number, so renumbering or
+ * dropping a section must fail here instead of leaving them pointing at nothing.
+ */
+const SECTION_REFERENCE =
+  /(?:\[[^\]]*\]\(([^)#\s]+\.md)(?:#[^)]*)?\)|`?([\w./-]+\.md)`?)\s*§(\d+(?:\.\d+)?)/g;
+
+const sectionTarget = (doc: string, link: string | undefined, name: string): string | undefined => {
+  const candidates =
+    link === undefined
+      ? [name, `${dirname(doc)}/${name}`, `${STANDARDS_DIR}/${name}`, `docs/${name}`]
+      : [`${dirname(doc)}/${link}`];
+  return candidates.map((path) => resolve(ROOT, path)).find((path) => existsSync(path));
+};
+
+const brokenSectionReferences = (doc: string): string[] =>
+  [...prose(read(doc)).matchAll(SECTION_REFERENCE)].flatMap((match) => {
+    const name = match.at(1) ?? match.at(2) ?? '';
+    const section = match.at(3) ?? '';
+    const target = sectionTarget(doc, match.at(1), name);
+    if (target === undefined) return [`${doc}: ${name} §${section} → no such file`];
+    const text = prose(readFileSync(target, 'utf8'));
+    const escaped = section.split('.').join('\\.');
+    const heading = new RegExp(`^#{2,4} ${escaped}[.\\s]`, 'm');
+    const listItem = new RegExp(`^${escaped}\\. `, 'm');
+    // A numbered list item counts only in a document without numbered headings (configuration.md).
+    const numberedHeadings = /^#{2,4} \d/m.test(text);
+    return heading.test(text) ||
+      (!numberedHeadings && !section.includes('.') && listItem.test(text))
+      ? []
+      : [`${doc}: ${name} §${section} → no such section`];
+  });
+
 describe('docs/standards/ is the single source of the standards', () => {
   it('every relative link and #anchor in the maintained documents resolves', () => {
     expect(MAINTAINED_DOCS.flatMap(brokenLinks)).toEqual([]);
+  });
+
+  it('every "<file>.md §N" reference points at an existing section', () => {
+    expect(MAINTAINED_DOCS.flatMap(brokenSectionReferences)).toEqual([]);
   });
 
   it('every docs/standards/… or .agents/….md path named in a document exists', () => {

@@ -113,9 +113,10 @@ test/
 ├── *.e2e.test.ts                # health, auth, users, orders (example), partner-credentials, partner-gateway, vendor-webhooks, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Guards the hermetic preload
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes)
-├── structure.test.ts            # File names, module / integration patterns, module ≠ vendor, channel routers under their prefix, *.int.ts placement
+├── structure.test.ts            # File names, module / integration patterns, dependent subfolders, unique module names, module ≠ vendor, channel routers, *.int.ts placement
 ├── docs-sync.test.ts            # This tree and the command table name everything; rule-index labels; links; docs SSOT
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
+├── commit-scopes.test.ts        # Fixed commit scopes in commitlint.config.ts = the table in git-workflow.md; scopes derived from src/
 └── migrations.test.ts           # Guards the generated migration SQL
 ```
 
@@ -130,6 +131,7 @@ scripts/
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing
+├── lib/git-hooks.ts             # Are the Husky hooks active (core.hooksPath)? bun run setup warns when not (+ lib/git-hooks.test.ts)
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`

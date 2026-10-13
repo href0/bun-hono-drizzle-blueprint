@@ -12,7 +12,7 @@ Read this file when: changing a standard, adding a rule, or editing any document
 | `ARCHITECTURE.md` | What & why per area, and the rule index (R01…) with each rule's enforcer | English |
 | `CONTRIBUTING.md` | How to start, how to work, the index of `docs/standards/` | English |
 | `.agents/AGENTS.md` | What only agents need: mandatory reading, the work plan, `.env` protection, commit / merge policy | English |
-| `.agents/skills/*/SKILL.md` | Routers: when to read which standard, the steps of a workflow (commit text, version bump, logbook, init) | English |
+| `.agents/skills/*/SKILL.md` | Routers: when to read which standard, the steps of a workflow (finishing a change, commit text, version bump, logbook, init) | English |
 | `.agents/skills/scaffold-module/` | Template **code** for new modules and adapters (verified by `bun run verify:scaffold`) | English |
 | `.claude/skills/*/SKILL.md` | Pointer wrappers to `.agents/skills/` (`test/agent-skills.test.ts`) | English |
 | `README.md` | Quickstart (at most 150 lines) and links | Indonesian |
@@ -30,9 +30,9 @@ Every rule has one row in `ARCHITECTURE.md` §12 with its enforcer labels: `[tsc
 
 - `structure.md` names every script, test folder, helper, integration area, top-level test and module; `quality-gates.md` lists every `package.json` script.
 - Every enforcer label points at an existing ESLint group / rule, dependency-cruiser rule, test file, script, CI job or hook; rule IDs are consecutive; every row has a label; every ID referenced in the text exists.
-- Every relative link (file and `#anchor`) in the documents above resolves.
+- Every relative link (file and `#anchor`) in the documents above resolves, and every `<file>.md §N` reference points at an existing section (a numbered heading; a numbered list item in a document without numbered headings) — renumbering a section breaks the gate, not the readers.
 - Every `docs/standards/` file is linked from `CONTRIBUTING.md` and from the `project-standards` skill.
-- Routers stay routers: `AGENTS.md`, `CONTRIBUTING.md` and the `project-standards` / `env-protection` skills contain no code blocks and stay within their line budgets; `README.md` stays within 150 lines.
+- Routers stay routers: `AGENTS.md`, `CONTRIBUTING.md` and the `project-standards` / `env-protection` / `finish-change` skills contain no code blocks and stay within their line budgets; `README.md` stays within 150 lines.
 
 ## 4. Writing Markdown
 

@@ -209,6 +209,7 @@ Rules for AI agents are part of the architecture: an agent produces code faster 
 | `.agents/AGENTS.md` (imported by `CLAUDE.md`) | What only agents need: mandatory reading, the work plan, `.env` protection, never commit / merge unasked |
 | skill `project-standards` | Router: which `docs/standards/` file to read before touching what |
 | skill `scaffold-module` | Template code for new modules / adapters, generated with `bun run scaffold` (verified) |
+| skill `finish-change` | Router: gates, definition of done and report before a change is called finished (`docs/standards/quality-gates.md` §4) |
 | skills `init-project`, `generate-commit-text`, `update-version`, `generate-logbook`, `env-protection` | Project workflows |
 | `.claude/` | Claude Code wrappers (`test/agent-skills.test.ts`); `permissions.deny` + a hook blocking active `.env` files |
 
@@ -346,9 +347,9 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R68 | `structure.md` names every script, test folder, helper and module, `quality-gates.md` every command; labels in this index are valid | [test:docs-sync] |
 | R69 | Every `.agents` skill has a `.claude` wrapper with the same name + description | [test:agent-skills] |
 | R70 | Agents never read active `.env` files (only `.env.example`) | [hook:.claude/hooks/protect-env.mjs] |
-| R71 | Commit messages follow Conventional Commits; branch names `<type>/<slug>` | [hook:.husky/commit-msg] [script:lint:branch] [ci:verify] |
+| R71 | Commit messages follow Conventional Commits with exactly one scope: a fixed platform scope or a folder of the source tree (module, `core/<area>`, `database/<folder>`, `integrations/<vendor>`, `utils/<name>`); branch names `<type>/<slug>` | [hook:.husky/commit-msg] [test:commit-scopes] [script:lint:branch] [ci:verify] |
 | R72 | Generated migrations keep matching the SQL guards | [test:migrations] |
-| R73 | Each standard lives in one `docs/standards/` file; routers (`AGENTS.md`, `CONTRIBUTING.md`, the `project-standards` / `env-protection` skills) hold no code blocks and stay within budget; every standards file is linked from `CONTRIBUTING.md` and the `project-standards` skill; every relative link resolves | [test:docs-sync] |
+| R73 | Each standard lives in one `docs/standards/` file; routers (`AGENTS.md`, `CONTRIBUTING.md`, the `project-standards` / `env-protection` / `finish-change` skills) hold no code blocks and stay within budget; every standards file is linked from `CONTRIBUTING.md` and the `project-standards` skill; every relative link and every `<file>.md §N` reference resolves | [test:docs-sync] |
 | R74 | A dependent row is reachable only through its parent: hidden while the parent is deleted or outside `parentScope()` (404, never 403), written only after the parent is locked, never moved to another parent; `assertParentWritable()` guards every write of details and dependents | [test:dependent.repository] [test:child.repository] [test:data-layer] [script:verify:scaffold] |
 
 ---

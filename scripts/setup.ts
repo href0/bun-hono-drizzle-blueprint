@@ -23,6 +23,7 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
+import { gitHooksAdvice, readGitState } from './lib/git-hooks';
 
 interface ProjectIdentity {
   /** kebab-case, e.g. `pengangkut-udara-backend` (package name, APP_NAME, container prefix) */
@@ -544,6 +545,9 @@ function runSetup(): void {
 
   console.log('----------------------------------------------------');
   console.log(`[Setup] Project initialization ${dryRun ? 'preview' : 'completed'} successfully`);
+  // Husky's hooks live in .git/config: a fresh git init loses them silently.
+  const hooksAdvice = gitHooksAdvice(readGitState(rootDir));
+  if (hooksAdvice) console.log(`[Setup] WARNING: ${hooksAdvice}`);
   console.log('Next steps:');
   console.log('  1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)');
   console.log('  2. Apply database migrations: bun run db:migrate');
