@@ -1,6 +1,6 @@
-# Bun Hono Starter (Enterprise Bun + Hono + Drizzle + PostgreSQL)
+# Bun Hono Drizzle Blueprint
 
-Production-ready backend starter berbasis **Bun**, **Hono**, **Drizzle ORM**, dan **PostgreSQL**, dengan fail-open Redis caching, structured logging (Pino), async Zod validation, declarative ACID transactions, dan multi-tier quality gates.
+Blueprint backend siap produksi berbasis **Bun**, **Hono**, **Drizzle ORM**, dan **PostgreSQL**, dengan fail-open Redis caching, structured logging (Pino), async Zod validation, declarative ACID transactions, dan multi-tier quality gates.
 
 Arsitektur & alasannya (indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARCHITECTURE.md) · cara bekerja & daftar standar: [CONTRIBUTING.md](CONTRIBUTING.md) · standar kode (satu sumber per topik, bahasa Inggris): [docs/standards/](docs/standards/).
 

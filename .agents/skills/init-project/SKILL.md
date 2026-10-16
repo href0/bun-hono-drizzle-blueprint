@@ -22,7 +22,7 @@ Input: `<project-name>` and an optional one-line description.
 
 ### 2. Check Current State
 
-- Read `package.json` `name`. If it is no longer the boilerplate's default (`bun-hono-starter`), the project was already initialized — tell the user and ask whether to rename again.
+- Read `package.json` `name`. If it is no longer the boilerplate's default (`bun-hono-drizzle-blueprint`), the project was already initialized — tell the user and ask whether to rename again.
 - Run `git status --short`. If there are uncommitted changes, tell the user before continuing (the script edits tracked files).
 
 ### 3. Preview (Dry Run)
@@ -63,7 +63,7 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
 
 1. No leftover boilerplate identity (expect no output):
    ```bash
-   git grep -nE "bun-hono-starter|starter_db" -- ':!.agents/skills/init-project/' ':!docs/'
+   git grep -nE "bun-hono-drizzle-blueprint|bun_hono_drizzle_blueprint_db" -- ':!.agents/skills/init-project/' ':!docs/'
    ```
    (This skill names the defaults on purpose; `docs/` holds the plan and the archive, which quote them as history.)
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.

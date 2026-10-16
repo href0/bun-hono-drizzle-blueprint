@@ -1,7 +1,7 @@
 {
-  "name": "bun-hono-starter",
+  "name": "bun-hono-drizzle-blueprint",
   "version": "1.0.0",
-  "description": "Enterprise Backend Starter (Bun, Hono, Drizzle ORM, PostgreSQL)",
+  "description": "Production-grade backend blueprint for Bun, Hono, Drizzle ORM and PostgreSQL",
   "type": "module",
   "scripts": {
     "setup": "bun scripts/setup.ts",

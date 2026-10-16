@@ -10,7 +10,7 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 const appSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
-  APP_NAME: z.string().default('bun-hono-starter'),
+  APP_NAME: z.string().default('bun-hono-drizzle-blueprint'),
   /** Unversioned root of the API (health, docs); versioned routers live in code under it (`/v1`). */
   API_BASE_PATH: z
     .string()
