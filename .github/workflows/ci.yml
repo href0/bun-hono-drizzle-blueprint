@@ -58,7 +58,11 @@ jobs:
       - name: Setup registries (IDENTITY_RULES, EXAMPLE_MODULES)
         run: bun run lint:setup
 
-      - name: Tests and coverage gate
+      # Check only, never write the snapshot here: accepting a contract change is the developer's call.
+      - name: API contract matches docs/api/openapi.json
+        run: bun run openapi:check
+
+      - name: Unit + e2e tests and coverage gate
         run: bun run test:cov
 
       - name: Build

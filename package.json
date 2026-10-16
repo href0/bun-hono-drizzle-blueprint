@@ -25,7 +25,7 @@
     "scaffold": "bun scripts/scaffold.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
-    "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:setup && bun run lint:branch",
+    "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:setup && bun run openapi:check && bun run lint:branch",
     "validate:full": "bun run validate && bun run test:cov",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -33,6 +33,8 @@
     "seed:admin": "bun scripts/seed-admin.ts",
     "auth:purge-tokens": "bun scripts/purge-refresh-tokens.ts",
     "partner:sign": "bun scripts/partner-sign.ts",
+    "openapi:check": "bun scripts/openapi.ts check",
+    "openapi:update": "bun scripts/openapi.ts update",
     "docs:dev": "cd docs-site && bun run dev",
     "docs:build": "cd docs-site && bun run build",
     "prepare": "husky"

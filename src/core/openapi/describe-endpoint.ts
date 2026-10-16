@@ -55,6 +55,21 @@ export const errorResponse = (
 });
 
 /**
+ * The same error response as plain OpenAPI (a `$ref` to the `ErrorEnvelope` component), for
+ * responses added to the generated document afterwards: a Zod resolver is only turned into JSON
+ * Schema during generation, so `errorResponse()` there would leak the raw Zod object.
+ */
+export const errorResponseObject = (
+  status: ErrorStatus,
+): {
+  description: string;
+  content: { 'application/json': { schema: { $ref: string } } };
+} => ({
+  description: ERROR_DESCRIPTIONS[status],
+  content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } },
+});
+
+/**
  * OpenAPI metadata for a route, in the standard envelopes. Request body, parameters and the 400 /
  * 413 responses come from the route's `validate()` automatically; only the response side and the
  * domain errors are described here.

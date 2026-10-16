@@ -143,11 +143,18 @@ const applyEdits = (plan: ScaffoldPlan): Map<string, string> => {
   return results;
 };
 
-const printNextSteps = (plan: ScaffoldPlan, heading: string): void => {
+/**
+ * Printed only: new routes change the API contract (docs/api/openapi.json), and accepting that
+ * change is the developer's reviewed decision — this CLI never writes the snapshot (R76).
+ */
+const CONTRACT_REMINDER =
+  'API contract: bun run openapi:check lists the new operations; review them, then bun run openapi:update';
+
+const printNextSteps = (plan: ScaffoldPlan, heading: string, addsRoutes: boolean): void => {
   console.log(`\n${heading}`);
-  for (const [index, step] of plan.nextSteps.entries())
-    console.log(`  ${String(index + 1)}. ${step}`);
-  console.log(`  ${String(plan.nextSteps.length + 1)}. bun run validate:full`);
+  const steps = [...plan.nextSteps, ...(addsRoutes ? [CONTRACT_REMINDER] : [])];
+  for (const [index, step] of steps.entries()) console.log(`  ${String(index + 1)}. ${step}`);
+  console.log(`  ${String(steps.length + 1)}. bun run validate:full`);
 };
 
 const main = (): void => {
@@ -157,12 +164,14 @@ const main = (): void => {
   if (problems.length > 0)
     throw new ScaffoldError(`refusing to scaffold:\n  - ${problems.join('\n  - ')}`);
   const edited = applyEdits(plan);
+  // An outbound adapter adds no route; every other kind does.
+  const addsRoutes = request.kind !== 'integration';
 
   console.log(`${dryRun ? '[dry run] ' : ''}Scaffolding ${plan.label} from ${plan.template}`);
   for (const file of plan.files) console.log(`  create ${file.path}`);
   for (const edit of plan.edits) console.log(`  edit   ${edit.path} — ${edit.label}`);
   if (dryRun) {
-    printNextSteps(plan, 'Next steps (after a real run — nothing was written):');
+    printNextSteps(plan, 'Next steps (after a real run — nothing was written):', addsRoutes);
     return;
   }
 
@@ -189,7 +198,7 @@ const main = (): void => {
     );
   }
 
-  printNextSteps(plan, 'Next steps:');
+  printNextSteps(plan, 'Next steps:', addsRoutes);
 };
 
 try {

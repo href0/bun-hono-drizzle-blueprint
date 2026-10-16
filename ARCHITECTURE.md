@@ -260,7 +260,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R16 | Client messages are `LocalizedMessage` `{ id, en }`; string literals as messages in modules are banned | [eslint:MODULE_ERROR_RULES] [tsc] [test:translate] |
 | R17 | Every route has `describeEndpoint()` (summary + 2xx), snake_case properties, common headers | [test:openapi.e2e] |
 | R18 | A 500 never exposes internal messages / details | [test:error-handler] |
-| R19 | The API version is a router in code (`/v1`, `/v2`), never env; a breaking change is a new version — an API design decision a machine cannot detect | [review-only] |
+| R19 | The API version is a router in code (`/v1`, `/v2`), never env; a breaking change is a new version — `openapi:check` labels it BREAKING (R76), choosing the version is a review decision | [review-only] |
 
 ### Date & time
 
@@ -352,6 +352,8 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R73 | Each standard lives in one `docs/standards/` file; routers (`AGENTS.md`, `CONTRIBUTING.md`, the `project-standards` / `env-protection` / `finish-change` skills) hold no code blocks and stay within budget; every standards file is linked from `CONTRIBUTING.md` and the `project-standards` skill; every relative link and every `<file>.md §N` reference resolves | [test:docs-sync] |
 | R74 | A dependent row is reachable only through its parent: hidden while the parent is deleted or outside `parentScope()` (404, never 403), written only after the parent is locked, never moved to another parent; `assertParentWritable()` guards every write of details and dependents | [test:dependent.repository] [test:child.repository] [test:data-layer] [script:verify:scaffold] |
 | R75 | Passwords are hashed and verified only through `hashPassword` / `verifyPassword` (`src/core/security/password.ts`): one cost for stored hashes and the login dummy hash, a cheap one only under `NODE_ENV=test` | [eslint:no-restricted-properties] [test:password] |
+| R76 | The API contract is the reviewed snapshot `docs/api/openapi.json`: `openapi:check` fails on any difference (labelled BREAKING / safe / docs, asymmetric for request and response); only a developer runs `openapi:update` — never a hook, CI or the scaffold CLI | [script:openapi:check] [test:compare] [test:api-contract] [ci:verify] [script:verify:scaffold] |
+| R77 | CI re-runs every local gate: each gate of `validate:full` is its own step of the CI job `verify` (`lint:branch` replaced by `validate-branch-name -t <head_ref>`: a pull request is a detached checkout) | [test:ci-gates] |
 
 ---
 

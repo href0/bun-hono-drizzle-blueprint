@@ -13,7 +13,7 @@ interface Operation {
 }
 interface Document {
   paths: Record<string, Record<string, Operation>>;
-  components: { schemas?: Record<string, unknown> };
+  components: Record<string, Record<string, unknown> | undefined>;
 }
 
 const app = createApp();
@@ -71,6 +71,21 @@ describe('OpenAPI document (createApp)', () => {
         .map(([method]) => `${method.toUpperCase()} ${path}`),
     );
     expect(incomplete).toEqual([]);
+  });
+
+  it('contains only JSON Schema: every $ref resolves, no raw Zod object leaked in', async () => {
+    const doc = await loadDocument();
+    const text = JSON.stringify(doc);
+    const unresolved = [...new Set(text.match(/"\$ref":"[^"]*"/g) ?? [])]
+      .map((match) => match.slice('"$ref":"'.length, -1))
+      .filter((ref) => {
+        const [kind, name] = ref.replace('#/components/', '').split('/');
+        const group = new Map(Object.entries(doc.components)).get(kind);
+        return !ref.startsWith('#/components/') || !(name && group && name in group);
+      });
+    expect(unresolved).toEqual([]);
+    // A Zod schema serialized as is (a resolver added after generation) shows up as `"vendor":"zod"`.
+    expect(text).not.toContain('"vendor":"zod"');
   });
 
   it('uses snake_case for every schema property and query parameter', async () => {

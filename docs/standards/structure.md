@@ -16,6 +16,7 @@ Read this file when: placing a new file, adding an import between layers, or add
 │   ├── standards/               # The single source of every coding standard (this folder)
 │   ├── auth-guide.md            # For frontend developers (Indonesian)
 │   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts
+│   ├── api/openapi.json         # API contract snapshot: written by bun run openapi:update after review, never by hand (R76)
 │   ├── plans/                   # Adoption plan & decision log
 │   └── archive/                 # Original NestJS blueprint (not maintained)
 ├── docs-site/                   # Interactive documentation portal (Astro Starlight)
@@ -117,6 +118,8 @@ test/
 ├── structure.test.ts            # File names, module / integration patterns, dependent subfolders, unique module names, module ≠ vendor, channel routers, *.int.ts placement
 ├── docs-sync.test.ts            # This tree and the command table name everything; rule-index labels; links; docs SSOT
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
+├── ci-gates.test.ts             # Every gate of validate:full is its own step of the CI job verify
+├── api-contract.test.ts         # openapi:check runs in validate and CI; no hook, CI workflow or the scaffold CLI runs openapi:update
 ├── commit-scopes.test.ts        # Fixed commit scopes in commitlint.config.ts = the table in git-workflow.md; scopes derived from src/
 └── migrations.test.ts           # Guards the generated migration SQL
 ```
@@ -132,6 +135,8 @@ scripts/
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing
+├── openapi.ts                   # `bun run openapi:check` / `openapi:update`: the API contract snapshot (docs/api/openapi.json)
+├── lib/api-contract/            # Contract engine: document.ts (generation with a fixed config), flatten.ts, compare.ts (labels; + compare.test.ts), report.ts
 ├── lib/git-hooks.ts             # Are the Husky hooks active (core.hooksPath)? bun run setup warns when not (+ lib/git-hooks.test.ts)
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)

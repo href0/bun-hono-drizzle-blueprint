@@ -86,13 +86,48 @@ export type ProductResponse = z.infer<typeof productResponseSchema>;
 - an operation has no `summary` or no 2xx response — i.e. it has `validate()` but no `describeEndpoint()`;
 - a schema property or query parameter is not snake_case;
 - a route that validates input does not document 400;
-- an operation or response lacks the common headers.
+- an operation or response lacks the common headers;
+- a `$ref` does not resolve, or a raw Zod object leaked into the document (a schema added after generation must be plain OpenAPI — `errorResponseObject()`).
 
 `bun run verify:scaffold` additionally checks that a module generated from the `scaffold-module` template appears in the document with its summaries.
 
 ---
 
-## 6. Not covered yet
+## 6. API contract snapshot (`docs/api/openapi.json`)
+
+The document is generated from the code, so it never drifts — but then a contract change is never seen either: change a DTO and frontends or partners break without a gate failing. The committed snapshot makes every change visible and reviewed (R76).
+
+| Command | Does | Run by |
+|---|---|---|
+| `bun run openapi:check` | Builds the document of `createApp()` with a fixed configuration (never your local env file — `scripts/lib/api-contract/document.ts`), compares it with the snapshot and fails on **any** difference, listing every change per operation with its label | `validate` (pre-push), CI job `verify` |
+| `bun run openapi:update [--allow-breaking]` | Writes the snapshot; while a change is `BREAKING` it refuses and writes nothing, unless the flag is given | **You**, after the review — never a hook, CI or `bun run scaffold` (it prints a reminder). Only `bun run setup` writes it by itself: the baseline of a new project |
+
+The flow: change a route or a DTO → `openapi:check` fails and lists the changes → review them (intended? breaking for whom?) → `openapi:update` → commit the snapshot **with** the change, so the diff shows the contract next to the code. A `BREAKING` change under `/v1` usually deserves a `/v2` router instead (R19); `--allow-breaking` is for clients updated in the same release.
+
+How it compares: `$ref`s are resolved (a change to a shared component shows up in every operation that uses it), then every operation is flattened into locations — `query page`, `path id`, `body.items[].qty`, `response 200 body.data.email`, `response 200 header X-Request-ID`, `security` — each with its attributes (type, format, required, nullable, enum, bounds, pattern, …). A new node hides its children: a new optional object with required fields is one safe change. `info.title` / `version` / `description` are fixed values (renaming the project or bumping the version is no contract change), and the snapshot has one canonical form (keys sorted), so an edit by hand fails `check` too.
+
+Labels are asymmetric — a client **sends** the request side and **reads** the response side:
+
+| Change | Request (query / path / header / body) | Response |
+|---|---|---|
+| Field added, optional | safe | safe |
+| Field added, required | **BREAKING** | safe |
+| Field removed | **BREAKING** (unknown keys are refused, R12) | **BREAKING** |
+| Optional → required | **BREAKING** | safe |
+| Required → optional, or nullable | safe | **BREAKING** |
+| Type / format changed | **BREAKING** | **BREAKING** |
+| Enum value added | safe | **BREAKING** |
+| Enum value removed | **BREAKING** | safe |
+| Bound tightened (`maxLength` lower, `minimum` higher, `pattern` changed) | **BREAKING** | safe |
+| Bound loosened | safe | safe |
+| Operation removed · success status changed · a security requirement removed or replaced | **BREAKING** | **BREAKING** |
+| Operation added · error status added · a security alternative added | safe | safe |
+
+Text only (`summary`, `description`, `tags`, `example`, …) is labelled `docs`; a keyword the engine does not know is assumed `BREAKING`. Source of truth: `scripts/lib/api-contract/compare.ts`, one test per row in `compare.test.ts`.
+
+---
+
+## 7. Not covered yet
 
 - Cookie-authenticated endpoints (`/auth/refresh`, `/auth/logout`) describe the `refresh_token` cookie in their `description`; it is not a declared security scheme.
 - Non-JSON endpoints (file upload/download): describe the body/response with `describeRoute()` from `hono-openapi` directly and add a test.
