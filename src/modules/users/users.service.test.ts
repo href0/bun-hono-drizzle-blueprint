@@ -3,6 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import { UsersService } from './users.service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
 import { runWithRequestContext } from '../../core/context/request-context';
+import { verifyPassword } from '../../core/security/password';
 import { transactionStorage } from '../../database/transaction-host';
 import type { UsersRepository } from './users.repository';
 import { CacheService, type CacheClient } from '../../core/cache';
@@ -361,9 +362,7 @@ describe('UsersService password reset and self-lockout', () => {
 
     await service.setPassword(user.id, { password: 'new password 1' });
 
-    expect(await Bun.password.verify('new password 1', String(patches[0]?.passwordHash))).toBe(
-      true,
-    );
+    expect(await verifyPassword('new password 1', String(patches[0]?.passwordHash))).toBe(true);
     expect(patches[0]?.passwordChangedAt).toBeInstanceOf(Temporal.Instant);
     expect(deleted).toContain(`user:detail:${user.id}`);
   });

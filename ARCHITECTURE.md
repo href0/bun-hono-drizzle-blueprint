@@ -45,7 +45,7 @@ The principle behind all of them: **a rule that is only written down will be bro
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Runtime | Bun ≥ 1.3 | `TZ=UTC` forced at start; `Bun.password` (argon2id), `Bun.randomUUIDv7()` |
+| Runtime | Bun ≥ 1.3 | `TZ=UTC` forced at start; `Bun.password` (argon2id, only via `src/core/security/password.ts`), `Bun.randomUUIDv7()` |
 | HTTP | Hono 4 | `createApp()` serves production **and** tests (`app.request()`) |
 | Language | TypeScript 5 strict | `noImplicitAny`, `strictNullChecks`, `noUnused*`, `noImplicitReturns` |
 | ORM | Drizzle ORM + `postgres` driver | Code-first, `drizzle-kit` migrations, DB session `timezone=UTC` |
@@ -351,6 +351,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R72 | Generated migrations keep matching the SQL guards | [test:migrations] |
 | R73 | Each standard lives in one `docs/standards/` file; routers (`AGENTS.md`, `CONTRIBUTING.md`, the `project-standards` / `env-protection` / `finish-change` skills) hold no code blocks and stay within budget; every standards file is linked from `CONTRIBUTING.md` and the `project-standards` skill; every relative link and every `<file>.md §N` reference resolves | [test:docs-sync] |
 | R74 | A dependent row is reachable only through its parent: hidden while the parent is deleted or outside `parentScope()` (404, never 403), written only after the parent is locked, never moved to another parent; `assertParentWritable()` guards every write of details and dependents | [test:dependent.repository] [test:child.repository] [test:data-layer] [script:verify:scaffold] |
+| R75 | Passwords are hashed and verified only through `hashPassword` / `verifyPassword` (`src/core/security/password.ts`): one cost for stored hashes and the login dummy hash, a cheap one only under `NODE_ENV=test` | [eslint:no-restricted-properties] [test:password] |
 
 ---
 

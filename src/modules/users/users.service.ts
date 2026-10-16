@@ -4,6 +4,7 @@ import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../../core/ca
 import { instantField } from '../../core/dto/datetime.dto';
 import { getActor } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
+import { hashPassword } from '../../core/security/password';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { Transactional } from '../../database/transactional.decorator';
 import {
@@ -70,8 +71,7 @@ export class UsersService {
   async createUser(dto: CreateUserDto): Promise<User> {
     if (await this.repo.findByEmail(dto.email)) throw emailTaken();
 
-    // Hash password using Bun's native Argon2 / bcrypt implementation
-    const passwordHash = await Bun.password.hash(dto.password);
+    const passwordHash = await hashPassword(dto.password);
 
     try {
       return await this.repo.create({
@@ -150,7 +150,7 @@ export class UsersService {
    * token family started before now, so all of the user's sessions end (plan Review 8).
    */
   async setPassword(id: string, dto: SetPasswordDto): Promise<void> {
-    const passwordHash = await Bun.password.hash(dto.password);
+    const passwordHash = await hashPassword(dto.password);
     const updated = await this.repo.updateById(id, {
       passwordHash,
       passwordChangedAt: nowInstant(),

@@ -36,6 +36,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 - Cookie endpoints (`/auth/login`, `/auth/refresh`, `/auth/logout`) use `csrfProtection()` (`Origin` ∈ `CORS_ORIGINS`, `Sec-Fetch-Site`); why, and the effect of domains / subdomains: [auth-guide.md](../auth-guide.md) §7.
 - Login attempts are limited per (email, IP) (`AUTH_LOGIN_MAX_ATTEMPTS`, Redis counter) → 429 `ERR_AUTH_LOGIN_LOCKED`.
 - Access tokens are not re-checked against the database: role changes, deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); the next refresh already refuses / re-reads the role.
+- Passwords are hashed and verified only with `hashPassword` / `verifyPassword` (`src/core/security/password.ts`, argon2id with Bun's defaults; a cheap cost only when `NODE_ENV=test`, so never run a server with `NODE_ENV=test`). The login dummy hash uses the same helper, so an unknown email costs as long as a wrong password (R75).
 - Request emails use `emailField` (trimmed, lower-cased; stored and searched lower-case); new passwords `newPasswordField`. An admin cannot delete, deactivate or demote their own account (403 `ERR_SELF_LOCKOUT_FORBIDDEN`).
 - Security logs never contain plaintext emails (hashed): `Login failed` (`reason`), `Login locked`, `Login succeeded`, `Logged out of every session`, `Password changed`, `Refresh token reused`, `Refresh refused`.
 

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Hono } from 'hono';
 import { createApp } from '../../src/app';
 import { authConfig } from '../../src/config';
+import { hashPassword } from '../../src/core/security/password';
 import { db } from '../../src/database/connection';
 import { authRefreshTokens } from '../../src/database/schema';
 import { UsersRepository } from '../../src/modules/users/users.repository';
@@ -34,7 +35,7 @@ const createUser = async (): Promise<{ id: string; email: string }> => {
     new UsersRepository().create({
       email,
       fullName: 'Integration User',
-      passwordHash: await Bun.password.hash(PASSWORD),
+      passwordHash: await hashPassword(PASSWORD),
     }),
   );
   return { id: user.id, email };

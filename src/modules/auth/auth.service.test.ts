@@ -12,6 +12,7 @@ import {
 } from '../../core/errors';
 import { logger } from '../../core/logger';
 import { verifyAccessToken } from '../../core/security/jwt';
+import { hashPassword, verifyPassword } from '../../core/security/password';
 import { transactionStorage } from '../../database/transaction-host';
 import type { User } from '../../database/schema';
 import { sha256Hex } from '../../utils/crypto.util';
@@ -77,7 +78,7 @@ const rejection = async (promise: Promise<unknown>): Promise<ApiError> => {
 
 let ada: User;
 beforeAll(async () => {
-  ada = sampleUser({ passwordHash: await Bun.password.hash(PASSWORD) });
+  ada = sampleUser({ passwordHash: await hashPassword(PASSWORD) });
 });
 
 describe('AuthService.login', () => {
@@ -327,7 +328,7 @@ describe('AuthService logout, profile, registration', () => {
 
     expect(created).toMatchObject({ email: 'new@example.com', role: 'user' });
     const stored = users.find((user) => user.email === 'new@example.com');
-    expect(await Bun.password.verify('long enough', stored?.passwordHash ?? '')).toBe(true);
+    expect(await verifyPassword('long enough', stored?.passwordHash ?? '')).toBe(true);
     expect(
       await rejection(
         inRequest(() =>
@@ -387,7 +388,7 @@ describe('AuthService.changePassword', () => {
     );
 
     const stored = users.at(0);
-    expect(await Bun.password.verify(NEW_PASSWORD, stored?.passwordHash ?? '')).toBe(true);
+    expect(await verifyPassword(NEW_PASSWORD, stored?.passwordHash ?? '')).toBe(true);
     expect(stored?.passwordChangedAt).not.toBeNull();
     expect(tokens.at(0)?.revokedAt).not.toBeNull();
     expect(tokens.at(1)?.revokedAt).toBeNull();

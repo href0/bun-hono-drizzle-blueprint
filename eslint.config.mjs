@@ -588,6 +588,22 @@ export default tseslint.config(
     },
   },
   {
+    // Passwords are hashed and verified only through src/core/security/password.ts (R75), so
+    // stored hashes, the login dummy hash and the test cost always agree.
+    files: ['src/**/*.ts', 'test/**/*.ts', 'scripts/**/*.ts'],
+    ignores: ['src/core/security/password.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'Bun',
+          property: 'password',
+          message: 'Use hashPassword / verifyPassword from src/core/security/password.ts.',
+        },
+      ],
+    },
+  },
+  {
     // The one place allowed to call fetch()/axios and import node:http(s).
     files: ['src/core/http/**/*.ts'],
     rules: {
