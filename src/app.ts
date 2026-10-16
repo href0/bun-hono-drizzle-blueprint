@@ -139,7 +139,12 @@ export const createApp = (): Hono => {
     describeEndpoint({
       tags: ['Service'],
       summary: 'Service identity: name, environment and version',
-      response: { status: 200, description: 'Service is online', data: serviceInfoSchema },
+      response: {
+        status: 200,
+        description: 'Service is online',
+        message: I18N_MESSAGES.SERVICE_ONLINE,
+        data: serviceInfoSchema,
+      },
     }),
     asyncHandler(() =>
       Promise.resolve(

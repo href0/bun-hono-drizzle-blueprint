@@ -4,6 +4,7 @@ import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dt
 import { requireRole, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { partnerCredentialsController } from './partner-credentials.controller';
+import { PARTNER_CREDENTIAL_MESSAGES } from './partner-credentials.messages';
 import {
   createPartnerCredentialSchema,
   issuedPartnerCredentialSchema,
@@ -25,7 +26,12 @@ partnerCredentialRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Create a partner credential (returns the API key and secret once)',
-    response: { status: 201, description: 'Created', data: issuedPartnerCredentialSchema },
+    response: {
+      status: 201,
+      description: 'Created',
+      message: PARTNER_CREDENTIAL_MESSAGES.CREATED,
+      data: issuedPartnerCredentialSchema,
+    },
     errors: [409],
   }),
   adminOnly,
@@ -40,6 +46,7 @@ partnerCredentialRoutes.get(
     response: {
       status: 200,
       description: 'A page of credentials',
+      message: PARTNER_CREDENTIAL_MESSAGES.LIST_RETRIEVED,
       paginatedItem: partnerCredentialResponseSchema,
     },
   }),
@@ -52,7 +59,12 @@ partnerCredentialRoutes.get(
   describeEndpoint({
     tags,
     summary: 'Get a partner credential by id',
-    response: { status: 200, description: 'Found', data: partnerCredentialResponseSchema },
+    response: {
+      status: 200,
+      description: 'Found',
+      message: PARTNER_CREDENTIAL_MESSAGES.RETRIEVED,
+      data: partnerCredentialResponseSchema,
+    },
     errors: [404],
   }),
   adminOnly,
@@ -64,7 +76,12 @@ partnerCredentialRoutes.patch(
   describeEndpoint({
     tags,
     summary: 'Update a partner credential (only the given fields)',
-    response: { status: 200, description: 'Updated', data: partnerCredentialResponseSchema },
+    response: {
+      status: 200,
+      description: 'Updated',
+      message: PARTNER_CREDENTIAL_MESSAGES.UPDATED,
+      data: partnerCredentialResponseSchema,
+    },
     errors: [404],
   }),
   adminOnly,
@@ -76,7 +93,12 @@ partnerCredentialRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Activate a partner credential',
-    response: { status: 200, description: 'Activated', data: partnerCredentialResponseSchema },
+    response: {
+      status: 200,
+      description: 'Activated',
+      message: PARTNER_CREDENTIAL_MESSAGES.ACTIVATED,
+      data: partnerCredentialResponseSchema,
+    },
     errors: [404],
   }),
   adminOnly,
@@ -88,7 +110,12 @@ partnerCredentialRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Deactivate a partner credential (its requests are refused)',
-    response: { status: 200, description: 'Deactivated', data: partnerCredentialResponseSchema },
+    response: {
+      status: 200,
+      description: 'Deactivated',
+      message: PARTNER_CREDENTIAL_MESSAGES.DEACTIVATED,
+      data: partnerCredentialResponseSchema,
+    },
     errors: [404],
   }),
   adminOnly,
@@ -100,7 +127,12 @@ partnerCredentialRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Rotate the HMAC secret (returns the new secret once; the old one stops working)',
-    response: { status: 201, description: 'Rotated', data: rotatedSecretSchema },
+    response: {
+      status: 201,
+      description: 'Rotated',
+      message: PARTNER_CREDENTIAL_MESSAGES.SECRET_ROTATED,
+      data: rotatedSecretSchema,
+    },
     errors: [404],
   }),
   adminOnly,
@@ -112,7 +144,12 @@ partnerCredentialRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Rotate the API key (returns the new key once; the old one stops working)',
-    response: { status: 201, description: 'Rotated', data: rotatedApiKeySchema },
+    response: {
+      status: 201,
+      description: 'Rotated',
+      message: PARTNER_CREDENTIAL_MESSAGES.API_KEY_ROTATED,
+      data: rotatedApiKeySchema,
+    },
     errors: [404],
   }),
   adminOnly,
@@ -124,7 +161,12 @@ partnerCredentialRoutes.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a partner credential (soft delete; the code stays reserved)',
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Deleted',
+      message: PARTNER_CREDENTIAL_MESSAGES.DELETED,
+      data: z.null(),
+    },
     errors: [404],
   }),
   adminOnly,
@@ -136,7 +178,12 @@ partnerCredentialRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted partner credential',
-    response: { status: 200, description: 'Restored', data: partnerCredentialResponseSchema },
+    response: {
+      status: 200,
+      description: 'Restored',
+      message: PARTNER_CREDENTIAL_MESSAGES.RESTORED,
+      data: partnerCredentialResponseSchema,
+    },
     errors: [404],
   }),
   adminOnly,

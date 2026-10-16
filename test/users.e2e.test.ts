@@ -5,7 +5,8 @@ import type { Hono } from 'hono';
 import { createApp } from '../src/app';
 import { authorize } from './helpers/authorized-app';
 import { usersService } from '../src/modules/users/users.service';
-import { ConflictError, NotFoundError } from '../src/core/errors';
+import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../src/core/errors';
+import { USER_MESSAGES } from '../src/modules/users/users.messages';
 
 /**
  * Users Module — E2E Contract Tests
@@ -511,5 +512,43 @@ describe('Users Module — E2E: password reset and email normalization', () => {
 
     expect(res.status).toBe(201);
     expect(calls.at(-1)).toEqual([expect.objectContaining({ email: 'mixed.case@example.com' })]);
+  });
+});
+
+describe('Users Module — E2E: an admin cannot lock themselves out (contract of the 403)', () => {
+  let app: Hono;
+  const spies: ReturnType<typeof spyOn>[] = [];
+  // What UsersService throws when the actor targets their own account (see users.service.test.ts).
+  const selfLockout = (): never => {
+    throw new ForbiddenError(USER_MESSAGES.SELF_LOCKOUT, {
+      code: APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+    });
+  };
+
+  beforeAll(async () => {
+    spies.push(
+      spyOn(usersService, 'updateUser').mockImplementation(async () => selfLockout()),
+      spyOn(usersService, 'deleteUser').mockImplementation(async () => selfLockout()),
+    );
+    app = await authorize(createApp(), 'admin', mockUser.id);
+  });
+
+  afterAll(() => {
+    for (const spy of spies) spy.mockRestore();
+  });
+
+  it('PATCH (demote / deactivate) and DELETE of their own account → 403 ERR_SELF_LOCKOUT_FORBIDDEN', async () => {
+    const demote = await app.request(`/api/v1/users/${mockUser.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'user' }),
+    });
+    const remove = await app.request(`/api/v1/users/${mockUser.id}`, { method: 'DELETE' });
+
+    for (const res of [demote, remove]) {
+      expect(res.status).toBe(403);
+      const body = (await res.json()) as { error: { code: string } };
+      expect(body.error.code).toBe('ERR_SELF_LOCKOUT_FORBIDDEN');
+    }
   });
 });

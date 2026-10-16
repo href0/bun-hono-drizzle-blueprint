@@ -69,7 +69,17 @@ const STRUCTURAL = new Set([
   ...SCHEMA_ATTRIBUTES,
 ]);
 
-const canonical = (value: unknown): string => JSON.stringify(value);
+/** JSON with object keys sorted at every level: key order is never a contract change. */
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_key, nested: unknown) =>
+    isObject(nested)
+      ? Object.fromEntries(
+          Object.keys(nested)
+            .sort()
+            .map((key) => [key, nested[key]]),
+        )
+      : nested,
+  );
 
 const resolveRef = (root: Json, ref: string): Json => {
   if (!ref.startsWith('#/')) throw new Error(`external $ref not supported: ${ref}`);
@@ -197,7 +207,17 @@ const docAttributes = (source: Json, keywords: readonly string[]): Record<string
     keywords.filter((keyword) => keyword in source).map((k) => [k, canonical(source[k])]),
   );
 
-const OPERATION_DOCS = ['summary', 'description', 'tags', 'operationId', 'deprecated'] as const;
+/** Operation keys recorded as attributes: text, and who may call it (`requireRole()` & co.). */
+const OPERATION_ATTRIBUTES = [
+  'summary',
+  'description',
+  'tags',
+  'operationId',
+  'deprecated',
+  'x-allowed-callers',
+] as const;
+/** Response keys recorded as attributes: text, error codes, success messages (`describeEndpoint()`). */
+const RESPONSE_ATTRIBUTES = ['description', 'x-error-codes', 'x-success-messages'] as const;
 
 /** Every fact of the document, keyed by `factKey(operation, location)`. */
 export const flatten = (document: unknown): Map<string, Fact> => {
@@ -214,7 +234,7 @@ export const flatten = (document: unknown): Map<string, Fact> => {
         operation,
         side: 'operation',
         location: 'operation',
-        attributes: docAttributes(op, OPERATION_DOCS),
+        attributes: docAttributes(op, OPERATION_ATTRIBUTES),
       });
 
       const security = Array.isArray(op.security) ? op.security : [];
@@ -272,7 +292,7 @@ export const flatten = (document: unknown): Map<string, Fact> => {
           side: 'response',
           location: `response ${status}`,
           parent: opKey,
-          attributes: docAttributes(response, ['description']),
+          attributes: docAttributes(response, RESPONSE_ATTRIBUTES),
         });
         const headers = flattener.deref(response.headers);
         for (const name of Object.keys(headers).sort()) {

@@ -1,3 +1,4 @@
+import { I18N_MESSAGES } from '../i18n/messages';
 import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -18,7 +19,12 @@ const buildApp = (): Hono => {
     describeEndpoint({
       tags: ['Items'],
       summary: 'Create',
-      response: { status: 201, description: 'Created', data: itemSchema },
+      response: {
+        status: 201,
+        description: 'Created',
+        message: I18N_MESSAGES.SUCCESS,
+        data: itemSchema,
+      },
       errors: [409, 400, 429],
     }),
     validate({
@@ -34,7 +40,12 @@ const buildApp = (): Hono => {
       tags: ['Items'],
       summary: 'List',
       description: 'Paginated',
-      response: { status: 200, description: 'Page', paginatedItem: itemSchema },
+      response: {
+        status: 200,
+        description: 'Page',
+        message: I18N_MESSAGES.SUCCESS,
+        paginatedItem: itemSchema,
+      },
     }),
     (c) => c.text('ok'),
   );
@@ -139,7 +150,12 @@ describe('buildOpenApiDocument security rules', () => {
     describeEndpoint({
       tags: ['Probe'],
       summary,
-      response: { status: 200, description: 'OK', data: z.object({ ok: z.boolean() }) },
+      response: {
+        status: 200,
+        description: 'OK',
+        message: I18N_MESSAGES.SUCCESS,
+        data: z.object({ ok: z.boolean() }),
+      },
     });
 
   it('marks vendor webhook, partner and bearer operations each with its own scheme', async () => {

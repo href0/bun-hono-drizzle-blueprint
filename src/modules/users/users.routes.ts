@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
+import { APP_ERROR_CODES } from '../../core/errors';
 import { requireRole, requireSelfOrRole, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { usersController } from './users.controller';
@@ -11,6 +12,7 @@ import {
   updateUserSchema,
   userResponseSchema,
 } from './users.dto';
+import { USER_MESSAGES } from './users.messages';
 
 export const userRoutes = new Hono();
 
@@ -25,7 +27,12 @@ userRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Create a user',
-    response: { status: 201, description: 'User created', data: userResponseSchema },
+    response: {
+      status: 201,
+      description: 'User created',
+      message: USER_MESSAGES.CREATED,
+      data: userResponseSchema,
+    },
     errors: [409],
   }),
   adminOnly,
@@ -37,7 +44,12 @@ userRoutes.get(
   describeEndpoint({
     tags,
     summary: 'List users (paginated)',
-    response: { status: 200, description: 'A page of users', paginatedItem: userResponseSchema },
+    response: {
+      status: 200,
+      description: 'A page of users',
+      message: USER_MESSAGES.LIST_RETRIEVED,
+      paginatedItem: userResponseSchema,
+    },
   }),
   adminOnly,
   validate({ query: paginationQuerySchema }),
@@ -48,7 +60,12 @@ userRoutes.get(
   describeEndpoint({
     tags,
     summary: 'Get a user by id',
-    response: { status: 200, description: 'The user', data: userResponseSchema },
+    response: {
+      status: 200,
+      description: 'The user',
+      message: USER_MESSAGES.RETRIEVED,
+      data: userResponseSchema,
+    },
     errors: [404],
   }),
   selfOrAdmin,
@@ -60,8 +77,13 @@ userRoutes.patch(
   describeEndpoint({
     tags,
     summary: 'Update a user (only the given fields)',
-    response: { status: 200, description: 'The updated user', data: userResponseSchema },
-    errors: [404, 409],
+    response: {
+      status: 200,
+      description: 'The updated user',
+      message: USER_MESSAGES.UPDATED,
+      data: userResponseSchema,
+    },
+    errors: [404, 409, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
   }),
   adminOnly,
   validate({ params: uuidParamSchema, body: updateUserSchema }),
@@ -72,8 +94,13 @@ userRoutes.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a user (soft delete; restorable)',
-    response: { status: 200, description: 'User deleted', data: z.null() },
-    errors: [404],
+    response: {
+      status: 200,
+      description: 'User deleted',
+      message: USER_MESSAGES.DELETED,
+      data: z.null(),
+    },
+    errors: [404, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
   }),
   adminOnly,
   validate({ params: uuidParamSchema }),
@@ -84,7 +111,12 @@ userRoutes.put(
   describeEndpoint({
     tags,
     summary: "Reset a user's password (ends all of their sessions)",
-    response: { status: 200, description: 'Password changed', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Password changed',
+      message: USER_MESSAGES.PASSWORD_SET,
+      data: z.null(),
+    },
     errors: [404],
   }),
   adminOnly,
@@ -96,7 +128,12 @@ userRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted user',
-    response: { status: 200, description: 'The restored user', data: userResponseSchema },
+    response: {
+      status: 200,
+      description: 'The restored user',
+      message: USER_MESSAGES.RESTORED,
+      data: userResponseSchema,
+    },
     errors: [404, 409],
   }),
   adminOnly,
@@ -108,8 +145,13 @@ userRoutes.get(
   describeEndpoint({
     tags,
     summary: "List the user's posts from the external JSONPlaceholder service",
-    response: { status: 200, description: 'External posts', data: z.array(externalPostSchema) },
-    errors: [502, 504],
+    response: {
+      status: 200,
+      description: 'External posts',
+      message: USER_MESSAGES.EXTERNAL_POSTS_RETRIEVED,
+      data: z.array(externalPostSchema),
+    },
+    errors: [404, 502, 504],
   }),
   selfOrAdmin,
   validate({ params: uuidParamSchema }),

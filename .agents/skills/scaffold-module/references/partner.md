@@ -250,6 +250,7 @@ import {
   <camelSingular>ResponseSchema,
 } from './<name>.dto';
 import { <camelPlural>PartnerController } from './<name>.partner.controller';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 
 export const <camelPlural>PartnerRoutes = new Hono();
 const tags = ['Partner — <PascalPlural>'];
@@ -259,7 +260,7 @@ const tags = ['Partner — <PascalPlural>'];
   describeEndpoint({
     tags,
     summary: 'Submit a record (idempotent per partner reference)',
-    response: { status: 201, description: 'Saved', data: <camelSingular>ResponseSchema },
+    response: { status: 201, description: 'Saved', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema },
     errors: [409],
   }),
   validate({ body: create<PascalSingular>Schema }),
@@ -270,7 +271,7 @@ const tags = ['Partner — <PascalPlural>'];
   describeEndpoint({
     tags,
     summary: 'Get a record of the calling partner by its reference',
-    response: { status: 200, description: 'Found', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: <camelSingular>ReferenceParamSchema }),

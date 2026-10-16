@@ -3,6 +3,7 @@ import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import { APP_ERROR_CODES, ForbiddenError } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
+import { documentsForbidden } from './require-role';
 
 /**
  * CSRF protection for cookie-authenticated endpoints (plan D4), on top of `SameSite` cookies:
@@ -23,7 +24,7 @@ export const csrfProtection = (origins: readonly string[]): MiddlewareHandler =>
       anyOrigin || origins.includes(origin) || origin === new URL(c.req.url).origin,
   });
 
-  return async (c, next) => {
+  return documentsForbidden(async (c, next) => {
     try {
       // Only the check runs inside `try`: errors from later handlers must pass through untouched.
       await check(c, () => Promise.resolve());
@@ -36,5 +37,5 @@ export const csrfProtection = (origins: readonly string[]): MiddlewareHandler =>
       throw error;
     }
     await next();
-  };
+  }, APP_ERROR_CODES.CSRF_ORIGIN_FORBIDDEN);
 };

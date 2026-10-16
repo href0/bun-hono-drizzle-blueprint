@@ -355,7 +355,7 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
   );
   // The one machine that writes the contract snapshot: a new project's baseline, not a change.
   console.log(
-    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} the API contract baseline (${SNAPSHOT_PATH}) without the examples`,
+    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} the API contract baseline (${SNAPSHOT_PATH} + docs/api/*.md) without the examples`,
   );
   if (dryRun) return;
 

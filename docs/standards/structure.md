@@ -16,7 +16,7 @@ Read this file when: placing a new file, adding an import between layers, or add
 │   ├── standards/               # The single source of every coding standard (this folder)
 │   ├── auth-guide.md            # For frontend developers (Indonesian)
 │   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts
-│   ├── api/openapi.json         # API contract snapshot: written by bun run openapi:update after review, never by hand (R76)
+│   ├── api/                     # API contract: openapi.json snapshot + one Markdown per module (README.md index), written by bun run openapi:update after review, never by hand (R76, R78)
 │   ├── plans/                   # Adoption plan & decision log
 │   └── archive/                 # Original NestJS blueprint (not maintained)
 ├── docs-site/                   # Interactive documentation portal (Astro Starlight)
@@ -40,12 +40,12 @@ src/
 │   ├── cache/                   # Redis client (SafeRedis), CacheService, CACHE_KEYS / CACHE_TTL
 │   ├── context/                 # RequestContext (AsyncLocalStorage): requestId, actor, locale, clientIp
 │   ├── dto/                     # Shared request schemas: common.dto.ts (uuidParamSchema, paginationQuerySchema, emailField), datetime.dto.ts
-│   ├── errors/                  # ApiError hierarchy + APP_ERROR_CODES (error-codes.ts)
+│   ├── errors/                  # ApiError hierarchy + APP_ERROR_CODES (error-codes.ts) + ERROR_CATALOG (status, type, meaning per code)
 │   ├── http/                    # HttpClientService (keep-alive pool, required timeout, X-Request-ID, vendor masking), vendor-body.ts (vendor body redaction for logs), access-token-cache.ts (single-flight vendor token)
 │   ├── i18n/                    # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting messages)
 │   ├── logger/                  # Pino logger with redaction
 │   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, webhookAuth, requireRole, validate, globalErrorHandler, …
-│   ├── openapi/                 # describeEndpoint, envelope schemas, OpenAPI document + Scalar UI (<base>/docs)
+│   ├── openapi/                 # describeEndpoint, envelope schemas, OpenAPI document + Scalar UI (<base>/docs), contract guard (NODE_ENV=test)
 │   ├── response/                # ApiResponse (success envelope), error envelope builder
 │   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist), partner API keys + secret cipher
 │
@@ -136,7 +136,7 @@ scripts/
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing
 ├── openapi.ts                   # `bun run openapi:check` / `openapi:update`: the API contract snapshot (docs/api/openapi.json)
-├── lib/api-contract/            # Contract engine: document.ts (generation with a fixed config), flatten.ts, compare.ts (labels; + compare.test.ts), report.ts
+├── lib/api-contract/            # Contract engine: document.ts (generation with a fixed config + module of each route), flatten.ts, compare.ts (labels; + compare.test.ts), report.ts, markdown.ts (docs/api/*.md; + markdown.test.ts)
 ├── lib/git-hooks.ts             # Are the Husky hooks active (core.hooksPath)? bun run setup warns when not (+ lib/git-hooks.test.ts)
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)

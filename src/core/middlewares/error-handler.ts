@@ -12,6 +12,7 @@ import { ServiceUnavailableError } from '../errors/service-unavailable.error';
 import { TooManyRequestsError } from '../errors/too-many-requests.error';
 import { UnauthorizedError } from '../errors/unauthorized.error';
 import { logger } from '../logger/logger';
+import { CONTRACT_CHECKS, errorViolation, reportViolation } from '../openapi/contract-guard';
 import { buildErrorBody } from '../response/error-response';
 
 /**
@@ -63,6 +64,16 @@ export const sendError = (c: Context, error: ApiError): Response => {
 
 export const globalErrorHandler: ErrorHandler = (err, c) => {
   const apiError = toApiError(err);
+
+  // NODE_ENV=test: an error the application raised must carry a code its route documents.
+  const violation =
+    CONTRACT_CHECKS && err instanceof ApiError
+      ? errorViolation(apiError.statusCode, apiError.errorCode, apiError.errorType)
+      : undefined;
+  if (violation !== undefined) {
+    reportViolation(violation);
+    return sendError(c, new InternalServerError(violation));
+  }
 
   if (apiError.statusCode >= 500) {
     logger.error({ err, type: apiError.errorType, code: apiError.errorCode }, 'Request failed');

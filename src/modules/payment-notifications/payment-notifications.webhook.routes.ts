@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { paymentNotificationSchema, webhookReceiptSchema } from './payment-notifications.dto';
+import { PAYMENT_NOTIFICATION_MESSAGES } from './payment-notifications.messages';
 import { paymentNotificationsWebhookController } from './payment-notifications.webhook.controller';
 
 /**
@@ -18,6 +19,7 @@ paymentNotificationWebhookRoutes.post(
     response: {
       status: 200,
       description: 'Received (or already received)',
+      message: [PAYMENT_NOTIFICATION_MESSAGES.RECEIVED, PAYMENT_NOTIFICATION_MESSAGES.DUPLICATE],
       data: webhookReceiptSchema,
     },
   }),

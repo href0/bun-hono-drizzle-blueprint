@@ -332,7 +332,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Service online",
+                "id": "Layanan aktif"
+              }
+            ]
           },
           "429": {
             "content": {
@@ -362,7 +368,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -389,7 +398,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "summary": "Service identity: name, environment and version",
@@ -500,7 +512,21 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Service is healthy",
+                "id": "Layanan berjalan normal"
+              },
+              {
+                "en": "Service is running in degraded mode",
+                "id": "Layanan berjalan dengan fungsi terbatas"
+              },
+              {
+                "en": "Service is unhealthy",
+                "id": "Layanan tidak sehat"
+              }
+            ]
           },
           "429": {
             "content": {
@@ -530,7 +556,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -557,7 +586,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "summary": "Service health: UP, DEGRADED (Redis down) or DOWN (database down)",
@@ -643,7 +675,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Service process is alive",
+                "id": "Proses layanan aktif"
+              }
+            ]
           },
           "429": {
             "content": {
@@ -673,7 +711,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -700,7 +741,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "summary": "Liveness probe: the process answers (no dependency checks)",
@@ -810,7 +854,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Service is ready",
+                "id": "Layanan siap menerima permintaan"
+              }
+            ]
           },
           "429": {
             "content": {
@@ -840,7 +890,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -867,7 +920,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           },
           "503": {
             "content": {
@@ -894,7 +950,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_SERVICE_UNAVAILABLE"
+            ]
           }
         },
         "summary": "Readiness probe: 503 only when the database is down",
@@ -1007,7 +1066,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Password changed; sessions on other devices have ended",
+                "id": "Password berhasil diganti; sesi di perangkat lain diakhiri"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -1017,7 +1082,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -1034,7 +1099,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -1061,7 +1131,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "413": {
             "content": {
@@ -1088,7 +1163,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -1118,7 +1196,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_LOGIN_LOCKED",
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -1145,7 +1227,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -1293,7 +1378,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Logged in successfully",
+                "id": "Login berhasil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -1303,7 +1394,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -1320,7 +1411,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -1347,7 +1443,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_INVALID_CREDENTIALS"
+            ]
           },
           "403": {
             "content": {
@@ -1374,7 +1473,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CSRF_ORIGIN_FORBIDDEN"
+            ]
           },
           "413": {
             "content": {
@@ -1401,7 +1503,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -1431,7 +1536,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_LOGIN_LOCKED",
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -1458,7 +1567,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "summary": "Log in with email and password",
@@ -1527,7 +1639,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Logged out successfully",
+                "id": "Logout berhasil"
+              }
+            ]
           },
           "403": {
             "content": {
@@ -1554,7 +1672,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CSRF_ORIGIN_FORBIDDEN"
+            ]
           },
           "429": {
             "content": {
@@ -1584,7 +1705,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -1611,7 +1735,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "summary": "Log out of this session (idempotent)",
@@ -1679,7 +1806,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "All sessions have been signed out",
+                "id": "Semua sesi berhasil diakhiri"
+              }
+            ]
           },
           "401": {
             "content": {
@@ -1706,7 +1839,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "429": {
             "content": {
@@ -1736,7 +1874,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -1763,7 +1904,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -1862,7 +2006,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Profile retrieved successfully",
+                "id": "Profil berhasil diambil"
+              }
+            ]
           },
           "401": {
             "content": {
@@ -1889,7 +2039,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "429": {
             "content": {
@@ -1919,7 +2074,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -1946,7 +2104,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -2038,7 +2199,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Access token refreshed",
+                "id": "Token akses berhasil diperbarui"
+              }
+            ]
           },
           "401": {
             "content": {
@@ -2065,7 +2232,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_REFRESH_INVALID",
+              "ERR_AUTH_REFRESH_REUSED"
+            ]
           },
           "403": {
             "content": {
@@ -2092,7 +2263,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CSRF_ORIGIN_FORBIDDEN"
+            ]
           },
           "429": {
             "content": {
@@ -2122,7 +2296,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -2149,7 +2326,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "summary": "Get a new access token (rotates the refresh token)",
@@ -2254,7 +2434,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget retrieved successfully",
+                "id": "Data anggaran berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -2264,7 +2450,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -2281,7 +2467,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -2308,7 +2497,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -2335,7 +2529,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -2365,7 +2562,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -2392,7 +2592,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -2502,7 +2705,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget restored successfully",
+                "id": "Anggaran berhasil dipulihkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -2512,7 +2721,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -2529,7 +2738,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -2556,7 +2768,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -2583,7 +2800,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "409": {
             "content": {
@@ -2610,7 +2830,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
+            ]
           },
           "429": {
             "content": {
@@ -2640,7 +2863,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -2667,7 +2893,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -2798,7 +3027,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Orders retrieved successfully",
+                "id": "Daftar pesanan berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -2808,7 +3043,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -2825,7 +3060,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -2852,7 +3091,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "429": {
             "content": {
@@ -2882,7 +3126,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -2909,7 +3156,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -3034,7 +3284,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Order created successfully",
+                "id": "Pesanan berhasil dibuat"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -3044,7 +3300,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -3061,7 +3317,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -3088,7 +3349,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "413": {
             "content": {
@@ -3115,7 +3381,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -3145,7 +3414,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -3172,7 +3444,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -3254,7 +3529,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Order deleted successfully",
+                "id": "Pesanan berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -3264,7 +3545,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -3281,7 +3562,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -3308,7 +3592,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -3335,7 +3624,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -3365,7 +3657,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -3392,7 +3687,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -3502,7 +3800,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Order retrieved successfully",
+                "id": "Data pesanan berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -3512,7 +3816,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -3529,7 +3833,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -3556,7 +3863,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -3583,7 +3895,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -3613,7 +3928,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -3640,7 +3958,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -3774,7 +4095,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Order updated successfully",
+                "id": "Pesanan berhasil diperbarui"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -3784,7 +4111,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -3801,7 +4128,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -3828,7 +4160,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -3855,7 +4192,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -3882,7 +4222,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -3912,7 +4255,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -3939,7 +4285,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -4051,7 +4400,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Items retrieved successfully",
+                "id": "Daftar item berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -4061,7 +4416,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -4078,7 +4433,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -4105,7 +4463,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -4132,7 +4495,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -4162,7 +4528,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -4189,7 +4558,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -4321,7 +4693,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Item added successfully",
+                "id": "Item berhasil ditambahkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -4331,7 +4709,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -4348,7 +4726,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -4375,7 +4758,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -4402,7 +4790,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -4429,7 +4820,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -4459,7 +4853,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -4486,7 +4883,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -4637,7 +5037,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Items saved successfully",
+                "id": "Daftar item berhasil disimpan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -4647,7 +5053,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -4664,7 +5070,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -4691,7 +5102,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -4718,7 +5134,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -4745,7 +5164,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -4775,7 +5197,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -4802,7 +5227,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -4893,7 +5321,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Item deleted successfully",
+                "id": "Item berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -4903,7 +5337,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -4920,7 +5354,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -4947,7 +5384,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -4974,7 +5416,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -5004,7 +5449,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -5031,7 +5479,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -5168,7 +5619,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Item updated successfully",
+                "id": "Item berhasil diperbarui"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -5178,7 +5635,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -5195,7 +5652,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -5222,7 +5684,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -5249,7 +5716,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -5276,7 +5746,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -5306,7 +5779,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -5333,7 +5809,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -5445,7 +5924,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Order restored successfully",
+                "id": "Pesanan berhasil dipulihkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -5455,7 +5940,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -5472,7 +5957,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -5499,7 +5987,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -5526,7 +6019,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -5556,7 +6052,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -5583,7 +6082,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -5737,7 +6239,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credentials retrieved successfully",
+                "id": "Daftar kredensial partner berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -5747,7 +6255,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -5764,7 +6272,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -5791,7 +6303,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -5818,7 +6335,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "429": {
             "content": {
@@ -5848,7 +6368,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -5875,7 +6398,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -5886,6 +6412,9 @@
         "summary": "List partner credentials (paginated)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       },
       "post": {
@@ -6060,7 +6589,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential created; store the API key and secret now, they are not shown again",
+                "id": "Kredensial partner berhasil dibuat; simpan API key dan secret sekarang, keduanya tidak ditampilkan lagi"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -6070,7 +6605,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -6087,7 +6622,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -6114,7 +6654,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -6141,7 +6686,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "409": {
             "content": {
@@ -6168,7 +6716,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
+            ]
           },
           "413": {
             "content": {
@@ -6195,7 +6746,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -6225,7 +6779,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -6252,7 +6809,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -6263,6 +6823,9 @@
         "summary": "Create a partner credential (returns the API key and secret once)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -6334,7 +6897,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential deleted successfully",
+                "id": "Kredensial partner berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -6344,7 +6913,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -6361,7 +6930,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -6388,7 +6960,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -6415,7 +6992,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -6442,7 +7022,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -6472,7 +7055,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -6499,7 +7085,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -6510,6 +7099,9 @@
         "summary": "Delete a partner credential (soft delete; the code stays reserved)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       },
       "get": {
@@ -6632,7 +7224,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential retrieved successfully",
+                "id": "Data kredensial partner berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -6642,7 +7240,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -6659,7 +7257,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -6686,7 +7287,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -6713,7 +7319,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -6740,7 +7349,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -6770,7 +7382,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -6797,7 +7412,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -6808,6 +7426,9 @@
         "summary": "Get a partner credential by id",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       },
       "patch": {
@@ -6970,7 +7591,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential updated successfully",
+                "id": "Kredensial partner berhasil diperbarui"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -6980,7 +7607,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -6997,7 +7624,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -7024,7 +7656,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -7051,7 +7688,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -7078,7 +7718,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -7105,7 +7748,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -7135,7 +7781,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -7162,7 +7811,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -7173,6 +7825,9 @@
         "summary": "Update a partner credential (only the given fields)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -7297,7 +7952,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential activated",
+                "id": "Kredensial partner diaktifkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -7307,7 +7968,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -7324,7 +7985,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -7351,7 +8015,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -7378,7 +8047,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -7405,7 +8077,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -7435,7 +8110,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -7462,7 +8140,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -7473,6 +8154,9 @@
         "summary": "Activate a partner credential",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -7602,7 +8286,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner API key rotated; the old key stops working now. Store the new key now",
+                "id": "API key partner diganti; key lama langsung tidak berlaku. Simpan API key baru sekarang"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -7612,7 +8302,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -7629,7 +8319,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -7656,7 +8349,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -7683,7 +8381,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -7710,7 +8411,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -7740,7 +8444,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -7767,7 +8474,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -7778,6 +8488,9 @@
         "summary": "Rotate the API key (returns the new key once; the old one stops working)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -7902,7 +8615,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential deactivated",
+                "id": "Kredensial partner dinonaktifkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -7912,7 +8631,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -7929,7 +8648,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -7956,7 +8678,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -7983,7 +8710,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -8010,7 +8740,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -8040,7 +8773,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -8067,7 +8803,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -8078,6 +8817,9 @@
         "summary": "Deactivate a partner credential (its requests are refused)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -8202,7 +8944,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner credential restored successfully",
+                "id": "Kredensial partner berhasil dipulihkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -8212,7 +8960,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -8229,7 +8977,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -8256,7 +9007,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -8283,7 +9039,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -8310,7 +9069,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -8340,7 +9102,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -8367,7 +9132,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -8378,6 +9146,9 @@
         "summary": "Restore a soft-deleted partner credential",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -8507,7 +9278,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner secret rotated; the old secret stops working now. Store the new secret now",
+                "id": "Secret partner diganti; secret lama langsung tidak berlaku. Simpan secret baru sekarang"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -8517,7 +9294,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -8534,7 +9311,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -8561,7 +9341,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -8588,7 +9373,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -8615,7 +9403,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -8645,7 +9436,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -8672,7 +9466,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -8683,6 +9480,9 @@
         "summary": "Rotate the HMAC secret (returns the new secret once; the old one stops working)",
         "tags": [
           "Partner credentials"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -8782,7 +9582,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner signature verified; body received",
+                "id": "Signature partner valid; body diterima"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -8792,7 +9598,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -8809,7 +9615,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -8836,7 +9647,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PARTNER_HEADERS_MISSING",
+              "ERR_PARTNER_INVALID_KEY",
+              "ERR_PARTNER_REPLAY_REJECTED",
+              "ERR_PARTNER_SIGNATURE_INVALID"
+            ]
           },
           "403": {
             "content": {
@@ -8863,7 +9680,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PARTNER_IP_FORBIDDEN",
+              "ERR_PARTNER_ROUTE_FORBIDDEN"
+            ]
           },
           "413": {
             "content": {
@@ -8890,7 +9711,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -8920,7 +9744,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -8947,7 +9774,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -9036,7 +9866,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Partner signature verified; connection works",
+                "id": "Signature partner valid; koneksi berhasil"
+              }
+            ]
           },
           "401": {
             "content": {
@@ -9063,7 +9899,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PARTNER_HEADERS_MISSING",
+              "ERR_PARTNER_INVALID_KEY",
+              "ERR_PARTNER_REPLAY_REJECTED",
+              "ERR_PARTNER_SIGNATURE_INVALID"
+            ]
           },
           "403": {
             "content": {
@@ -9090,7 +9932,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PARTNER_IP_FORBIDDEN",
+              "ERR_PARTNER_ROUTE_FORBIDDEN"
+            ]
           },
           "429": {
             "content": {
@@ -9120,7 +9966,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -9147,7 +9996,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -9278,7 +10130,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Projects retrieved successfully",
+                "id": "Daftar proyek berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -9288,7 +10146,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -9305,7 +10163,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -9332,7 +10194,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "429": {
             "content": {
@@ -9362,7 +10229,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -9389,7 +10259,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -9507,7 +10380,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Project created successfully",
+                "id": "Proyek berhasil dibuat"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -9517,7 +10396,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -9534,7 +10413,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -9561,7 +10445,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "413": {
             "content": {
@@ -9588,7 +10477,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -9618,7 +10510,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -9645,7 +10540,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -9727,7 +10625,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Project deleted successfully",
+                "id": "Proyek berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -9737,7 +10641,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -9754,7 +10658,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -9781,7 +10688,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -9808,7 +10720,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -9838,7 +10753,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -9865,7 +10783,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -9972,7 +10893,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Project retrieved successfully",
+                "id": "Data proyek berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -9982,7 +10909,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -9999,7 +10926,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -10026,7 +10956,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -10053,7 +10988,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -10083,7 +11021,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -10110,7 +11051,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -10237,7 +11181,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Project updated successfully",
+                "id": "Proyek berhasil diperbarui"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -10247,7 +11197,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -10264,7 +11214,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -10291,7 +11246,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -10318,7 +11278,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -10345,7 +11308,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -10375,7 +11341,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -10402,7 +11371,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -10511,7 +11483,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Project restored successfully",
+                "id": "Proyek berhasil dipulihkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -10521,7 +11499,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -10538,7 +11516,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -10565,7 +11546,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -10592,7 +11578,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -10622,7 +11611,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -10649,7 +11641,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -10731,7 +11726,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget deleted successfully",
+                "id": "Anggaran berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -10741,7 +11742,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -10758,7 +11759,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -10785,7 +11789,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -10812,7 +11821,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -10842,7 +11854,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -10869,7 +11884,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -10977,7 +11995,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget retrieved successfully",
+                "id": "Data anggaran berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -10987,7 +12011,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -11004,7 +12028,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -11031,7 +12058,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -11058,7 +12090,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -11088,7 +12123,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -11115,7 +12153,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -11226,7 +12267,7 @@
                 }
               }
             },
-            "description": "Saved",
+            "description": "Updated",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -11243,7 +12284,96 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget updated successfully",
+                "id": "Anggaran berhasil diperbarui"
+              }
+            ]
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "created_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget created successfully",
+                "id": "Anggaran berhasil dibuat"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -11253,7 +12383,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -11270,7 +12400,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -11297,7 +12432,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -11324,7 +12464,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -11351,7 +12494,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -11381,7 +12527,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -11408,7 +12557,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -11546,7 +12698,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Tasks retrieved successfully",
+                "id": "Daftar tugas berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -11556,7 +12714,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -11573,7 +12731,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -11600,7 +12762,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -11627,7 +12794,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -11657,7 +12827,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -11684,7 +12857,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -11812,7 +12988,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task created successfully",
+                "id": "Tugas berhasil dibuat"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -11822,7 +13004,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -11839,7 +13021,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -11866,7 +13053,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -11893,7 +13085,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -11920,7 +13115,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -11950,7 +13148,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -11977,7 +13178,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -12059,7 +13263,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task deleted successfully",
+                "id": "Tugas berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -12069,7 +13279,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -12086,7 +13296,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -12113,7 +13326,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -12140,7 +13358,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -12170,7 +13391,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -12197,7 +13421,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -12305,7 +13532,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task retrieved successfully",
+                "id": "Data tugas berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -12315,7 +13548,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -12332,7 +13565,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -12359,7 +13595,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -12386,7 +13627,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -12416,7 +13660,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -12443,7 +13690,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -12568,7 +13818,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task updated successfully",
+                "id": "Tugas berhasil diperbarui"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -12578,7 +13834,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -12595,7 +13851,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -12622,7 +13883,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -12649,7 +13915,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -12676,7 +13945,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -12706,7 +13978,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -12733,7 +14008,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -12843,7 +14121,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task restored successfully",
+                "id": "Tugas berhasil dipulihkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -12853,7 +14137,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -12870,7 +14154,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -12897,7 +14184,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "404": {
             "content": {
@@ -12924,7 +14216,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -12954,7 +14249,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -12981,7 +14279,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -13118,7 +14419,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Users retrieved successfully",
+                "id": "Daftar pengguna berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -13128,7 +14435,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -13145,7 +14452,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -13172,7 +14483,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -13199,7 +14515,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "429": {
             "content": {
@@ -13229,7 +14548,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -13256,7 +14578,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -13267,6 +14592,9 @@
         "summary": "List users (paginated)",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       },
       "post": {
@@ -13402,7 +14730,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "User created successfully",
+                "id": "Pengguna berhasil dibuat"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -13412,7 +14746,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -13429,7 +14763,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -13456,7 +14795,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -13483,7 +14827,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "409": {
             "content": {
@@ -13510,7 +14857,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
+            ]
           },
           "413": {
             "content": {
@@ -13537,7 +14887,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -13567,7 +14920,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -13594,7 +14950,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -13605,6 +14964,9 @@
         "summary": "Create a user",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -13676,7 +15038,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "User deleted successfully",
+                "id": "Pengguna berhasil dihapus"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -13686,7 +15054,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -13703,7 +15071,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -13730,7 +15101,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -13757,7 +15133,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN",
+              "ERR_SELF_LOCKOUT_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -13784,7 +15164,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -13814,7 +15197,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -13841,7 +15227,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -13852,6 +15241,9 @@
         "summary": "Delete a user (soft delete; restorable)",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       },
       "get": {
@@ -13957,7 +15349,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "User retrieved successfully",
+                "id": "Data pengguna berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -13967,7 +15365,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -13984,7 +15382,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -14011,7 +15412,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -14038,7 +15444,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -14065,7 +15474,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -14095,7 +15507,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -14122,7 +15537,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -14133,6 +15551,10 @@
         "summary": "Get a user by id",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "self:id",
+          "admin"
         ]
       },
       "patch": {
@@ -14270,7 +15692,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "User updated successfully",
+                "id": "Pengguna berhasil diperbarui"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -14280,7 +15708,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -14297,7 +15725,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -14324,7 +15757,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -14351,7 +15789,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN",
+              "ERR_SELF_LOCKOUT_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -14378,7 +15820,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "409": {
             "content": {
@@ -14405,7 +15850,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
+            ]
           },
           "413": {
             "content": {
@@ -14432,7 +15880,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -14462,7 +15913,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -14489,7 +15943,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -14500,6 +15957,9 @@
         "summary": "Update a user (only the given fields)",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -14594,7 +16054,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "User external posts retrieved successfully",
+                "id": "Postingan eksternal pengguna berhasil diambil"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -14604,7 +16070,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -14621,7 +16087,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -14648,7 +16117,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -14675,7 +16149,40 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "429": {
             "content": {
@@ -14705,7 +16212,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -14732,7 +16242,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           },
           "502": {
             "content": {
@@ -14759,7 +16272,11 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_EXT_ERROR",
+              "ERR_EXT_UNREACHABLE"
+            ]
           },
           "504": {
             "content": {
@@ -14786,7 +16303,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_EXT_TIMEOUT"
+            ]
           }
         },
         "security": [
@@ -14797,6 +16317,10 @@
         "summary": "List the user's posts from the external JSONPlaceholder service",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "self:id",
+          "admin"
         ]
       }
     },
@@ -14888,7 +16412,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Password changed; all of the user's sessions have ended",
+                "id": "Password berhasil diganti; semua sesi pengguna diakhiri"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -14898,7 +16428,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -14915,7 +16445,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -14942,7 +16477,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -14969,7 +16509,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -14996,7 +16539,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "413": {
             "content": {
@@ -15023,7 +16569,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -15053,7 +16602,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -15080,7 +16632,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -15091,6 +16646,9 @@
         "summary": "Reset a user's password (ends all of their sessions)",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -15198,7 +16756,13 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "User restored successfully",
+                "id": "Pengguna berhasil dipulihkan"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -15208,7 +16772,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -15225,7 +16789,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
           },
           "401": {
             "content": {
@@ -15252,7 +16819,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
           },
           "403": {
             "content": {
@@ -15279,7 +16851,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_ROLE_FORBIDDEN"
+            ]
           },
           "404": {
             "content": {
@@ -15306,7 +16881,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
           },
           "409": {
             "content": {
@@ -15333,7 +16911,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
+            ]
           },
           "429": {
             "content": {
@@ -15363,7 +16944,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -15390,7 +16974,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [
@@ -15401,6 +16988,9 @@
         "summary": "Restore a soft-deleted user",
         "tags": [
           "Users"
+        ],
+        "x-allowed-callers": [
+          "admin"
         ]
       }
     },
@@ -15538,7 +17128,17 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-success-messages": [
+              {
+                "en": "Payment notification received",
+                "id": "Notifikasi pembayaran diterima"
+              },
+              {
+                "en": "This payment notification was already received",
+                "id": "Notifikasi pembayaran ini sudah pernah diterima"
+              }
+            ]
           },
           "400": {
             "content": {
@@ -15548,7 +17148,7 @@
                 }
               }
             },
-            "description": "Invalid input: ERR_INVALID_INPUT, ERR_NON_SNAKE_CASE_KEY or ERR_INVALID_JSON",
+            "description": "Invalid input or request",
             "headers": {
               "Content-Language": {
                 "$ref": "#/components/headers/ContentLanguage"
@@ -15565,7 +17165,12 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
           },
           "401": {
             "content": {
@@ -15592,7 +17197,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_WEBHOOK_SIGNATURE_INVALID"
+            ]
           },
           "413": {
             "content": {
@@ -15619,7 +17227,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
           },
           "429": {
             "content": {
@@ -15649,7 +17260,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
           },
           "500": {
             "content": {
@@ -15676,7 +17290,10 @@
               "X-Request-ID": {
                 "$ref": "#/components/headers/RequestId"
               }
-            }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
           }
         },
         "security": [

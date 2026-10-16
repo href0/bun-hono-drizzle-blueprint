@@ -233,6 +233,8 @@ const MAINTAINED_DOCS = [
     .filter((name) => name.endsWith('.md'))
     .map((name) => `docs/${name}`),
   ...markdownBelow(STANDARDS_DIR),
+  // Generated (bun run openapi:update), but read by integrators: their links must resolve too.
+  ...markdownBelow('docs/api'),
   ...markdownBelow('.agents'),
   ...markdownBelow('.claude'),
 ];

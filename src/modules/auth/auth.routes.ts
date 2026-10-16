@@ -2,8 +2,10 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { authConfig, httpConfig } from '../../config';
 import { csrfProtection, validate } from '../../core/middlewares';
+import { APP_ERROR_CODES } from '../../core/errors';
 import { describeEndpoint } from '../../core/openapi';
 import { authController } from './auth.controller';
+import { AUTH_MESSAGES } from './auth.messages';
 import {
   accessTokenSchema,
   authUserSchema,
@@ -39,8 +41,16 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       description:
         'Returns an access token and sets the refresh token as an HttpOnly cookie. Too many ' +
         'attempts for one email from one client → 429 `ERR_AUTH_LOGIN_LOCKED`.',
-      response: { status: 200, description: 'Logged in', data: loginResponseSchema },
-      errors: [401, 403],
+      response: {
+        status: 200,
+        description: 'Logged in',
+        message: AUTH_MESSAGES.LOGGED_IN,
+        data: loginResponseSchema,
+      },
+      errors: [
+        { status: 401, codes: [APP_ERROR_CODES.AUTH_INVALID_CREDENTIALS] },
+        { status: 429, codes: [APP_ERROR_CODES.AUTH_LOGIN_LOCKED] },
+      ],
     }),
     csrf,
     validate({ body: loginSchema }),
@@ -52,8 +62,18 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       tags,
       summary: 'Get a new access token (rotates the refresh token)',
       description: `${COOKIE_NOTE} A token used twice ends the whole session (\`ERR_AUTH_REFRESH_REUSED\`).`,
-      response: { status: 200, description: 'New access token', data: accessTokenSchema },
-      errors: [401, 403],
+      response: {
+        status: 200,
+        description: 'New access token',
+        message: AUTH_MESSAGES.REFRESHED,
+        data: accessTokenSchema,
+      },
+      errors: [
+        {
+          status: 401,
+          codes: [APP_ERROR_CODES.AUTH_REFRESH_INVALID, APP_ERROR_CODES.AUTH_REFRESH_REUSED],
+        },
+      ],
     }),
     csrf,
     authController.refresh,
@@ -64,8 +84,12 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       tags,
       summary: 'Log out of this session (idempotent)',
       description: COOKIE_NOTE,
-      response: { status: 200, description: 'Logged out', data: z.null() },
-      errors: [403],
+      response: {
+        status: 200,
+        description: 'Logged out',
+        message: AUTH_MESSAGES.LOGGED_OUT,
+        data: z.null(),
+      },
     }),
     csrf,
     authController.logout,
@@ -75,7 +99,12 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
     describeEndpoint({
       tags,
       summary: 'Log out of every session on every device',
-      response: { status: 200, description: 'All sessions ended', data: z.null() },
+      response: {
+        status: 200,
+        description: 'All sessions ended',
+        message: AUTH_MESSAGES.LOGGED_OUT_ALL,
+        data: z.null(),
+      },
     }),
     authController.logoutAll,
   );
@@ -87,7 +116,13 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       description:
         'Requires the current password (attempts count like logins → 429). Returns a new access ' +
         'token and sets a new refresh cookie for this device; every other session ends.',
-      response: { status: 200, description: 'Password changed', data: accessTokenSchema },
+      response: {
+        status: 200,
+        description: 'Password changed',
+        message: AUTH_MESSAGES.PASSWORD_CHANGED,
+        data: accessTokenSchema,
+      },
+      errors: [{ status: 429, codes: [APP_ERROR_CODES.AUTH_LOGIN_LOCKED] }],
     }),
     validate({ body: changePasswordSchema }),
     authController.changePassword,
@@ -97,7 +132,12 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
     describeEndpoint({
       tags,
       summary: 'The signed-in user',
-      response: { status: 200, description: 'Profile', data: authUserSchema },
+      response: {
+        status: 200,
+        description: 'Profile',
+        message: AUTH_MESSAGES.PROFILE_RETRIEVED,
+        data: authUserSchema,
+      },
     }),
     authController.me,
   );
@@ -108,7 +148,12 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       describeEndpoint({
         tags,
         summary: 'Create an account (public registration)',
-        response: { status: 201, description: 'Account created', data: authUserSchema },
+        response: {
+          status: 201,
+          description: 'Account created',
+          message: AUTH_MESSAGES.REGISTERED,
+          data: authUserSchema,
+        },
         errors: [409],
       }),
       validate({ body: registerSchema }),

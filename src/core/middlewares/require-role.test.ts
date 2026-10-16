@@ -1,3 +1,4 @@
+import { I18N_MESSAGES } from '../i18n/messages';
 import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -56,7 +57,12 @@ describe('requireRole in the OpenAPI document', () => {
       describeEndpoint({
         tags: ['Probe'],
         summary: 'Admin only',
-        response: { status: 200, description: 'ok', data: z.null() },
+        response: {
+          status: 200,
+          description: 'ok',
+          message: I18N_MESSAGES.SUCCESS,
+          data: z.null(),
+        },
       }),
       requireRole('admin'),
       (c) => c.text('admin area'),

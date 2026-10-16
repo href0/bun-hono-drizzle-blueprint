@@ -49,12 +49,63 @@ const sortKeys = (value: unknown): unknown => {
 export const serializeDocument = (document: unknown): string =>
   `${JSON.stringify(sortKeys(document), null, 2)}\n`;
 
+export interface Contract {
+  document: Record<string, unknown>;
+  /**
+   * The module that mounts each operation (`GET /api/v1/users/{id}` → `users`, dependent modules as
+   * `projects/tasks`); operations mounted by `src/app.ts` itself have no entry.
+   */
+  owners: ReadonlyMap<string, string>;
+}
+
+interface MountedRoute {
+  method: string;
+  path: string;
+  handler: unknown;
+}
+
+const routeListOf = (value: unknown): readonly MountedRoute[] | undefined => {
+  if (typeof value !== 'object' || value === null || !('routes' in value)) return undefined;
+  const { routes } = value;
+  return Array.isArray(routes) ? (routes as MountedRoute[]) : undefined;
+};
+
+/**
+ * Which module each mounted route comes from: the handlers of every `*.routes.ts` router a module
+ * exports, matched by identity against the app's routes (the same way `test/structure.test.ts`
+ * checks where channel routers are mounted).
+ */
+const ownersOf = async (
+  rootDir: string,
+  appRoutes: readonly MountedRoute[],
+): Promise<Map<string, string>> => {
+  const moduleOfHandler = new Map<unknown, string>();
+  const files = [...new Bun.Glob('src/modules/**/*.routes.ts').scanSync({ cwd: rootDir })].sort();
+  for (const file of files) {
+    const normalized = file.split('\\').join('/');
+    const module = normalized.replace(/^src\/modules\//, '').replace(/\/[^/]+$/, '');
+    const exported = Object.values(
+      (await import(resolve(rootDir, file))) as Record<string, unknown>,
+    );
+    for (const value of exported) {
+      for (const route of routeListOf(value) ?? []) moduleOfHandler.set(route.handler, module);
+    }
+  }
+  const owners = new Map<string, string>();
+  for (const route of appRoutes) {
+    const module = moduleOfHandler.get(route.handler);
+    if (route.method === 'ALL' || module === undefined) continue;
+    owners.set(`${route.method} ${route.path.replace(/:(\w+)/g, '{$1}')}`, module);
+  }
+  return owners;
+};
+
 /**
  * The OpenAPI document of `createApp()` exactly as `<API_BASE_PATH>/docs/openapi.json` serves it,
- * built with CONTRACT_ENV. Must run before anything else imports `src/` in this process: the
- * configuration is read once, when its modules load.
+ * built with CONTRACT_ENV, and the module behind each operation. Must run before anything else
+ * imports `src/` in this process: the configuration is read once, when its modules load.
  */
-export const buildContractDocument = async (rootDir: string): Promise<Record<string, unknown>> => {
+export const buildContract = async (rootDir: string): Promise<Contract> => {
   const { RENAMED_ENV_VARS } = await import('../../../src/config/parse-env');
   for (const key of [...configurationKeys(rootDir), ...Object.keys(RENAMED_ENV_VARS)]) {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- dropping the local values by name is the point
@@ -63,10 +114,14 @@ export const buildContractDocument = async (rootDir: string): Promise<Record<str
   Object.assign(process.env, CONTRACT_ENV);
 
   const { createApp } = await import('../../../src/app');
-  const response = await createApp().request('/api/docs/openapi.json');
+  const app = createApp();
+  const response = await app.request('/api/docs/openapi.json');
   if (response.status !== 200) {
     throw new Error(`the app served its OpenAPI document with status ${String(response.status)}`);
   }
   const document = (await response.json()) as Record<string, unknown>;
-  return { ...document, info: FIXED_INFO };
+  return {
+    document: { ...document, info: FIXED_INFO },
+    owners: await ownersOf(rootDir, app.routes),
+  };
 };

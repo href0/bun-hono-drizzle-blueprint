@@ -4,6 +4,7 @@ import { paginationQuerySchema, uuidParamSchema } from '../../../core/dto/common
 import { validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { tasksController } from './tasks.controller';
+import { TASK_MESSAGES } from './tasks.messages';
 import {
   createTaskSchema,
   taskParentParamSchema,
@@ -21,7 +22,12 @@ parentRouter.post(
   describeEndpoint({
     tags,
     summary: 'Add a task to a project',
-    response: { status: 201, description: 'Created', data: taskResponseSchema },
+    response: {
+      status: 201,
+      description: 'Created',
+      message: TASK_MESSAGES.CREATED,
+      data: taskResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: taskParentParamSchema, body: createTaskSchema }),
@@ -32,7 +38,12 @@ parentRouter.get(
   describeEndpoint({
     tags,
     summary: "List a project's tasks (paginated)",
-    response: { status: 200, description: 'A page', paginatedItem: taskResponseSchema },
+    response: {
+      status: 200,
+      description: 'A page',
+      message: TASK_MESSAGES.LIST_RETRIEVED,
+      paginatedItem: taskResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: taskParentParamSchema, query: paginationQuerySchema }),
@@ -47,7 +58,12 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'Get a task by id',
-    response: { status: 200, description: 'Found', data: taskResponseSchema },
+    response: {
+      status: 200,
+      description: 'Found',
+      message: TASK_MESSAGES.RETRIEVED,
+      data: taskResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -58,7 +74,12 @@ router.patch(
   describeEndpoint({
     tags,
     summary: 'Update a task (only the given fields)',
-    response: { status: 200, description: 'Updated', data: taskResponseSchema },
+    response: {
+      status: 200,
+      description: 'Updated',
+      message: TASK_MESSAGES.UPDATED,
+      data: taskResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema, body: updateTaskSchema }),
@@ -69,7 +90,12 @@ router.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a task (soft delete; restorable)',
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Deleted',
+      message: TASK_MESSAGES.DELETED,
+      data: z.null(),
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -80,7 +106,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted task',
-    response: { status: 200, description: 'Restored', data: taskResponseSchema },
+    response: {
+      status: 200,
+      description: 'Restored',
+      message: TASK_MESSAGES.RESTORED,
+      data: taskResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),

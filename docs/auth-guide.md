@@ -1,6 +1,6 @@
 # Panduan Autentikasi untuk Frontend
 
-Panduan ini untuk developer frontend (SPA/web) dan klien lain yang memakai API ini. Isinya: alur login, cara menyimpan token, refresh otomatis, logout, dan pengaturan domain/cookie yang benar.
+Panduan ini untuk developer frontend (SPA/web) dan klien lain yang memakai API ini. Isinya: alur login, cara menyimpan token, refresh otomatis, logout, dan pengaturan domain/cookie yang benar. Rincian setiap endpoint (request, response, kode error) ada di kontrak API yang di-generate: [api/README.md](api/README.md) (auth: [api/auth.md](api/auth.md)).
 
 Ringkasnya:
 

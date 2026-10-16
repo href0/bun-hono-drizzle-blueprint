@@ -303,6 +303,7 @@ import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelSingular>ReceiptSchema, <camelSingular>Schema } from './<name>.dto';
 import { <camelPlural>WebhookController } from './<name>.webhook.controller';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 
 export const <camelPlural>WebhookRoutes = new Hono();
 
@@ -311,7 +312,12 @@ export const <camelPlural>WebhookRoutes = new Hono();
   describeEndpoint({
     tags: ['Webhooks'],
     summary: '<VendorPascal> notification (vendor webhook, idempotent per event id)',
-    response: { status: 200, description: 'Received (or already received)', data: <camelSingular>ReceiptSchema },
+    response: {
+      status: 200,
+      description: 'Received (or already received)',
+      message: [<UPPER_SINGULAR>_MESSAGES.RECEIVED, <UPPER_SINGULAR>_MESSAGES.DUPLICATE],
+      data: <camelSingular>ReceiptSchema,
+    },
   }),
   validate({ body: <camelSingular>Schema, bodyKeys: 'verbatim' }),
   <camelPlural>WebhookController.receive,

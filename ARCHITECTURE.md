@@ -354,6 +354,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R75 | Passwords are hashed and verified only through `hashPassword` / `verifyPassword` (`src/core/security/password.ts`): one cost for stored hashes and the login dummy hash, a cheap one only under `NODE_ENV=test` | [eslint:no-restricted-properties] [test:password] |
 | R76 | The API contract is the reviewed snapshot `docs/api/openapi.json`: `openapi:check` fails on any difference (labelled BREAKING / safe / docs, asymmetric for request and response); only a developer runs `openapi:update` — never a hook, CI or the scaffold CLI | [script:openapi:check] [test:compare] [test:api-contract] [ci:verify] [script:verify:scaffold] |
 | R77 | CI re-runs every local gate: each gate of `validate:full` is its own step of the CI job `verify` (`lint:branch` replaced by `validate-branch-name -t <head_ref>`: a pull request is a detached checkout) | [test:ci-gates] |
+| R78 | Every route documents what it sends — its success message(s) (`response.message`, the controller's constant) and every error code (`errors`, platform middlewares document their own); under `NODE_ENV=test` a response that disagrees fails the tests, and every code matches `ERROR_CATALOG`. The integrator documents `docs/api/*.md` are generated from the same document (one per module, never hand-written) | [tsc] [test:contract-guard] [test:openapi.e2e] [test:error-catalog] [test:markdown] [script:openapi:check] |
 
 ---
 

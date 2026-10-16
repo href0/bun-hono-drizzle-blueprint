@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { partnerGatewayController } from './partner-gateway.partner.controller';
+import { PARTNER_GATEWAY_MESSAGES } from './partner-gateway.messages';
 import {
   partnerEchoResponseSchema,
   partnerEchoSchema,
@@ -22,7 +23,12 @@ partnerGatewayRoutes.get(
   describeEndpoint({
     tags,
     summary: 'Check a signed partner request (no body)',
-    response: { status: 200, description: 'Signature verified', data: partnerPingResponseSchema },
+    response: {
+      status: 200,
+      description: 'Signature verified',
+      message: PARTNER_GATEWAY_MESSAGES.PONG,
+      data: partnerPingResponseSchema,
+    },
   }),
   partnerGatewayController.ping,
 );
@@ -31,7 +37,12 @@ partnerGatewayRoutes.post(
   describeEndpoint({
     tags,
     summary: 'Check a signed partner request with a JSON body (echoed back)',
-    response: { status: 200, description: 'Signature verified', data: partnerEchoResponseSchema },
+    response: {
+      status: 200,
+      description: 'Signature verified',
+      message: PARTNER_GATEWAY_MESSAGES.ECHOED,
+      data: partnerEchoResponseSchema,
+    },
   }),
   validate({ body: partnerEchoSchema }),
   partnerGatewayController.echo,
