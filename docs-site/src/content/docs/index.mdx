@@ -1,0 +1,42 @@
+---
+title: Beranda
+description: Blueprint backend siap produksi untuk Bun, Hono, Drizzle ORM dan PostgreSQL.
+template: splash
+hero:
+  title: Bun Hono Drizzle Blueprint
+  tagline: Blueprint backend dengan batas lapisan yang ditegakkan mesin, kontrak HTTP seragam, dan audit trail otomatis.
+  actions:
+    - text: Arsitektur & Rule Index
+      link: overview/architecture/
+      icon: right-arrow
+      variant: primary
+    - text: Quick Start
+      link: overview/quickstart/
+      icon: rocket
+      variant: secondary
+    - text: Standar Koding
+      link: standards/structure/
+      icon: document
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+{/* Ringkasan saja: angka dan aturan rinci hanya di halaman standar (satu sumber per topik). */}
+
+## Pilar arsitektur
+
+<CardGrid stagger>
+  <Card title="Kontrak HTTP seragam" icon="document">
+    Envelope respons dan kode error tunggal, wire contract `snake_case` dua arah, pesan dwibahasa. Lihat [HTTP Contract](standards/http-contract/).
+  </Card>
+  <Card title="Data layer teraudit" icon="setting">
+    Repository dasar per jenis tabel; setiap perubahan tercatat atomik. Lihat [Database](standards/database/).
+  </Card>
+  <Card title="Kanal inbound aman" icon="random">
+    Default-deny JWT dengan refresh cookie HttpOnly, partner gateway bertanda tangan HMAC, webhook vendor fail-closed. Lihat [Auth & Inbound](standards/auth-and-inbound/).
+  </Card>
+  <Card title="Quality gate berlapis" icon="approve-check-circle">
+    Setiap aturan punya penegak mesin (ESLint, dependency-cruiser, test, script). Lihat [Quality Gates](standards/quality-gates/).
+  </Card>
+</CardGrid>

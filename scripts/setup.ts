@@ -101,6 +101,18 @@ const IDENTITY_RULES: IdentityRule[] = [
     pattern: /^# .*$/m,
     replace: (id) => `# ${id.title}`,
   },
+  {
+    file: 'docs-site/astro.config.mjs',
+    label: 'docs portal title',
+    pattern: /(title:\s*')[^']*(')/,
+    replace: (id) => `$1${id.title}$2`,
+  },
+  {
+    file: 'docs-site/src/content/docs/index.mdx',
+    label: 'docs portal home title',
+    pattern: /^( +title: ).*$/m,
+    replace: (id) => `$1${id.title}`,
+  },
 ];
 
 interface ExampleModule {

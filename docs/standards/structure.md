@@ -18,6 +18,7 @@ Read this file when: placing a new file, adding an import between layers, or add
 │   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts
 │   ├── plans/                   # Adoption plan & decision log
 │   └── archive/                 # Original NestJS blueprint (not maintained)
+├── docs-site/                   # Interactive documentation portal (Astro Starlight)
 ├── drizzle/                     # Generated SQL migrations (drizzle-kit)
 ├── src/                         # §1.1
 ├── test/                        # §1.2
