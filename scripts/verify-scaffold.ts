@@ -27,6 +27,7 @@ import {
   STRUCTURE_PATH,
   type ScaffoldRequest,
 } from './lib/scaffold';
+import { SNAPSHOT_PATH } from './lib/api-contract/document';
 
 interface Variant {
   label: string;
@@ -233,8 +234,11 @@ const plannedFiles = requests.flatMap((request) =>
 );
 /** Shared files the CLI edits: restored byte for byte afterwards. */
 const SHARED = [APP_PATH, SCHEMA_BARREL, APPEND_ONLY_PATH, REGISTRY_PATH, CONFIG_BARREL];
-/** Also edited (the module tree), restored, but not code: no prettier / ESLint. */
-const SHARED_DOCS = [STRUCTURE_PATH];
+/**
+ * Also edited, restored, but not code (no prettier / ESLint): the module tree, and the contract
+ * snapshot this check updates on purpose (the developer's step after scaffolding).
+ */
+const SHARED_DOCS = [STRUCTURE_PATH, SNAPSHOT_PATH];
 const originals = new Map(
   [...SHARED, ...SHARED_DOCS].map((path) => [path, readFileSync(path, 'utf-8')]),
 );
@@ -266,6 +270,25 @@ const run = (label: string, command: string[]): boolean => {
     console.log(result.stderr.toString().trim());
   }
   return ok;
+};
+
+/**
+ * The contract flow a developer follows after scaffolding (R76): `check` fails on the new
+ * operations — all of them safe, nothing BREAKING — then `update`, then `check` is green.
+ */
+const contractFlow = (): boolean => {
+  const check = Bun.spawnSync(['bun', 'run', 'openapi:check'], { stdout: 'pipe', stderr: 'pipe' });
+  const report = `${check.stdout.toString()}${check.stderr.toString()}`;
+  const flagged = check.exitCode !== 0 && / 0 BREAKING, [1-9]\d* safe/.test(report);
+  console.log(
+    `${flagged ? 'PASS' : 'FAIL'}  openapi:check fails on the new operations (safe only)`,
+  );
+  if (!flagged) console.log(report.trim());
+  return (
+    flagged &&
+    run('openapi:update (no --allow-breaking needed)', ['bun', 'run', 'openapi:update']) &&
+    run('openapi:check green after the update', ['bun', 'run', 'openapi:check'])
+  );
 };
 
 const liveCheck = (): string => `
@@ -380,6 +403,7 @@ const main = (): void => {
         '-e',
         liveCheck(),
       ]) &&
+      contractFlow() &&
       // What a developer runs right after scaffolding: the whole suite (default-deny, OpenAPI and
       // docs guards see the generated routes) and the coverage gate, so every generated source
       // file must be loaded by a generated test and reach the per-file threshold.

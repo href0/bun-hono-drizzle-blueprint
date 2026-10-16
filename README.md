@@ -69,6 +69,7 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Ingin | Baca |
 |---|---|
 | Membuat modul / endpoint / webhook / adapter vendor | `bun run scaffold module <nama-jamak>` (`--dry-run` untuk melihat rencana) — [docs/standards/new-module.md](docs/standards/new-module.md); lewat AI agent: "scaffold module <nama>" |
+| Mengubah kontrak API (route, DTO) | `bun run openapi:check` menampilkan perubahan (BREAKING / safe / docs) → review → `bun run openapi:update` — [docs/standards/openapi.md](docs/standards/openapi.md) §6 |
 | Menjalankan quality gates (`bun run validate:full`) dan perintah lain | [docs/standards/quality-gates.md](docs/standards/quality-gates.md) |
 | Melihat struktur direktori | [docs/standards/structure.md](docs/standards/structure.md) |
 | Memahami keputusan arsitektur | [ARCHITECTURE.md](ARCHITECTURE.md) |

@@ -3,7 +3,7 @@ import type { Hono } from 'hono';
 import { generateSpecs } from 'hono-openapi';
 import { toSnakeCaseOpenApi } from '../../utils/openapi-case.util';
 import { addCommonHeaders } from './common-headers';
-import { errorResponse } from './describe-endpoint';
+import { errorResponseObject } from './describe-endpoint';
 
 /**
  * The Scalar UI bundle, pinned: unpinned it would load whatever version the CDN serves today.
@@ -107,17 +107,17 @@ const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDo
       const webhookVendor = webhookVendorOf(rules.webhooks, path);
       if (webhookVendor !== undefined) {
         operation.security = [{ [webhookSchemeName(webhookVendor)]: [] }];
-        operation.responses = { ...operation.responses, 401: errorResponse(401) };
+        operation.responses = { ...operation.responses, 401: errorResponseObject(401) };
       } else if (requiresPartnerSignature(method.toUpperCase(), path)) {
         operation.security = [PARTNER_REQUIREMENT];
         operation.responses = {
           ...operation.responses,
-          401: errorResponse(401),
-          403: errorResponse(403),
+          401: errorResponseObject(401),
+          403: errorResponseObject(403),
         };
       } else if (requiresAuthentication(method.toUpperCase(), path)) {
         operation.security = [{ bearerAuth: [] }];
-        operation.responses = { ...operation.responses, 401: errorResponse(401) };
+        operation.responses = { ...operation.responses, 401: errorResponseObject(401) };
       }
     }
   }

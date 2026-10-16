@@ -721,6 +721,8 @@ describe('<PascalPlural>Controller (through its routes)', () => {
 
 Add the integration test when the module has its own queries, locks, unique indexes or Redis behaviour — `docs/standards/testing.md` (§7 for `bun run test:int`).
 
+New routes change the API contract: `bun run openapi:check` lists them (all `safe`); review them, then `bun run openapi:update` and commit `docs/api/openapi.json` with the module — `docs/standards/openapi.md` §6.
+
 These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/dependent.md`, `references/dependent-one.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
 
 The templates are formatted for a short module name; `bun run scaffold` formats what it writes. After your own edits (or when copying a block by hand), format before validating:

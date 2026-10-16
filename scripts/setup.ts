@@ -23,6 +23,7 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
+import { SNAPSHOT_PATH } from './lib/api-contract/document';
 import { gitHooksAdvice, readGitState } from './lib/git-hooks';
 
 interface ProjectIdentity {
@@ -352,6 +353,10 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
   console.log(
     `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} database migrations from scratch (drizzle/)`,
   );
+  // The one machine that writes the contract snapshot: a new project's baseline, not a change.
+  console.log(
+    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} the API contract baseline (${SNAPSHOT_PATH}) without the examples`,
+  );
   if (dryRun) return;
 
   for (const example of present) {
@@ -385,6 +390,20 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
     console.error(generate.stdout.toString(), generate.stderr.toString());
     console.error(
       '[Setup] Error: drizzle-kit generate failed; run "bun run db:generate" after fixing it.',
+    );
+    process.exit(1);
+  }
+
+  // Removing the examples removes their operations (BREAKING by definition): a baseline, so allowed.
+  const contract = Bun.spawnSync(['bun', 'scripts/openapi.ts', 'update', '--allow-breaking'], {
+    cwd: rootDir,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  if (contract.exitCode !== 0) {
+    console.error(contract.stdout.toString(), contract.stderr.toString());
+    console.error(
+      '[Setup] Error: the API contract baseline failed; run "bun run openapi:update --allow-breaking" after fixing it.',
     );
     process.exit(1);
   }
