@@ -77,7 +77,7 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 | **`bun run validate:full`** | **Every gate in order** (`validate` + `test:cov`; also the pre-push hook) | **Required before a pull request** |
 | `bun run db:generate` / `bun run db:migrate` / `bun run db:studio` | drizzle-kit: generate a migration from the schema, apply migrations to `DATABASE_URL`, open Drizzle Studio | After changing the schema (`db:generate`); applying migrations to your own database (`db:migrate`) |
 | `bun run setup <name> [--description "…"] [--keep-examples] [--dry-run]` | Initializes a fresh clone as a named project (identity, examples removed, migrations regenerated) — skill `init-project` | Once per new project |
-| `bun run openapi:check` | Fails on any difference between the API of `createApp()` and the snapshot `docs/api/openapi.json`, each change labelled BREAKING / safe / docs ([openapi.md](openapi.md) §6) | Part of `validate`; after changing a route or a DTO |
+| `bun run openapi:check` | Fails on any difference between the API of `createApp()` and the snapshot `docs/api/openapi.json` (each change labelled BREAKING / safe / docs), or between the generated contract documents and `docs/api/*.md` ([openapi.md](openapi.md) §6) | Part of `validate`; after changing a route or a DTO |
 | `bun run openapi:update [--allow-breaking]` | Writes the snapshot after you reviewed the changes; refuses BREAKING without the flag. Never run by a hook, CI or `scaffold` | After the review of an intended contract change |
 | `bun run seed:admin --email <email> [--promote]` | Creates the first admin (password from a hidden prompt / stdin) | After the first migration; recovery of a locked-out admin |
 | `bun run auth:purge-tokens [--days N]` | Deletes expired refresh tokens | Schedule daily |
@@ -94,7 +94,7 @@ A change is finished when every item that applies holds — for developers and a
 3. **A new rule is enforced by a machine** (or marked `[review-only]` with the reason), has its row in `ARCHITECTURE.md` §12, and is proven by a chaos test: break it, see the gate fail, restore, `git status` clean.
 4. **Docs in the same change**: the topic file in `docs/standards/` ([documentation.md](documentation.md)); routers only when their list of topics changes; `.env.example` for a new variable.
 5. **New endpoint**: `describeEndpoint()` with the response schema in `<module>.dto.ts` ([openapi.md](openapi.md)).
-6. **API contract changed** (route, DTO, status, security): `bun run openapi:check` lists exactly the intended changes; `bun run openapi:update` after the review, the snapshot committed with the change ([openapi.md](openapi.md) §6).
+6. **API contract changed** (route, DTO, status, security, message, error code): `bun run openapi:check` lists exactly the intended changes; `bun run openapi:update` after the review, `docs/api/` committed with the change ([openapi.md](openapi.md) §6). A new error a route can send is listed in its `describeEndpoint({ errors })` — the contract guard fails the tests otherwise.
 7. **New environment variable**: a Zod field in `src/config/` and `.env.example` ([configuration.md](configuration.md)).
 8. **A value carrying the project name**: in `IDENTITY_RULES`; `bun run setup demo --dry-run` passes ([configuration.md](configuration.md)).
 9. **Schema change**: migration generated (`bun run db:generate`); applying it is the developer's call ([database.md](database.md) §4).

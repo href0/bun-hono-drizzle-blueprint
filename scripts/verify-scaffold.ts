@@ -234,11 +234,14 @@ const plannedFiles = requests.flatMap((request) =>
 );
 /** Shared files the CLI edits: restored byte for byte afterwards. */
 const SHARED = [APP_PATH, SCHEMA_BARREL, APPEND_ONLY_PATH, REGISTRY_PATH, CONFIG_BARREL];
-/**
- * Also edited, restored, but not code (no prettier / ESLint): the module tree, and the contract
- * snapshot this check updates on purpose (the developer's step after scaffolding).
- */
-const SHARED_DOCS = [STRUCTURE_PATH, SNAPSHOT_PATH];
+/** The contract folder (snapshot + Markdown) this check updates on purpose, as the developer does. */
+const CONTRACT_DIR = dirname(SNAPSHOT_PATH);
+const contractFiles = (): string[] =>
+  readdirSync(CONTRACT_DIR, { recursive: true, encoding: 'utf8' })
+    .map((path) => `${CONTRACT_DIR}/${path.split('\\').join('/')}`)
+    .filter((path) => /\.(json|md)$/.test(path));
+/** Also edited, restored, but not code (no prettier / ESLint): the module tree and the contract. */
+const SHARED_DOCS = [STRUCTURE_PATH, ...contractFiles()];
 const originals = new Map(
   [...SHARED, ...SHARED_DOCS].map((path) => [path, readFileSync(path, 'utf-8')]),
 );
@@ -258,6 +261,12 @@ const cleanup = (): void => {
   cleanedUp = true;
   for (const path of plannedFiles) rmSync(path, { force: true });
   for (const dir of probeFolders) rmSync(dir, { recursive: true, force: true });
+  // Contract documents the update wrote for the probes (e.g. docs/api/scaffold-probes/probe-notes.md).
+  for (const path of contractFiles().filter((file) => !originals.has(file))) rmSync(path);
+  for (const dir of readdirSync(CONTRACT_DIR, { withFileTypes: true })) {
+    const folder = `${CONTRACT_DIR}/${dir.name}`;
+    if (dir.isDirectory() && readdirSync(folder).length === 0) rmSync(folder, { recursive: true });
+  }
   for (const [path, content] of originals) writeFileSync(path, content);
 };
 

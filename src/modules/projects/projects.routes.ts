@@ -4,6 +4,7 @@ import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dt
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { projectsController } from './projects.controller';
+import { PROJECT_MESSAGES } from './projects.messages';
 import { createProjectSchema, updateProjectSchema, projectResponseSchema } from './projects.dto';
 
 const router = new Hono();
@@ -14,7 +15,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Create a project',
-    response: { status: 201, description: 'Created', data: projectResponseSchema },
+    response: {
+      status: 201,
+      description: 'Created',
+      message: PROJECT_MESSAGES.CREATED,
+      data: projectResponseSchema,
+    },
   }),
   validate({ body: createProjectSchema }),
   projectsController.create,
@@ -24,7 +30,12 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'List projects (paginated)',
-    response: { status: 200, description: 'A page', paginatedItem: projectResponseSchema },
+    response: {
+      status: 200,
+      description: 'A page',
+      message: PROJECT_MESSAGES.LIST_RETRIEVED,
+      paginatedItem: projectResponseSchema,
+    },
   }),
   validate({ query: paginationQuerySchema }),
   projectsController.list,
@@ -34,7 +45,12 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'Get a project by id',
-    response: { status: 200, description: 'Found', data: projectResponseSchema },
+    response: {
+      status: 200,
+      description: 'Found',
+      message: PROJECT_MESSAGES.RETRIEVED,
+      data: projectResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -45,7 +61,12 @@ router.patch(
   describeEndpoint({
     tags,
     summary: 'Update a project (only the given fields)',
-    response: { status: 200, description: 'Updated', data: projectResponseSchema },
+    response: {
+      status: 200,
+      description: 'Updated',
+      message: PROJECT_MESSAGES.UPDATED,
+      data: projectResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema, body: updateProjectSchema }),
@@ -56,7 +77,12 @@ router.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a project (soft delete; restorable)',
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Deleted',
+      message: PROJECT_MESSAGES.DELETED,
+      data: z.null(),
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -67,7 +93,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted project',
-    response: { status: 200, description: 'Restored', data: projectResponseSchema },
+    response: {
+      status: 200,
+      description: 'Restored',
+      message: PROJECT_MESSAGES.RESTORED,
+      data: projectResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),

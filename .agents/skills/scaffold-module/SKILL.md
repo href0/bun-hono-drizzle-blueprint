@@ -333,6 +333,7 @@ import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dt
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 import {
   create<PascalSingular>Schema,
   update<PascalSingular>Schema,
@@ -347,7 +348,7 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Create a <camelSingular>',
-    response: { status: 201, description: 'Created', data: <camelSingular>ResponseSchema },
+    response: { status: 201, description: 'Created', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema },
   }),
   validate({ body: create<PascalSingular>Schema }),
   <camelPlural>Controller.create,
@@ -357,7 +358,7 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'List <camelPlural> (paginated)',
-    response: { status: 200, description: 'A page', paginatedItem: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema },
   }),
   validate({ query: paginationQuerySchema }),
   <camelPlural>Controller.list,
@@ -367,7 +368,7 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'Get a <camelSingular> by id',
-    response: { status: 200, description: 'Found', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -378,7 +379,7 @@ router.patch(
   describeEndpoint({
     tags,
     summary: 'Update a <camelSingular> (only the given fields)',
-    response: { status: 200, description: 'Updated', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: uuidParamSchema, body: update<PascalSingular>Schema }),
@@ -389,7 +390,7 @@ router.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a <camelSingular> (soft delete; restorable)',
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -400,7 +401,7 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted <camelSingular>',
-    response: { status: 200, description: 'Restored', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -721,7 +722,7 @@ describe('<PascalPlural>Controller (through its routes)', () => {
 
 Add the integration test when the module has its own queries, locks, unique indexes or Redis behaviour — `docs/standards/testing.md` (§7 for `bun run test:int`).
 
-New routes change the API contract: `bun run openapi:check` lists them (all `safe`); review them, then `bun run openapi:update` and commit `docs/api/openapi.json` with the module — `docs/standards/openapi.md` §6.
+New routes change the API contract: `bun run openapi:check` lists them (all `safe`); review them, then `bun run openapi:update` and commit `docs/api/` (snapshot + the generated `docs/api/<name>.md`) with the module — `docs/standards/openapi.md` §6. Every `describeEndpoint()` carries the `message` its controller sends and the domain error codes its service throws (`errors`); under `NODE_ENV=test` a mismatch fails the tests (`docs/standards/openapi.md` §5).
 
 These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/dependent.md`, `references/dependent-one.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
 

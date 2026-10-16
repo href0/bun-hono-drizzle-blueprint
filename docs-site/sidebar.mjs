@@ -53,6 +53,11 @@ export const SIDEBAR = [
     ],
   },
   {
+    // Generated from docs/api/ (bun run openapi:update): one page per module, listed automatically.
+    label: 'API Reference',
+    items: [{ autogenerate: { directory: 'api' } }],
+  },
+  {
     label: 'Quality Gates & Workflow',
     items: [
       { label: 'New Modules (Scaffold)', slug: 'standards/new-module' },

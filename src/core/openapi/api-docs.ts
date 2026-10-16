@@ -3,7 +3,14 @@ import type { Hono } from 'hono';
 import { generateSpecs } from 'hono-openapi';
 import { toSnakeCaseOpenApi } from '../../utils/openapi-case.util';
 import { addCommonHeaders } from './common-headers';
-import { errorResponseObject } from './describe-endpoint';
+import { APP_ERROR_CODES } from '../errors/error-codes';
+import {
+  ERROR_CODE_LIST,
+  ERROR_CODES_KEY,
+  errorCodeEntries,
+  errorResponseObject,
+  type ErrorSpec,
+} from './describe-endpoint';
 
 /**
  * The Scalar UI bundle, pinned: unpinned it would load whatever version the CDN serves today.
@@ -25,7 +32,42 @@ export type RequiresAuthentication = (method: string, path: string) => boolean;
 interface SecuredOperation {
   security?: unknown[];
   responses?: Record<string, unknown>;
+  [ERROR_CODE_LIST]?: string[];
 }
+
+/** The codes each authentication mechanism answers with (documented on every operation it guards). */
+const BEARER_ERRORS: readonly ErrorSpec[] = [
+  {
+    status: 401,
+    codes: [
+      APP_ERROR_CODES.UNAUTHORIZED,
+      APP_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      APP_ERROR_CODES.AUTH_TOKEN_INVALID,
+    ],
+  },
+];
+const PARTNER_ERRORS: readonly ErrorSpec[] = [
+  {
+    status: 401,
+    codes: [
+      APP_ERROR_CODES.PARTNER_HEADERS_MISSING,
+      APP_ERROR_CODES.PARTNER_INVALID_KEY,
+      APP_ERROR_CODES.PARTNER_REPLAY_REJECTED,
+      APP_ERROR_CODES.PARTNER_SIGNATURE_INVALID,
+    ],
+  },
+  {
+    status: 403,
+    codes: [APP_ERROR_CODES.PARTNER_IP_FORBIDDEN, APP_ERROR_CODES.PARTNER_ROUTE_FORBIDDEN],
+  },
+];
+const WEBHOOK_ERRORS: readonly ErrorSpec[] = [
+  { status: 401, codes: [APP_ERROR_CODES.WEBHOOK_SIGNATURE_INVALID] },
+];
+
+const addErrorCodes = (operation: SecuredOperation, specs: readonly ErrorSpec[]): void => {
+  operation[ERROR_CODE_LIST] = [...(operation[ERROR_CODE_LIST] ?? []), ...errorCodeEntries(specs)];
+};
 
 /** The four signing headers of a partner request (spec v1), all required together. */
 const PARTNER_SECURITY_SCHEMES = {
@@ -108,6 +150,7 @@ const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDo
       if (webhookVendor !== undefined) {
         operation.security = [{ [webhookSchemeName(webhookVendor)]: [] }];
         operation.responses = { ...operation.responses, 401: errorResponseObject(401) };
+        addErrorCodes(operation, WEBHOOK_ERRORS);
       } else if (requiresPartnerSignature(method.toUpperCase(), path)) {
         operation.security = [PARTNER_REQUIREMENT];
         operation.responses = {
@@ -115,9 +158,35 @@ const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDo
           401: errorResponseObject(401),
           403: errorResponseObject(403),
         };
+        addErrorCodes(operation, PARTNER_ERRORS);
       } else if (requiresAuthentication(method.toUpperCase(), path)) {
         operation.security = [{ bearerAuth: [] }];
         operation.responses = { ...operation.responses, 401: errorResponseObject(401) };
+        addErrorCodes(operation, BEARER_ERRORS);
+      }
+    }
+  }
+  return document;
+};
+
+/**
+ * Turns each operation's `x-error-code-list` (appended by every middleware that documents an
+ * error) into `x-error-codes` on the response of that status — sorted, without duplicates.
+ */
+const groupErrorCodes = (document: OpenApiDocument): OpenApiDocument => {
+  for (const item of Object.values(document.paths)) {
+    for (const operation of Object.values(item as Record<string, SecuredOperation>)) {
+      const byStatus = new Map<string, Set<string>>();
+      for (const entry of operation[ERROR_CODE_LIST] ?? []) {
+        const [status = '', code = ''] = entry.split(' ');
+        byStatus.set(status, new Set([...(byStatus.get(status) ?? []), code]));
+      }
+      Reflect.deleteProperty(operation, ERROR_CODE_LIST);
+      for (const [status, codes] of byStatus) {
+        const response = new Map(Object.entries(operation.responses ?? {})).get(status);
+        if (typeof response === 'object' && response !== null) {
+          Object.assign(response, { [ERROR_CODES_KEY]: [...codes].sort() });
+        }
       }
     }
   }
@@ -145,7 +214,7 @@ export const buildOpenApiDocument = async (
       },
     },
   });
-  return toSnakeCaseOpenApi(addCommonHeaders(addSecurity(document, security)));
+  return toSnakeCaseOpenApi(addCommonHeaders(groupErrorCodes(addSecurity(document, security))));
 };
 
 /**

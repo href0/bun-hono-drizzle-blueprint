@@ -11,11 +11,15 @@ import { documentsForbidden } from './require-role';
  * Runs after `partnerAuth()`; without a verified partner it answers 401.
  */
 export const requirePartner = (...codes: [string, ...string[]]): MiddlewareHandler =>
-  documentsForbidden(async (_c, next) => {
-    if (!codes.includes(currentPartner().code)) {
-      throw new ForbiddenError(I18N_MESSAGES.PARTNER_ROUTE_FORBIDDEN, {
-        code: APP_ERROR_CODES.PARTNER_ROUTE_FORBIDDEN,
-      });
-    }
-    await next();
-  });
+  documentsForbidden(
+    async (_c, next) => {
+      if (!codes.includes(currentPartner().code)) {
+        throw new ForbiddenError(I18N_MESSAGES.PARTNER_ROUTE_FORBIDDEN, {
+          code: APP_ERROR_CODES.PARTNER_ROUTE_FORBIDDEN,
+        });
+      }
+      await next();
+    },
+    APP_ERROR_CODES.PARTNER_ROUTE_FORBIDDEN,
+    codes.map((code) => `partner:${code}`),
+  );

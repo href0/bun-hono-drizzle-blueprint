@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig, buildAppConfig } from '../src/config';
+import { ERROR_CATALOG } from '../src/core/errors';
 import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
 import { isSnakeCaseKey } from '../src/utils/case-converter.util';
 
@@ -86,6 +87,37 @@ describe('OpenAPI document (createApp)', () => {
     expect(unresolved).toEqual([]);
     // A Zod schema serialized as is (a resolver added after generation) shows up as `"vendor":"zod"`.
     expect(text).not.toContain('"vendor":"zod"');
+  });
+
+  it('documents the messages of every success and the codes of every error (generated contract)', async () => {
+    const doc = await loadDocument();
+    const problems = Object.entries(doc.paths).flatMap(([path, item]) =>
+      Object.entries(item).flatMap(([method, op]) =>
+        Object.entries(op.responses).flatMap(([status, response]) => {
+          const where = `${method.toUpperCase()} ${path} ${status}`;
+          const fields = new Map(Object.entries(response as Record<string, unknown>));
+          if (Number(status) < 400) {
+            const messages = fields.get('x-success-messages');
+            const valid =
+              Array.isArray(messages) &&
+              messages.length > 0 &&
+              messages.every(
+                (m: { id?: unknown; en?: unknown }) =>
+                  typeof m.id === 'string' && typeof m.en === 'string',
+              );
+            return valid ? [] : [`${where}: no x-success-messages`];
+          }
+          const codes = fields.get('x-error-codes');
+          if (!Array.isArray(codes) || codes.length === 0) return [`${where}: no x-error-codes`];
+          return (codes as string[])
+            .filter(
+              (code) => new Map(Object.entries(ERROR_CATALOG)).get(code)?.status !== Number(status),
+            )
+            .map((code) => `${where}: ${code} is not a ${status} code (ERROR_CATALOG)`);
+        }),
+      ),
+    );
+    expect(problems).toEqual([]);
   });
 
   it('uses snake_case for every schema property and query parameter', async () => {

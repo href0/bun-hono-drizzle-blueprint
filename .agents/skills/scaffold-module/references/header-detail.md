@@ -428,6 +428,7 @@ import {
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 import {
   create<PascalSingular><DetailPascalSingular>Schema,
   create<PascalSingular>Schema,
@@ -443,68 +444,68 @@ const tags = ['<PascalPlural>'];
 
 router.post(
   '/',
-  describeEndpoint({ tags, summary: 'Create a <camelSingular>', response: { status: 201, description: 'Created', data: <camelSingular>ResponseSchema } }),
+  describeEndpoint({ tags, summary: 'Create a <camelSingular>', response: { status: 201, description: 'Created', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema } }),
   validate({ body: create<PascalSingular>Schema }),
   <camelPlural>Controller.create,
 );
 router.get(
   '/',
-  describeEndpoint({ tags, summary: 'List <camelPlural> (paginated)', response: { status: 200, description: 'A page', paginatedItem: <camelSingular>ResponseSchema } }),
+  describeEndpoint({ tags, summary: 'List <camelPlural> (paginated)', response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema } }),
   validate({ query: paginationQuerySchema }),
   <camelPlural>Controller.list,
 );
 router.get(
   '/:id',
-  describeEndpoint({ tags, summary: 'Get a <camelSingular> by id', response: { status: 200, description: 'Found', data: <camelSingular>ResponseSchema }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Get a <camelSingular> by id', response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema }, errors: [404] }),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.getById,
 );
 router.patch(
   '/:id',
-  describeEndpoint({ tags, summary: 'Update a <camelSingular> (only the given fields)', response: { status: 200, description: 'Updated', data: <camelSingular>ResponseSchema }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Update a <camelSingular> (only the given fields)', response: { status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED, data: <camelSingular>ResponseSchema }, errors: [404] }),
   validate({ params: uuidParamSchema, body: update<PascalSingular>Schema }),
   <camelPlural>Controller.update,
 );
 router.delete(
   '/:id',
-  describeEndpoint({ tags, summary: 'Delete a <camelSingular> (soft delete; restorable)', response: { status: 200, description: 'Deleted', data: z.null() }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Delete a <camelSingular> (soft delete; restorable)', response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() }, errors: [404] }),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.remove,
 );
 router.post(
   '/:id/restore',
-  describeEndpoint({ tags, summary: 'Restore a soft-deleted <camelSingular>', response: { status: 200, description: 'Restored', data: <camelSingular>ResponseSchema }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Restore a soft-deleted <camelSingular>', response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema }, errors: [404] }),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.restore,
 );
 
 router.get(
   '/:id/<detail-plural>',
-  describeEndpoint({ tags, summary: "List a <camelSingular>'s <detailCamelPlural>", response: { status: 200, description: '<DetailPascalPlural>, oldest first', data: z.array(<camelSingular><DetailPascalSingular>ResponseSchema) }, errors: [404] }),
+  describeEndpoint({ tags, summary: "List a <camelSingular>'s <detailCamelPlural>", response: { status: 200, description: '<DetailPascalPlural>, oldest first', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_PLURAL>_RETRIEVED, data: z.array(<camelSingular><DetailPascalSingular>ResponseSchema) }, errors: [404] }),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.list<DetailPascalPlural>,
 );
 router.post(
   '/:id/<detail-plural>',
-  describeEndpoint({ tags, summary: 'Add an <detailCamelSingular> to a <camelSingular>', response: { status: 201, description: '<DetailPascalSingular> added', data: <camelSingular><DetailPascalSingular>ResponseSchema }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Add an <detailCamelSingular> to a <camelSingular>', response: { status: 201, description: '<DetailPascalSingular> added', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_SINGULAR>_CREATED, data: <camelSingular><DetailPascalSingular>ResponseSchema }, errors: [404] }),
   validate({ params: uuidParamSchema, body: create<PascalSingular><DetailPascalSingular>Schema }),
   <camelPlural>Controller.add<DetailPascalSingular>,
 );
 router.put(
   '/:id/<detail-plural>',
-  describeEndpoint({ tags, summary: "Replace a <camelSingular>'s <detailCamelSingular> list (update kept ids, add new, delete missing)", response: { status: 200, description: 'The saved list', data: z.array(<camelSingular><DetailPascalSingular>ResponseSchema) }, errors: [404] }),
+  describeEndpoint({ tags, summary: "Replace a <camelSingular>'s <detailCamelSingular> list (update kept ids, add new, delete missing)", response: { status: 200, description: 'The saved list', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_PLURAL>_SAVED, data: z.array(<camelSingular><DetailPascalSingular>ResponseSchema) }, errors: [404] }),
   validate({ params: uuidParamSchema, body: sync<PascalSingular><DetailPascalPlural>Schema }),
   <camelPlural>Controller.sync<DetailPascalPlural>,
 );
 router.patch(
   '/:id/<detail-plural>/:childId',
-  describeEndpoint({ tags, summary: 'Update an <detailCamelSingular> (only the given fields)', response: { status: 200, description: '<DetailPascalSingular> updated', data: <camelSingular><DetailPascalSingular>ResponseSchema }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Update an <detailCamelSingular> (only the given fields)', response: { status: 200, description: '<DetailPascalSingular> updated', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_SINGULAR>_UPDATED, data: <camelSingular><DetailPascalSingular>ResponseSchema }, errors: [404] }),
   validate({ params: uuidChildParamSchema, body: update<PascalSingular><DetailPascalSingular>Schema }),
   <camelPlural>Controller.update<DetailPascalSingular>,
 );
 router.delete(
   '/:id/<detail-plural>/:childId',
-  describeEndpoint({ tags, summary: 'Delete an <detailCamelSingular>', response: { status: 200, description: '<DetailPascalSingular> deleted', data: z.null() }, errors: [404] }),
+  describeEndpoint({ tags, summary: 'Delete an <detailCamelSingular>', response: { status: 200, description: '<DetailPascalSingular> deleted', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_SINGULAR>_DELETED, data: z.null() }, errors: [404] }),
   validate({ params: uuidChildParamSchema }),
   <camelPlural>Controller.delete<DetailPascalSingular>,
 );

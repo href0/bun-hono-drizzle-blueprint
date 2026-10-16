@@ -106,7 +106,7 @@ Business failures **throw** an `ApiError` subclass from `src/core/errors/`: `new
 | `ExternalServiceError(kind, message, { integration, details? })` | 502 / 504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` · `ERR_EXT_UNREACHABLE` · `ERR_EXT_ERROR` | Vendor failure; the vendor's status and body are never forwarded ([integrations.md](integrations.md)) |
 | `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Broken invariant; its message is logged, never sent |
 
-Partner-gateway and webhook refusals use their own registry codes (`ERR_PARTNER_*`, `ERR_WEBHOOK_*`): [auth-and-inbound.md](auth-and-inbound.md).
+Partner-gateway and webhook refusals use their own registry codes (`ERR_PARTNER_*`, `ERR_WEBHOOK_*`): [auth-and-inbound.md](auth-and-inbound.md). Every code with its status, type and meaning: `ERROR_CATALOG` (`src/core/errors/error-catalog.ts`, tested against the classes); which codes each endpoint sends: [docs/api/README.md](../api/README.md) (generated, [openapi.md](openapi.md) §6).
 
 ## 6. Localized messages (`id` / `en`)
 

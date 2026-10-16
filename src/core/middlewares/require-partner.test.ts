@@ -45,7 +45,11 @@ describe('requirePartner', () => {
   it('documents its 403 in OpenAPI', () => {
     const middleware = requirePartner('acme') as unknown as Record<symbol, unknown>;
     expect(middleware[uniqueSymbol]).toEqual({
-      spec: { responses: { 403: expect.any(Object) } },
+      spec: {
+        responses: { 403: expect.any(Object) },
+        'x-error-code-list': ['403 ERR_PARTNER_ROUTE_FORBIDDEN'],
+        'x-allowed-callers': ['partner:acme'],
+      },
     });
   });
 });

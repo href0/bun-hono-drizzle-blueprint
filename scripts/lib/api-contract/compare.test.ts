@@ -231,6 +231,53 @@ describe('compare: operations, statuses and security', () => {
     ).toEqual(['docs GET /a | operation summary']);
   });
 
+  it('error codes changed = safe, success messages changed = docs (generated contract)', () => {
+    const withExtras = (codes: string[], message: string): Json => ({
+      responses: {
+        '200': { description: 'OK', 'x-success-messages': [{ id: message, en: message }] },
+        '404': { description: 'x', 'x-error-codes': codes },
+      },
+    });
+    expect(
+      changesOf(
+        api({ 'GET /a': withExtras(['ERR_NOT_FOUND'], 'Old') }),
+        api({ 'GET /a': withExtras(['ERR_NOT_FOUND', 'ERR_ROUTE_NOT_FOUND'], 'New') }),
+      ),
+    ).toEqual([
+      'docs GET /a | response 200 x-success-messages',
+      'safe GET /a | response 404 x-error-codes',
+    ]);
+  });
+
+  it('object key order inside an attribute is not a change (the snapshot is written with sorted keys)', () => {
+    const message = (value: Record<string, string>): Json => ({
+      responses: { '200': { description: 'OK', 'x-success-messages': [value] } },
+    });
+    expect(
+      changesOf(
+        api({ 'GET /a': message({ en: 'Hi', id: 'Hai' }) }),
+        api({ 'GET /a': message({ id: 'Hai', en: 'Hi' }) }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('allowed callers narrowed (restriction added, caller removed) = BREAKING; widened = safe', () => {
+    const callers = (...list: string[]): Json => ({ ...ok(), 'x-allowed-callers': list });
+    const cases: [Json, Json, string][] = [
+      [ok(), callers('admin'), 'BREAKING GET /a | operation x-allowed-callers'],
+      [
+        callers('self:id', 'admin'),
+        callers('admin'),
+        'BREAKING GET /a | operation x-allowed-callers',
+      ],
+      [callers('admin'), callers('self:id', 'admin'), 'safe GET /a | operation x-allowed-callers'],
+      [callers('admin'), ok(), 'safe GET /a | operation x-allowed-callers'],
+    ];
+    for (const [before, after, expected] of cases) {
+      expect(changesOf(api({ 'GET /a': before }), api({ 'GET /a': after }))).toEqual([expected]);
+    }
+  });
+
   it('a new required parameter = BREAKING, a new optional one = safe', () => {
     const withParam = (required: boolean): Json => ({
       ...ok(),

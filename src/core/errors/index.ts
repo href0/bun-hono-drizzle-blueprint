@@ -1,5 +1,6 @@
 export * from './api-error';
 export * from './error-codes';
+export * from './error-catalog';
 export * from './bad-request.error';
 export * from './validation.error';
 export * from './unauthorized.error';

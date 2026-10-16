@@ -4,6 +4,7 @@ import { uuidParamSchema } from '../../../core/dto/common.dto';
 import { validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { budgetsController } from './budgets.controller';
+import { BUDGET_MESSAGES } from './budgets.messages';
 import { budgetParentParamSchema, budgetResponseSchema, saveBudgetSchema } from './budgets.dto';
 
 const tags = ['Budgets'];
@@ -16,7 +17,12 @@ parentRouter.get(
   describeEndpoint({
     tags,
     summary: "Get a project's budget",
-    response: { status: 200, description: 'Found', data: budgetResponseSchema },
+    response: {
+      status: 200,
+      description: 'Found',
+      message: BUDGET_MESSAGES.RETRIEVED,
+      data: budgetResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: budgetParentParamSchema }),
@@ -27,7 +33,13 @@ parentRouter.put(
   describeEndpoint({
     tags,
     summary: "Save a project's budget (201 created, 200 updated)",
-    response: { status: 200, description: 'Saved', data: budgetResponseSchema },
+    response: {
+      status: 201,
+      description: 'Created',
+      message: BUDGET_MESSAGES.CREATED,
+      data: budgetResponseSchema,
+    },
+    alsoResponds: [{ status: 200, description: 'Updated', message: BUDGET_MESSAGES.UPDATED }],
     errors: [404],
   }),
   validate({ params: budgetParentParamSchema, body: saveBudgetSchema }),
@@ -38,7 +50,12 @@ parentRouter.delete(
   describeEndpoint({
     tags,
     summary: "Delete a project's budget (soft delete; restorable)",
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Deleted',
+      message: BUDGET_MESSAGES.DELETED,
+      data: z.null(),
+    },
     errors: [404],
   }),
   validate({ params: budgetParentParamSchema }),
@@ -53,7 +70,12 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'Get a budget by id',
-    response: { status: 200, description: 'Found', data: budgetResponseSchema },
+    response: {
+      status: 200,
+      description: 'Found',
+      message: BUDGET_MESSAGES.RETRIEVED,
+      data: budgetResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -64,7 +86,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted budget (409 while another one is live)',
-    response: { status: 200, description: 'Restored', data: budgetResponseSchema },
+    response: {
+      status: 200,
+      description: 'Restored',
+      message: BUDGET_MESSAGES.RESTORED,
+      data: budgetResponseSchema,
+    },
     errors: [404, 409],
   }),
   validate({ params: uuidParamSchema }),

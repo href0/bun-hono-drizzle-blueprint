@@ -18,6 +18,7 @@ export interface ClassifiedChange {
 
 /** Text only: readers see it, clients do not depend on it. */
 const DOC_ATTRIBUTES = new Set([
+  'x-success-messages',
   'summary',
   'description',
   'tags',
@@ -86,6 +87,16 @@ const classifyAttribute = (change: Extract<Change, { kind: 'changed' }>): Severi
       next !== undefined && (old === undefined || old.some((v) => !next.includes(v)));
     if (request) return narrowed ? 'BREAKING' : 'safe';
     return widened ? 'BREAKING' : 'safe';
+  }
+  // A code added or removed changes what a client may meet, but breaks no request that worked.
+  if (attribute === 'x-error-codes') return 'safe';
+  if (attribute === 'x-allowed-callers') {
+    // No list = any authenticated caller; a list = only those: losing one breaks its clients.
+    const old = asValues(before);
+    const next = asValues(after);
+    const narrowed =
+      next !== undefined && (old === undefined || old.some((v) => !next.includes(v)));
+    return narrowed ? 'BREAKING' : 'safe';
   }
   if (attribute === 'requirements') {
     // Security requirements are alternatives (OR): one an old client meets disappearing (scheme

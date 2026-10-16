@@ -1,7 +1,8 @@
 import { resolver, type DescribeRouteOptions } from 'hono-openapi';
 import type { z } from 'zod';
 import { createSchema } from 'zod-openapi';
-import { errorResponse } from './describe-endpoint';
+import { APP_ERROR_CODES, type AppErrorCode } from '../errors/error-codes';
+import { ERROR_CODE_LIST, errorCodeEntries, errorResponse } from './describe-endpoint';
 
 type Parameter = NonNullable<DescribeRouteOptions['parameters']>[number];
 type ParameterSchema = Extract<Parameter, { in: string }>['schema'];
@@ -40,8 +41,21 @@ export const describeRequest = (schemas: {
     ...toParameters('path', schemas.params),
   ];
   const validates = schemas.body !== undefined || parameters.length > 0;
+  // Codes `validate()` itself sends: snake_case keys are checked in body and query, JSON in the body.
+  const inputCodes: [AppErrorCode, ...AppErrorCode[]] = [
+    APP_ERROR_CODES.INVALID_INPUT,
+    ...(schemas.body || schemas.query ? [APP_ERROR_CODES.NON_SNAKE_CASE_KEY] : []),
+    ...(schemas.body ? [APP_ERROR_CODES.INVALID_JSON] : []),
+  ];
+  const errorCodes = validates
+    ? errorCodeEntries([
+        { status: 400, codes: inputCodes },
+        ...(schemas.body ? [413 as const] : []),
+      ])
+    : [];
 
   return {
+    ...(errorCodes.length > 0 ? { [ERROR_CODE_LIST]: errorCodes } : {}),
     ...(schemas.body
       ? {
           requestBody: {

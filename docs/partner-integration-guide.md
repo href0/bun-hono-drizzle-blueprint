@@ -1,6 +1,6 @@
 # Panduan Integrasi Partner
 
-Panduan ini untuk developer sistem partner (server-to-server) yang memanggil API ini, dan untuk admin yang mengelola kredensial partner. Isinya: cara mendapatkan kredensial, cara menandatangani request (signing v1), contoh kode, kode error, dan rotasi kredensial.
+Panduan ini untuk developer sistem partner (server-to-server) yang memanggil API ini, dan untuk admin yang mengelola kredensial partner. Isinya: cara mendapatkan kredensial, cara menandatangani request (signing v1), contoh kode, kode error, dan rotasi kredensial. Rincian setiap endpoint ada di kontrak API yang di-generate: [api/README.md](api/README.md) (endpoint uji: [api/partner-gateway.md](api/partner-gateway.md)).
 
 Ringkasnya:
 

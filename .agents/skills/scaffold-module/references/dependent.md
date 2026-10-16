@@ -310,6 +310,7 @@ import { paginationQuerySchema, uuidParamSchema } from '../../../core/dto/common
 import { validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 import {
   create<PascalSingular>Schema,
   <camelSingular>ParentParamSchema,
@@ -327,7 +328,7 @@ parentRouter.post(
   describeEndpoint({
     tags,
     summary: 'Add a <camelSingular> to a <parentCamelSingular>',
-    response: { status: 201, description: 'Created', data: <camelSingular>ResponseSchema },
+    response: { status: 201, description: 'Created', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: <camelSingular>ParentParamSchema, body: create<PascalSingular>Schema }),
@@ -338,7 +339,7 @@ parentRouter.get(
   describeEndpoint({
     tags,
     summary: "List a <parentCamelSingular>'s <camelPlural> (paginated)",
-    response: { status: 200, description: 'A page', paginatedItem: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: <camelSingular>ParentParamSchema, query: paginationQuerySchema }),
@@ -353,7 +354,7 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'Get a <camelSingular> by id',
-    response: { status: 200, description: 'Found', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -364,7 +365,7 @@ router.patch(
   describeEndpoint({
     tags,
     summary: 'Update a <camelSingular> (only the given fields)',
-    response: { status: 200, description: 'Updated', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: uuidParamSchema, body: update<PascalSingular>Schema }),
@@ -375,7 +376,7 @@ router.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a <camelSingular> (soft delete; restorable)',
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -386,7 +387,7 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted <camelSingular>',
-    response: { status: 200, description: 'Restored', data: <camelSingular>ResponseSchema },
+    response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),

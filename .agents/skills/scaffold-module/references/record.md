@@ -196,6 +196,7 @@ import { Hono } from 'hono';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
+import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 import {
   append<PascalSingular>Schema,
   list<PascalPlural>QuerySchema,
@@ -207,13 +208,13 @@ const tags = ['<PascalPlural>'];
 
 router.post(
   '/',
-  describeEndpoint({ tags, summary: 'Append a record', response: { status: 201, description: 'Saved', data: <camelSingular>ResponseSchema } }),
+  describeEndpoint({ tags, summary: 'Append a record', response: { status: 201, description: 'Saved', message: <UPPER_SINGULAR>_MESSAGES.APPENDED, data: <camelSingular>ResponseSchema } }),
   validate({ body: append<PascalSingular>Schema }),
   <camelPlural>Controller.append,
 );
 router.get(
   '/',
-  describeEndpoint({ tags, summary: 'List records, newest first (paginated, optional kind)', response: { status: 200, description: 'A page', paginatedItem: <camelSingular>ResponseSchema } }),
+  describeEndpoint({ tags, summary: 'List records, newest first (paginated, optional kind)', response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema } }),
   validate({ query: list<PascalPlural>QuerySchema }),
   <camelPlural>Controller.list,
 );

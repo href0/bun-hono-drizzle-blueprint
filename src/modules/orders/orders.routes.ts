@@ -8,6 +8,7 @@ import {
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { ordersController } from './orders.controller';
+import { ORDER_MESSAGES } from './orders.messages';
 import {
   createOrderItemSchema,
   createOrderSchema,
@@ -26,7 +27,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Create a order',
-    response: { status: 201, description: 'Created', data: orderResponseSchema },
+    response: {
+      status: 201,
+      description: 'Created',
+      message: ORDER_MESSAGES.CREATED,
+      data: orderResponseSchema,
+    },
   }),
   validate({ body: createOrderSchema }),
   ordersController.create,
@@ -36,7 +42,12 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'List orders (paginated)',
-    response: { status: 200, description: 'A page', paginatedItem: orderResponseSchema },
+    response: {
+      status: 200,
+      description: 'A page',
+      message: ORDER_MESSAGES.LIST_RETRIEVED,
+      paginatedItem: orderResponseSchema,
+    },
   }),
   validate({ query: paginationQuerySchema }),
   ordersController.list,
@@ -46,7 +57,12 @@ router.get(
   describeEndpoint({
     tags,
     summary: 'Get a order by id',
-    response: { status: 200, description: 'Found', data: orderResponseSchema },
+    response: {
+      status: 200,
+      description: 'Found',
+      message: ORDER_MESSAGES.RETRIEVED,
+      data: orderResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -57,7 +73,12 @@ router.patch(
   describeEndpoint({
     tags,
     summary: 'Update a order (only the given fields)',
-    response: { status: 200, description: 'Updated', data: orderResponseSchema },
+    response: {
+      status: 200,
+      description: 'Updated',
+      message: ORDER_MESSAGES.UPDATED,
+      data: orderResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema, body: updateOrderSchema }),
@@ -68,7 +89,12 @@ router.delete(
   describeEndpoint({
     tags,
     summary: 'Delete a order (soft delete; restorable)',
-    response: { status: 200, description: 'Deleted', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Deleted',
+      message: ORDER_MESSAGES.DELETED,
+      data: z.null(),
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -79,7 +105,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Restore a soft-deleted order',
-    response: { status: 200, description: 'Restored', data: orderResponseSchema },
+    response: {
+      status: 200,
+      description: 'Restored',
+      message: ORDER_MESSAGES.RESTORED,
+      data: orderResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema }),
@@ -94,6 +125,7 @@ router.get(
     response: {
       status: 200,
       description: 'Items, oldest first',
+      message: ORDER_MESSAGES.ITEMS_RETRIEVED,
       data: z.array(orderItemResponseSchema),
     },
     errors: [404],
@@ -106,7 +138,12 @@ router.post(
   describeEndpoint({
     tags,
     summary: 'Add an item to a order',
-    response: { status: 201, description: 'Item added', data: orderItemResponseSchema },
+    response: {
+      status: 201,
+      description: 'Item added',
+      message: ORDER_MESSAGES.ITEM_CREATED,
+      data: orderItemResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidParamSchema, body: createOrderItemSchema }),
@@ -120,6 +157,7 @@ router.put(
     response: {
       status: 200,
       description: 'The saved list',
+      message: ORDER_MESSAGES.ITEMS_SAVED,
       data: z.array(orderItemResponseSchema),
     },
     errors: [404],
@@ -132,7 +170,12 @@ router.patch(
   describeEndpoint({
     tags,
     summary: 'Update an item (only the given fields)',
-    response: { status: 200, description: 'Item updated', data: orderItemResponseSchema },
+    response: {
+      status: 200,
+      description: 'Item updated',
+      message: ORDER_MESSAGES.ITEM_UPDATED,
+      data: orderItemResponseSchema,
+    },
     errors: [404],
   }),
   validate({ params: uuidChildParamSchema, body: updateOrderItemSchema }),
@@ -143,7 +186,12 @@ router.delete(
   describeEndpoint({
     tags,
     summary: 'Delete an item',
-    response: { status: 200, description: 'Item deleted', data: z.null() },
+    response: {
+      status: 200,
+      description: 'Item deleted',
+      message: ORDER_MESSAGES.ITEM_DELETED,
+      data: z.null(),
+    },
     errors: [404],
   }),
   validate({ params: uuidChildParamSchema }),

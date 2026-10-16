@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { appConfig, type Locale } from '../../config';
+import type { LocalizedMessage } from '../i18n/translate';
 import type { Role } from '../security/roles';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
@@ -22,6 +23,15 @@ export interface AuthenticatedWebhook {
   readonly vendor: string;
 }
 
+/** What `describeEndpoint()` documents for the matched route — recorded only under `NODE_ENV=test`. */
+export interface EndpointContract {
+  readonly summary: string;
+  /** Documented success statuses, each with the messages it may carry. */
+  readonly successMessages: ReadonlyMap<number, readonly LocalizedMessage[]>;
+  /** Documented domain codes per error status (platform codes are always allowed). */
+  readonly errorCodes: ReadonlyMap<number, ReadonlySet<string>>;
+}
+
 export interface RequestContext {
   readonly requestId: string;
   readonly locale: Locale;
@@ -34,6 +44,8 @@ export interface RequestContext {
   partner?: AuthenticatedPartner;
   /** Set by `webhookAuth()` on vendor webhook routes. */
   webhook?: AuthenticatedWebhook;
+  /** Set by `describeEndpoint()` under `NODE_ENV=test` (contract guard). */
+  contract?: EndpointContract;
 }
 
 const storage = new AsyncLocalStorage<RequestContext>();
@@ -105,4 +117,13 @@ export const setAuthenticatedWebhook = (webhook: AuthenticatedWebhook): void => 
   setActor(`webhook:${webhook.vendor}`);
   const context = storage.getStore();
   if (context) context.webhook = webhook;
+};
+
+/** The documented contract of the matched route (contract guard); absent outside a request. */
+export const getEndpointContract = (): EndpointContract | undefined => storage.getStore()?.contract;
+
+/** Records the matched route's documented contract; a no-op outside a request (unit tests). */
+export const setEndpointContract = (contract: EndpointContract): void => {
+  const context = storage.getStore();
+  if (context) context.contract = contract;
 };
