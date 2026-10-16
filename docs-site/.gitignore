@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.astro/
+
+# Synced content (generated from root docs/ and ARCHITECTURE.md)
+src/content/docs/overview/
+src/content/docs/standards/
+src/content/docs/guides/

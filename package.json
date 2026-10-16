@@ -33,6 +33,8 @@
     "seed:admin": "bun scripts/seed-admin.ts",
     "auth:purge-tokens": "bun scripts/purge-refresh-tokens.ts",
     "partner:sign": "bun scripts/partner-sign.ts",
+    "docs:dev": "cd docs-site && bun run dev",
+    "docs:build": "cd docs-site && bun run build",
     "prepare": "husky"
   },
   "dependencies": {

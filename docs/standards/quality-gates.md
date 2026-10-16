@@ -79,6 +79,8 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 | `bun run seed:admin --email <email> [--promote]` | Creates the first admin (password from a hidden prompt / stdin) | After the first migration; recovery of a locked-out admin |
 | `bun run auth:purge-tokens [--days N]` | Deletes expired refresh tokens | Schedule daily |
 | `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Signs a partner request (signing v1) and prints headers + curl, or sends it; secret from a hidden prompt / stdin | Testing `/api/v1/partner/*` or helping a partner match a signature |
+| `bun run docs:dev` | Syncs the documents into `docs-site/` and serves the portal at `http://localhost:4321` (first run: `bun install` inside `docs-site/`) | Previewing documentation as a web page |
+| `bun run docs:build` | Syncs, builds the static portal (Astro Starlight + Pagefind) and fails on a broken internal link or anchor (`docs-site/check-links.ts`); deployed only by the manual workflow `deploy-docs.yml` | After adding or renaming a document; before publishing the portal |
 
 ## 4. Definition of done (every change)
 

@@ -1,0 +1,19 @@
+{
+  "name": "docs-site",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "sync": "bun sync-docs.ts",
+    "dev": "bun sync-docs.ts && astro dev",
+    "build": "bun sync-docs.ts && astro build && bun check-links.ts",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.6",
+    "astro": "^7.3.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}

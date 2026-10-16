@@ -19,6 +19,7 @@ Read this file when: changing a standard, adding a rule, or editing any document
 | `docs/auth-guide.md`, `docs/partner-integration-guide.md` | Guides for readers outside this codebase (frontend developers, partners); the partner guide is guarded by `test/partner-guide.test.ts` | Indonesian |
 | `docs/plans/` | Adoption plan, decision log (D0…), progress | Indonesian |
 | `docs/archive/` | Original NestJS blueprint — history, not maintained | Indonesian |
+| `docs-site/` | Web portal (Astro Starlight) that **renders** the documents above: `sync-docs.ts` copies them at build time (copies are git-ignored — never edit them), `sidebar.mjs` must list every synced page, `check-links.ts` fails the build on a broken link | English (labels) |
 
 **The rule**: a standard is written once, in its `docs/standards/` file. Everything else links to it — by file and section (`database.md §6`) or by rule ID (`R26`) — and never restates it. Changing a standard means editing that one file (plus its row in the rule index when a rule is added or its enforcer changes); skills, `AGENTS.md`, `CONTRIBUTING.md` and the code-generation templates pick it up from there.
 

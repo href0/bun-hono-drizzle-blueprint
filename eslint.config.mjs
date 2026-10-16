@@ -450,7 +450,15 @@ const inboundChannelRule = {
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs', 'dist/**', 'drizzle/**', 'node_modules/**', '.husky/**'],
+    // docs-site/ is a separate Astro project with its own dependencies (not type-checked here).
+    ignores: [
+      'eslint.config.mjs',
+      'dist/**',
+      'drizzle/**',
+      'node_modules/**',
+      '.husky/**',
+      'docs-site/**',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
