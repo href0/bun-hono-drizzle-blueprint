@@ -1,25 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ${APP_NAME:-starter}-dev-postgres
+    container_name: ${APP_NAME:-bun-hono-drizzle-blueprint}-dev-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-starter_db}
+      POSTGRES_DB: ${POSTGRES_DB:-bun_hono_drizzle_blueprint_db}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - dev_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-starter_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bun_hono_drizzle_blueprint_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: ${APP_NAME:-starter}-dev-redis
+    container_name: ${APP_NAME:-bun-hono-drizzle-blueprint}-dev-redis
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    container_name: ${APP_NAME:-starter}-dev-app
+    container_name: ${APP_NAME:-bun-hono-drizzle-blueprint}-dev-app
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
@@ -44,7 +44,7 @@ services:
     environment:
       - NODE_ENV=development
       - TZ=UTC
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-starter_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-bun_hono_drizzle_blueprint_db}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
