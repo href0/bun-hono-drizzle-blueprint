@@ -11,6 +11,7 @@ import { RENAMED_ENV_VARS } from '../../src/config/parse-env';
  */
 export const HERMETIC_ENV = {
   NODE_ENV: 'test',
+  LOG_LEVEL: 'fatal',
   TZ: 'UTC',
   DATABASE_URL: 'postgresql://hermetic:hermetic@127.0.0.1:1/hermetic_test',
   REDIS_HOST: '127.0.0.1',

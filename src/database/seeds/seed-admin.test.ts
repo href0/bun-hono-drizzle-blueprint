@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
 import { sampleUser } from '../../../test/helpers/auth-fakes';
+import { verifyPassword } from '../../core/security/password';
 import { users } from '../schema';
 import { SeedAdminError, seedAdmin, type SeedAdminInput } from './seed-admin';
 
@@ -108,7 +109,7 @@ describe('seedAdmin with the default hasher', () => {
     const hash = insert?.params.find(
       (param) => typeof param === 'string' && param.startsWith('$argon2'),
     );
-    expect(await Bun.password.verify('real password', String(hash))).toBe(true);
+    expect(await verifyPassword('real password', String(hash))).toBe(true);
   });
 });
 

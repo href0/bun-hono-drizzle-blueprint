@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { hashPassword } from '../../core/security/password';
 import type { Role } from '../../core/security/roles';
 import { BaseRepository } from '../base.repository';
 import { users, type User } from '../schema';
@@ -48,7 +49,7 @@ class SeedUsersRepository extends BaseRepository<typeof users> {
 export const seedAdmin = async (
   input: SeedAdminInput,
   txHost: TransactionHost = defaultTxHost,
-  hashPassword: (password: string) => Promise<string> = (password) => Bun.password.hash(password),
+  hash: (password: string) => Promise<string> = hashPassword,
   /** Called after a promotion, so cached reads (`GET /users/:id`) do not show the old role. */
   onUserChanged: (userId: string) => Promise<void> = () => Promise.resolve(),
 ): Promise<SeedAdminResult> => {
@@ -86,7 +87,7 @@ export const seedAdmin = async (
     const user = await repository.create({
       email: input.email,
       fullName: input.fullName,
-      passwordHash: await hashPassword(input.password),
+      passwordHash: await hash(input.password),
       role: ADMIN,
       isActive: true,
     });

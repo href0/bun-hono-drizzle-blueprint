@@ -10,6 +10,8 @@
     "start": "bun src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "test": "bun test",
+    "test:unit": "bun test src/",
+    "test:e2e": "bun test test/",
     "test:int": "bun scripts/test-integration.ts",
     "test:cov": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov && bun scripts/check-coverage.ts",
     "typecheck": "tsc --noEmit",

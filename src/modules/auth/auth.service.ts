@@ -13,6 +13,7 @@ import {
 import { I18N_MESSAGES } from '../../core/i18n';
 import { logger } from '../../core/logger';
 import { signAccessToken, type SignedAccessToken } from '../../core/security/jwt';
+import { hashPassword, verifyPassword } from '../../core/security/password';
 import { isRole } from '../../core/security/roles';
 import { Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
@@ -64,7 +65,7 @@ const USER_AGENT_MAX_LENGTH = 255;
  * and the response time does not reveal which emails exist. Hashed once at startup, so even the
  * first such login is not slower (or faster) than the others.
  */
-const dummyPasswordHash: Promise<string> = Bun.password.hash('constant-time-dummy-password');
+const dummyPasswordHash: Promise<string> = hashPassword('constant-time-dummy-password');
 
 const earliest = (a: Temporal.Instant, b: Temporal.Instant): Temporal.Instant =>
   Temporal.Instant.compare(a, b) <= 0 ? a : b;
@@ -126,7 +127,7 @@ export class AuthService {
     const attempt = await this.countAttempt(dto.email);
 
     const user = await this.users.findByEmail(dto.email);
-    const passwordMatches = await Bun.password.verify(
+    const passwordMatches = await verifyPassword(
       dto.password,
       user?.passwordHash ?? (await dummyPasswordHash),
     );
@@ -189,7 +190,7 @@ export class AuthService {
     if (!user?.isActive) throw tokenInvalid();
 
     const attempt = await this.countAttempt(user.email);
-    if (!(await Bun.password.verify(dto.currentPassword, user.passwordHash))) {
+    if (!(await verifyPassword(dto.currentPassword, user.passwordHash))) {
       logger.warn({ userId }, 'Password change refused: wrong current password');
       throw new ValidationError(undefined, {
         details: [{ field: 'currentPassword', message: AUTH_MESSAGES.CURRENT_PASSWORD_INCORRECT }],
@@ -197,7 +198,7 @@ export class AuthService {
     }
     await this.cache.del(attempt.key);
 
-    const passwordHash = await Bun.password.hash(dto.newPassword);
+    const passwordHash = await hashPassword(dto.newPassword);
     const session = await this.replacePassword(user, passwordHash, client);
     logger.info({ userId }, 'Password changed: every other session ended');
     return session;
@@ -214,7 +215,7 @@ export class AuthService {
   @Transactional()
   async register(dto: RegisterDto): Promise<AuthUser> {
     if (await this.users.findByEmail(dto.email)) throw emailTaken();
-    const passwordHash = await Bun.password.hash(dto.password);
+    const passwordHash = await hashPassword(dto.password);
     try {
       const user = await this.users.create({
         email: dto.email,

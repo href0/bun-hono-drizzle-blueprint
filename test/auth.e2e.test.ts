@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { createApp } from '../src/app';
 import { cacheService, type CounterState } from '../src/core/cache';
 import { globalErrorHandler, requestContextMiddleware } from '../src/core/middlewares';
+import { hashPassword } from '../src/core/security/password';
 import { defaultTxHost } from '../src/database/transaction-host';
 import type { User } from '../src/database/schema';
 import { authRepository } from '../src/modules/auth/auth.repository';
@@ -34,7 +35,7 @@ let app: Hono;
 let ada: User;
 
 beforeAll(async () => {
-  ada = sampleUser({ passwordHash: await Bun.password.hash(PASSWORD) });
+  ada = sampleUser({ passwordHash: await hashPassword(PASSWORD) });
   const tokens = () => fakes.tokenRepository;
   const users = () => fakes.usersRepository;
   spies.push(
