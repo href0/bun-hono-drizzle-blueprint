@@ -1,7 +1,7 @@
 /**
  * Example dependent modules (plan D33) — HTTP contract through createApp(): the parent `projects`
- * (standalone), its `tasks` (1:N) and its `budget` (1:1), each child in a subfolder of the parent and
- * mounted in shallow nesting. The services are stubbed with spyOn (never mock.module()); the parent
+ * (standalone), its `project-tasks` (1:N) and its `project-budgets` (1:1), each child in a subfolder
+ * of the parent, named after it and mounted in shallow nesting (`/projects/:id/tasks`, `/project-tasks/:id`). The services are stubbed with spyOn (never mock.module()); the parent
  * rules (hidden while the parent is deleted, parentScope, locks) are covered in
  * src/database/dependent.repository.test.ts and against PostgreSQL in the integration suite.
  * Removed with the modules by `bun run setup <name>`.
@@ -12,9 +12,9 @@ import { Temporal } from 'temporal-polyfill';
 import { createApp } from '../src/app';
 import { authorize } from './helpers/authorized-app';
 import { NotFoundError } from '../src/core/errors';
-import { budgetsService } from '../src/modules/projects/budgets/budgets.service';
-import { tasksService } from '../src/modules/projects/tasks/tasks.service';
-import type { Budget, Task } from '../src/database/schema';
+import { projectBudgetsService } from '../src/modules/projects/project-budgets/project-budgets.service';
+import { projectTasksService } from '../src/modules/projects/project-tasks/project-tasks.service';
+import type { ProjectBudget, ProjectTask } from '../src/database/schema';
 
 const AT = Temporal.Instant.from('2026-10-05T03:00:00Z');
 const PROJECT_ID = '0192f1d0-0000-7000-8000-000000000001';
@@ -26,13 +26,13 @@ const audit = {
   updatedBy: 'system',
   deletedAt: null,
 };
-const TASK: Task = {
+const TASK: ProjectTask = {
   id: '0192f1d0-0000-7000-8000-00000000000a',
   projectId: PROJECT_ID,
   name: 'Design',
   ...audit,
 };
-const BUDGET: Budget = {
+const BUDGET: ProjectBudget = {
   id: '0192f1d0-0000-7000-8000-00000000000b',
   projectId: PROJECT_ID,
   name: 'Q4',
@@ -51,26 +51,28 @@ describe('Projects with tasks (1:N) and a budget (1:1) — example dependent mod
 
   beforeAll(async () => {
     spies.push(
-      spyOn(tasksService, 'createTask').mockImplementation(async (projectId, dto) => {
+      spyOn(projectTasksService, 'createProjectTask').mockImplementation(async (projectId, dto) => {
         ensureProject(projectId);
         parents.push(projectId);
         return { ...TASK, ...dto };
       }),
-      spyOn(tasksService, 'listTasks').mockImplementation(async (projectId) => {
+      spyOn(projectTasksService, 'listProjectTasks').mockImplementation(async (projectId) => {
         ensureProject(projectId);
         return { records: [TASK], total: 1 };
       }),
-      spyOn(tasksService, 'getTaskById').mockImplementation(async () => TASK),
-      spyOn(tasksService, 'deleteTask').mockImplementation(async () => undefined),
-      spyOn(budgetsService, 'getBudget').mockImplementation(async (projectId) => {
+      spyOn(projectTasksService, 'getProjectTaskById').mockImplementation(async () => TASK),
+      spyOn(projectTasksService, 'deleteProjectTask').mockImplementation(async () => undefined),
+      spyOn(projectBudgetsService, 'getProjectBudget').mockImplementation(async (projectId) => {
         ensureProject(projectId);
         return BUDGET;
       }),
-      spyOn(budgetsService, 'saveBudget').mockImplementation(async (projectId, dto) => {
-        ensureProject(projectId);
-        return { row: { ...BUDGET, ...dto }, created: true };
-      }),
-      spyOn(budgetsService, 'getBudgetById').mockImplementation(async () => BUDGET),
+      spyOn(projectBudgetsService, 'saveProjectBudget').mockImplementation(
+        async (projectId, dto) => {
+          ensureProject(projectId);
+          return { row: { ...BUDGET, ...dto }, created: true };
+        },
+      ),
+      spyOn(projectBudgetsService, 'getProjectBudgetById').mockImplementation(async () => BUDGET),
     );
     app = await authorize(createApp());
   });
@@ -106,8 +108,8 @@ describe('Projects with tasks (1:N) and a budget (1:1) — example dependent mod
       total_items: 1,
       total_pages: 1,
     });
-    expect((await call('GET', `/tasks/${TASK.id}`)).status).toBe(200);
-    expect((await call('DELETE', `/tasks/${TASK.id}`)).status).toBe(200);
+    expect((await call('GET', `/project-tasks/${TASK.id}`)).status).toBe(200);
+    expect((await call('DELETE', `/project-tasks/${TASK.id}`)).status).toBe(200);
   });
 
   it('budget: the 1:1 section in the singular under its project', async () => {
@@ -115,7 +117,7 @@ describe('Projects with tasks (1:N) and a budget (1:1) — example dependent mod
       name: 'Q4',
     });
     expect((await call('PUT', `/projects/${PROJECT_ID}/budget`, { name: 'Q1' })).status).toBe(201);
-    expect((await call('GET', `/budgets/${BUDGET.id}`)).status).toBe(200);
+    expect((await call('GET', `/project-budgets/${BUDGET.id}`)).status).toBe(200);
   });
 
   it('a project that is missing, deleted or not visible to the caller is a 404 for its children', async () => {

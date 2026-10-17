@@ -139,6 +139,18 @@ export const moduleTreeViolations = (modules: readonly ModuleFolder[]): string[]
         `${where}: a module subfolder holds a dependent module only (its repository extends DependentRepository, plan D33)`,
       );
     }
+    // A dependent is named after its parent (`order-documents`): its table and flat routes then never
+    // collide with another parent's. The singular comes from the parent column its repository passes
+    // to DependentRepository (`orders.id` ← `orderId`), so no dictionary is needed.
+    const parentColumn = /super\(\s*\w+,\s*\w+,\s*\w+\.(\w+?)Id\b/.exec(module.repository)?.[1];
+    if (module.parent !== undefined && parentColumn !== undefined) {
+      const prefix = `${parentColumn.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-`;
+      if (!module.name.startsWith(prefix)) {
+        problems.push(
+          `${where}: a dependent module is named after its parent: "${prefix}…" (its table and flat routes then never collide with another parent's, plan D33)`,
+        );
+      }
+    }
   }
   return problems;
 };
@@ -314,6 +326,36 @@ describe('the checks themselves (deliberately broken examples)', () => {
     ).toEqual([
       'src/modules/projects/notes/: a module subfolder holds a dependent module only (its repository extends DependentRepository, plan D33)',
       'src/modules/tasks/: the module name "tasks" is already used by src/modules/projects/tasks/ (it names a table and routes)',
+    ]);
+  });
+
+  it('report a dependent module that is not named after its parent', () => {
+    const repository = (table: string, parent: string, column: string): string =>
+      `class R extends DependentRepository<typeof ${table}, typeof ${parent}> {\n  constructor() {\n    super(\n      ${table},\n      ${parent},\n      ${table}.${column},\n      txHost,\n    );\n  }\n}`;
+    expect(
+      moduleTreeViolations([
+        { name: 'projects', repository: 'class P extends BaseRepository {}' },
+        {
+          name: 'project-tasks',
+          parent: 'projects',
+          repository: repository('projectTasks', 'projects', 'projectId'),
+        },
+        {
+          name: 'budgets',
+          parent: 'projects',
+          repository: repository('budgets', 'projects', 'projectId'),
+        },
+        {
+          name: 'order-lines',
+          parent: 'purchase-orders',
+          repository: repository('orderLines', 'purchaseOrders', 'purchaseOrderId'),
+        },
+        // A repository of another shape cannot be read: left to the CLI (and review).
+        { name: 'notes', parent: 'projects', repository: 'class N extends DependentRepository {}' },
+      ]),
+    ).toEqual([
+      'src/modules/projects/budgets/: a dependent module is named after its parent: "project-…" (its table and flat routes then never collide with another parent\'s, plan D33)',
+      'src/modules/purchase-orders/order-lines/: a dependent module is named after its parent: "purchase-order-…" (its table and flat routes then never collide with another parent\'s, plan D33)',
     ]);
   });
 

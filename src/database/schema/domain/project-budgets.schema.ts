@@ -11,8 +11,8 @@ import { appTable } from '../schemas';
 import { projects } from './projects.schema';
 
 /** Dependent section: at most one live row per project (DependentRepository). */
-export const budgets = appTable(
-  'budgets',
+export const projectBudgets = appTable(
+  'project_budgets',
   {
     id: uuidPrimaryKey(),
     projectId: parentReference('project_id', () => projects.id),
@@ -21,7 +21,9 @@ export const budgets = appTable(
     ...auditColumns(),
     ...softDelete(),
   },
-  (table) => [activeUniqueIndex('budgets_project_unique', [table.projectId], table.deletedAt)],
+  (table) => [
+    activeUniqueIndex('project_budgets_project_unique', [table.projectId], table.deletedAt),
+  ],
 );
 
-export type Budget = typeof budgets.$inferSelect;
+export type ProjectBudget = typeof projectBudgets.$inferSelect;

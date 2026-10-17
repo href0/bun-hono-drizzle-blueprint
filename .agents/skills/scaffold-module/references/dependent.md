@@ -2,14 +2,14 @@
 
 Use this variant for rows that have their own page but always belong to one parent, added any time after the parent exists: an application's members, a project's tasks, a customer's addresses (plan D33). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. This file replaces Steps 2–14 of `SKILL.md`. For **at most one** row per parent (a form section) use `dependent-one.md` (`--one`).
 
-Generate it with `bun run scaffold module <name> --parent=<parent-name>`: the parent is an existing standalone or header module and is **not edited** — the module lives in a subfolder of it, `src/modules/<parent-name>/<name>/` (one level, files named after the subfolder; `test/structure.test.ts`).
+Generate it with `bun run scaffold module <segment> --parent=<parent-name>`: the parent is an existing standalone or header module and is **not edited** — the module lives in a subfolder of it, `src/modules/<parent-name>/<name>/` (one level, files named after the subfolder; `test/structure.test.ts`). `<name>` is the module's own name, **the parent's singular + `<segment>`** (`order-documents` for `documents` under `orders`; typing the full name gives the same module): its table and flat routes never collide with another parent's (`invoice-documents`), exactly as a header-detail's `order_items`. Only the route under the parent keeps the short `<segment>`.
 
 - **Table**: standalone shape (`uuidPrimaryKey` + `timestamps` + `auditColumns` + `softDelete`) plus `parentReference('<parent_snake_singular>_id')`, indexed.
 - **Repository**: `DependentRepository` — reads see a row only while its parent is live and inside `parentScope()`; writes lock the parent first and call `assertParentWritable(parent)`; the parent reference never changes; updates, deletes and restores are audited under the parent (`docs/standards/database.md` §6).
-- **Routes** (shallow nesting): the collection under the parent — `GET` / `POST /<parent-name>/:<parentCamelSingular>Id/<name>`; one row by its own id — `GET` / `PATCH` / `DELETE /<name>/:id`, `POST /<name>/:id/restore`. The parent comes from the path, never from the body. No list across parents is generated: add one deliberately, with the ownership filter it needs.
+- **Routes** (shallow nesting): the collection under the parent — `GET` / `POST /<parent-name>/:<parentCamelSingular>Id/<segment>`; one row by its own id — `GET` / `PATCH` / `DELETE /<name>/:id`, `POST /<name>/:id/restore`. The parent comes from the path, never from the body. No list across parents is generated: add one deliberately, with the ownership filter it needs.
 - **Ownership**: when the parent belongs to a user (or a partner), override `parentScope()` in the repository; another owner's parent is then a 404 for every read and write of its rows.
 
-Extra placeholders, from `--parent=<parent-name>`: `<parent-name>` (kebab plural, route), `<parentCamelPlural>` (table variable), `<parent_snake_plural>` (table), `<parentCamelSingular>` / `<ParentPascalSingular>` (parameter `<parentCamelSingular>Id`, type), `<parent_snake_singular>` (column `<parent_snake_singular>_id`), and `<name-singular>` (this module's kebab singular). Verified by `bun run verify:scaffold`.
+Extra placeholders, from `--parent=<parent-name>`: `<parent-name>` (kebab plural, route), `<parentCamelPlural>` (table variable), `<parent_snake_plural>` (table), `<parentCamelSingular>` / `<ParentPascalSingular>` (parameter `<parentCamelSingular>Id`, type), `<parent_snake_singular>` (column `<parent_snake_singular>_id`), and `<segment>` (the short name of the route under the parent; `<name>` and the other placeholders are the full, parent-prefixed name). Verified by `bun run verify:scaffold`.
 
 ---
 
@@ -52,7 +52,7 @@ The parent is a path parameter of the collection routes; the body never carries 
 import { z } from 'zod';
 import { isoInstant } from '../../../core/openapi';
 
-/** The parent in the path: `/<parent-name>/:<parentCamelSingular>Id/<name>`. */
+/** The parent in the path: `/<parent-name>/:<parentCamelSingular>Id/<segment>`. */
 export const <camelSingular>ParentParamSchema = z.object({
   <parentCamelSingular>Id: z.string().uuid(),
 });
@@ -320,7 +320,7 @@ import {
 
 const tags = ['<PascalPlural>'];
 
-/** Mounted on `/<parent-name>/:<parentCamelSingular>Id/<name>`: the <parentCamelSingular>'s <camelPlural>. */
+/** Mounted on `/<parent-name>/:<parentCamelSingular>Id/<segment>`: the <parentCamelSingular>'s <camelPlural>. */
 const parentRouter = new Hono();
 
 parentRouter.post(
@@ -405,7 +405,7 @@ export { parentRouter as <camelPlural>ParentRouter, router as <camelPlural>Route
 import { <camelPlural>ParentRouter, <camelPlural>Router } from './modules/<parent-name>/<name>/<name>.routes';
 
 // Inside createApp(), next to the other modules on the versioned router
-v1.route('/<parent-name>/:<parentCamelSingular>Id/<name>', <camelPlural>ParentRouter);
+v1.route('/<parent-name>/:<parentCamelSingular>Id/<segment>', <camelPlural>ParentRouter);
 v1.route('/<name>', <camelPlural>Router);
 ```
 
@@ -626,11 +626,11 @@ const record: <PascalSingular> = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
-app.route('/<parent-name>/:<parentCamelSingular>Id/<name>', <camelPlural>ParentRouter);
+app.route('/<parent-name>/:<parentCamelSingular>Id/<segment>', <camelPlural>ParentRouter);
 app.route('/<name>', <camelPlural>Router);
 app.onError(globalErrorHandler);
 
-const collection = `/<parent-name>/${PARENT_ID}/<name>`;
+const collection = `/<parent-name>/${PARENT_ID}/<segment>`;
 
 const send = (method: string, body: unknown): RequestInit => ({
   method,
@@ -673,7 +673,7 @@ describe('<PascalPlural>Controller (through its routes)', () => {
   });
 
   it('rejects an invalid parent id or body (400) before the service', async () => {
-    expect((await app.request('/<parent-name>/not-a-uuid/<name>', send('POST', { name: 'x' }))).status).toBe(400);
+    expect((await app.request('/<parent-name>/not-a-uuid/<segment>', send('POST', { name: 'x' }))).status).toBe(400);
     expect((await app.request(collection, send('POST', {}))).status).toBe(400);
   });
 

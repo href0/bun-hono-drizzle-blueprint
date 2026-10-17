@@ -69,8 +69,8 @@ Error:
 - [partner-gateway](partner-gateway.md) — 2 endpoint
 - [payment-notifications](payment-notifications.md) — 1 endpoint
 - [projects](projects.md) — 6 endpoint
-  - [budgets](projects/budgets.md) — 5 endpoint
-  - [tasks](projects/tasks.md) — 6 endpoint
+  - [project-budgets](projects/project-budgets.md) — 5 endpoint
+  - [project-tasks](projects/project-tasks.md) — 6 endpoint
 - [users](users.md) — 8 endpoint
 
 ## Platform

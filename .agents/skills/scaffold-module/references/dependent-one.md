@@ -2,11 +2,11 @@
 
 Use this variant for **at most one** row per parent, added any time after the parent exists — typically one step of a multi-step form: an application's contact person, a user's profile, an order's shipping details (plan D33). It is `dependent.md` (read it first) with a unique live row per parent. This file replaces Steps 2–14 of `SKILL.md`.
 
-Generate it with `bun run scaffold module <name> --parent=<parent-name> --one`: the parent is an existing standalone or header module and is **not edited** — the module lives in a subfolder of it, `src/modules/<parent-name>/<name>/` (one level, files named after the subfolder; `test/structure.test.ts`).
+Generate it with `bun run scaffold module <plural> --parent=<parent-name> --one`: the parent is an existing standalone or header module and is **not edited** — the module lives in a subfolder of it, `src/modules/<parent-name>/<name>/` (one level, files named after the subfolder; `test/structure.test.ts`). `<name>` is the module's own name, the parent's singular + the plural you typed (`project-budgets` for `budgets` under `projects`, see `dependent.md`); only the route under the parent keeps the short singular `<segment>` (`budget`).
 
 - **Table**: as `dependent.md`, but the parent column carries `activeUniqueIndex` (one **live** row per parent; it is also the index the foreign key needs). After a soft delete a new row may be created; restoring the old one while a live one exists is a unique violation → 409.
 - **Repository**: `DependentRepository` — `findOneForParent`, `upsertForParent` (locks the parent `FOR UPDATE`, so concurrent saves of one parent queue: one row, the later saves update it), `softDeleteForParent`, `findById`, `restoreById`.
-- **Routes**: the section under its parent, in the singular — `GET` / `PUT` / `DELETE /<parent-name>/:<parentCamelSingular>Id/<name-singular>` (`PUT` creates (201) or updates (200)); the row by its own id — `GET /<name>/:id`, `POST /<name>/:id/restore`.
+- **Routes**: the section under its parent, in the singular — `GET` / `PUT` / `DELETE /<parent-name>/:<parentCamelSingular>Id/<segment>` (`PUT` creates (201) or updates (200)); the row by its own id — `GET /<name>/:id`, `POST /<name>/:id/restore`.
 - **Ownership** and parent state: `parentScope()` / `assertParentWritable()`, as in `dependent.md`.
 
 Placeholders: those of `dependent.md`.
@@ -59,7 +59,7 @@ Re-export it in `src/database/schema/domain/index.ts` (`export * from './<name>.
 import { z } from 'zod';
 import { isoInstant } from '../../../core/openapi';
 
-/** The parent in the path: `/<parent-name>/:<parentCamelSingular>Id/<name-singular>`. */
+/** The parent in the path: `/<parent-name>/:<parentCamelSingular>Id/<segment>`. */
 export const <camelSingular>ParentParamSchema = z.object({
   <parentCamelSingular>Id: z.string().uuid(),
 });
@@ -298,7 +298,7 @@ import {
 
 const tags = ['<PascalPlural>'];
 
-/** Mounted on `/<parent-name>/:<parentCamelSingular>Id/<name-singular>`: the <parentCamelSingular>'s <camelSingular>. */
+/** Mounted on `/<parent-name>/:<parentCamelSingular>Id/<segment>`: the <parentCamelSingular>'s <camelSingular>. */
 const parentRouter = new Hono();
 
 parentRouter.get(
@@ -373,7 +373,7 @@ export { parentRouter as <camelPlural>ParentRouter, router as <camelPlural>Route
 import { <camelPlural>ParentRouter, <camelPlural>Router } from './modules/<parent-name>/<name>/<name>.routes';
 
 // Inside createApp(), next to the other modules on the versioned router
-v1.route('/<parent-name>/:<parentCamelSingular>Id/<name-singular>', <camelPlural>ParentRouter);
+v1.route('/<parent-name>/:<parentCamelSingular>Id/<segment>', <camelPlural>ParentRouter);
 v1.route('/<name>', <camelPlural>Router);
 ```
 
@@ -582,11 +582,11 @@ const record: <PascalSingular> = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
-app.route('/<parent-name>/:<parentCamelSingular>Id/<name-singular>', <camelPlural>ParentRouter);
+app.route('/<parent-name>/:<parentCamelSingular>Id/<segment>', <camelPlural>ParentRouter);
 app.route('/<name>', <camelPlural>Router);
 app.onError(globalErrorHandler);
 
-const section = (parentId: string): string => `/<parent-name>/${parentId}/<name-singular>`;
+const section = (parentId: string): string => `/<parent-name>/${parentId}/<segment>`;
 
 const send = (method: string, body: unknown): RequestInit => ({
   method,
@@ -635,7 +635,7 @@ describe('<PascalPlural>Controller (through its routes)', () => {
   });
 
   it('rejects an invalid parent id or body (400) before the service', async () => {
-    expect((await app.request('/<parent-name>/not-a-uuid/<name-singular>')).status).toBe(400);
+    expect((await app.request('/<parent-name>/not-a-uuid/<segment>')).status).toBe(400);
     expect((await app.request(section(PARENT_ID), send('PUT', {}))).status).toBe(400);
   });
 

@@ -1,6 +1,6 @@
 import type { LocalizedMessage } from '../../../core/i18n';
 
-export const TASK_MESSAGES = {
+export const PROJECT_TASK_MESSAGES = {
   CREATED: { id: 'Tugas berhasil dibuat', en: 'Task created successfully' },
   RETRIEVED: { id: 'Data tugas berhasil diambil', en: 'Task retrieved successfully' },
   LIST_RETRIEVED: {
@@ -12,7 +12,7 @@ export const TASK_MESSAGES = {
   RESTORED: { id: 'Tugas berhasil dipulihkan', en: 'Task restored successfully' },
 } as const satisfies Record<string, LocalizedMessage>;
 
-export const taskNotFoundMessage = (id: string): LocalizedMessage => ({
+export const projectTaskNotFoundMessage = (id: string): LocalizedMessage => ({
   id: `Tugas dengan ID '${id}' tidak ditemukan`,
   en: `Task with ID '${id}' not found`,
 });

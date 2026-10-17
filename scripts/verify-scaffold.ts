@@ -105,35 +105,36 @@ const VARIANTS: Variant[] = [
     invalid: { path: '/v1/probe-events?per_page=1000', method: 'GET' },
   },
   {
-    // Attached to the standalone probe above, generated earlier in the same run (incremental).
+    // Attached to the standalone probe above, generated earlier in the same run (incremental). The
+    // module is named after its parent (scaffold-probe-notes); the route under the parent is short.
     label: 'dependent (1:N)',
-    request: { kind: 'module', name: 'probe-notes', parent: 'scaffold-probes' },
+    request: { kind: 'module', name: 'notes', parent: 'scaffold-probes' },
     documented: [
-      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-notes', 'post'],
-      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-notes', 'get'],
-      ['/v1/probe-notes/{id}', 'get'],
-      ['/v1/probe-notes/{id}', 'patch'],
-      ['/v1/probe-notes/{id}', 'delete'],
-      ['/v1/probe-notes/{id}/restore', 'post'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/notes', 'post'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/notes', 'get'],
+      ['/v1/scaffold-probe-notes/{id}', 'get'],
+      ['/v1/scaffold-probe-notes/{id}', 'patch'],
+      ['/v1/scaffold-probe-notes/{id}', 'delete'],
+      ['/v1/scaffold-probe-notes/{id}/restore', 'post'],
     ],
     invalid: {
-      path: '/v1/scaffold-probes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/probe-notes',
+      path: '/v1/scaffold-probes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/notes',
       method: 'POST',
       body: '{}',
     },
   },
   {
     label: 'dependent (1:1)',
-    request: { kind: 'module', name: 'probe-profiles', parent: 'scaffold-probes', one: true },
+    request: { kind: 'module', name: 'profiles', parent: 'scaffold-probes', one: true },
     documented: [
-      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-profile', 'get'],
-      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-profile', 'put'],
-      ['/v1/scaffold-probes/{scaffoldProbeId}/probe-profile', 'delete'],
-      ['/v1/probe-profiles/{id}', 'get'],
-      ['/v1/probe-profiles/{id}/restore', 'post'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/profile', 'get'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/profile', 'put'],
+      ['/v1/scaffold-probes/{scaffoldProbeId}/profile', 'delete'],
+      ['/v1/scaffold-probe-profiles/{id}', 'get'],
+      ['/v1/scaffold-probe-profiles/{id}/restore', 'post'],
     ],
     invalid: {
-      path: '/v1/scaffold-probes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/probe-profile',
+      path: '/v1/scaffold-probes/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/profile',
       method: 'PUT',
       body: '{}',
     },
@@ -261,7 +262,7 @@ const cleanup = (): void => {
   cleanedUp = true;
   for (const path of plannedFiles) rmSync(path, { force: true });
   for (const dir of probeFolders) rmSync(dir, { recursive: true, force: true });
-  // Contract documents the update wrote for the probes (e.g. docs/api/scaffold-probes/probe-notes.md).
+  // Contract documents the update wrote for the probes (e.g. docs/api/scaffold-probes/scaffold-probe-notes.md).
   for (const path of contractFiles().filter((file) => !originals.has(file))) rmSync(path);
   for (const dir of readdirSync(CONTRACT_DIR, { withFileTypes: true })) {
     const folder = `${CONTRACT_DIR}/${dir.name}`;

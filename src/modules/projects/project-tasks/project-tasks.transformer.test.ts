@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
-import type { Task } from '../../../database/schema';
-import { taskResponseSchema } from './tasks.dto';
-import { toTaskListResponse, toTaskResponse } from './tasks.transformer';
+import type { ProjectTask } from '../../../database/schema';
+import { projectTaskResponseSchema } from './project-tasks.dto';
+import { toProjectTaskListResponse, toProjectTaskResponse } from './project-tasks.transformer';
 
-const record: Task = {
+const record: ProjectTask = {
   id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
   projectId: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9a',
   name: 'Sample',
@@ -15,15 +15,17 @@ const record: Task = {
   deletedAt: null,
 };
 
-describe('toTaskResponse', () => {
+describe('toProjectTaskResponse', () => {
   it('exposes exactly the response fields (no audit or soft-delete columns)', () => {
-    const response = toTaskResponse(record);
+    const response = toProjectTaskResponse(record);
 
-    expect(Object.keys(response).sort()).toEqual(Object.keys(taskResponseSchema.shape).sort());
+    expect(Object.keys(response).sort()).toEqual(
+      Object.keys(projectTaskResponseSchema.shape).sort(),
+    );
     expect(response.projectId).toBe(record.projectId);
   });
 
   it('maps a list', () => {
-    expect(toTaskListResponse([record, record])).toHaveLength(2);
+    expect(toProjectTaskListResponse([record, record])).toHaveLength(2);
   });
 });

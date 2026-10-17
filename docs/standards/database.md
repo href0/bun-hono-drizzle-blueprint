@@ -222,7 +222,7 @@ export class OrderLinesRepository extends ChildRepository<typeof orderLines, typ
 
 Every module repository extends one of these five and module code never writes around them — rules in §7.
 
-Reference implementations: `src/modules/orders/` (header + detail, generated from the scaffold header-detail template), `src/modules/projects/` with its dependents `tasks/` (1:N) and `budgets/` (1:1) (generated with `--parent`; both examples removed by `bun run setup <name>` unless `--keep-examples`) and `src/modules/users/` — `UsersRepository extends BaseRepository` (redacts `passwordHash`), the service maps `null` to `NotFoundError` and a unique violation (`isUniqueViolation()` from `src/database`, SQLSTATE 23505) to `ConflictError` on create, update and restore, and evicts the cached detail after every write.
+Reference implementations: `src/modules/orders/` (header + detail, generated from the scaffold header-detail template), `src/modules/projects/` with its dependents `project-tasks/` (1:N) and `project-budgets/` (1:1) (generated with `--parent`; both examples removed by `bun run setup <name>` unless `--keep-examples`) and `src/modules/users/` — `UsersRepository extends BaseRepository` (redacts `passwordHash`), the service maps `null` to `NotFoundError` and a unique violation (`isUniqueViolation()` from `src/database`, SQLSTATE 23505) to `ConflictError` on create, update and restore, and evicts the cached detail after every write.
 
 Generic behaviour is tested once, with the SQL recorder and test-only tables (`test/helpers/repository-fixtures.ts`): `src/database/{base,child,dependent,append-only,read-only}.repository.test.ts`, and against a real PostgreSQL in `test/integration/data-layer.int.ts`. Module repositories test only what they add.
 

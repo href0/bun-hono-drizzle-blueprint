@@ -216,8 +216,8 @@ export const titleOf = (kebab: string): string =>
 
 /**
  * Replaces every placeholder of the templates (vendor placeholders only when a vendor is given,
- * detail placeholders only for a header-detail module, parent placeholders only for a dependent
- * module).
+ * detail placeholders only for a header-detail module, parent placeholders and `<segment>` only for a
+ * dependent module).
  */
 export const fill = (
   text: string,
@@ -225,6 +225,7 @@ export const fill = (
   vendor?: VendorNames,
   detail?: DetailNames,
   parent?: Names,
+  segment?: string,
 ): string =>
   (
     [
@@ -234,7 +235,7 @@ export const fill = (
       [/<parentCamelSingular>/g, parent?.camelSingular ?? '<parentCamelSingular>'],
       [/<ParentPascalSingular>/g, parent?.pascalSingular ?? '<ParentPascalSingular>'],
       [/<parent_snake_singular>/g, parent?.snakeSingular ?? '<parent_snake_singular>'],
-      [/<name-singular>/g, kebabSingularOf(names)],
+      [/<segment>/g, segment ?? '<segment>'],
       [/<DetailPascalPlural>/g, detail?.pascalPlural ?? '<DetailPascalPlural>'],
       [/<DetailPascalSingular>/g, detail?.pascalSingular ?? '<DetailPascalSingular>'],
       [/<detailCamelPlural>/g, detail?.camelPlural ?? '<detailCamelPlural>'],
@@ -277,14 +278,15 @@ export const materialize = (
   vendor?: VendorNames,
   detail?: DetailNames,
   parent?: Names,
+  segment?: string,
 ): PlannedFile[] => {
   const text = template.split('\r\n').join('\n');
   const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
   const files = [...text.matchAll(stepPattern)].flatMap((match) => {
-    const path = fill(match.at(1) ?? '', names, vendor, detail, parent);
+    const path = fill(match.at(1) ?? '', names, vendor, detail, parent, segment);
     return registrations.includes(path)
       ? []
-      : [{ path, content: fill(match.at(2) ?? '', names, vendor, detail, parent) }];
+      : [{ path, content: fill(match.at(2) ?? '', names, vendor, detail, parent, segment) }];
   });
   if (files.length === 0) throw new ScaffoldError('no template code blocks found');
   return files;
@@ -345,6 +347,11 @@ export interface ScaffoldPlan {
   files: PlannedFile[];
   edits: PlannedEdit[];
   nextSteps: string[];
+  /**
+   * The name the module is created under when it differs from the requested one (a dependent module
+   * is prefixed with its parent's singular: `documents` under `orders` → `order-documents`).
+   */
+  moduleName?: string;
   /** Dependent module: the parent (checked against the repository by the CLI) and the route segment under it. */
   parent?: { names: Names; segment: string };
 }
@@ -617,11 +624,11 @@ const planDependent = (
   request: ScaffoldRequest,
   text: string,
   template: string,
-  names: Names,
+  typed: Names,
 ): ScaffoldPlan => {
   const parentName = request.parent ?? '';
   const retryParent: Retry = (guess) =>
-    `bun run scaffold module ${names.name} --parent=${guess}${request.one ? ' --one' : ''}`;
+    `bun run scaffold module ${typed.name} --parent=${guess}${request.one ? ' --one' : ''}`;
   const parent = deriveNames(
     parentName,
     request.parentSingular ??
@@ -633,11 +640,22 @@ const planDependent = (
       ),
     retryParent,
   );
-  if (parent.name === names.name) throw new ScaffoldError('a module cannot be its own parent');
+  if (parent.name === typed.name) throw new ScaffoldError('a module cannot be its own parent');
 
-  const segment = request.one ? kebabSingularOf(names) : names.name;
+  // The module is named after its parent (`order-documents`, never `documents`): its table and flat
+  // routes then never collide with another parent's (`invoice-documents`), as a header-detail's
+  // table `order_items` does not. The route under the parent keeps the short name, and typing the
+  // full name gives the same module.
+  const prefix = `${kebabSingularOf(parent)}-`;
+  const short = (value: string): string =>
+    value.startsWith(prefix) ? value.slice(prefix.length) : value;
+  const shortName = short(typed.name);
+  const shortSingular = short(kebabSingularOf(typed));
+  const names = deriveNames(`${prefix}${shortName}`, `${prefix}${shortSingular}`);
+
+  const segment = request.one ? shortSingular : shortName;
   const nested = `/${parent.name}/:${parent.camelSingular}Id/${segment}`;
-  const files = materialize(text, names, [APP_PATH], undefined, undefined, parent);
+  const files = materialize(text, names, [APP_PATH], undefined, undefined, parent, segment);
   const routers = {
     nested: `${names.camelPlural}ParentRouter`,
     own: `${names.camelPlural}Router`,
@@ -645,6 +663,7 @@ const planDependent = (
   return {
     label: `dependent module ${names.name} in src/modules/${parent.name}/${names.name}/ (singular ${kebabSingularOf(names)}; ${request.one ? '1:1' : '1:N'}, ${nested})`,
     template,
+    moduleName: names.name,
     files,
     edits: [
       appendExport(SCHEMA_BARREL, `export ./${names.name}.schema`, `./${names.name}.schema`),
@@ -688,7 +707,8 @@ export const USAGE = [
   '  module <plural-name> [--variant=standalone|header-detail|record] [--singular=<name>]',
   '         header-detail: [--detail=<plural>] [--detail-singular=<name>]   (default detail: items)',
   '  module <plural-name> --parent=<parent-module> [--one] [--parent-singular=<name>] [--singular=<name>]',
-  '         dependent of an existing module: 1:N, or 1:1 with --one (at most one live row per parent)',
+  '         dependent of an existing module: 1:N, or 1:1 with --one (at most one live row per parent);',
+  '         created as <parent-singular>-<name> (documents under orders → order-documents, table order_documents)',
   '  partner <plural-name> [--singular=<name>]',
   '  webhook <plural-name> --vendor=<vendor> [--singular=<name>] [--institution="<name>"]',
   '  integration <vendor> [--institution="<name>"]',

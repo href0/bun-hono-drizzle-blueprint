@@ -10,7 +10,7 @@ Read this file when: naming a file, a folder, a module, an identifier or a table
 |---|---|---|
 | Folders and every dot segment of a file name | `kebab-case` | `user-profile.service.ts`, `auth/` |
 | Module file | `<module>[-<qualifier>][.partner\|.webhook].<role>[.test].ts` | `payments.partner.routes.ts`, `auth-users.repository.ts` |
-| Dependent module (plan D33) | one subfolder of its parent: `src/modules/<parent>/<child>/<child>.<role>[.test].ts` | `src/modules/projects/tasks/tasks.service.ts` |
+| Dependent module (plan D33) | one subfolder of its parent, named after it — `<parent singular>-<name>`, as a header-detail table is `order_items`: `src/modules/<parent>/<child>/<child>.<role>[.test].ts` | `src/modules/projects/project-tasks/project-tasks.service.ts` |
 | Integration file | `src/integrations/<vendor>/<vendor>.<role>[.test].ts` (`service`, `dto`, `webhook`, `webhook.dto`) or `index.ts` | `acme-pay.webhook.ts` |
 | Unit test | next to the file: `<file>.test.ts` | `users.service.test.ts` |
 | E2E / guard test | `test/<area>.e2e.test.ts` / `test/<name>.test.ts` | `test/users.e2e.test.ts` |

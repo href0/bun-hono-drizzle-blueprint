@@ -1,5 +1,5 @@
 {
-  "id": "7263389d-0d52-48b3-9063-1a0982a84e56",
+  "id": "ef49c2f9-533e-46d6-bbe9-9091a18d8b89",
   "prevId": "1efd3b72-c789-492d-b8b1-6301028983c3",
   "version": "7",
   "dialect": "postgresql",
@@ -852,8 +852,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.tasks": {
-      "name": "tasks",
+    "public.project_tasks": {
+      "name": "project_tasks",
       "schema": "",
       "columns": {
         "id": {
@@ -908,8 +908,8 @@
         }
       },
       "indexes": {
-        "tasks_project_idx": {
-          "name": "tasks_project_idx",
+        "project_tasks_project_idx": {
+          "name": "project_tasks_project_idx",
           "columns": [
             {
               "expression": "project_id",
@@ -925,9 +925,9 @@
         }
       },
       "foreignKeys": {
-        "tasks_project_id_projects_id_fk": {
-          "name": "tasks_project_id_projects_id_fk",
-          "tableFrom": "tasks",
+        "project_tasks_project_id_projects_id_fk": {
+          "name": "project_tasks_project_id_projects_id_fk",
+          "tableFrom": "project_tasks",
           "tableTo": "projects",
           "columnsFrom": [
             "project_id"
@@ -945,8 +945,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.budgets": {
-      "name": "budgets",
+    "public.project_budgets": {
+      "name": "project_budgets",
       "schema": "",
       "columns": {
         "id": {
@@ -1001,8 +1001,8 @@
         }
       },
       "indexes": {
-        "budgets_project_unique": {
-          "name": "budgets_project_unique",
+        "project_budgets_project_unique": {
+          "name": "project_budgets_project_unique",
           "columns": [
             {
               "expression": "project_id",
@@ -1019,9 +1019,9 @@
         }
       },
       "foreignKeys": {
-        "budgets_project_id_projects_id_fk": {
-          "name": "budgets_project_id_projects_id_fk",
-          "tableFrom": "budgets",
+        "project_budgets_project_id_projects_id_fk": {
+          "name": "project_budgets_project_id_projects_id_fk",
+          "tableFrom": "project_budgets",
           "tableTo": "projects",
           "columnsFrom": [
             "project_id"

@@ -2338,578 +2338,6 @@
         ]
       }
     },
-    "/api/v1/budgets/{id}": {
-      "get": {
-        "operationId": "getApiV1BudgetsById",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/AcceptLanguage"
-          },
-          {
-            "$ref": "#/components/parameters/RequestId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "created_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "project_id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "project_id",
-                        "name",
-                        "created_at",
-                        "updated_at"
-                      ],
-                      "type": "object"
-                    },
-                    "message": {
-                      "description": "Localized via Accept-Language (id | en)",
-                      "type": "string"
-                    },
-                    "status_code": {
-                      "type": "integer"
-                    },
-                    "success": {
-                      "const": true,
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "status_code",
-                    "message",
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-success-messages": [
-              {
-                "en": "Budget retrieved successfully",
-                "id": "Data anggaran berhasil diambil"
-              }
-            ]
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Invalid input or request",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INVALID_INPUT"
-            ]
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Missing or invalid credentials",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_AUTH_TOKEN_EXPIRED",
-              "ERR_AUTH_TOKEN_INVALID",
-              "ERR_UNAUTHORIZED"
-            ]
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Rate limit exceeded; retry after the Retry-After header",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "Retry-After": {
-                "$ref": "#/components/headers/RetryAfter"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_RATE_LIMITED"
-            ]
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unexpected server error (details are never exposed)",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INTERNAL"
-            ]
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Get a budget by id",
-        "tags": [
-          "Budgets"
-        ]
-      }
-    },
-    "/api/v1/budgets/{id}/restore": {
-      "post": {
-        "operationId": "postApiV1BudgetsByIdRestore",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/AcceptLanguage"
-          },
-          {
-            "$ref": "#/components/parameters/RequestId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "created_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "project_id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "project_id",
-                        "name",
-                        "created_at",
-                        "updated_at"
-                      ],
-                      "type": "object"
-                    },
-                    "message": {
-                      "description": "Localized via Accept-Language (id | en)",
-                      "type": "string"
-                    },
-                    "status_code": {
-                      "type": "integer"
-                    },
-                    "success": {
-                      "const": true,
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "status_code",
-                    "message",
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Restored",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-success-messages": [
-              {
-                "en": "Budget restored successfully",
-                "id": "Anggaran berhasil dipulihkan"
-              }
-            ]
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Invalid input or request",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INVALID_INPUT"
-            ]
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Missing or invalid credentials",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_AUTH_TOKEN_EXPIRED",
-              "ERR_AUTH_TOKEN_INVALID",
-              "ERR_UNAUTHORIZED"
-            ]
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Conflicts with the current state",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_CONFLICT"
-            ]
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Rate limit exceeded; retry after the Retry-After header",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "Retry-After": {
-                "$ref": "#/components/headers/RetryAfter"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_RATE_LIMITED"
-            ]
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unexpected server error (details are never exposed)",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INTERNAL"
-            ]
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Restore a soft-deleted budget (409 while another one is live)",
-        "tags": [
-          "Budgets"
-        ]
-      }
-    },
     "/api/v1/orders": {
       "get": {
         "operationId": "getApiV1Orders",
@@ -10016,6 +9444,1679 @@
         ]
       }
     },
+    "/api/v1/project-budgets/{id}": {
+      "get": {
+        "operationId": "getApiV1ProjectBudgetsById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "created_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget retrieved successfully",
+                "id": "Data anggaran berhasil diambil"
+              }
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input or request",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get a projectBudget by id",
+        "tags": [
+          "ProjectBudgets"
+        ]
+      }
+    },
+    "/api/v1/project-budgets/{id}/restore": {
+      "post": {
+        "operationId": "postApiV1ProjectBudgetsByIdRestore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "created_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Restored",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Budget restored successfully",
+                "id": "Anggaran berhasil dipulihkan"
+              }
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input or request",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflicts with the current state",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Restore a soft-deleted projectBudget (409 while another one is live)",
+        "tags": [
+          "ProjectBudgets"
+        ]
+      }
+    },
+    "/api/v1/project-tasks/{id}": {
+      "delete": {
+        "operationId": "deleteApiV1ProjectTasksById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Deleted",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task deleted successfully",
+                "id": "Tugas berhasil dihapus"
+              }
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input or request",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete a projectTask (soft delete; restorable)",
+        "tags": [
+          "ProjectTasks"
+        ]
+      },
+      "get": {
+        "operationId": "getApiV1ProjectTasksById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "created_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task retrieved successfully",
+                "id": "Data tugas berhasil diambil"
+              }
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input or request",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get a projectTask by id",
+        "tags": [
+          "ProjectTasks"
+        ]
+      },
+      "patch": {
+        "operationId": "patchApiV1ProjectTasksById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "created_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Updated",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task updated successfully",
+                "id": "Tugas berhasil diperbarui"
+              }
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input or request",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT",
+              "ERR_INVALID_JSON",
+              "ERR_NON_SNAKE_CASE_KEY"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request body over HTTP_BODY_LIMIT_BYTES",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PAYLOAD_TOO_LARGE"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update a projectTask (only the given fields)",
+        "tags": [
+          "ProjectTasks"
+        ]
+      }
+    },
+    "/api/v1/project-tasks/{id}/restore": {
+      "post": {
+        "operationId": "postApiV1ProjectTasksByIdRestore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "created_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "format": "date-time",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "project_id",
+                        "name",
+                        "created_at",
+                        "updated_at"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Restored",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Task restored successfully",
+                "id": "Tugas berhasil dipulihkan"
+              }
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input or request",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INVALID_INPUT"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_NOT_FOUND"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Restore a soft-deleted projectTask",
+        "tags": [
+          "ProjectTasks"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "getApiV1Projects",
@@ -11895,9 +12996,9 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Delete a project's budget (soft delete; restorable)",
+        "summary": "Delete a project's projectBudget (soft delete; restorable)",
         "tags": [
-          "Budgets"
+          "ProjectBudgets"
         ]
       },
       "get": {
@@ -12164,9 +13265,9 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Get a project's budget",
+        "summary": "Get a project's projectBudget",
         "tags": [
-          "Budgets"
+          "ProjectBudgets"
         ]
       },
       "put": {
@@ -12568,9 +13669,9 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Save a project's budget (201 created, 200 updated)",
+        "summary": "Save a project's projectBudget (201 created, 200 updated)",
         "tags": [
-          "Budgets"
+          "ProjectBudgets"
         ]
       }
     },
@@ -12868,9 +13969,9 @@
             "bearerAuth": []
           }
         ],
-        "summary": "List a project's tasks (paginated)",
+        "summary": "List a project's projectTasks (paginated)",
         "tags": [
-          "Tasks"
+          "ProjectTasks"
         ]
       },
       "post": {
@@ -13189,1110 +14290,9 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Add a task to a project",
+        "summary": "Add a projectTask to a project",
         "tags": [
-          "Tasks"
-        ]
-      }
-    },
-    "/api/v1/tasks/{id}": {
-      "delete": {
-        "operationId": "deleteApiV1TasksById",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/AcceptLanguage"
-          },
-          {
-            "$ref": "#/components/parameters/RequestId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "type": "null"
-                    },
-                    "message": {
-                      "description": "Localized via Accept-Language (id | en)",
-                      "type": "string"
-                    },
-                    "status_code": {
-                      "type": "integer"
-                    },
-                    "success": {
-                      "const": true,
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "status_code",
-                    "message",
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Deleted",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-success-messages": [
-              {
-                "en": "Task deleted successfully",
-                "id": "Tugas berhasil dihapus"
-              }
-            ]
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Invalid input or request",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INVALID_INPUT"
-            ]
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Missing or invalid credentials",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_AUTH_TOKEN_EXPIRED",
-              "ERR_AUTH_TOKEN_INVALID",
-              "ERR_UNAUTHORIZED"
-            ]
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Rate limit exceeded; retry after the Retry-After header",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "Retry-After": {
-                "$ref": "#/components/headers/RetryAfter"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_RATE_LIMITED"
-            ]
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unexpected server error (details are never exposed)",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INTERNAL"
-            ]
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Delete a task (soft delete; restorable)",
-        "tags": [
-          "Tasks"
-        ]
-      },
-      "get": {
-        "operationId": "getApiV1TasksById",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/AcceptLanguage"
-          },
-          {
-            "$ref": "#/components/parameters/RequestId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "created_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "project_id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "project_id",
-                        "name",
-                        "created_at",
-                        "updated_at"
-                      ],
-                      "type": "object"
-                    },
-                    "message": {
-                      "description": "Localized via Accept-Language (id | en)",
-                      "type": "string"
-                    },
-                    "status_code": {
-                      "type": "integer"
-                    },
-                    "success": {
-                      "const": true,
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "status_code",
-                    "message",
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-success-messages": [
-              {
-                "en": "Task retrieved successfully",
-                "id": "Data tugas berhasil diambil"
-              }
-            ]
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Invalid input or request",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INVALID_INPUT"
-            ]
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Missing or invalid credentials",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_AUTH_TOKEN_EXPIRED",
-              "ERR_AUTH_TOKEN_INVALID",
-              "ERR_UNAUTHORIZED"
-            ]
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Rate limit exceeded; retry after the Retry-After header",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "Retry-After": {
-                "$ref": "#/components/headers/RetryAfter"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_RATE_LIMITED"
-            ]
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unexpected server error (details are never exposed)",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INTERNAL"
-            ]
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Get a task by id",
-        "tags": [
-          "Tasks"
-        ]
-      },
-      "patch": {
-        "operationId": "patchApiV1TasksById",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/AcceptLanguage"
-          },
-          {
-            "$ref": "#/components/parameters/RequestId"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "name": {
-                    "maxLength": 255,
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "created_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "project_id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "project_id",
-                        "name",
-                        "created_at",
-                        "updated_at"
-                      ],
-                      "type": "object"
-                    },
-                    "message": {
-                      "description": "Localized via Accept-Language (id | en)",
-                      "type": "string"
-                    },
-                    "status_code": {
-                      "type": "integer"
-                    },
-                    "success": {
-                      "const": true,
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "status_code",
-                    "message",
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Updated",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-success-messages": [
-              {
-                "en": "Task updated successfully",
-                "id": "Tugas berhasil diperbarui"
-              }
-            ]
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Invalid input or request",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INVALID_INPUT",
-              "ERR_INVALID_JSON",
-              "ERR_NON_SNAKE_CASE_KEY"
-            ]
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Missing or invalid credentials",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_AUTH_TOKEN_EXPIRED",
-              "ERR_AUTH_TOKEN_INVALID",
-              "ERR_UNAUTHORIZED"
-            ]
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Request body over HTTP_BODY_LIMIT_BYTES",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_PAYLOAD_TOO_LARGE"
-            ]
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Rate limit exceeded; retry after the Retry-After header",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "Retry-After": {
-                "$ref": "#/components/headers/RetryAfter"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_RATE_LIMITED"
-            ]
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unexpected server error (details are never exposed)",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INTERNAL"
-            ]
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Update a task (only the given fields)",
-        "tags": [
-          "Tasks"
-        ]
-      }
-    },
-    "/api/v1/tasks/{id}/restore": {
-      "post": {
-        "operationId": "postApiV1TasksByIdRestore",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/AcceptLanguage"
-          },
-          {
-            "$ref": "#/components/parameters/RequestId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "created_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "project_id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "format": "date-time",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "project_id",
-                        "name",
-                        "created_at",
-                        "updated_at"
-                      ],
-                      "type": "object"
-                    },
-                    "message": {
-                      "description": "Localized via Accept-Language (id | en)",
-                      "type": "string"
-                    },
-                    "status_code": {
-                      "type": "integer"
-                    },
-                    "success": {
-                      "const": true,
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "status_code",
-                    "message",
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Restored",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-success-messages": [
-              {
-                "en": "Task restored successfully",
-                "id": "Tugas berhasil dipulihkan"
-              }
-            ]
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Invalid input or request",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INVALID_INPUT"
-            ]
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Missing or invalid credentials",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_AUTH_TOKEN_EXPIRED",
-              "ERR_AUTH_TOKEN_INVALID",
-              "ERR_UNAUTHORIZED"
-            ]
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Rate limit exceeded; retry after the Retry-After header",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "Retry-After": {
-                "$ref": "#/components/headers/RetryAfter"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_RATE_LIMITED"
-            ]
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Unexpected server error (details are never exposed)",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_INTERNAL"
-            ]
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Restore a soft-deleted task",
-        "tags": [
-          "Tasks"
+          "ProjectTasks"
         ]
       }
     },
