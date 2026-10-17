@@ -15,8 +15,8 @@
 
 **Modul turunan**
 
-- [projects/budgets](projects/budgets.md)
-- [projects/tasks](projects/tasks.md)
+- [projects/project-budgets](projects/project-budgets.md)
+- [projects/project-tasks](projects/project-tasks.md)
 
 ## `GET /api/v1/projects`
 

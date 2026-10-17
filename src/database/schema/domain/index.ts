@@ -5,5 +5,5 @@ export * from './record-changes.schema';
 export * from './users.schema';
 export * from './webhook-events.schema';
 export * from './projects.schema';
-export * from './tasks.schema';
-export * from './budgets.schema';
+export * from './project-tasks.schema';
+export * from './project-budgets.schema';

@@ -1,20 +1,20 @@
-# Budgets (`projects/budgets`)
+# ProjectBudgets (`projects/project-budgets`)
 
 > Di-generate dari kode oleh `bun run openapi:update` — jangan diedit manual (`bun run openapi:check` menolaknya).
 
-[Kontrak API](../README.md) › [projects](../projects.md) › budgets
+[Kontrak API](../README.md) › [projects](../projects.md) › project-budgets
 
 | Endpoint | Ringkasan |
 |---|---|
-| `GET /api/v1/budgets/{id}` | Get a budget by id |
-| `POST /api/v1/budgets/{id}/restore` | Restore a soft-deleted budget (409 while another one is live) |
-| `GET /api/v1/projects/{projectId}/budget` | Get a project's budget |
-| `PUT /api/v1/projects/{projectId}/budget` | Save a project's budget (201 created, 200 updated) |
-| `DELETE /api/v1/projects/{projectId}/budget` | Delete a project's budget (soft delete; restorable) |
+| `GET /api/v1/project-budgets/{id}` | Get a projectBudget by id |
+| `POST /api/v1/project-budgets/{id}/restore` | Restore a soft-deleted projectBudget (409 while another one is live) |
+| `GET /api/v1/projects/{projectId}/budget` | Get a project's projectBudget |
+| `PUT /api/v1/projects/{projectId}/budget` | Save a project's projectBudget (201 created, 200 updated) |
+| `DELETE /api/v1/projects/{projectId}/budget` | Delete a project's projectBudget (soft delete; restorable) |
 
-## `GET /api/v1/budgets/{id}`
+## `GET /api/v1/project-budgets/{id}`
 
-**Get a budget by id**
+**Get a projectBudget by id**
 
 - Access token: `Authorization: Bearer <access_token>`
 
@@ -34,7 +34,7 @@
 **Contoh request**
 
 ```http
-GET /api/v1/budgets/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e
+GET /api/v1/project-budgets/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e
 Authorization: Bearer <access_token>
 ```
 
@@ -170,9 +170,9 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 
 </details>
 
-## `POST /api/v1/budgets/{id}/restore`
+## `POST /api/v1/project-budgets/{id}/restore`
 
-**Restore a soft-deleted budget (409 while another one is live)**
+**Restore a soft-deleted projectBudget (409 while another one is live)**
 
 - Access token: `Authorization: Bearer <access_token>`
 
@@ -192,7 +192,7 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 **Contoh request**
 
 ```http
-POST /api/v1/budgets/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/restore
+POST /api/v1/project-budgets/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/restore
 Authorization: Bearer <access_token>
 ```
 
@@ -350,7 +350,7 @@ Pesan: `Anggaran berhasil dipulihkan` (en: `Budget restored successfully`)
 
 ## `GET /api/v1/projects/{projectId}/budget`
 
-**Get a project's budget**
+**Get a project's projectBudget**
 
 - Access token: `Authorization: Bearer <access_token>`
 
@@ -508,7 +508,7 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 
 ## `PUT /api/v1/projects/{projectId}/budget`
 
-**Save a project's budget (201 created, 200 updated)**
+**Save a project's projectBudget (201 created, 200 updated)**
 
 - Access token: `Authorization: Bearer <access_token>`
 
@@ -718,7 +718,7 @@ Pesan: `Anggaran berhasil dibuat` (en: `Budget created successfully`)
 
 ## `DELETE /api/v1/projects/{projectId}/budget`
 
-**Delete a project's budget (soft delete; restorable)**
+**Delete a project's projectBudget (soft delete; restorable)**
 
 - Access token: `Authorization: Bearer <access_token>`
 

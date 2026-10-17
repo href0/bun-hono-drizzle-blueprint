@@ -37,9 +37,11 @@ const refusals = (
   const nested = nestedModules();
   const modules = [...folders('src/modules'), ...nested.map((module) => module.name)];
   const problems: string[] = [];
-  if (request.kind !== 'integration' && vendors.includes(request.name)) {
+  // A dependent module is created under its parent-prefixed name (`order-documents`).
+  const moduleName = plan.moduleName ?? request.name;
+  if (request.kind !== 'integration' && vendors.includes(moduleName)) {
     problems.push(
-      `"${request.name}" is a vendor in src/integrations/: name the module after its domain (plan D26)`,
+      `"${moduleName}" is a vendor in src/integrations/: name the module after its domain (plan D26)`,
     );
   }
   if (request.kind === 'integration' && modules.includes(request.name)) {
@@ -60,9 +62,9 @@ const refusals = (
       `src/modules/${request.name}/ already exists: the CLI does not add details to an existing module — add them by hand or with an AI agent (docs/standards/new-module.md §2.6)`,
     );
   }
-  if (modules.includes(request.name) && request.kind !== 'integration') {
+  if (modules.includes(moduleName) && request.kind !== 'integration') {
     problems.push(
-      `the module name "${request.name}" is already used in src/modules/ (it names a table and routes)`,
+      `the module name "${moduleName}" is already used in src/modules/ (it names a table and routes)`,
     );
   }
   if (plan.parent) problems.push(...parentProblems(plan.parent, nested));

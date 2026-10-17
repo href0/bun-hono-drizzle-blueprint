@@ -4,8 +4,8 @@ import { appTable } from '../schemas';
 import { projects } from './projects.schema';
 
 /** Dependent: own page and soft delete, always under one project (DependentRepository). */
-export const tasks = appTable(
-  'tasks',
+export const projectTasks = appTable(
+  'project_tasks',
   {
     id: uuidPrimaryKey(),
     projectId: parentReference('project_id', () => projects.id),
@@ -14,7 +14,7 @@ export const tasks = appTable(
     ...auditColumns(),
     ...softDelete(),
   },
-  (table) => [index('tasks_project_idx').on(table.projectId)],
+  (table) => [index('project_tasks_project_idx').on(table.projectId)],
 );
 
-export type Task = typeof tasks.$inferSelect;
+export type ProjectTask = typeof projectTasks.$inferSelect;

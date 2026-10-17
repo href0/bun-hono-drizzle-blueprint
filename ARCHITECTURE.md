@@ -242,7 +242,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R03 | Modules do not import each other | [depcruise:no-cross-module-deps] |
 | R04 | No circular dependencies, orphans, unresolvable or unlisted imports, source importing tests; no unused files / exports / dependencies | [depcruise:no-circular] [depcruise:no-orphans] [depcruise:not-to-unresolvable] [depcruise:not-to-unlisted-dep] [depcruise:no-test-in-src] [script:lint:deps] |
 | R05 | Folders and every dot segment of a file name are kebab-case | [ls-lint] [test:structure] |
-| R06 | Module and integration file patterns; dependent modules one subfolder deep in their parent, module names unique; modules not named after vendors; `*.int.ts` only in `test/integration/` | [test:structure] |
+| R06 | Module and integration file patterns; dependent modules one subfolder deep in their parent and named after it (`order-documents`), module names unique; modules not named after vendors; `*.int.ts` only in `test/integration/` | [test:structure] |
 | R07 | TypeScript identifiers camelCase / PascalCase / UPPER_CASE (snake_case only for SQL names) | [eslint:@typescript-eslint/naming-convention] |
 | R08 | Strict TypeScript, no `any` or unsafe operations | [tsc] [eslint:@typescript-eslint/no-explicit-any] [eslint:@typescript-eslint/no-unsafe-assignment] |
 | R09 | Code formatted by Prettier (`*.ts`; Markdown written by hand) | [script:format:check] |

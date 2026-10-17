@@ -504,16 +504,20 @@ describe('planScaffold — dependent modules (--parent, plan D33)', () => {
   it('1:N: a subfolder of the parent, parent reference + index, shallow-nested routes; no parent file edited', () => {
     const plan = planScaffold({ kind: 'module', name: 'members', parent: 'applications' }, ROOT);
 
+    // Named after its parent (`application-members`), like a header-detail's `order_items`; only the
+    // route under the parent keeps the short `members`.
     expect(plan.label).toBe(
-      'dependent module members in src/modules/applications/members/ (singular member; 1:N, /applications/:applicationId/members)',
+      'dependent module application-members in src/modules/applications/application-members/ (singular application-member; 1:N, /applications/:applicationId/members)',
     );
+    expect(plan.moduleName).toBe('application-members');
     expect(plan.template).toEndWith('references/dependent.md');
     expect(plan.parent?.segment).toBe('members');
     expect(
       plan.files.every(
         (file) =>
-          file.path.startsWith('src/modules/applications/members/members.') ||
-          file.path === 'src/database/schema/domain/members.schema.ts',
+          file.path.startsWith(
+            'src/modules/applications/application-members/application-members.',
+          ) || file.path === 'src/database/schema/domain/application-members.schema.ts',
       ),
     ).toBe(true);
     expect(content(plan, '.controller.ts')).toContain("from '../../../core/middlewares';");
@@ -524,33 +528,30 @@ describe('planScaffold — dependent modules (--parent, plan D33)', () => {
       "applicationId: parentReference('application_id', () => applications.id)",
     );
     expect(content(plan, '.schema.ts')).toContain("from './applications.schema';");
-    expect(content(plan, '.schema.ts')).toContain("index('members_application_idx')");
+    expect(content(plan, '.schema.ts')).toContain("appTable(\n  'application_members',");
+    expect(content(plan, '.schema.ts')).toContain("index('application_members_application_idx')");
     expect(content(plan, '.repository.ts')).toContain(
-      'super(members, applications, members.applicationId, txHost);',
+      'super(applicationMembers, applications, applicationMembers.applicationId, txHost);',
     );
 
     const edits = applied(plan, withParentInTree);
     expect([...edits.keys()].sort()).toEqual([APP_PATH, SCHEMA_BARREL, STRUCTURE_PATH].sort());
     expect(edits.get(APP_PATH)).toContain(
-      "import { membersParentRouter, membersRouter } from './modules/applications/members/members.routes';",
+      "import { applicationMembersParentRouter, applicationMembersRouter } from './modules/applications/application-members/application-members.routes';",
     );
     expect(edits.get(APP_PATH)).toContain(
-      `  v1.route('/applications/:applicationId/members', membersParentRouter);\n  v1.route('/members', membersRouter);\n${APP_MARKERS.v1Routes}`,
+      `  v1.route('/applications/:applicationId/members', applicationMembersParentRouter);\n  v1.route('/application-members', applicationMembersRouter);\n${APP_MARKERS.v1Routes}`,
     );
     // Under its parent, after the parent's other dependents.
-    expect(edits.get(STRUCTURE_PATH)).toContain(
-      [
-        '│   │   ├── contacts/            # Dependent 1:1',
-        '│   │   ├── members/             # Dependent 1:N (/api/v1/applications/:applicationId/members, /api/v1/members/:id)',
-        '│   ├── health/',
-      ].join('\n'),
+    expect(edits.get(STRUCTURE_PATH)).toMatch(
+      /│ {3}│ {3}├── contacts\/ +# Dependent 1:1\n│ {3}│ {3}├── application-members\/ +# Dependent 1:N \(\/api\/v1\/applications\/:applicationId\/members, \/api\/v1\/application-members\/:id\)\n│ {3}├── health\//,
     );
     // A parent drawn last in the tree (└──) gets the matching indentation; a parent missing from it fails.
     const underUsers = applied(
       planScaffold({ kind: 'module', name: 'notes', parent: 'users' }, ROOT),
     ).get(STRUCTURE_PATH);
     expect(underUsers).toContain(
-      '│   └── users/                   # Reference standalone-table module\n│       ├── notes/  ',
+      '│   └── users/                   # Reference standalone-table module\n│       ├── user-notes/  ',
     );
     expect(errorOf(() => applied(plan))).toContain('anchor not found');
     expect(plan.nextSteps.join('\n')).toContain('parentScope()');
@@ -569,16 +570,50 @@ describe('planScaffold — dependent modules (--parent, plan D33)', () => {
     );
 
     expect(plan.label).toContain('1:1, /applications/:applicationId/contact-person)');
+    expect(plan.moduleName).toBe('application-contact-people');
     expect(plan.template).toEndWith('references/dependent-one.md');
     expect(content(plan, '.schema.ts')).toContain(
-      "activeUniqueIndex('contact_people_application_unique', [table.applicationId], table.deletedAt)",
+      "activeUniqueIndex('application_contact_people_application_unique', [table.applicationId], table.deletedAt)",
     );
     expect(content(plan, '.controller.test.ts')).toContain(
       '`/applications/${parentId}/contact-person`',
     );
-    expect(applied(plan, withParentInTree).get(APP_PATH)).toContain(
-      "v1.route('/applications/:applicationId/contact-person', contactPeopleParentRouter);",
+    const app = applied(plan, withParentInTree).get(APP_PATH);
+    expect(app).toContain(
+      "v1.route('/applications/:applicationId/contact-person', applicationContactPeopleParentRouter);",
     );
+    expect(app).toContain(
+      "v1.route('/application-contact-people', applicationContactPeopleRouter);",
+    );
+  });
+
+  it('is named after its parent: the full name gives the same module, and two parents can share a short name', () => {
+    const short = planScaffold({ kind: 'module', name: 'documents', parent: 'orders' }, ROOT);
+    const full = planScaffold({ kind: 'module', name: 'order-documents', parent: 'orders' }, ROOT);
+    expect(full.moduleName).toBe('order-documents');
+    expect(full.parent?.segment).toBe('documents');
+    expect(full.files).toEqual(short.files);
+
+    const invoices = planScaffold({ kind: 'module', name: 'documents', parent: 'invoices' }, ROOT);
+    expect(invoices.moduleName).toBe('invoice-documents');
+    expect(invoices.parent?.segment).toBe('documents');
+    expect(invoices.files.map((file) => file.path)).not.toContainAnyValues(
+      short.files.map((file) => file.path),
+    );
+    // Both are mounted under their own parent with the same short segment.
+    expect(short.label).toContain('/orders/:orderId/documents)');
+    expect(invoices.label).toContain('/invoices/:invoiceId/documents)');
+  });
+
+  it('a multi-word parent prefixes with its whole singular; --singular applies to the typed name', () => {
+    const plan = planScaffold(
+      { kind: 'module', name: 'people', singular: 'person', parent: 'purchase-orders' },
+      ROOT,
+    );
+    expect(plan.moduleName).toBe('purchase-order-people');
+    expect(content(plan, '.schema.ts')).toContain("appTable(\n  'purchase_order_people',");
+    expect(content(plan, '.schema.ts')).toContain('export type PurchaseOrderPerson');
+    expect(plan.parent?.segment).toBe('people');
   });
 
   it('every placeholder is filled (no <…> token of the templates is left)', () => {
@@ -589,7 +624,7 @@ describe('planScaffold — dependent modules (--parent, plan D33)', () => {
       );
       // Every placeholder the module templates use (generics such as `<Note>` are code, not tokens).
       const placeholder =
-        /<(?:name|name-singular|snake_plural|snake_singular|UPPER_SINGULAR|PascalPlural|PascalSingular|camelPlural|camelSingular|parent-name|parentCamelPlural|parent_snake_plural|parentCamelSingular|ParentPascalSingular|parent_snake_singular)>/g;
+        /<(?:name|segment|snake_plural|snake_singular|UPPER_SINGULAR|PascalPlural|PascalSingular|camelPlural|camelSingular|parent-name|parentCamelPlural|parent_snake_plural|parentCamelSingular|ParentPascalSingular|parent_snake_singular)>/g;
       const leftovers = plan.files.flatMap((file) =>
         [...file.content.matchAll(placeholder)].map((match) => `${file.path}: ${match.at(0)}`),
       );
@@ -600,9 +635,10 @@ describe('planScaffold — dependent modules (--parent, plan D33)', () => {
 
   it('fill leaves the parent placeholders alone without a parent', () => {
     const names = deriveNames('products');
-    expect(fill('<parent-name> <parentCamelSingular> <name-singular>', names)).toBe(
-      '<parent-name> <parentCamelSingular> product',
+    expect(fill('<parent-name> <parentCamelSingular> <segment>', names)).toBe(
+      '<parent-name> <parentCamelSingular> <segment>',
     );
+    expect(fill('<segment>', names, undefined, undefined, undefined, 'members')).toBe('members');
     expect(
       fill(
         '<parent-name> <parentCamelPlural> <parent_snake_plural> <parentCamelSingular> <ParentPascalSingular> <parent_snake_singular>',

@@ -153,18 +153,24 @@ const EXAMPLE_MODULES: ExampleModule[] = [
     ],
   },
   {
-    label: 'projects + tasks (1:N) + budgets (1:1) (dependent modules example)',
+    label: 'projects + project-tasks (1:N) + project-budgets (1:1) (dependent modules example)',
     paths: [
       'src/modules/projects',
       'src/database/schema/domain/projects.schema.ts',
-      'src/database/schema/domain/tasks.schema.ts',
-      'src/database/schema/domain/budgets.schema.ts',
+      'src/database/schema/domain/project-tasks.schema.ts',
+      'src/database/schema/domain/project-budgets.schema.ts',
       'test/projects.e2e.test.ts',
     ],
     lines: [
       { file: 'src/database/schema/domain/index.ts', line: "export * from './projects.schema';" },
-      { file: 'src/database/schema/domain/index.ts', line: "export * from './tasks.schema';" },
-      { file: 'src/database/schema/domain/index.ts', line: "export * from './budgets.schema';" },
+      {
+        file: 'src/database/schema/domain/index.ts',
+        line: "export * from './project-tasks.schema';",
+      },
+      {
+        file: 'src/database/schema/domain/index.ts',
+        line: "export * from './project-budgets.schema';",
+      },
       {
         file: 'src/app.ts',
         line: '// Example modules (parent + dependents 1:N / 1:1): removed by `bun run setup <name>` unless --keep-examples.',
@@ -175,31 +181,34 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       },
       {
         file: 'src/app.ts',
-        line: "import { tasksParentRouter, tasksRouter } from './modules/projects/tasks/tasks.routes';",
+        line: "import {\n  projectTasksParentRouter,\n  projectTasksRouter,\n} from './modules/projects/project-tasks/project-tasks.routes';",
       },
       {
         file: 'src/app.ts',
-        line: "import { budgetsParentRouter, budgetsRouter } from './modules/projects/budgets/budgets.routes';",
+        line: "import {\n  projectBudgetsParentRouter,\n  projectBudgetsRouter,\n} from './modules/projects/project-budgets/project-budgets.routes';",
       },
       { file: 'src/app.ts', line: "  v1.route('/projects', projectsRouter);" },
-      { file: 'src/app.ts', line: "  v1.route('/projects/:projectId/tasks', tasksParentRouter);" },
-      { file: 'src/app.ts', line: "  v1.route('/tasks', tasksRouter);" },
       {
         file: 'src/app.ts',
-        line: "  v1.route('/projects/:projectId/budget', budgetsParentRouter);",
+        line: "  v1.route('/projects/:projectId/tasks', projectTasksParentRouter);",
       },
-      { file: 'src/app.ts', line: "  v1.route('/budgets', budgetsRouter);" },
+      { file: 'src/app.ts', line: "  v1.route('/project-tasks', projectTasksRouter);" },
+      {
+        file: 'src/app.ts',
+        line: "  v1.route('/projects/:projectId/budget', projectBudgetsParentRouter);",
+      },
+      { file: 'src/app.ts', line: "  v1.route('/project-budgets', projectBudgetsRouter);" },
       {
         file: 'docs/standards/structure.md',
         line: '│   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)',
       },
       {
         file: 'docs/standards/structure.md',
-        line: '│   │   ├── tasks/               # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/tasks/:id)',
+        line: '│   │   ├── project-tasks/       # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/project-tasks/:id)',
       },
       {
         file: 'docs/standards/structure.md',
-        line: '│   │   ├── budgets/             # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/budgets/:id)',
+        line: '│   │   ├── project-budgets/     # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/project-budgets/:id)',
       },
     ],
   },

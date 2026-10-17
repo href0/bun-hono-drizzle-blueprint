@@ -3,17 +3,20 @@ import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
 import { NotFoundError } from '../../../core/errors';
 import { globalErrorHandler, requestContextMiddleware } from '../../../core/middlewares';
-import type { Budget } from '../../../database/schema';
-import { budgetMissingMessage, budgetNotFoundMessage } from './budgets.messages';
-import { budgetsParentRouter, budgetsRouter } from './budgets.routes';
-import { budgetsService } from './budgets.service';
+import type { ProjectBudget } from '../../../database/schema';
+import {
+  projectBudgetMissingMessage,
+  projectBudgetNotFoundMessage,
+} from './project-budgets.messages';
+import { projectBudgetsParentRouter, projectBudgetsRouter } from './project-budgets.routes';
+import { projectBudgetsService } from './project-budgets.service';
 
 const ID = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e';
 const MISSING = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9f';
 const PARENT_ID = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9a';
 const EMPTY_PARENT = '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9c';
 
-const record: Budget = {
+const record: ProjectBudget = {
   id: ID,
   projectId: PARENT_ID,
   name: 'Sample',
@@ -26,8 +29,8 @@ const record: Budget = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
-app.route('/projects/:projectId/budget', budgetsParentRouter);
-app.route('/budgets', budgetsRouter);
+app.route('/projects/:projectId/budget', projectBudgetsParentRouter);
+app.route('/project-budgets', projectBudgetsRouter);
 app.onError(globalErrorHandler);
 
 const section = (parentId: string): string => `/projects/${parentId}/budget`;
@@ -38,25 +41,25 @@ const send = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-describe('BudgetsController (through its routes)', () => {
+describe('ProjectBudgetsController (through its routes)', () => {
   const spies: { mockRestore: () => void }[] = [];
 
   beforeAll(() => {
     spies.push(
-      spyOn(budgetsService, 'getBudget').mockImplementation(async (parentId) => {
-        if (parentId !== PARENT_ID) throw new NotFoundError(budgetMissingMessage(parentId));
+      spyOn(projectBudgetsService, 'getProjectBudget').mockImplementation(async (parentId) => {
+        if (parentId !== PARENT_ID) throw new NotFoundError(projectBudgetMissingMessage(parentId));
         return record;
       }),
-      spyOn(budgetsService, 'saveBudget').mockImplementation(async (parentId) => ({
+      spyOn(projectBudgetsService, 'saveProjectBudget').mockImplementation(async (parentId) => ({
         row: record,
         created: parentId === EMPTY_PARENT,
       })),
-      spyOn(budgetsService, 'deleteBudget').mockImplementation(async () => undefined),
-      spyOn(budgetsService, 'getBudgetById').mockImplementation(async (id) => {
-        if (id !== ID) throw new NotFoundError(budgetNotFoundMessage(id));
+      spyOn(projectBudgetsService, 'deleteProjectBudget').mockImplementation(async () => undefined),
+      spyOn(projectBudgetsService, 'getProjectBudgetById').mockImplementation(async (id) => {
+        if (id !== ID) throw new NotFoundError(projectBudgetNotFoundMessage(id));
         return record;
       }),
-      spyOn(budgetsService, 'restoreBudget').mockImplementation(async () => record),
+      spyOn(projectBudgetsService, 'restoreProjectBudget').mockImplementation(async () => record),
     );
   });
 
@@ -64,7 +67,7 @@ describe('BudgetsController (through its routes)', () => {
     for (const spy of spies) spy.mockRestore();
   });
 
-  it("gets the project's budget (snake_case), 404 while there is none", async () => {
+  it("gets the project's projectBudget (snake_case), 404 while there is none", async () => {
     const res = await app.request(section(PARENT_ID));
     const body = (await res.json()) as { data: { project_id: string } };
 
@@ -89,8 +92,10 @@ describe('BudgetsController (through its routes)', () => {
 
   it('deletes under the parent, gets and restores by its own id', async () => {
     expect((await app.request(section(PARENT_ID), { method: 'DELETE' })).status).toBe(200);
-    expect((await app.request(`/budgets/${ID}`)).status).toBe(200);
-    expect((await app.request(`/budgets/${MISSING}`)).status).toBe(404);
-    expect((await app.request(`/budgets/${ID}/restore`, { method: 'POST' })).status).toBe(200);
+    expect((await app.request(`/project-budgets/${ID}`)).status).toBe(200);
+    expect((await app.request(`/project-budgets/${MISSING}`)).status).toBe(404);
+    expect((await app.request(`/project-budgets/${ID}/restore`, { method: 'POST' })).status).toBe(
+      200,
+    );
   });
 });

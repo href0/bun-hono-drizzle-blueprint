@@ -88,8 +88,8 @@ src/
 │   ├── partner-gateway/         # Example signed partner endpoints (/api/v1/partner/ping, /echo)
 │   ├── payment-notifications/   # Example vendor webhook receiver (POST /api/webhooks/demo-pay, idempotent)
 │   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)
-│   │   ├── tasks/               # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/tasks/:id)
-│   │   ├── budgets/             # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/budgets/:id)
+│   │   ├── project-tasks/       # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/project-tasks/:id)
+│   │   ├── project-budgets/     # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/project-budgets/:id)
 │   └── users/                   # Reference standalone-table module (/api/v1/users)
 │       ├── users.dto.ts         # Request & response schemas
 │       ├── users.messages.ts    # Localized messages
@@ -115,7 +115,7 @@ test/
 ├── *.e2e.test.ts                # health, auth, users, orders (example), partner-credentials, partner-gateway, vendor-webhooks, openapi, platform, default-deny, outbound
 ├── hermetic-env.test.ts         # Guards the hermetic preload
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes)
-├── structure.test.ts            # File names, module / integration patterns, dependent subfolders, unique module names, module ≠ vendor, channel routers, *.int.ts placement
+├── structure.test.ts            # File names, module / integration patterns, dependent subfolders named after their parent, unique module names, module ≠ vendor, channel routers, *.int.ts placement
 ├── docs-sync.test.ts            # This tree and the command table name everything; rule-index labels; links; docs SSOT
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
 ├── ci-gates.test.ts             # Every gate of validate:full is its own step of the CI job verify

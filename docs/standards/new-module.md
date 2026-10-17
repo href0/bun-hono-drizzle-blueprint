@@ -10,8 +10,8 @@ Read this file when: creating a module, a resource, a CRUD endpoint, a partner e
 |---|---|---|---|---|
 | Standalone table (stands on its own) | `module <plural>` | `.agents/skills/scaffold-module/SKILL.md` | `BaseRepository` | `src/modules/users` |
 | Header with details (an order and its items, a class and its members) | `module <plural> --variant=header-detail [--detail=<plural>]` | `.agents/skills/scaffold-module/references/header-detail.md` | `BaseRepository` + `ChildRepository` | `src/modules/orders` (removed by `bun run setup` unless `--keep-examples`) |
-| Dependent: own page, always under one existing parent (an application's members, a project's tasks) | `module <plural> --parent=<parent-module>` | `.agents/skills/scaffold-module/references/dependent.md` | `DependentRepository` | `src/modules/projects/tasks` (removed by `bun run setup` unless `--keep-examples`) |
-| Dependent section: at most one per parent (an application's contact person, a user's profile) | `module <plural> --parent=<parent-module> --one` | `.agents/skills/scaffold-module/references/dependent-one.md` | `DependentRepository` | `src/modules/projects/budgets` (removed by `bun run setup` unless `--keep-examples`) |
+| Dependent: own page, always under one existing parent (an application's members, a project's tasks) | `module <plural> --parent=<parent-module>` | `.agents/skills/scaffold-module/references/dependent.md` | `DependentRepository` | `src/modules/projects/project-tasks` (removed by `bun run setup` unless `--keep-examples`) |
+| Dependent section: at most one per parent (an application's contact person, a user's profile) | `module <plural> --parent=<parent-module> --one` | `.agents/skills/scaffold-module/references/dependent-one.md` | `DependentRepository` | `src/modules/projects/project-budgets` (removed by `bun run setup` unless `--keep-examples`) |
 | Record (append-only log / history) | `module <plural> --variant=record` | `.agents/skills/scaffold-module/references/record.md` | `AppendOnlyRepository` | `record_changes` |
 | Reference data owned by another system | — (by hand: a `.existing()` view, [database.md](database.md) §2) | — | `ReadOnlyRepository` | — |
 | Partner endpoint (signed requests) | `partner <plural>` | `.agents/skills/scaffold-module/references/partner.md` | `BaseRepository` (unique `partner_code` + `partner_reference`) | `src/modules/partner-gateway` |
@@ -33,8 +33,8 @@ bun run scaffold module orders --variant=header-detail     # orders + order_item
 bun run scaffold module classes --variant=header-detail --detail=members        # classes + class_members → /classes/:id/members
 bun run scaffold module invoices --variant=header-detail --detail=line-items    # invoices + invoice_line_items
 bun run scaffold module audit-events --variant=record      # append-only records
-bun run scaffold module members --parent=applications      # dependent 1:N → /applications/:applicationId/members, /members/:id
-bun run scaffold module contacts --parent=applications --one   # dependent 1:1 → /applications/:applicationId/contact
+bun run scaffold module members --parent=applications      # dependent 1:N → application-members: /applications/:applicationId/members, /application-members/:id
+bun run scaffold module contacts --parent=applications --one   # dependent 1:1 → application-contacts: /applications/:applicationId/contact
 bun run scaffold partner submissions                       # → /api/v1/partner/submissions (signed requests)
 bun run scaffold webhook payment-receipts --vendor=acme-pay   # → POST /api/webhooks/acme-pay
 bun run scaffold integration acme-pay                      # outbound adapter for a login-based vendor
@@ -90,7 +90,7 @@ What each kind registers in shared files:
 
 | Kind | Shared files edited |
 |---|---|
-| `module` | schema barrel, `src/app.ts` (import + `v1.route('/<name>', …)`), `structure.md` tree; `record` also `APPEND_ONLY_TABLES`; `--parent` two routes (`v1.route('/<parent>/:<parent>Id/<name>', …)` + `v1.route('/<name>', …)`), its line under the parent in the tree, and never a file of the parent (its files go to `src/modules/<parent>/<name>/`) |
+| `module` | schema barrel, `src/app.ts` (import + `v1.route('/<name>', …)`), `structure.md` tree; `record` also `APPEND_ONLY_TABLES`; `--parent` two routes (`v1.route('/<parent>/:<parent>Id/<segment>', …)` + `v1.route('/<parent-singular>-<segment>', …)`), its line under the parent in the tree, and never a file of the parent (its files go to `src/modules/<parent>/<parent-singular>-<segment>/`) |
 | `partner` | schema barrel, `src/app.ts` (`v1.route('/partner/<name>', …)`), `structure.md` tree |
 | `webhook` | `src/app.ts` (imports, `WEBHOOK_VENDORS`, `app.route(…/webhooks/<vendor>, …)`), config barrel, `INTEGRATION_REGISTRY`, `structure.md` tree |
 | `integration` | `INTEGRATION_REGISTRY`, config barrel |
@@ -116,13 +116,14 @@ A header-detail module also names its detail — `items` unless `--detail` says 
 | `module invoices --variant=header-detail --detail=line-items` | `invoice_line_items` (FK `invoice_id`) | `/invoices/:id/line-items[/:childId]` | `InvoiceLineItem`, `addLineItem`, `syncLineItems`; sync body `{ "line_items": [...] }` |
 | `module teams --variant=header-detail --detail=people --detail-singular=person` | `team_people` | `/teams/:id/people[/:childId]` | `TeamPerson`, `addPerson`, `syncPeople` |
 
-A dependent module keeps its own name and table but lives in a subfolder of its parent (`src/modules/<parent>/<name>/`); its parent comes from `--parent` (an existing module, plural), the route segment under the parent is the module name — or its singular with `--one`:
+A dependent module is **named after its parent** — `<parent singular>-<name>`, as the detail table of a header-detail is `order_items` — so its table and its flat routes never collide with another parent's (`order-documents` and `invoice-documents` can both exist; a bare `documents` could only be used once). Typing the full name (`order-documents`) gives the same module; `test/structure.test.ts` fails a dependent whose name lacks its parent's prefix. It lives in a subfolder of its parent (`src/modules/<parent>/<parent-singular>-<name>/`); its parent comes from `--parent` (an existing module, plural); the route under the parent keeps the short name you typed — or its singular with `--one`:
 
 | You type | Table | Routes | Generated identifiers |
 |---|---|---|---|
-| `module members --parent=applications` | `members` (FK `application_id`, indexed) | `/applications/:applicationId/members` (list, create), `/members/:id` (get, update, delete, restore) | `MembersRepository extends DependentRepository`, `membersParentRouter`, `membersRouter` |
-| `module contacts --parent=applications --one` | `contacts` (FK `application_id`, `activeUniqueIndex`) | `/applications/:applicationId/contact` (get, `PUT` create/update, delete), `/contacts/:id` (get, restore) | `upsertForParent`, `contactsParentRouter` |
-| `module notes --parent=people --parent-singular=person` | `notes` (FK `person_id`) | `/people/:personId/notes`, `/notes/:id` | |
+| `module members --parent=applications` | `application_members` (FK `application_id`, indexed) | `/applications/:applicationId/members` (list, create), `/application-members/:id` (get, update, delete, restore) | `ApplicationMembersRepository extends DependentRepository`, `applicationMembersParentRouter`, `applicationMembersRouter` |
+| `module contacts --parent=applications --one` | `application_contacts` (FK `application_id`, `activeUniqueIndex`) | `/applications/:applicationId/contact` (get, `PUT` create/update, delete), `/application-contacts/:id` (get, restore) | `upsertForParent`, `applicationContactsParentRouter` |
+| `module notes --parent=people --parent-singular=person` | `person_notes` (FK `person_id`) | `/people/:personId/notes`, `/person-notes/:id` | |
+| `module order-documents --parent=orders` | `order_documents` (the same as `module documents --parent=orders`) | `/orders/:orderId/documents`, `/order-documents/:id` | |
 
 The detail name follows the same rules as a module name (plural kebab-case, singular derived by the suffix rules below); the `--dry-run` line shows both: `header-detail module classes (singular class; detail members (singular member), table class_members)`.
 
@@ -203,18 +204,18 @@ A parent is created first as an ordinary standalone module; its children come la
 
 ```bash
 bun run scaffold module projects                       # the parent, standalone
-bun run scaffold module tasks --parent=projects        # many tasks per project (1:N)
-bun run scaffold module budgets --parent=projects --one   # one budget per project (1:1)
+bun run scaffold module tasks --parent=projects        # many tasks per project (1:N) → project-tasks
+bun run scaffold module budgets --parent=projects --one   # one budget per project (1:1) → project-budgets
 ```
 
 ```text
 src/modules/projects/
 ├── projects.{dto,messages,repository,service,controller,transformer,routes}.ts (+ tests)
-├── tasks/      tasks.*.ts     → /projects/:projectId/tasks, /tasks/:id
-└── budgets/    budgets.*.ts   → /projects/:projectId/budget, /budgets/:id
+├── project-tasks/     project-tasks.*.ts     → /projects/:projectId/tasks, /project-tasks/:id
+└── project-budgets/   project-budgets.*.ts   → /projects/:projectId/budget, /project-budgets/:id
 ```
 
-- **Folder**: one level only, files named after the subfolder, the subfolder holds a `DependentRepository` module, and every module name is used once across `src/modules/` (`test/structure.test.ts`). Parent and dependents count as one module for `no-cross-module-deps`: the parent's service may use a dependent's repository (e.g. a completeness check before submitting) — `no-circular` still forbids cycles.
+- **Folder**: one level only, files named after the subfolder, the subfolder holds a `DependentRepository` module, and every module name is used once across `src/modules/` (`test/structure.test.ts`) — the parent-singular prefix is what lets two parents each have their `documents`. Parent and dependents count as one module for `no-cross-module-deps`: the parent's service may use a dependent's repository (e.g. a completeness check before submitting) — `no-circular` still forbids cycles.
 
 - **Routes** (shallow nesting): the collection under the parent, a row by its own id — the table in §2.3. The parent always comes from the path, never from the body; no list across parents is generated (add one deliberately, with the owner filter it needs).
 - **The parent rules** live in `DependentRepository` ([database.md](database.md) §6): rows of a deleted parent are hidden (and come back with it), writes lock the parent, the parent reference never changes, changes are audited under the parent.
