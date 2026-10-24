@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import config, { allowedScopes, derivedScopes, PLATFORM_SCOPES } from '../commitlint.config';
 
@@ -35,10 +36,13 @@ describe('commit scopes', () => {
         'core/cache',
         'core/security',
         'database/schema',
-        'integrations/jsonplaceholder',
         'utils/datetime',
       ]),
     );
+    const vendors = readdirSync(resolve(ROOT, 'src/integrations'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `integrations/${entry.name}`);
+    expect(derivedScopes(ROOT)).toEqual(expect.arrayContaining(vendors));
     expect(derivedScopes(resolve(ROOT, 'no-such-folder'))).toEqual([]);
   });
 

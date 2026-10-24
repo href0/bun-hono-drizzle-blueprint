@@ -16154,36 +16154,6 @@
               "ERR_ROLE_FORBIDDEN"
             ]
           },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Resource not found",
-            "headers": {
-              "Content-Language": {
-                "$ref": "#/components/headers/ContentLanguage"
-              },
-              "RateLimit-Limit": {
-                "$ref": "#/components/headers/RateLimitLimit"
-              },
-              "RateLimit-Remaining": {
-                "$ref": "#/components/headers/RateLimitRemaining"
-              },
-              "RateLimit-Reset": {
-                "$ref": "#/components/headers/RateLimitReset"
-              },
-              "X-Request-ID": {
-                "$ref": "#/components/headers/RequestId"
-              }
-            },
-            "x-error-codes": [
-              "ERR_NOT_FOUND"
-            ]
-          },
           "429": {
             "content": {
               "application/json": {
@@ -16314,7 +16284,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "List the user's posts from the external JSONPlaceholder service",
+        "summary": "List the user's posts from the external JSONPlaceholder service (example)",
         "tags": [
           "Users"
         ],

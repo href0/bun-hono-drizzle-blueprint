@@ -3,9 +3,9 @@
  * `<kind>`, `<name>` or a webhook's vendor opens this wizard; it only completes the request. Every
  * answer becomes a flag that `parseScaffoldArgs` reads (`toArgv`), so the files are exactly those of
  * the equivalent command, which the CLI prints at the end (`commandOf`). Questions go through a
- * `Prompter`, so the tests answer them; `terminalPrompter` is the real one (`@clack/prompts`).
+ * `Prompter` (prompter.ts), so the tests answer them; `terminalPrompter` asks a person.
  */
-import { confirm, isCancel, select, text } from '@clack/prompts';
+import type { Choice, Prompter, TextQuestion } from './prompter';
 import {
   assertKebabCase,
   DEFAULT_DETAIL,
@@ -16,31 +16,6 @@ import {
   type ModuleVariant,
   type ScaffoldRequest,
 } from './scaffold';
-
-export interface Choice<T extends string> {
-  value: T;
-  label: string;
-  hint: string;
-}
-
-export interface TextQuestion {
-  message: string;
-  /** A pre-filled answer: Enter accepts it, or the user edits it. */
-  initial?: string;
-  /**
-   * An example shown while the answer is empty; never the answer. Always `e.g. …`: the terminal
-   * draws it like typed text with the cursor on it (a bare `documents` was taken for an answer).
-   */
-  placeholder?: string;
-  /** An error message to show, or `undefined` to accept the (trimmed) answer. */
-  validate: (value: string) => string | undefined;
-}
-
-export interface Prompter {
-  select: <T extends string>(message: string, choices: readonly Choice<T>[]) => Promise<T>;
-  text: (question: TextQuestion) => Promise<string>;
-  confirm: (message: string) => Promise<boolean>;
-}
 
 /** What the repository offers, read by the CLI. */
 export interface WizardContext {
@@ -388,30 +363,3 @@ export const commandOf = (request: ScaffoldRequest): string =>
         : arg,
     ),
   ].join(' ');
-
-/** Clack's answer, or a ScaffoldError when the user pressed Ctrl+C / Esc (nothing is written then). */
-export const answered = <T>(value: T): Exclude<T, symbol> => {
-  if (isCancel(value)) throw new ScaffoldError('cancelled: nothing was written');
-  return value as Exclude<T, symbol>;
-};
-
-export const terminalPrompter: Prompter = {
-  // Clack types options per literal value; the choices are plain strings, narrowed back to T.
-  select: async <T extends string>(message: string, choices: readonly Choice<T>[]) =>
-    answered(
-      await select<string>({
-        message,
-        options: choices.map(({ value, label, hint }) => ({ value, label, hint })),
-      }),
-    ) as T,
-  text: async ({ message, initial, placeholder, validate }) =>
-    answered(
-      await text({
-        message,
-        initialValue: initial,
-        placeholder,
-        validate: (value) => validate((value ?? '').trim()),
-      }),
-    ).trim(),
-  confirm: async (message) => answered(await confirm({ message, initialValue: false })),
-};

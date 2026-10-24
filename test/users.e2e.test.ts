@@ -42,7 +42,6 @@ describe('Users Module — E2E Contract Tests', () => {
   let createUserSpy: ReturnType<typeof spyOn>;
   let getUserByIdSpy: ReturnType<typeof spyOn>;
   let listUsersSpy: ReturnType<typeof spyOn>;
-  let getUserExternalPostsSpy: ReturnType<typeof spyOn>;
 
   beforeAll(async () => {
     createUserSpy = spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
@@ -63,10 +62,6 @@ describe('Users Module — E2E Contract Tests', () => {
       return { users: [mockUser], total: 1 };
     });
 
-    getUserExternalPostsSpy = spyOn(usersService, 'getUserExternalPosts').mockImplementation(
-      async () => [{ id: 1, userId: 1, title: 'Sample Post', body: 'Sample Body' }],
-    );
-
     app = await authorize(createApp());
   });
 
@@ -74,7 +69,6 @@ describe('Users Module — E2E Contract Tests', () => {
     createUserSpy.mockRestore();
     getUserByIdSpy.mockRestore();
     listUsersSpy.mockRestore();
-    getUserExternalPostsSpy.mockRestore();
   });
 
   // ---- POST /api/v1/users ----
@@ -279,22 +273,6 @@ describe('Users Module — E2E Contract Tests', () => {
       expect(body.success).toBe(false);
       expect(body.error.type).toBe('NOT_FOUND');
     });
-
-    it('GET /:id/external-posts should return 200 with external posts array', async () => {
-      const res = await app.request(`/api/v1/users/${mockUser.id}/external-posts`);
-      expect(res.status).toBe(200);
-
-      const body = (await res.json()) as {
-        success: boolean;
-        status_code: number;
-        data: Array<{ id: number; title: string }>;
-      };
-
-      expect(body.success).toBe(true);
-      expect(body.status_code).toBe(200);
-      expect(Array.isArray(body.data)).toBe(true);
-      expect(body.data[0]?.title).toBe('Sample Post');
-    });
   });
 });
 
@@ -386,7 +364,6 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
   beforeAll(async () => {
     spies.push(
       spyOn(usersService, 'getUserById').mockImplementation(async () => mockUser),
-      spyOn(usersService, 'getUserExternalPosts').mockImplementation(async () => []),
       spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
         createdWith.push(dto);
         return { ...mockUser, role: dto.role ?? 'user' };
@@ -427,13 +404,9 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
     }
   });
 
-  it('a user sees their own record and its external posts, nobody else’s (403, existing or not)', async () => {
+  it('a user sees their own record, nobody else’s (403, existing or not)', async () => {
     expect((await send(owner, 'GET', `/${mockUser.id}`)).status).toBe(200);
-    expect((await send(owner, 'GET', `/${mockUser.id}/external-posts`)).status).toBe(200);
     expect(await codeOf(await send(owner, 'GET', `/${otherId}`))).toBe('403 ERR_ROLE_FORBIDDEN');
-    expect(await codeOf(await send(owner, 'GET', `/${otherId}/external-posts`))).toBe(
-      '403 ERR_ROLE_FORBIDDEN',
-    );
   });
 
   it('an admin sees anyone and may create users with a role from ROLES', async () => {

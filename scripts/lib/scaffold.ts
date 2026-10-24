@@ -382,7 +382,8 @@ const registryEntry = (code: string, institution: string): PlannedEdit => ({
   apply: (content) =>
     replaceAnchor(
       content,
-      /(export const INTEGRATION_REGISTRY = \{\n)/,
+      // The permanent marker: the registry of a new project holds nothing else.
+      /( {2}\/\/ scaffold:registry[^\n]*\n)/,
       (_match, head = '') =>
         `${head}  ${code}: { code: '${code}', institution: '${institution.split("'").join("\\'")}' },\n`,
     ),

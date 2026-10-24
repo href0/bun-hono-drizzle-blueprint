@@ -56,7 +56,8 @@ export interface HttpOptions {
 
 /**
  * One answer to the wizard: the runner waits until `question` is on the screen, then answers —
- * moves to the option whose label starts with `select`, types `text` + Enter, presses Enter on the
+ * moves to the option whose label starts with `select`, clears the field and types `text` + Enter
+ * (a typed answer replaces a pre-filled one), presses Enter on the
  * pre-filled value, answers a yes / no question, or presses Ctrl+C.
  */
 export type Turn = { question: string } & (
@@ -90,6 +91,8 @@ export interface AcceptanceContext {
   setEnv: (name: string, value: string) => void;
   /** Does this file exist in the project? */
   exists: (path: string) => boolean;
+  /** A file of the project, as text. */
+  readFile: (path: string) => string;
   /** A hash of every file git sees in the project (tracked and untracked, ignored excluded). */
   fingerprint: () => Promise<string>;
   dockerUnavailable: () => Promise<string | undefined>;
@@ -189,6 +192,8 @@ const strongPassword = (): string =>
 
 export const ADMIN_EMAIL = 'admin@example.com';
 export const PROJECT_NAME = 'acceptance-demo';
+/** Not the derived `Acceptance Demo`: proves that the title answer or --title is written. */
+export const PROJECT_TITLE = 'Acceptance Demo API';
 
 const GATE_MINUTES = 1;
 const gate = async (ctx: AcceptanceContext): Promise<void> => {
@@ -217,17 +222,41 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'A',
-    title: 'bun run setup (the combination)',
+    title: 'bun run setup: the wizard (combination 1) or flags (combination 2)',
     minutes: 0.1,
     run: async (ctx) => {
-      const keep = ctx.combo.keepExamples ? ['--keep-examples'] : [];
-      const result = await ctx.run(['bun', 'run', 'setup', PROJECT_NAME, ...keep]);
+      const result = ctx.combo.keepExamples
+        ? await ctx.run([
+            'bun',
+            'run',
+            'setup',
+            PROJECT_NAME,
+            `--title=${PROJECT_TITLE}`,
+            '--keep-examples',
+          ])
+        : await ctx.converse(
+            ['bun', 'run', 'setup'],
+            [
+              { question: 'Project name', text: PROJECT_NAME },
+              { question: 'Title (README heading', text: PROJECT_TITLE },
+              { question: 'Description', enter: true },
+              { question: 'Keep the example modules', confirm: false },
+              { question: 'Apply these changes?', confirm: true },
+            ],
+          );
       expectOutput(result, 'Project initialization completed', 'setup');
       check(
-        ctx.exists('src/modules/orders') === ctx.combo.keepExamples,
-        ctx.combo.keepExamples ? 'the example modules kept' : 'the example modules removed',
-        `src/modules/orders ${ctx.exists('src/modules/orders') ? 'exists' : 'is gone'}`,
+        ctx.readFile('README.md').startsWith(`# ${PROJECT_TITLE}`),
+        `README.md titled "${PROJECT_TITLE}"`,
+        ctx.readFile('README.md').split('\n', 1)[0] ?? '',
       );
+      for (const example of ['src/modules/orders', 'src/modules/user-posts']) {
+        check(
+          ctx.exists(example) === ctx.combo.keepExamples,
+          `${example} ${ctx.combo.keepExamples ? 'kept' : 'removed'}`,
+          ctx.exists(example) ? 'exists' : 'is gone',
+        );
+      }
     },
   },
   {
@@ -866,11 +895,17 @@ export const activeOption = (screen: string): string | undefined => {
   return undefined;
 };
 
-export const KEYS = { down: '\u001b[B', enter: '\r', ctrlC: '\u0003' } as const;
+export const KEYS = {
+  down: '\u001b[B',
+  enter: '\r',
+  ctrlC: '\u0003',
+  /** Typing after a pre-filled answer appends to it: a typed answer first clears the field. */
+  clear: '\u007f'.repeat(80),
+} as const;
 
 /** The keys of an answer that needs no look at the screen (everything but `select`). */
 export const keysOf = (turn: Turn): string => {
-  if ('text' in turn) return `${turn.text}${KEYS.enter}`;
+  if ('text' in turn) return `${KEYS.clear}${turn.text}${KEYS.enter}`;
   if ('confirm' in turn) return `${turn.confirm ? 'y' : 'n'}${KEYS.enter}`;
   if ('cancel' in turn) return KEYS.ctrlC;
   return KEYS.enter;

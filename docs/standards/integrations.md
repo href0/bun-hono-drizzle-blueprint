@@ -2,7 +2,7 @@
 
 Read this file when: calling an external system, adding a vendor, or handling a vendor failure.
 
-How this project calls external systems. Template for a new vendor: `.agents/skills/scaffold-module/references/integration.md` (verified by `bun run verify:scaffold`). Working reference: `src/integrations/jsonplaceholder/` (keyless public API).
+How this project calls external systems. Template for a new vendor: `.agents/skills/scaffold-module/references/integration.md` (verified by `bun run verify:scaffold`). Working reference: `src/integrations/jsonplaceholder/` (keyless public API) and the module that consumes it, `src/modules/user-posts/` — an example removed by `bun run setup` unless --keep-examples.
 
 ## 1. Layout
 
@@ -58,7 +58,7 @@ const body = await this.tokens.withToken((token) =>
 
 - Adapter tests run against a local fake vendor (`Bun.serve({ port: 0 })`): real HTTP, no network, no `mock.module()`. Inject the client and credentials through the constructor.
 - Cover: the happy path, single-flight login, 401 → re-login, a body that fails the schema → 502, and the default singleton wired to config (in tests its base URL is a closed port → `ERR_EXT_UNREACHABLE`, so nothing ever reaches the real vendor).
-- Domain services that use the adapter are tested with a fake adapter object; an e2e test may route a real call to a fake vendor (`test/outbound.e2e.test.ts`).
+- Domain services that use the adapter are tested with a fake adapter object; an e2e test may route a real call to a fake vendor (`test/outbound.e2e.test.ts`, part of the example).
 
 ## 5. Inbound webhooks from a vendor
 

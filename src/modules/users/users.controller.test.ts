@@ -27,9 +27,6 @@ describe('UsersController (Unit)', () => {
     updateUser: async (_id, dto) => ({ ...mockUser, ...dto }),
     deleteUser: async () => undefined,
     restoreUser: async () => mockUser,
-    getUserExternalPosts: async () => [
-      { id: 1, userId: 1, title: 'Sample Post', body: 'Sample Body' },
-    ],
   };
 
   const controller = new UsersController(mockService as UsersService);
@@ -118,23 +115,5 @@ describe('UsersController (Unit)', () => {
 
     expect(result.status).toBe(200);
     expect(result.data.data.id).toBe(mockUser.id);
-  });
-
-  it('getExternalPosts should return ApiResponse with status 200', async () => {
-    const mockContext = {
-      get: (key: string) =>
-        key === 'validatedParams' ? { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' } : undefined,
-      json: (data: unknown, status: number) => ({ data, status }),
-    } as any;
-
-    const result = (await controller.getExternalPosts(mockContext, mockNext)) as unknown as {
-      status: number;
-      data: { success: boolean; data: Array<{ id: number; title: string }> };
-    };
-
-    expect(result.status).toBe(200);
-    expect(result.data.success).toBe(true);
-    expect(result.data.data).toHaveLength(1);
-    expect(result.data.data[0]?.title).toBe('Sample Post');
   });
 });

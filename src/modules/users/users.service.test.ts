@@ -302,28 +302,6 @@ describe('UsersService (Unit)', () => {
       expect(broken.restoreUser(mockUser.id)).rejects.toBe(failure);
     });
   });
-
-  it('getUserExternalPosts should fetch user posts from jsonPlaceholder integration', async () => {
-    const mockRepo: Partial<UsersRepository> = {
-      findById: async () => mockUser,
-    };
-    const mockCache: Partial<CacheService> = {
-      getOrSet: async (_key, _ttl, fetcher) => fetcher(),
-    };
-    const mockJsonPlaceholder = {
-      getUserPosts: async () => [{ id: 1, userId: 1, title: 'Sample Post', body: 'Body' }],
-    };
-
-    const service = new UsersService(
-      mockRepo as UsersRepository,
-      mockCache as CacheService,
-      mockJsonPlaceholder as any,
-    );
-
-    const posts = await service.getUserExternalPosts(mockUser.id);
-    expect(posts).toHaveLength(1);
-    expect(posts[0]?.title).toBe('Sample Post');
-  });
 });
 
 describe('UsersService password reset and self-lockout', () => {

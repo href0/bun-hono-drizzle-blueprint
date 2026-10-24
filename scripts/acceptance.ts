@@ -305,7 +305,8 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
     options: Pick<RunOptions, 'expect'> = {},
   ): Promise<CommandResult> => {
     write(`$ ${command.join(' ')}   (the wizard, answered by the runner)\n`);
-    const child = spawn(command, { SCAFFOLD_WIZARD_STDIN: '1' });
+    // The two switches that let a program answer the wizards of scaffold and setup.
+    const child = spawn(command, { SCAFFOLD_WIZARD_STDIN: '1', SETUP_WIZARD_STDIN: '1' });
     let screen = '';
     const reading = Promise.all([
       drain(child.stdout, (text) => (screen += text)),
@@ -504,6 +505,8 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
     },
 
     exists: (path) => existsSync(join(project, path)),
+
+    readFile: (path) => readFileSync(join(project, path), 'utf8'),
 
     fingerprint: async () => {
       const listed = await quiet(['git', 'ls-files', '-co', '--exclude-standard', '-z'], project);

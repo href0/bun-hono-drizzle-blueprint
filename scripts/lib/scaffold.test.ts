@@ -48,7 +48,8 @@ const FIXTURES = new Map([
   ],
   [
     REGISTRY_PATH,
-    "export const INTEGRATION_REGISTRY = {\n  JSONPLACEHOLDER: { code: 'JSONPLACEHOLDER', institution: 'JSONPlaceholder' },\n} as const;\n",
+    // A new project's registry: only the marker (bun run setup removed the example vendors).
+    'export const INTEGRATION_REGISTRY = {\n  // scaffold:registry — keep it.\n} as const;\n',
   ],
   [CONFIG_BARREL, "export * from './app.config';\n"],
   [

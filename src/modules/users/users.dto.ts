@@ -50,11 +50,3 @@ export const userResponseSchema = z.object({
 });
 
 export type UserResponse = z.infer<typeof userResponseSchema>;
-
-/** A post from the external JSONPlaceholder integration, as exposed by this API. */
-export const externalPostSchema = z.object({
-  id: z.number().int(),
-  userId: z.number().int(),
-  title: z.string(),
-  body: z.string(),
-});

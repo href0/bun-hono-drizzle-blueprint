@@ -12,6 +12,7 @@ import {
   parseCombos,
   plainText,
   planText,
+  PROJECT_TITLE,
   runCombo,
   StepFailure,
   type AcceptanceContext,
@@ -94,7 +95,7 @@ describe('the wizard driver', () => {
 
   it('turns an answer into keys', () => {
     const keys = (turn: Turn): string => keysOf(turn);
-    expect(keys({ question: 'q', text: 'products' })).toBe(`products${KEYS.enter}`);
+    expect(keys({ question: 'q', text: 'products' })).toBe(`${KEYS.clear}products${KEYS.enter}`);
     expect(keys({ question: 'q', confirm: true })).toBe(`y${KEYS.enter}`);
     expect(keys({ question: 'q', confirm: false })).toBe(`n${KEYS.enter}`);
     expect(keys({ question: 'q', cancel: true })).toBe(KEYS.ctrlC);
@@ -142,7 +143,9 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
   const env = new Map<string, string>();
   const references = new Set<string>();
   const events = new Set<string>();
-  const files = new Set<string>(combo.keepExamples ? ['src/modules/orders'] : []);
+  const files = new Set<string>(
+    combo.keepExamples ? ['src/modules/orders', 'src/modules/user-posts'] : [],
+  );
   let nextId = 0;
   let released = 0;
 
@@ -217,7 +220,10 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
       const confirmed = turns.some((turn) => 'confirm' in turn && turn.confirm);
       if (confirmed)
         for (const name of typed) for (const file of WIZARD_FILES[name] ?? []) files.add(file);
-      return Promise.resolve({ exitCode: options.expect === 'failure' ? 1 : 0, output: '' });
+      return Promise.resolve({
+        exitCode: options.expect === 'failure' ? 1 : 0,
+        output: COMMAND_OUTPUT,
+      });
     },
     http: (method, path, options) => Promise.resolve(answer(method, path, options)),
     databaseUnavailable: () => Promise.resolve(undefined),
@@ -231,6 +237,7 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
       env.set(name, value);
     },
     exists: (path) => files.has(path),
+    readFile: (path) => (path === 'README.md' ? `# ${PROJECT_TITLE}\n` : ''),
     fingerprint: () => Promise.resolve('unchanged'),
     dockerUnavailable: () => Promise.resolve(undefined),
     dockerBuild: (target) => {
@@ -288,13 +295,21 @@ describe('the steps against a well-behaved machine', () => {
       D: 'ok',
     });
     expect(machine.commands.filter((c) => c.startsWith('wizard:'))).toEqual([
+      'wizard: bun run setup',
       'wizard: bun run scaffold',
       'wizard: bun run scaffold:module',
       'wizard: bun run scaffold:webhook',
       'wizard: bun run scaffold:module',
       'wizard: bun run scaffold',
     ]);
-    expect(machine.conversations.at(1)).toEqual([
+    expect(machine.conversations.at(0)).toEqual([
+      { question: 'Project name', text: 'acceptance-demo' },
+      { question: 'Title (README heading', text: PROJECT_TITLE },
+      { question: 'Description', enter: true },
+      { question: 'Keep the example modules', confirm: false },
+      { question: 'Apply these changes?', confirm: true },
+    ]);
+    expect(machine.conversations.at(2)).toEqual([
       { question: 'What do you want to scaffold?', select: 'Module — dependent 1:N' },
       { question: 'Parent module', select: 'products' },
       { question: 'Child (1:N) name', text: 'reviews' },
@@ -304,7 +319,6 @@ describe('the steps against a well-behaved machine', () => {
     expect(machine.conversations.at(-1)).toEqual([
       { question: 'What do you want to scaffold?', cancel: true },
     ]);
-    expect(machine.commands).toContain('bun run setup acceptance-demo');
     expect(machine.commands).toContain(
       'bun scripts/scaffold.ts module specs --parent=products --one',
     );
@@ -318,13 +332,17 @@ describe('the steps against a well-behaved machine', () => {
     const machine = fakeMachine(KEEP_EXAMPLES);
     const { result } = await runAll(machine);
     expect(result.failedStep).toBeUndefined();
-    expect(machine.commands).toContain('bun run setup acceptance-demo --keep-examples');
+    expect(machine.commands).toContain(
+      `bun run setup acceptance-demo --title=${PROJECT_TITLE} --keep-examples`,
+    );
   });
 
   it('setup that leaves the examples of a new project fails the step', async () => {
     const machine = fakeMachine(NEW_PROJECT, { exists: (path) => path === 'src/modules/orders' });
     const { result } = await runAll(machine);
-    expect(result.failedStep).toBe('bun run setup (the combination)');
+    expect(result.failedStep).toBe(
+      'bun run setup: the wizard (combination 1) or flags (combination 2)',
+    );
   });
 
   it('skips stage C and D with the reason, and still releases the database', async () => {
@@ -367,7 +385,8 @@ describe('the steps against a well-behaved machine', () => {
 
   it('the wizard that wrote other files fails its step', async () => {
     const machine = fakeMachine(NEW_PROJECT, {
-      converse: () => Promise.resolve({ exitCode: 0, output: '' }),
+      converse: (command) =>
+        Promise.resolve({ exitCode: 0, output: command.includes('setup') ? COMMAND_OUTPUT : '' }),
     });
     const { result, lines } = await runAll(machine);
     expect(result.failedStep).toBe('Wizard (bun run scaffold): standalone module products');

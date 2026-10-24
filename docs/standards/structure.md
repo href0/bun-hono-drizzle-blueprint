@@ -34,7 +34,7 @@ src/
 ├── config/                      # Zero-trust configuration, one Zod group per file (fail-fast on startup)
 │   ├── env-source.ts            # The only reader of process.env (+ TZ=UTC, missing env file guard)
 │   ├── parse-env.ts             # Validation per group; errors name the variable, never the value; RENAMED_ENV_VARS
-│   ├── <group>.config.ts        # app, auth, database, redis, http, partner, one per vendor (jsonplaceholder, …)
+│   ├── <group>.config.ts        # app, auth, database, redis, http, partner, one per vendor (`<vendor>.config.ts`)
 │   └── index.ts                 # Barrel
 │
 ├── core/                        # Cross-cutting, domain-agnostic building blocks
@@ -75,11 +75,7 @@ src/
 ├── integrations/                # Vendor adapters — no routes, no controllers
 │   ├── registry.ts              # INTEGRATION_REGISTRY: code → institution (error.origin / error.institution)
 │   ├── demo-pay/                # Example webhook vendor: demo-pay.webhook.ts (verifier) + demo-pay.webhook.dto.ts
-│   └── jsonplaceholder/         # Reference keyless outbound adapter
-│       ├── jsonplaceholder.dto.ts      # Vendor payload schemas
-│       ├── jsonplaceholder.service.ts  # Adapter on HttpClientService
-│       ├── jsonplaceholder.service.test.ts # Test against a local fake vendor
-│       └── index.ts             # What domain services import
+│   └── jsonplaceholder/         # Example keyless outbound adapter: dto, service on HttpClientService, test against a fake vendor, index.ts (removed by `bun run setup` unless --keep-examples)
 │
 ├── modules/                     # Inbound domain modules (HTTP)
 │   ├── auth/                    # Login, refresh-token rotation (HttpOnly cookie), logout, /me (/api/v1/auth)
@@ -91,6 +87,7 @@ src/
 │   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)
 │   │   ├── project-tasks/       # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/project-tasks/:id)
 │   │   ├── project-budgets/     # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/project-budgets/:id)
+│   ├── user-posts/              # Example module consuming an outbound adapter (/api/v1/users/:id/external-posts) (removed by `bun run setup` unless --keep-examples)
 │   └── users/                   # Reference standalone-table module (/api/v1/users)
 │       ├── users.dto.ts         # Request & response schemas
 │       ├── users.messages.ts    # Localized messages
@@ -129,7 +126,7 @@ test/
 
 ```
 scripts/
-├── setup.ts                     # `bun run setup <name>` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES)
+├── setup.ts                     # `bun run setup [<name>]` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES; no name in a terminal → the wizard)
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = the single source of thresholds)
 ├── scaffold.ts                  # `bun run scaffold <module|partner|webhook|integration> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: runs the scaffold CLI for every template, then every gate
@@ -145,6 +142,8 @@ scripts/
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 ├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup
+├── lib/prompter.ts             # The questions of a CLI wizard behind one interface: scripted in tests, @clack/prompts for a person (+ lib/prompter.test.ts: the real prompts on streams)
+├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (plan D38): name, --title, description, examples (+ lib/setup-wizard.test.ts)
 ├── lib/scaffold-wizard.ts       # The scaffold wizard (plan D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```

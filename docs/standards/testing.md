@@ -94,7 +94,7 @@ describe('UsersService (Unit)', () => {
 - `test/structure.test.ts` — every file name (kebab-case per dot segment), module files `<module>[-<qualifier>][.partner|.webhook].<role>[.test].ts`, integration files `<vendor>.<role>.ts`, no module named like a vendor, `*.partner.routes.ts` routers only under `/v1/partner` (and nothing else there), `*.webhook.routes.ts` only under `/webhooks`. Also run by `verify:scaffold` on the generated modules.
 - `test/partner-guide.test.ts` — `docs/partner-integration-guide.md` publishes the same signing vectors (`test/helpers/partner-signing-vectors.ts`, shared with the unit tests), the four headers and every `ERR_PARTNER_*` code.
 - `test/hermetic-env.test.ts` — the preload points the database and Redis at a closed port, whatever the local env file says.
-- `test/outbound.e2e.test.ts` — the outbound contract end to end: a vendor 401 becomes 502 without the vendor's body, and the inbound `X-Request-ID` reaches the vendor. Adapter tests run against a local fake vendor (`Bun.serve`); see [integrations.md](integrations.md).
+- `test/outbound.e2e.test.ts` (example, removed by `bun run setup` unless --keep-examples) — the outbound contract end to end: a vendor 401 becomes 502 without the vendor's body, and the inbound `X-Request-ID` reaches the vendor. Adapter tests run against a local fake vendor (`Bun.serve`); see [integrations.md](integrations.md).
 
 ## 5. Module E2E Tests (`test/<name>.e2e.test.ts`)
 

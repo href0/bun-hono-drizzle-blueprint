@@ -1,4 +1,5 @@
 import { CANCEL_SYMBOL } from '@clack/prompts';
+import { answered, type Prompter, type TextQuestion } from './prompter';
 import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
 import {
@@ -10,14 +11,11 @@ import {
   type ScaffoldRequest,
 } from './scaffold';
 import {
-  answered,
   commandOf,
   completeRequest,
   needsWizard,
   SHAPES,
   toArgv,
-  type Prompter,
-  type TextQuestion,
   type WizardContext,
 } from './scaffold-wizard';
 

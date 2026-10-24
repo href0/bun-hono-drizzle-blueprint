@@ -332,7 +332,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R58 | Every config group validated with Zod at start (failure = variable names, no values); old names in `RENAMED_ENV_VARS` refused | [test:config] [test:parse-env] |
 | R59 | No `console.*`; structured logs with redaction | [eslint:no-console] [test:logger] |
 | R60 | `X-Request-ID` accepted only in a safe format; a request context per request | [test:request-id.util] [test:request-context] |
-| R61 | Values carrying the project name are in `IDENTITY_RULES`; example registrations in `EXAMPLE_MODULES` | [script:lint:setup] |
+| R61 | Values carrying the project name are in `IDENTITY_RULES`; example registrations in `EXAMPLE_MODULES`; the setup wizard (D38) only fills in the same arguments as the command it prints | [script:lint:setup] [test:setup-wizard] |
 | R62 | Health `UP` / `DEGRADED` / `DOWN`; readiness 503 only when the DB is down | [test:health.e2e] [test:health.service] |
 
 ### Testing, gates & workflow
@@ -371,7 +371,7 @@ Tooling configuration is **not** copied here; the files at the repository root a
 | `eslint.config.mjs` | `no-restricted-syntax` / `no-restricted-imports` groups per area (composed at the top), `local/inbound-channel`, naming, `eslint-comments` | `bun run lint`, lint-staged |
 | `.dependency-cruiser.cjs` | Layer boundaries and module flow | `bun run lint:arch` |
 | `.ls-lint.yml` | Folder and single-dot file names | `bun run lint:ls`, pre-commit |
-| `knip.json` | Unused files, exports, dependencies | `bun run lint:deps` |
+| `knip.json` | Unused files, exports, dependencies; `src/core/http/index.ts` is an entry — the API vendor adapters import, unused in a new project until its first `bun run scaffold integration` | `bun run lint:deps` |
 | `scripts/check-coverage.ts` | Coverage thresholds (`THRESHOLDS`) | `bun run test:cov` |
 | `bunfig.toml` | Hermetic test preload | `bun test` |
 | `scripts/setup.ts` | `IDENTITY_RULES`, `EXAMPLE_MODULES` | `bun run setup`, `bun run lint:setup` |

@@ -7,11 +7,6 @@ import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '.
 import { hashPassword } from '../../core/security/password';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { Transactional } from '../../database/transactional.decorator';
-import {
-  JsonPlaceholderService,
-  jsonPlaceholderService,
-  type JsonPlaceholderPost,
-} from '../../integrations/jsonplaceholder';
 import type { PaginationQueryDto } from '../../core/dto/common.dto';
 import type { CreateUserDto, PublicUser, SetPasswordDto, UpdateUserDto } from './users.dto';
 import { nowInstant } from '../../utils/datetime.util';
@@ -64,7 +59,6 @@ export class UsersService {
   constructor(
     private readonly repo: UsersRepository = usersRepository,
     private readonly cache: CacheService = cacheService,
-    private readonly jsonPlaceholder: JsonPlaceholderService = jsonPlaceholderService,
   ) {}
 
   @Transactional()
@@ -170,18 +164,6 @@ export class UsersService {
       if (isUniqueViolation(error)) throw emailTaken();
       throw error;
     }
-  }
-
-  /**
-   * Fetches external activity posts for a user from JSONPlaceholder public API.
-   * Demonstrates consuming an outbound integration adapter (src/integrations/) from a domain service.
-   */
-  async getUserExternalPosts(userId: string): Promise<JsonPlaceholderPost[]> {
-    // 1. Verify user exists in database first
-    await this.getUserById(userId);
-
-    // 2. Fetch external posts from outbound integration adapter
-    return this.jsonPlaceholder.getUserPosts(1);
   }
 }
 

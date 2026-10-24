@@ -3,7 +3,12 @@
  *
  * Usage:
  *   bun run setup                                  # only create .env from .env.example
- *   bun run setup <project-name> [--description "..."] [--keep-examples] [--dry-run]
+ *   bun run setup <project-name> [--title "..."] [--description "..."] [--keep-examples] [--dry-run]
+ *
+ * In a terminal, `bun run setup` without a name opens a wizard (plan D38): it asks for the name, the
+ * title, the description and whether to keep the examples, shows the plan (a dry run), asks before
+ * changing anything, and prints the equivalent command (scripts/lib/setup-wizard.ts). Without a
+ * terminal it never asks — unless SETUP_WIZARD_STDIN=1, set only by `bun run acceptance`.
  *
  * IDENTITY_RULES is the single registry of every place that carries the project identity.
  * When you add a new file/setting that hardcodes the project name, register it here.
@@ -25,6 +30,17 @@ import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { SNAPSHOT_PATH } from './lib/api-contract/document';
 import { gitHooksAdvice, readGitState } from './lib/git-hooks';
+import { CancelledError, terminalPrompter } from './lib/prompter';
+import {
+  completeSetup,
+  needsSetupWizard,
+  parseSetupArgs,
+  SetupArgsError,
+  setupArgv,
+  setupCommandOf,
+  titleOf,
+  type SetupRequest,
+} from './lib/setup-wizard';
 
 interface ProjectIdentity {
   /** kebab-case, e.g. `pengangkut-udara-backend` (package name, APP_NAME, container prefix) */
@@ -42,8 +58,6 @@ interface IdentityRule {
   pattern: RegExp;
   replace: (id: ProjectIdentity) => string;
 }
-
-const NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 const IDENTITY_RULES: IdentityRule[] = [
   {
@@ -279,6 +293,68 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       },
     ],
   },
+  {
+    label: 'jsonplaceholder + user-posts (outbound adapter example)',
+    paths: [
+      'src/integrations/jsonplaceholder',
+      'src/modules/user-posts',
+      'src/config/jsonplaceholder.config.ts',
+      'test/user-posts.e2e.test.ts',
+      'test/outbound.e2e.test.ts',
+    ],
+    lines: [
+      {
+        file: 'src/app.ts',
+        line: [
+          '// Example outbound module (JSONPlaceholder → /users/:id/external-posts): removed by `bun run setup <name>` unless --keep-examples.',
+          "import { userPostRoutes } from './modules/user-posts/user-posts.routes';",
+        ].join('\n'),
+      },
+      { file: 'src/app.ts', line: "  v1.route('/users', userPostRoutes);" },
+      { file: 'src/config/index.ts', line: "export * from './jsonplaceholder.config';" },
+      {
+        file: 'src/config/config.test.ts',
+        line: "import { buildJsonPlaceholderConfig } from './jsonplaceholder.config';",
+      },
+      {
+        file: 'src/config/config.test.ts',
+        line: [
+          "  it('jsonplaceholder: should reject an invalid base URL', () => {",
+          '    expect(buildJsonPlaceholderConfig({}).JSONPLACEHOLDER_TIMEOUT_MS).toBe(10000);',
+          "    expect(() => buildJsonPlaceholderConfig({ JSONPLACEHOLDER_BASE_URL: 'not-a-url' })).toThrow(",
+          "      'JSONPLACEHOLDER_BASE_URL',",
+          '    );',
+          '  });',
+          '',
+        ].join('\n'),
+      },
+      {
+        file: 'src/integrations/registry.ts',
+        line: "  JSONPLACEHOLDER: { code: 'JSONPLACEHOLDER', institution: 'JSONPlaceholder' },",
+      },
+      {
+        file: '.env.example',
+        line: [
+          '',
+          '# --- jsonplaceholder (src/config/jsonplaceholder.config.ts) — one group per vendor ---',
+          'JSONPLACEHOLDER_BASE_URL=https://jsonplaceholder.typicode.com',
+          'JSONPLACEHOLDER_TIMEOUT_MS=10000',
+        ].join('\n'),
+      },
+      {
+        file: 'docs/standards/structure.md',
+        line: '│   └── jsonplaceholder/         # Example keyless outbound adapter: dto, service on HttpClientService, test against a fake vendor, index.ts (removed by `bun run setup` unless --keep-examples)',
+      },
+      {
+        file: 'docs/standards/structure.md',
+        line: '│   ├── user-posts/              # Example module consuming an outbound adapter (/api/v1/users/:id/external-posts) (removed by `bun run setup` unless --keep-examples)',
+      },
+      {
+        file: 'docs/standards/testing.md',
+        line: "- `test/outbound.e2e.test.ts` (example, removed by `bun run setup` unless --keep-examples) — the outbound contract end to end: a vendor 401 becomes 502 without the vendor's body, and the inbound `X-Request-ID` reaches the vendor. Adapter tests run against a local fake vendor (`Bun.serve`); see [integrations.md](integrations.md).",
+      },
+    ],
+  },
 ];
 
 /**
@@ -425,32 +501,13 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
   }
 }
 
-function toIdentity(name: string, description?: string): ProjectIdentity {
+function toIdentity(request: SetupRequest): ProjectIdentity {
   return {
-    name,
-    snakeName: name.replace(/-/g, '_'),
-    title: name
-      .split('-')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' '),
-    description,
+    name: request.name,
+    snakeName: request.name.replace(/-/g, '_'),
+    title: request.title ?? titleOf(request.name),
+    description: request.description,
   };
-}
-
-function parseArgs(argv: string[]): {
-  name?: string;
-  description?: string;
-  dryRun: boolean;
-  keepExamples: boolean;
-} {
-  const dryRun = argv.includes('--dry-run');
-  const keepExamples = argv.includes('--keep-examples');
-  const descIndex = argv.indexOf('--description');
-  const description = descIndex >= 0 ? argv[descIndex + 1]?.trim() : undefined;
-  const name = argv.find(
-    (arg, i) => !arg.startsWith('--') && (descIndex < 0 || i !== descIndex + 1),
-  );
-  return { name: name?.trim(), description, dryRun, keepExamples };
 }
 
 function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): void {
@@ -564,40 +621,35 @@ function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun:
   }
 }
 
-function runSetup(): void {
-  const rootDir = process.cwd();
-  const { name, description, dryRun, keepExamples } = parseArgs(process.argv.slice(2));
-
-  console.log(`[Setup] Starting project initialization${dryRun ? ' (dry run)' : ''}...`);
-
+/** Renames, removes or keeps the examples, and prepares the env file; `dryRun` only prints. */
+function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: boolean): void {
   let identity: ProjectIdentity | undefined;
-  if (name) {
-    if (!NAME_PATTERN.test(name)) {
-      console.error(
-        '[Setup] Error: project name must be kebab-case (lowercase letters, digits, single hyphens; starts with a letter)',
-      );
-      process.exit(1);
-    }
-    identity = toIdentity(name, description);
+  if (request) {
+    identity = toIdentity(request);
     console.log(
       `[Setup] name=${identity.name} db=${identity.snakeName}_db title="${identity.title}"`,
     );
     // Rename first so a freshly created .env inherits the new identity from .env.example.
     applyIdentity(rootDir, identity, dryRun);
-    if (keepExamples) {
+    if (request.keepExamples) {
       console.log('[Setup] Keeping the example modules (--keep-examples)');
       if (!dryRun) stopGuardingExamples(rootDir);
     } else {
       removeExamples(rootDir, dryRun);
     }
   }
-
   ensureEnvFile(rootDir, identity, dryRun);
+}
 
+const printNextSteps = (dryRun: boolean): void => {
   console.log('----------------------------------------------------');
-  console.log(`[Setup] Project initialization ${dryRun ? 'preview' : 'completed'} successfully`);
+  console.log(
+    dryRun
+      ? '[Setup] Project initialization preview finished — nothing was changed'
+      : '[Setup] Project initialization completed successfully',
+  );
   // Husky's hooks live in .git/config: a fresh git init loses them silently.
-  const hooksAdvice = gitHooksAdvice(readGitState(rootDir));
+  const hooksAdvice = gitHooksAdvice(readGitState(process.cwd()));
   if (hooksAdvice) console.log(`[Setup] WARNING: ${hooksAdvice}`);
   console.log('Next steps:');
   console.log('  1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)');
@@ -605,6 +657,48 @@ function runSetup(): void {
   console.log('  3. Create the first admin:     bun run seed:admin --email <email>');
   console.log('  4. Start development server:  bun run dev');
   console.log('----------------------------------------------------');
+};
+
+async function runSetup(): Promise<void> {
+  const rootDir = process.cwd();
+  const args = parseSetupArgs(process.argv.slice(2));
+  // SETUP_WIZARD_STDIN=1: `bun run acceptance` answers the wizard through a pipe; never set by hand.
+  const driven = process.env.SETUP_WIZARD_STDIN === '1';
+  const interactive =
+    needsSetupWizard(args) && (driven || (process.stdin.isTTY && process.stdout.isTTY));
+
+  if (!interactive) {
+    const request = args.name === undefined ? undefined : { ...args, name: args.name };
+    console.log(`[Setup] Starting project initialization${args.dryRun ? ' (dry run)' : ''}...`);
+    initialize(rootDir, request, args.dryRun);
+    printNextSteps(args.dryRun);
+    return;
+  }
+
+  // The answers become the same arguments as a typed command, parsed like one.
+  const answers = await completeSetup(args, terminalPrompter);
+  const parsed = parseSetupArgs(setupArgv(answers));
+  const request: SetupRequest = { ...parsed, name: answers.name };
+  console.log('\n[Setup] Plan (nothing is changed yet):');
+  initialize(rootDir, request, true);
+  const equivalent = `\nSame result without the wizard:\n  ${setupCommandOf(request)}`;
+  if (args.dryRun) {
+    console.log(equivalent);
+    return;
+  }
+  if (!(await terminalPrompter.confirm('Apply these changes?'))) throw new CancelledError();
+  console.log('\n[Setup] Starting project initialization...');
+  initialize(rootDir, request, false);
+  printNextSteps(false);
+  console.log(equivalent);
 }
 
-runSetup();
+try {
+  await runSetup();
+} catch (error) {
+  if (error instanceof SetupArgsError || error instanceof CancelledError) {
+    console.error(`[Setup] ${error.message}`);
+    process.exit(1);
+  }
+  throw error;
+}

@@ -7,10 +7,6 @@ export const USER_MESSAGES = {
   UPDATED: { id: 'Pengguna berhasil diperbarui', en: 'User updated successfully' },
   DELETED: { id: 'Pengguna berhasil dihapus', en: 'User deleted successfully' },
   RESTORED: { id: 'Pengguna berhasil dipulihkan', en: 'User restored successfully' },
-  EXTERNAL_POSTS_RETRIEVED: {
-    id: 'Postingan eksternal pengguna berhasil diambil',
-    en: 'User external posts retrieved successfully',
-  },
   EMAIL_TAKEN: {
     id: 'Pengguna dengan email ini sudah ada',
     en: 'User with this email already exists',

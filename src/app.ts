@@ -30,6 +30,8 @@ import { partnerCredentialRoutes } from './modules/partner-credentials/partner-c
 import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
 import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.partner.routes';
 import { userRoutes } from './modules/users/users.routes';
+// Example outbound module (JSONPlaceholder → /users/:id/external-posts): removed by `bun run setup <name>` unless --keep-examples.
+import { userPostRoutes } from './modules/user-posts/user-posts.routes';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
 import { ordersRouter } from './modules/orders/orders.routes';
 // Example vendor webhook (Demo Pay → payment-notifications): removed by `bun run setup <name>` unless --keep-examples.
@@ -129,6 +131,7 @@ export const createApp = (): Hono => {
   const v1 = new Hono();
   v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
+  v1.route('/users', userPostRoutes);
   v1.route('/partner-credentials', partnerCredentialRoutes);
   v1.route('/partner', partnerGatewayRoutes);
   v1.route('/orders', ordersRouter);

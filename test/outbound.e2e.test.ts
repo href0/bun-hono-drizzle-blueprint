@@ -1,37 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { Hono } from 'hono';
-import { Temporal } from 'temporal-polyfill';
 import { createApp } from '../src/app';
 import { HttpClientService } from '../src/core/http';
-import type { User } from '../src/database/schema';
 import {
   JsonPlaceholderService,
   jsonPlaceholderService,
 } from '../src/integrations/jsonplaceholder';
 import { INTEGRATION_REGISTRY } from '../src/integrations/registry';
-import { usersService } from '../src/modules/users/users.service';
 import { authorize } from './helpers/authorized-app';
 
 /**
- * Outbound contract (plan step 4.1), end to end: a real HTTP call from the users module through
- * the JSONPlaceholder adapter to a local fake vendor. Only the vendor's address is swapped (and
- * the user lookup, which would need the database).
+ * Outbound contract (plan step 4.1), end to end: a real HTTP call from the example module
+ * user-posts through the JSONPlaceholder adapter to a local fake vendor; only the vendor's address
+ * is swapped. Removed with the examples by `bun run setup <name>` (the adapter goes with them);
+ * HttpClientService keeps its own tests in src/core/http.
  */
 
-const user: User = {
-  id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-  email: 'test@example.com',
-  fullName: 'Test User',
-  passwordHash: '$argon2id$v=19$m=16,t=2,p=1$abc',
-  role: 'user',
-  passwordChangedAt: null,
-  createdBy: 'system',
-  updatedBy: 'system',
-  deletedAt: null,
-  isActive: true,
-  createdAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
-  updatedAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
-};
+const userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
 const VENDOR_SECRET = 'vendor-internal-detail-7f3a';
 
@@ -60,7 +45,6 @@ describe('Outbound integration contract (E2E)', () => {
       }),
     );
     spies.push(
-      spyOn(usersService, 'getUserById').mockImplementation(async () => user),
       spyOn(jsonPlaceholderService, 'getUserPosts').mockImplementation((userId) =>
         adapter.getUserPosts(userId),
       ),
@@ -74,7 +58,7 @@ describe('Outbound integration contract (E2E)', () => {
   });
 
   it('should answer a vendor 401 with 502, naming the vendor but never echoing its answer', async () => {
-    const res = await app.request(`/api/v1/users/${user.id}/external-posts`, {
+    const res = await app.request(`/api/v1/users/${userId}/external-posts`, {
       headers: { 'X-Request-ID': 'req-outbound-e2e', 'Accept-Language': 'en' },
     });
     const text = await res.text();
@@ -103,7 +87,7 @@ describe('Outbound integration contract (E2E)', () => {
   it('should send the inbound request ID to the vendor', async () => {
     vendorSawRequestIds.length = 0;
 
-    await app.request(`/api/v1/users/${user.id}/external-posts`, {
+    await app.request(`/api/v1/users/${userId}/external-posts`, {
       headers: { 'X-Request-ID': 'req-correlated-42' },
     });
 

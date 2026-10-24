@@ -71,7 +71,8 @@ Error:
 - [projects](projects.md) — 6 endpoint
   - [project-budgets](projects/project-budgets.md) — 5 endpoint
   - [project-tasks](projects/project-tasks.md) — 6 endpoint
-- [users](users.md) — 8 endpoint
+- [user-posts](user-posts.md) — 1 endpoint
+- [users](users.md) — 7 endpoint
 
 ## Platform
 

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'bun:test';
+import type { IntegrationIdentity } from '../core/errors';
 import { INTEGRATION_REGISTRY } from './registry';
 
 describe('INTEGRATION_REGISTRY', () => {
-  const entries = Object.entries(INTEGRATION_REGISTRY);
+  // Typed, not inferred: a new project starts with an empty registry (`bun run setup` removes the
+  // examples), where `Object.entries({})` would be `[string, unknown][]`.
+  const entries: [string, IntegrationIdentity][] = Object.entries(INTEGRATION_REGISTRY);
 
   it('should use each key as the integration code (error.origin)', () => {
     for (const [key, integration] of entries) {

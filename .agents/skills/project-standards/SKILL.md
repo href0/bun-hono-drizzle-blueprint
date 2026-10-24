@@ -23,6 +23,7 @@ The standards of this project live in `docs/standards/` — one file per topic, 
 | Dates, times, zones | `docs/standards/datetime.md` |
 | Cache, Redis, rate limits, nonces | `docs/standards/cache.md` |
 | Logs | `docs/standards/logging.md` |
+| Starting a project, `bun run setup`, what it renames / removes | `docs/standards/project-setup.md` |
 | Environment variables, project-name values | `docs/standards/configuration.md` |
 | Calling a vendor | `docs/standards/integrations.md` |
 | `src/app.ts`, `src/index.ts`, middleware order | `docs/standards/bootstrap.md` |

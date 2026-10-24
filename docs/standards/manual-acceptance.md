@@ -23,13 +23,13 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 
 | Combination | `bun run setup` | Tests |
 |---|---|---|
-| 1 | `setup acceptance-demo` | a new project: examples removed, migrations regenerated |
-| 2 | `setup acceptance-demo --keep-examples` | the generators next to the examples; an example route still answers |
+| 1 | `bun run setup` — the wizard, answered by the runner | a new project: examples removed, migrations regenerated |
+| 2 | `setup acceptance-demo --title "Acceptance Demo API" --keep-examples` | the generators next to the examples; an example route still answers |
 
 - **What it tests**: the commit `--ref` (default the last commit), cloned into a work folder `_acceptance/acceptance-<date>-<time>/` **next to** this repository — never the working tree; it says so when there are uncommitted changes.
 - **While it runs**: one line per step; on a terminal a spinner and a timer that keeps counting, then `✓ 1m52s` / `✗` / `-` (skipped, with the reason). In a pipe or a log file: one line per finished step plus a heartbeat every minute. At the end, a table: one row per combination, one column per stage.
 - **Output**: every command writes to the step's log (`combo-<n>/logs/<nn>-<stage>.log`), never to the screen. A failing step shows the expected and the actual result, the last 30 lines of its log and the log's path; the remaining steps of that combination are shown as skipped, and the next combination still runs.
-- **The wizard**: started with `SCAFFOLD_WIZARD_STDIN=1`, the one switch that lets a program answer it through a pipe (`scripts/scaffold.ts`); the runner waits for each question, moves to the option by its label, types, presses Enter, answers No, presses Ctrl+C.
+- **The wizards**: started with `SCAFFOLD_WIZARD_STDIN=1` / `SETUP_WIZARD_STDIN=1`, the switches that let a program answer them through a pipe (`scripts/scaffold.ts`, `scripts/setup.ts`); the runner waits for each question, moves to the option by its label, types, presses Enter, answers No, presses Ctrl+C.
 - **Services (stage C)**: PostgreSQL and Redis from `TEST_DATABASE_URL` / `TEST_REDIS_*`, or the local development settings on a developer machine only — the same rules as `bun run test:int` ([testing.md](testing.md), `scripts/lib/test-services.ts`). Not reachable (or `--no-db`) → stage C is skipped with the reason. Each combination gets its own database `<name>_acceptance_c<n>` (marked by a comment) and Redis prefix.
 - **Cleanup**: the server, the database and the Redis keys of a combination go when it ends — also after a failure and on Ctrl+C; the Docker images right after they are built. The work folder is removed when everything passed and kept otherwise (`--keep` always). A new run removes what earlier runs left (only folders and databases this runner names and marks).
 - **AI agents** run it with `--combo` (no menu without a terminal). It creates and drops its own databases on the local PostgreSQL: ask the developer first, as for any database command ([database.md](database.md) §4).
@@ -40,7 +40,7 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 Combination 1 — new project: setup removes the examples (default)
   [ 1/24] A  Clone the commit under test into the work folder .......... ✓ 2s
   [ 2/24] A  bun install ............................................... ✓ 5s
-  [ 3/24] A  bun run setup (the combination) ........................... ✓ 2s
+  [ 3/24] A  bun run setup: the wizard (combination 1) or flags (combination 2) ... ✓ 3s
   [ 4/24] A  Gates of the new project: validate:full + build ........... ⠹ 31s running
 ```
 
@@ -75,7 +75,7 @@ The runner's steps, in order, per combination (`scripts/lib/acceptance.ts`; `tes
 
 1. **Clone the commit under test into the work folder** — on the branch `test/acceptance`, a name the project's own gates accept.
 2. **bun install**
-3. **bun run setup (the combination)** — the examples removed (1) or kept (2).
+3. **bun run setup: the wizard (combination 1) or flags (combination 2)** — the wizard answered by the runner (name, title, Enter on the description, No to the examples, Yes to apply), or `--title … --keep-examples`; the README carries the title, the examples (incl. `user-posts`) are removed (1) or kept (2).
 4. **Gates of the new project: validate:full + build**
 
 **B — generators**

@@ -30,10 +30,12 @@ Arsitektur & alasannya (indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARC
 git clone <repo_url> my-backend
 cd my-backend
 bun install
-bun run setup my-backend --description "Deskripsi singkat" # --dry-run untuk preview
+bun run setup          # wizard: nama, judul, deskripsi, pertahankan contoh? → rencana → konfirmasi
+# atau dengan flag:
+bun run setup my-backend --title "My Backend API" --description "Deskripsi singkat" # --dry-run untuk preview
 #    modul contoh orders (header + detail), projects (parent + dependent project-tasks /
-#    project-budgets) dan contoh webhook vendor (demo-pay +
-#    payment-notifications) dihapus & migrasi dibuat ulang dari awal;
+#    project-budgets), contoh webhook vendor (demo-pay + payment-notifications) dan contoh
+#    outbound (jsonplaceholder + user-posts) dihapus & migrasi dibuat ulang dari awal;
 #    tambahkan --keep-examples untuk mempertahankannya sebagai referensi
 # atau via AI agent (Claude Code): /init-project my-backend
 #    riwayat git baru (opsional): hapus .git → git init -b main → bun run prepare (wajib:
@@ -72,6 +74,7 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Kontrak setiap endpoint untuk integrator (request, response, kode error) | [docs/api/README.md](docs/api/README.md) (di-generate) |
 | Mengubah kontrak API (route, DTO) | `bun run openapi:check` menampilkan perubahan (BREAKING / safe / docs) → review → `bun run openapi:update` — [docs/standards/openapi.md](docs/standards/openapi.md) §6 |
 | Menjalankan quality gates (`bun run validate:full`) dan perintah lain | [docs/standards/quality-gates.md](docs/standards/quality-gates.md) |
+| Memahami `bun run setup`: wizard, opsi, apa yang diganti dan dihapus | [docs/standards/project-setup.md](docs/standards/project-setup.md) |
 | Melihat struktur direktori | [docs/standards/structure.md](docs/standards/structure.md) |
 | Menguji jalur developer baru sebelum rilis (clone → setup → semua varian scaffold, wizard dijawab otomatis → HTTP) | `bun run acceptance` — [docs/standards/manual-acceptance.md](docs/standards/manual-acceptance.md) |
 | Men-deploy ke server (image Docker, konfigurasi production, migrasi) | [docs/deployment.md](docs/deployment.md) |

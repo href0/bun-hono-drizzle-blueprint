@@ -7,7 +7,6 @@ import { describeEndpoint } from '../../core/openapi';
 import { usersController } from './users.controller';
 import {
   createUserSchema,
-  externalPostSchema,
   setPasswordSchema,
   updateUserSchema,
   userResponseSchema,
@@ -139,21 +138,4 @@ userRoutes.post(
   adminOnly,
   validate({ params: uuidParamSchema }),
   usersController.restore,
-);
-userRoutes.get(
-  '/:id/external-posts',
-  describeEndpoint({
-    tags,
-    summary: "List the user's posts from the external JSONPlaceholder service",
-    response: {
-      status: 200,
-      description: 'External posts',
-      message: USER_MESSAGES.EXTERNAL_POSTS_RETRIEVED,
-      data: z.array(externalPostSchema),
-    },
-    errors: [404, 502, 504],
-  }),
-  selfOrAdmin,
-  validate({ params: uuidParamSchema }),
-  usersController.getExternalPosts,
 );

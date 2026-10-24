@@ -28,10 +28,10 @@ import {
   commandOf,
   completeRequest,
   needsWizard,
-  terminalPrompter,
   toArgv,
   type WizardContext,
 } from './lib/scaffold-wizard';
+import { CancelledError, terminalPrompter } from './lib/prompter';
 
 const ROOT = resolve(import.meta.dir, '..');
 
@@ -269,6 +269,8 @@ Same result without the wizard:
 try {
   await main();
 } catch (error) {
-  console.error(error instanceof ScaffoldError ? error.message : error);
+  console.error(
+    error instanceof ScaffoldError || error instanceof CancelledError ? error.message : error,
+  );
   process.exit(1);
 }

@@ -8,7 +8,7 @@ Violations are caught automatically: the pre-commit and pre-push hooks block the
 
 ## 1. First steps
 
-1. Read the quickstart in [README.md](README.md) (install, `bun run setup <name>`, migrations, first admin, `bun run dev`).
+1. Read the quickstart in [README.md](README.md) (install, `bun run setup` — [project-setup.md](docs/standards/project-setup.md), migrations, first admin, `bun run dev`).
 2. Skim [ARCHITECTURE.md](ARCHITECTURE.md) once — the pillars and the rule index.
 3. Before writing code, open the standards for what you are about to touch (§2).
 
@@ -28,6 +28,7 @@ Violations are caught automatically: the pre-commit and pre-push hooks block the
 | Date & time | [datetime.md](docs/standards/datetime.md) | Any date, time, duration or zone |
 | Cache | [cache.md](docs/standards/cache.md) | Caching, keys, TTLs, rate limits, nonces, Redis |
 | Logging | [logging.md](docs/standards/logging.md) | Writing logs, redaction, request correlation |
+| Project setup | [project-setup.md](docs/standards/project-setup.md) | Starting a project from this boilerplate; what `bun run setup` renames and removes |
 | Configuration | [configuration.md](docs/standards/configuration.md) | Environment variables |
 | Outbound integrations | [integrations.md](docs/standards/integrations.md) | Calling a vendor |
 | Bootstrap | [bootstrap.md](docs/standards/bootstrap.md) | `src/app.ts`, `src/index.ts`, middleware order |

@@ -5,7 +5,7 @@ description: Initialize a fresh clone of this boilerplate as a named project (pa
 
 # Init Project
 
-Turns a fresh clone of this boilerplate into a named project with one command. The mechanical work is done by `scripts/setup.ts` (`bun run setup`); this skill validates input, previews, confirms, runs it, and verifies the result.
+Turns a fresh clone of this boilerplate into a named project with one command (what it renames and removes: `docs/standards/project-setup.md`). The mechanical work is done by `scripts/setup.ts` (`bun run setup`); this skill validates input, previews, confirms, runs it, and verifies the result.
 
 Input: `<project-name>` and an optional one-line description.
 
@@ -18,7 +18,9 @@ Input: `<project-name>` and an optional one-line description.
 - Required format: kebab-case — lowercase letters and digits, single hyphens, starts with a letter (e.g. `pengangkut-udara-backend`).
 - If the user gave no name, ask for it.
 - If the user gave a non-kebab name (e.g. `Pengangkut Udara Backend`), propose the kebab-case form and ask for confirmation. Never guess silently.
+- Ask for the **title** (README heading, docs portal) once, proposing the Title Case of the name (`api-gateway` → `Api Gateway`): if the user wants another (`API Gateway`), pass `--title "<title>"`. No quotes, backslashes, `$` or line breaks.
 - If the user did not give a description, ask once (optional; skip if they decline).
+- Always pass the arguments: `bun run setup` without a name is a wizard for people at a terminal and never opens without one — never set `SETUP_WIZARD_STDIN` (only `bun run acceptance` uses it).
 
 ### 2. Check Current State
 
@@ -28,7 +30,7 @@ Input: `<project-name>` and an optional one-line description.
 ### 3. Preview (Dry Run)
 
 ```bash
-bun run setup <project-name> --description "<description>" --dry-run
+bun run setup <project-name> --title "<title>" --description "<description>" --dry-run
 ```
 
 Show the user the derived identity and the files that will change:
@@ -37,9 +39,9 @@ Show the user the derived identity and the files that will change:
 |---|---|
 | Package / `APP_NAME` / container prefix | `<project-name>` |
 | Database | `<project_name>_db` |
-| README title | `<Project Name>` |
+| README / portal title | `--title`, or `<Project Name>` derived from the name |
 
-Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`), `src/modules/projects` (a parent with its dependents `project-tasks/` 1:N and `project-budgets/` 1:1) and the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are). Either way `lint:setup` afterwards checks the project identity only: the examples are the project's own code from then on.
+Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`), `src/modules/projects` (a parent with its dependents `project-tasks/` 1:N and `project-budgets/` 1:1) the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings) and the outbound example `src/integrations/jsonplaceholder` + `src/modules/user-posts` (`/users/:id/external-posts`, `JSONPLACEHOLDER_*`): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are). Either way `lint:setup` afterwards checks the project identity only: the examples are the project's own code from then on.
 
 Ask for confirmation before continuing.
 
@@ -50,7 +52,7 @@ If the dry run reports `identity rules out of sync`, STOP: `IDENTITY_RULES` in `
 ### 4. Apply
 
 ```bash
-bun run setup <project-name> --description "<description>"   # add --keep-examples to keep the example modules
+bun run setup <project-name> --title "<title>" --description "<description>"   # add --keep-examples to keep the example modules
 ```
 
 The script also creates `.env` from `.env.example` when missing. Do NOT read or edit `.env` yourself (`env-protection` skill). If the script says an existing `.env` was kept, tell the user to review `POSTGRES_DB` / `DATABASE_URL` in it manually.
@@ -69,7 +71,7 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.
-4. Without `--keep-examples`: `src/modules/orders`, `src/modules/projects`, `src/modules/payment-notifications` and `src/integrations/demo-pay` are gone, `WEBHOOK_VENDORS` is empty, and `drizzle/` holds a single `0000_*.sql` (the platform tables: users, auth_refresh_tokens, record_changes, partner_credentials, webhook_events). `src/modules/partner-gateway` stays (partners test their signing with its ping/echo).
+4. Without `--keep-examples`: `src/modules/orders`, `src/modules/projects`, `src/modules/payment-notifications`, `src/modules/user-posts`, `src/integrations/demo-pay` and `src/integrations/jsonplaceholder` are gone, `WEBHOOK_VENDORS` and `INTEGRATION_REGISTRY` are empty, and `drizzle/` holds a single `0000_*.sql` (the platform tables: users, auth_refresh_tokens, record_changes, partner_credentials, webhook_events). `src/modules/partner-gateway` stays (partners test their signing with its ping/echo).
 
 ### 7. Git History (Optional — Ask, Never Assume)
 

@@ -7,9 +7,9 @@ export type ExternalFailureKind = 'TIMEOUT' | 'UNREACHABLE' | 'ERROR';
 
 /** An external system, as registered in `INTEGRATION_REGISTRY` (src/integrations/registry.ts). */
 export interface IntegrationIdentity {
-  /** Stable code sent as `error.origin` (e.g. `JSONPLACEHOLDER`). */
+  /** Stable code sent as `error.origin` (e.g. `ACME_PAY`). */
   readonly code: string;
-  /** Human-readable name sent as `error.institution` (e.g. `JSONPlaceholder`). */
+  /** Human-readable name sent as `error.institution` (e.g. `Acme Pay`). */
   readonly institution: string;
 }
 

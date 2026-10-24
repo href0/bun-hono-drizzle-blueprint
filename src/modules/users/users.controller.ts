@@ -73,13 +73,6 @@ export class UsersController {
 
     return new ApiResponse(toUserResponse(user), USER_MESSAGES.RESTORED, 200);
   });
-
-  getExternalPosts = asyncHandler(async (c) => {
-    const param = getValidatedParams<UuidParamDto>(c);
-    const posts = await this.service.getUserExternalPosts(param.id);
-
-    return new ApiResponse(posts, USER_MESSAGES.EXTERNAL_POSTS_RETRIEVED, 200);
-  });
 }
 
 export const usersController = new UsersController();

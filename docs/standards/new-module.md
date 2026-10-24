@@ -16,7 +16,7 @@ Read this file when: creating a module, a resource, a CRUD endpoint, a partner e
 | Reference data owned by another system | — (by hand: a `.existing()` view, [database.md](database.md) §2) | — | `ReadOnlyRepository` | — |
 | Partner endpoint (signed requests) | `partner <plural>` | `.agents/skills/scaffold-module/references/partner.md` | `BaseRepository` (unique `partner_code` + `partner_reference`) | `src/modules/partner-gateway` |
 | Vendor webhook (the vendor's contract) | `webhook <plural> --vendor=<vendor>` | `.agents/skills/scaffold-module/references/webhook.md` | `AppendOnlyRepository` (`webhook_events`) | `src/modules/payment-notifications` + `src/integrations/demo-pay` (removed by `bun run setup` unless `--keep-examples`) |
-| Outbound vendor adapter (not a module) | `integration <vendor>` | `.agents/skills/scaffold-module/references/integration.md` | — (`HttpClientService` + `AccessTokenCache`) | `src/integrations/jsonplaceholder` |
+| Outbound vendor adapter (not a module) | `integration <vendor>` | `.agents/skills/scaffold-module/references/integration.md` | — (`HttpClientService` + `AccessTokenCache`) | `src/integrations/jsonplaceholder` + `src/modules/user-posts` (removed by `bun run setup` unless --keep-examples) |
 
 Table kinds and what each base does: [database.md](database.md) §6.
 
@@ -148,7 +148,7 @@ What each kind registers in shared files:
 | `webhook` | `src/app.ts` (imports, `WEBHOOK_VENDORS`, `app.route(…/webhooks/<vendor>, …)`), config barrel, `INTEGRATION_REGISTRY`, `structure.md` tree |
 | `integration` | `INTEGRATION_REGISTRY`, config barrel |
 
-In `src/app.ts` the lines go directly above the permanent markers `// scaffold:imports`, `// scaffold:webhook-routes` and `// scaffold:v1-routes` — keep them. `.env.example` is never edited: the next steps list the variables to add.
+In `src/app.ts` the lines go directly above the permanent markers `// scaffold:imports`, `// scaffold:webhook-routes` and `// scaffold:v1-routes`, and a vendor goes below `// scaffold:registry` in `src/integrations/registry.ts` — keep them. `.env.example` is never edited: the next steps list the variables to add.
 
 ### 2.3 Names: what you type and what you get
 
