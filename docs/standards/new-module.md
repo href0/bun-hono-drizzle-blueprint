@@ -26,6 +26,10 @@ Table kinds and what each base does: [database.md](database.md) §6.
 
 ### 2.1 Commands
 
+**Interactive** (for a person at a terminal, plan D36): `bun run scaffold` without arguments opens a wizard — pick one of the eight shapes (standalone, header-detail, record, dependent 1:N, dependent 1:1, partner, webhook, integration), answer its questions (names with a suggested singular, the detail `items`, the parent picked from the modules that can be one, the vendor and its institution), read the plan, confirm. `bun run scaffold:module`, `bun run scaffold:partner`, `bun run scaffold:webhook` and `bun run scaffold:integration` skip the menu; arguments already given are not asked again (`bun run scaffold:module --parent=orders` asks only for the child's name). At the end it prints the equivalent command: the wizard only fills in the flags below, so the files are the same. Without a terminal (CI, an AI agent, `verify:scaffold`) nothing is ever asked — a missing argument is the usage error, as before.
+
+**With flags** (repeatable, and what an AI agent runs):
+
 ```bash
 bun run scaffold module products --dry-run                 # print the plan, write nothing
 bun run scaffold module products                           # standalone table  → /api/v1/products

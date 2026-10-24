@@ -3,7 +3,10 @@
  * from the scaffold-module skill's templates (plan D31) — no AI agent needed, same code as the
  * skill, verified in CI because `bun run verify:scaffold` runs this very command.
  *
- * Usage: bun run scaffold <module|partner|webhook|integration> <name> [options] — see USAGE.
+ * Usage: bun run scaffold <module|partner|webhook|integration> <name> [options] — see USAGE. In a
+ * terminal, a missing <kind> / <name> (or a webhook's vendor) opens the wizard (plan D36): it asks,
+ * shows the plan, asks before writing, and prints the equivalent command. Without a terminal (CI, an
+ * AI agent, verify:scaffold) nothing is ever asked: a missing argument is the usage error.
  *
  * All-or-nothing: every file and registration is computed first (a missing registration anchor or
  * an existing file aborts before anything is written), then written, then formatted with Prettier
@@ -11,7 +14,22 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { parseScaffoldArgs, planScaffold, ScaffoldError, type ScaffoldPlan } from './lib/scaffold';
+import {
+  parseScaffoldArgs,
+  planScaffold,
+  readScaffoldArgs,
+  ScaffoldError,
+  type ScaffoldPlan,
+  type ScaffoldRequest,
+} from './lib/scaffold';
+import {
+  commandOf,
+  completeRequest,
+  needsWizard,
+  terminalPrompter,
+  toArgv,
+  type WizardContext,
+} from './lib/scaffold-wizard';
 
 const ROOT = resolve(import.meta.dir, '..');
 
@@ -29,10 +47,7 @@ const nestedModules = (): { parent: string; name: string }[] =>
   );
 
 /** Names that would break the conventions (plan D26) or overwrite existing work. */
-const refusals = (
-  plan: ScaffoldPlan,
-  request: ReturnType<typeof parseScaffoldArgs>['request'],
-): string[] => {
+const refusals = (plan: ScaffoldPlan, request: ScaffoldRequest): string[] => {
   const vendors = folders('src/integrations');
   const nested = nestedModules();
   const modules = [...folders('src/modules'), ...nested.map((module) => module.name)];
@@ -76,6 +91,17 @@ const refusals = (
 
 const textOf = (path: string): string =>
   existsSync(resolve(ROOT, path)) ? readFileSync(resolve(ROOT, path), 'utf8') : '';
+
+/** What the wizard offers: taken names, and the modules a dependent can attach to (see parentProblems). */
+const wizardContext = (): WizardContext => ({
+  modules: [...folders('src/modules'), ...nestedModules().map((module) => module.name)],
+  vendors: folders('src/integrations'),
+  parents: folders('src/modules').filter(
+    (name) =>
+      textOf(`src/database/schema/domain/${name}.schema.ts`).includes('softDelete()') &&
+      !textOf(`src/modules/${name}/${name}.repository.ts`).includes('DependentRepository'),
+  ),
+});
 
 /**
  * A dependent module needs a parent that exists, is soft-deletable (its children are hidden through
@@ -159,8 +185,19 @@ const printNextSteps = (plan: ScaffoldPlan, heading: string, addsRoutes: boolean
   console.log(`  ${String(steps.length + 1)}. bun run validate:full`);
 };
 
-const main = (): void => {
-  const { request, dryRun } = parseScaffoldArgs(process.argv.slice(2));
+const main = async (): Promise<void> => {
+  const argv = process.argv.slice(2);
+  const draft = readScaffoldArgs(argv);
+  const interactive = needsWizard(draft.request) && process.stdin.isTTY && process.stdout.isTTY;
+  // The wizard only completes the arguments: the request is parsed from them like any command.
+  const { request, dryRun } = interactive
+    ? {
+        request: parseScaffoldArgs(
+          toArgv(await completeRequest(draft.request, wizardContext(), terminalPrompter)),
+        ).request,
+        dryRun: draft.dryRun,
+      }
+    : parseScaffoldArgs(argv);
   const plan = planScaffold(request, ROOT);
   const problems = refusals(plan, request);
   if (problems.length > 0)
@@ -172,10 +209,19 @@ const main = (): void => {
   console.log(`${dryRun ? '[dry run] ' : ''}Scaffolding ${plan.label} from ${plan.template}`);
   for (const file of plan.files) console.log(`  create ${file.path}`);
   for (const edit of plan.edits) console.log(`  edit   ${edit.path} — ${edit.label}`);
+  const equivalent = (): void => {
+    if (interactive)
+      console.log(`
+Same result without the wizard:
+  ${commandOf(request)}`);
+  };
   if (dryRun) {
     printNextSteps(plan, 'Next steps (after a real run — nothing was written):', addsRoutes);
+    equivalent();
     return;
   }
+  if (interactive && !(await terminalPrompter.confirm('Write these files?')))
+    throw new ScaffoldError('cancelled: nothing was written');
 
   for (const file of plan.files) {
     const path = resolve(ROOT, file.path);
@@ -201,10 +247,11 @@ const main = (): void => {
   }
 
   printNextSteps(plan, 'Next steps:', addsRoutes);
+  equivalent();
 };
 
 try {
-  main();
+  await main();
 } catch (error) {
   console.error(error instanceof ScaffoldError ? error.message : error);
   process.exit(1);

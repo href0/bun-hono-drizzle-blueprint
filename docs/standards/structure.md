@@ -130,7 +130,7 @@ test/
 scripts/
 ├── setup.ts                     # `bun run setup <name>` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES)
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = the single source of thresholds)
-├── scaffold.ts                  # `bun run scaffold <module|partner|webhook|integration> <name>`: generates from the scaffold-module templates
+├── scaffold.ts                  # `bun run scaffold <module|partner|webhook|integration> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: runs the scaffold CLI for every template, then every gate
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
@@ -140,6 +140,7 @@ scripts/
 ├── lib/git-hooks.ts             # Are the Husky hooks active (core.hooksPath)? bun run setup warns when not (+ lib/git-hooks.test.ts)
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
+├── lib/scaffold-wizard.ts       # The scaffold wizard (plan D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
 
