@@ -23,7 +23,7 @@ const COVERAGE_EXCLUSIONS: readonly { path: string; reason: string; until: strin
   {
     path: 'src/index.ts',
     reason: 'process bootstrap (Bun.serve, signal handlers, process.exit)',
-    until: 'permanent — verified by the release smoke test (plan step 7.5)',
+    until: 'permanent — proven by running it: CI job docker (R79), bun run acceptance (R81)',
   },
 ];
 

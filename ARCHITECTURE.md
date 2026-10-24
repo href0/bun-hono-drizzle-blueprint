@@ -196,7 +196,7 @@ Hermetic by default — `bun test` never touches a developer's database or Redis
 
 ## 10. Quality Gates
 
-pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`; job `docker`: images, migration, healthy container; job `docs`: the portal). Local hooks can be skipped, CI cannot. New modules come from one generator, `bun run scaffold` (D31), which reads the `scaffold-module` templates — the only copy of template code; `verify:scaffold` runs that CLI for every variant and every gate, so neither the templates nor the CLI can fall behind the code (R67). Developers and agents use the same command: conventions hold without an AI agent, and an agent spends its effort on the domain, not on boilerplate. Detail: [quality-gates.md](docs/standards/quality-gates.md).
+pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`; job `docker`: images, migration, healthy container; job `docs`: the portal). Before a release, `bun run acceptance` takes a fresh clone through setup, every generator, a database, a running server and the images (R81). Local hooks can be skipped, CI cannot. New modules come from one generator, `bun run scaffold` (D31), which reads the `scaffold-module` templates — the only copy of template code; `verify:scaffold` runs that CLI for every variant and every gate, so neither the templates nor the CLI can fall behind the code (R67). Developers and agents use the same command: conventions hold without an AI agent, and an agent spends its effort on the domain, not on boilerplate. Detail: [quality-gates.md](docs/standards/quality-gates.md).
 
 ---
 
@@ -343,7 +343,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R64 | Hermetic tests (no real DB / Redis); `mock.module()` banned | [test:hermetic-env] [eslint:TEST_SYNTAX_RULES] |
 | R65 | Integration suite: no `.rejects` / `.resolves` / `spyOn` / `mock`; runs in CI | [eslint:INTEGRATION_TEST_RULES] [ci:integration] |
 | R66 | `eslint-disable` narrow and justified (`-- <reason>`) | [eslint:@eslint-community/eslint-comments/require-description] [eslint:@eslint-community/eslint-comments/no-unused-disable] |
-| R67 | Every `scaffold-module` template variant, generated through `bun run scaffold`, passes every gate — the coverage gate included, so a variant ships its own tests; the CLI registers through permanent anchors and fails before writing when one is missing; its wizard (D36) only fills in the same flags — every shape plans the same files as the command it prints — and never asks without a terminal | [script:verify:scaffold] [ci:verify] [test:scaffold] [test:scaffold-wizard] |
+| R67 | Every `scaffold-module` template variant, generated through `bun run scaffold`, passes every gate — the coverage gate included, so a variant ships its own tests; the CLI registers through permanent anchors and fails before writing when one is missing; its wizard (D36) only fills in the same flags — every shape plans the same files as the command it prints — and never asks without a terminal (the one exception, `SCAFFOLD_WIZARD_STDIN=1`, is set only by `bun run acceptance`, which answers it) | [script:verify:scaffold] [ci:verify] [test:scaffold] [test:scaffold-wizard] |
 | R68 | `structure.md` names every script, test folder, helper and module, `quality-gates.md` every command; labels in this index are valid | [test:docs-sync] |
 | R69 | Every `.agents` skill has a `.claude` wrapper with the same name + description | [test:agent-skills] |
 | R70 | Agents never read active `.env` files (only `.env.example`) | [hook:.claude/hooks/protect-env.mjs] |
@@ -381,4 +381,6 @@ Tooling configuration is **not** copied here; the files at the repository root a
 | `.prettierrc`, `.prettierignore` | Format `*.ts` (Markdown excluded) | `bun run format:check` |
 | `.github/workflows/ci.yml` | Jobs `verify`, `integration`, `docker`, `docs` | GitHub Actions |
 | `drizzle.config.ts` | Migrations from the `public` schema | `bun run db:generate` |
+| `Dockerfile` | Production image (runner) and the `tools` image (migrations, `seed:admin`, `auth:purge-tokens`); installs without lifecycle scripts | `docker build`, CI job `docker` ([docs/deployment.md](docs/deployment.md)) |
+| `docs-site/sidebar.mjs` | Every synced document is in the portal menu | `bun run docs:build`, CI job `docs` |
 | `.claude/settings.json`, `.claude/hooks/protect-env.mjs` | `.env` protection for Claude Code | Claude Code |

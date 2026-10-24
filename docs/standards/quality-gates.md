@@ -33,7 +33,9 @@ Read this file when: running checks before finishing a change (definition of don
 
 Local hooks can be skipped with `--no-verify`; CI runs everything again, branch name and commit messages included — every gate of `validate:full` as its own step, so a failure names its gate (`test/ci-gates.test.ts` fails when a gate added to `validate` has no CI step; `lint:branch` is the one replaced, by `validate-branch-name -t <head_ref>`, because a pull request is checked out detached). `bun test` (and so `test:cov`) runs every `*.test.ts` — unit tests in `src/` and `scripts/`, e2e and guard tests in `test/`; `test:unit` / `test:e2e` are only local shortcuts. `bun run test:int` is deliberately **not** in pre-push (it needs PostgreSQL + Redis): run it yourself before finishing a change to repositories or repository bases, transactions, migrations, auth, the partner gateway or the cache — the CI job `integration` runs it on every push. Run `bun run verify:scaffold` after changing a scaffold template, the scaffold CLI (`scripts/scaffold.ts`, `scripts/lib/scaffold.ts`) or a core API the templates use (errors, response, middlewares, dto, i18n, openapi, database, http).
 
-Before a change is finished: `bun run validate:full` and `bun run build` (plus the two above when they apply) — the full definition of done is §4.
+Run `bun run acceptance --combo a` ([manual-acceptance.md](manual-acceptance.md)) before every release, and after changing `scripts/setup.ts`, the scaffold CLI or wizard, migrations, the `Dockerfile` or the bootstrap: it is not in pre-push or CI (minutes, real services).
+
+Before a change is finished: `bun run validate:full` and `bun run build` (plus the gates above when they apply) — the full definition of done is §4.
 
 ## 2. Gate rules
 
@@ -93,7 +95,7 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 
 A change is finished when every item that applies holds — for developers and agents alike (agents follow the skill `finish-change`, which routes here):
 
-1. **Gates green**: `bun run validate:full` and `bun run build`; `bun run test:int` and `bun run verify:scaffold` when §1 requires them.
+1. **Gates green**: `bun run validate:full` and `bun run build`; `bun run test:int`, `bun run verify:scaffold` and `bun run acceptance` when §1 requires them.
 2. **Tests cover the new behaviour** — unit, plus e2e through `createApp()` when HTTP is involved. Every logic branch (classification, status mapping, fallback) has its own test: Bun's coverage counts lines, not branches.
 3. **A new rule is enforced by a machine** (or marked `[review-only]` with the reason), has its row in `ARCHITECTURE.md` §12, and is proven by a chaos test: break it, see the gate fail, restore, `git status` clean.
 4. **Docs in the same change**: the topic file in `docs/standards/` ([documentation.md](documentation.md)); routers only when their list of topics changes; `.env.example` for a new variable.

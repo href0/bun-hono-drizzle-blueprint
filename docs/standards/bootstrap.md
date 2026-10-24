@@ -23,7 +23,7 @@ Source of truth: `src/index.ts`. `bootstrap()`:
 3. `Bun.serve({ port: PORT, fetch: createApp().fetch })`; the startup log carries the health and docs URLs.
 4. **Graceful shutdown** on `SIGINT` / `SIGTERM`: `server.stop(true)`, then `sqlClient.end({ timeout: 5 })` and `closeRedisClient()` (falls back to `disconnect()` when `QUIT` is refused), then exit.
 
-`src/index.ts` is the one coverage exclusion (process bootstrap), verified by the release smoke test.
+`src/index.ts` is the one coverage exclusion (process bootstrap). It is proven by running it instead: the CI job `docker` starts the production image until it is healthy (R79), and `bun run acceptance` starts the server of a generated project, calls it and stops it (R81).
 
 ---
 

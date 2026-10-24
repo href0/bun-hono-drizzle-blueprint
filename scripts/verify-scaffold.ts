@@ -28,6 +28,7 @@ import {
   type ScaffoldRequest,
 } from './lib/scaffold';
 import { SNAPSHOT_PATH } from './lib/api-contract/document';
+import { toArgv } from './lib/scaffold-wizard';
 
 interface Variant {
   label: string;
@@ -169,16 +170,8 @@ const VARIANTS: Variant[] = [
 /** Login-based vendor adapter (references/integration.md). */
 const INTEGRATION: ScaffoldRequest = { kind: 'integration', name: 'probe-vendor' };
 
-/** The CLI command line for a request — what a developer would type. */
-const cliArgs = (request: ScaffoldRequest): string[] => [
-  request.kind,
-  request.name,
-  ...(request.variant ? [`--variant=${request.variant}`] : []),
-  ...(request.vendor ? [`--vendor=${request.vendor}`] : []),
-  ...(request.detail ? [`--detail=${request.detail}`] : []),
-  ...(request.parent ? [`--parent=${request.parent}`] : []),
-  ...(request.one ? ['--one'] : []),
-];
+/** The CLI command line for a request — what a developer would type (the wizard's own mapping). */
+const cliArgs = toArgv;
 
 /** The parent probe of the dependent variants: attaching children must not change a byte of it. */
 const PARENT_PROBE = 'scaffold-probes';

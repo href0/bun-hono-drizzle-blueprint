@@ -41,7 +41,7 @@ Violations are caught automatically: the pre-commit and pre-push hooks block the
 
 1. Branch from `main`: `<type>/<slug>` ([git-workflow.md](docs/standards/git-workflow.md)).
 2. New module or adapter: start from the scaffold templates ([new-module.md](docs/standards/new-module.md)).
-3. Tests with the change ([testing.md](docs/standards/testing.md)); `bun run test:int` and `bun run verify:scaffold` when [quality-gates.md](docs/standards/quality-gates.md) §1 says so.
+3. Tests with the change ([testing.md](docs/standards/testing.md)); `bun run test:int`, `bun run verify:scaffold` and `bun run acceptance` when [quality-gates.md](docs/standards/quality-gates.md) §1 says so.
 4. Documentation in the same change: edit the one `docs/standards/` file of the topic, and add or update the rule's row in `ARCHITECTURE.md` §12 when a rule is added or its enforcer changes ([documentation.md](docs/standards/documentation.md)).
 5. `bun run validate:full` and `bun run build`, then open the pull request with a Conventional Commits title.
 

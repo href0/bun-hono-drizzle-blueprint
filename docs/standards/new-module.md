@@ -26,9 +26,58 @@ Table kinds and what each base does: [database.md](database.md) §6.
 
 ### 2.1 Commands
 
-**Interactive** (for a person at a terminal, plan D36): `bun run scaffold` without arguments opens a wizard — pick one of the eight shapes (standalone, header-detail, record, dependent 1:N, dependent 1:1, partner, webhook, integration), answer its questions (names with a suggested singular, the detail `items`, the parent picked from the modules that can be one, the vendor and its institution), read the plan, confirm. `bun run scaffold:module`, `bun run scaffold:partner`, `bun run scaffold:webhook` and `bun run scaffold:integration` skip the menu; arguments already given are not asked again (`bun run scaffold:module --parent=orders` asks only for the child's name). At the end it prints the equivalent command: the wizard only fills in the flags below, so the files are the same. Without a terminal (CI, an AI agent, `verify:scaffold`) nothing is ever asked — a missing argument is the usage error, as before.
+There are two ways to run the same generator: the **wizard**, which asks, and **flags**, which you type. The wizard only fills in the flags, so both write exactly the same files — at the end it prints the command that does the same without it (plan D36).
 
-**With flags** (repeatable, and what an AI agent runs):
+#### The wizard
+
+| Command | Starts with |
+|---|---|
+| `bun run scaffold` (no arguments) | the menu of the eight shapes |
+| `bun run scaffold:module` | the menu of the five module shapes |
+| `bun run scaffold:partner` · `bun run scaffold:webhook` · `bun run scaffold:integration` | the first question of that kind (no menu) |
+
+Arguments already on the command line are not asked again: `bun run scaffold:module --parent=orders` asks only for the child's name, `bun run scaffold webhook payment-receipts` only for the vendor and the institution.
+
+| Shape (menu label) | Questions, in order |
+|---|---|
+| Module — standalone · Module — record (append-only) | name (plural) → singular |
+| Module — header + detail | name → singular → detail name (`items` pre-filled) → detail singular |
+| Module — dependent 1:N / 1:1 of an existing module | parent (a list of the modules that can be one) → the parent's singular, only when it cannot be derived (`people`) → child name, created as `<parent singular>-<name>` → singular |
+| Partner endpoint | name → singular |
+| Vendor webhook receiver | name → singular → vendor → institution (the vendor's title pre-filled) |
+| Outbound vendor integration | vendor → institution |
+
+Then the plan (every file it creates and edits), **Write these files?** (default No), the files, the next steps and the equivalent command. A session:
+
+```text
+◇  What do you want to scaffold?
+│  Module — dependent 1:N of an existing module
+◇  Parent module
+│  products
+◇  Child (1:N) name, plural — created as product-<name>
+│  reviews
+◇  Singular of "reviews"
+│  review
+Scaffolding dependent module product-reviews in src/modules/products/product-reviews/ (1:N, /products/:productId/reviews)
+  create src/database/schema/domain/product-reviews.schema.ts
+  …
+  edit   src/app.ts — register productReviewsParentRouter on /products/:productId/reviews and productReviewsRouter on /product-reviews
+◇  Write these files?
+│  Yes
+Next steps: …
+Same result without the wizard:
+  bun run scaffold module reviews --parent=products
+```
+
+- **Keys**: ↑ / ↓ and Enter choose an option; Enter on a pre-filled answer (a suggested singular, `items`, the institution) keeps it, or edit it first.
+- **Grey `e.g. …` text is only an example**, never the answer: type your own value.
+- **A wrong answer is rejected on the spot** with the reason — not kebab-case, a name already used by a module or a vendor, a dependent's prefixed name already taken. A name that does not look plural (`product`) offers its plural or keeps it as an irregular plural with a typed singular.
+- **Cancel**: answer No, or press Ctrl+C / Esc at any question — nothing is written (`cancelled: nothing was written`, exit 1).
+- **Without a terminal** (CI, an AI agent, `verify:scaffold`) nothing is ever asked: a missing argument is the usage error. The one exception is `SCAFFOLD_WIZARD_STDIN=1`, set only by `bun run acceptance`, which answers the real wizard through a pipe ([manual-acceptance.md](manual-acceptance.md)); never set it by hand.
+
+#### With flags
+
+Repeatable, scriptable, and what an AI agent runs:
 
 ```bash
 bun run scaffold module products --dry-run                 # print the plan, write nothing

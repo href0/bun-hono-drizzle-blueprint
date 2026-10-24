@@ -32,6 +32,40 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 - **The wizard**: started with `SCAFFOLD_WIZARD_STDIN=1`, the one switch that lets a program answer it through a pipe (`scripts/scaffold.ts`); the runner waits for each question, moves to the option by its label, types, presses Enter, answers No, presses Ctrl+C.
 - **Services (stage C)**: PostgreSQL and Redis from `TEST_DATABASE_URL` / `TEST_REDIS_*`, or the local development settings on a developer machine only — the same rules as `bun run test:int` ([testing.md](testing.md), `scripts/lib/test-services.ts`). Not reachable (or `--no-db`) → stage C is skipped with the reason. Each combination gets its own database `<name>_acceptance_c<n>` (marked by a comment) and Redis prefix.
 - **Cleanup**: the server, the database and the Redis keys of a combination go when it ends — also after a failure and on Ctrl+C; the Docker images right after they are built. The work folder is removed when everything passed and kept otherwise (`--keep` always). A new run removes what earlier runs left (only folders and databases this runner names and marks).
+- **AI agents** run it with `--combo` (no menu without a terminal). It creates and drops its own databases on the local PostgreSQL: ask the developer first, as for any database command ([database.md](database.md) §4).
+
+**What you see** (a terminal; the running line counts up in place, then turns into the result):
+
+```text
+Combination 1 — new project: setup removes the examples (default)
+  [ 1/24] A  Clone the commit under test into the work folder .......... ✓ 2s
+  [ 2/24] A  bun install ............................................... ✓ 5s
+  [ 3/24] A  bun run setup (the combination) ........................... ✓ 2s
+  [ 4/24] A  Gates of the new project: validate:full + build ........... ⠹ 31s running
+```
+
+```text
+Combination                                                 Stage A  Stage B  Stage C  Stage D  Total
+----------------------------------------------------------  -------  -------  -------  -------  -----
+1 — new project: setup removes the examples (default)       ✓ 54s    ✓ 1m02s  ✓ 4s     ✓ 19s    2m19s
+2 — setup --keep-examples: generators next to the examples  ✓ 56s    ✓ 1m06s  ✓ 4s     ✓ 19s    2m24s
+
+All passed. Work folder removed.
+```
+
+A failing step instead (its combination stops; the next one still runs; the work folder is kept):
+
+```text
+  [16/24] B  Gates with every generated module: validate:full + build ... ✗ 46s
+    expected: `bun run validate:full` succeeds
+    actual:   exit 1 (the log lines below)
+    │ [Setup] Error: example modules out of sync with the codebase:
+    │ …
+    full log: …\_acceptance\acceptance-20261024-0857\combo-2\logs\16-B.log
+  [17/24] C  Database: create, db:migrate, seed:admin .................. -  (an earlier step failed)
+```
+
+The estimates in the menu and `--plan` are rough: a run takes a few minutes per combination, depending on the machine.
 
 ## 3. Steps
 
