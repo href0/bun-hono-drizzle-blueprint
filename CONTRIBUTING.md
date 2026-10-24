@@ -32,6 +32,7 @@ Violations are caught automatically: the pre-commit and pre-push hooks block the
 | Outbound integrations | [integrations.md](docs/standards/integrations.md) | Calling a vendor |
 | Bootstrap | [bootstrap.md](docs/standards/bootstrap.md) | `src/app.ts`, `src/index.ts`, middleware order |
 | Testing | [testing.md](docs/standards/testing.md) | Writing tests, the integration suite |
+| Acceptance run | [manual-acceptance.md](docs/standards/manual-acceptance.md) | Before a release; after changing setup, scaffolding, migrations or the `Dockerfile` |
 | New module or adapter | [new-module.md](docs/standards/new-module.md) | Creating a module, endpoint, webhook receiver or vendor adapter |
 | Git workflow | [git-workflow.md](docs/standards/git-workflow.md) | Branches, commit messages, pull requests |
 | Documentation | [documentation.md](docs/standards/documentation.md) | Changing a standard or any document |

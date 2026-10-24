@@ -6,12 +6,8 @@
  *   bun run test:int --keep-db    # keep the database afterwards (debugging)
  *   bun run test:int --dry-run    # print the targets a run would use, touch nothing
  *
- * Services come from TEST_DATABASE_URL (an existing database on the test server, e.g.
- * `postgresql://postgres:postgres@localhost:5432/postgres` — the runner only creates and drops
- * databases from it) and TEST_REDIS_HOST / TEST_REDIS_PORT / TEST_REDIS_PASSWORD / TEST_REDIS_DB.
- * Unset, they fall back to DATABASE_URL / REDIS_* — only on a developer machine (NODE_ENV
- * development or test) and only when those point at this machine, so neither a remote server nor
- * a server whose own PostgreSQL runs on localhost (a VPS) is ever used by accident.
+ * Services: TEST_DATABASE_URL + TEST_REDIS_* (or the local development settings on a developer
+ * machine only) — scripts/lib/test-services.ts.
  *
  * Every run is disposable: CREATE DATABASE <name>_it_<run> → `bun test` with the preload
  * test/integration/setup.ts (real migrations from drizzle/, test-only fixture tables) → DROP
@@ -19,10 +15,16 @@
  * DEL, never FLUSH*). The development database and the developer's keys are never touched.
  */
 import { readdirSync } from 'node:fs';
-import Redis from 'ioredis';
 import postgres from 'postgres';
+import {
+  databaseBaseOf,
+  deleteRedisKeys,
+  env,
+  resolveServices,
+  type RedisTarget,
+  type ServiceTargets,
+} from './lib/test-services';
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const INTEGRATION_DIR = 'test/integration';
 
 const fail = (message: string): never => {
@@ -30,88 +32,26 @@ const fail = (message: string): never => {
   process.exit(1);
 };
 
-const env = (name: string): string | undefined => {
-  const value = process.env[name]?.trim();
-  return value === '' ? undefined : value;
-};
-
-type RedisTarget = Omit<Targets['redis'], 'keyPrefix'> & { source: 'TEST_REDIS_*' | 'REDIS_*' };
-
-/**
- * Redis of the run: every setting from TEST_REDIS_* when TEST_REDIS_HOST is set, otherwise every
- * setting from REDIS_* (developer machine, localhost only) — never a mix, so a local password or
- * port never travels to another server.
- */
-const resolveRedis = (developerMachine: boolean): RedisTarget => {
-  const prefix = env('TEST_REDIS_HOST') === undefined ? 'REDIS' : 'TEST_REDIS';
-  if (prefix === 'REDIS' && !(developerMachine && LOCAL_HOSTS.has(env('REDIS_HOST') ?? ''))) {
-    fail(
-      'set TEST_REDIS_HOST (REDIS_HOST is not on this machine, not set, or NODE_ENV is not development/test)',
-    );
-  }
-  return {
-    source: prefix === 'REDIS' ? 'REDIS_*' : 'TEST_REDIS_*',
-    host: env(`${prefix}_HOST`) ?? '',
-    port: Number(env(`${prefix}_PORT`) ?? 6379),
-    password: env(`${prefix}_PASSWORD`) ?? '',
-    db: Number(env(`${prefix}_DB`) ?? 0),
-  };
-};
-
-interface Targets {
-  /** Where the disposable database is created from (never written to). */
-  adminUrl: URL;
+interface Targets extends ServiceTargets {
   /** `<databaseBase>_it_<run>`: the prefix of every disposable database of this project. */
   databaseBase: string;
   databaseUrl: URL;
   databaseName: string;
-  databaseSource: 'TEST_DATABASE_URL' | 'DATABASE_URL';
-  redis: { host: string; port: number; password: string; db: number; keyPrefix: string };
-  redisSource: RedisTarget['source'];
+  redis: RedisTarget & { keyPrefix: string };
 }
 
 const resolveTargets = (runId: string): Targets => {
-  const nodeEnv = env('NODE_ENV');
-  if (nodeEnv === 'production') fail('refusing to run with NODE_ENV=production');
-
-  const adminSource = env('TEST_DATABASE_URL') ?? env('DATABASE_URL');
-  const fromDevelopment = env('TEST_DATABASE_URL') === undefined;
-  if (adminSource === undefined) fail('set TEST_DATABASE_URL (see scripts/test-integration.ts)');
-  // The development settings are a fallback only on a developer machine: a server whose
-  // PostgreSQL also runs on localhost (a VPS) but whose NODE_ENV is missing must not qualify.
-  const developerMachine = nodeEnv === 'development' || nodeEnv === 'test';
-  if (fromDevelopment && !developerMachine) {
-    fail(
-      `NODE_ENV is ${nodeEnv ?? 'not set'}: the DATABASE_URL / REDIS_* fallback needs NODE_ENV=development or test — set TEST_DATABASE_URL and TEST_REDIS_HOST instead`,
-    );
-  }
-  const adminUrl = new URL(adminSource ?? '');
-  if (fromDevelopment && !LOCAL_HOSTS.has(adminUrl.hostname)) {
-    fail(
-      `DATABASE_URL points at ${adminUrl.hostname}, not this machine: set TEST_DATABASE_URL to a test server`,
-    );
-  }
-
-  const { source: redisSource, ...redis } = resolveRedis(developerMachine);
-
-  const baseName = decodeURIComponent(adminUrl.pathname.slice(1)) || 'app';
-  // PostgreSQL identifiers: at most 63 bytes; keep the name plain so it never needs quoting tricks.
-  const databaseBase = baseName
-    .replace(/[^a-z0-9_]/gi, '_')
-    .slice(0, 40)
-    .toLowerCase();
+  const services = resolveServices(fail);
+  const databaseBase = databaseBaseOf(services.adminUrl);
   const databaseName = `${databaseBase}_it_${runId}`;
-  const databaseUrl = new URL(adminUrl);
+  const databaseUrl = new URL(services.adminUrl);
   databaseUrl.pathname = `/${databaseName}`;
-
   return {
-    adminUrl,
+    ...services,
     databaseBase,
     databaseUrl,
     databaseName,
-    databaseSource: fromDevelopment ? 'DATABASE_URL' : 'TEST_DATABASE_URL',
-    redis: { ...redis, keyPrefix: `${env('APP_NAME') ?? 'app'}:int-test:${runId}` },
-    redisSource,
+    redis: { ...services.redis, keyPrefix: `${env('APP_NAME') ?? 'app'}:int-test:${runId}` },
   };
 };
 
@@ -121,31 +61,6 @@ const integrationFiles = (filters: string[]): string[] =>
     .filter((file) => filters.length === 0 || filters.some((filter) => file.includes(filter)))
     .sort()
     .map((file) => `./${INTEGRATION_DIR}/${file}`);
-
-/** Deletes the run's keys one by one (SCAN + DEL); FLUSH* would hit everyone sharing the Redis. */
-const deleteRedisKeys = async (redis: Targets['redis']): Promise<number> => {
-  const client = new Redis({
-    host: redis.host,
-    port: redis.port,
-    password: redis.password || undefined,
-    db: redis.db,
-    lazyConnect: true,
-    maxRetriesPerRequest: 1,
-  });
-  try {
-    await client.connect();
-    let cursor = '0';
-    let deleted = 0;
-    do {
-      const [next, keys] = await client.scan(cursor, 'MATCH', `${redis.keyPrefix}:*`, 'COUNT', 500);
-      cursor = next;
-      if (keys.length > 0) deleted += await client.del(...keys);
-    } while (cursor !== '0');
-    return deleted;
-  } finally {
-    client.disconnect();
-  }
-};
 
 /** Runs interrupted before their DROP leave a database behind; older than this, it is dropped. */
 const STALE_AFTER_MS = 60 * 60 * 1000;
@@ -228,10 +143,12 @@ const main = async (): Promise<void> => {
       console.log(`[test:int] database ${targets.databaseName} dropped`);
     }
     await admin.end();
-    const deleted = await deleteRedisKeys(targets.redis).catch((error: unknown) => {
-      console.error(`[test:int] Redis cleanup failed: ${String(error)}`);
-      return 0;
-    });
+    const deleted = await deleteRedisKeys(targets.redis, targets.redis.keyPrefix).catch(
+      (error: unknown) => {
+        console.error(`[test:int] Redis cleanup failed: ${String(error)}`);
+        return 0;
+      },
+    );
     console.log(
       `[test:int] ${String(deleted)} Redis key(s) under ${targets.redis.keyPrefix}: deleted`,
     );

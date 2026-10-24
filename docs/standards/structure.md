@@ -134,13 +134,17 @@ scripts/
 ├── scaffold.ts                  # `bun run scaffold <module|partner|webhook|integration> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: runs the scaffold CLI for every template, then every gate
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
+├── acceptance.ts                # `bun run acceptance`: per setup combination a fresh clone through setup, every scaffold variant (the wizard answered by the runner), a database, a server, HTTP, Docker (manual-acceptance.md)
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing
 ├── openapi.ts                   # `bun run openapi:check` / `openapi:update`: the API contract snapshot (docs/api/openapi.json)
+├── lib/acceptance.ts            # The acceptance stages A–D as data, the wizard driver, the run of a combination (+ lib/acceptance.test.ts)
+├── lib/acceptance-progress.ts   # What the acceptance run shows: live step line, heartbeat, summary table (+ lib/acceptance-progress.test.ts)
 ├── lib/api-contract/            # Contract engine: document.ts (generation with a fixed config + module of each route), flatten.ts, compare.ts (labels; + compare.test.ts), report.ts, markdown.ts (docs/api/*.md; + markdown.test.ts)
 ├── lib/git-hooks.ts             # Are the Husky hooks active (core.hooksPath)? bun run setup warns when not (+ lib/git-hooks.test.ts)
 ├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
+├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup
 ├── lib/scaffold-wizard.ts       # The scaffold wizard (plan D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```

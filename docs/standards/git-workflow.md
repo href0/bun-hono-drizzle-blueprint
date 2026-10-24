@@ -14,7 +14,7 @@ Read this file when: creating a branch, writing a commit message, or preparing a
 
 1. Branch `chore/release-vX.Y.Z` from `main`. Version: **MAJOR** when a derived project must change its own code to take the release (a repository base, an envelope, an environment variable renamed or removed), **MINOR** for a new capability, **PATCH** for a fix.
 2. The skill `update-version` sets `package.json` from the branch name and writes the `CHANGELOG.md` entry — what changed **for a derived project**, per area, with the steps a MAJOR release needs.
-3. Pull request → CI green → merge into `main`.
+3. `bun run acceptance --combo a` on the release commit ([manual-acceptance.md](manual-acceptance.md)), then pull request → CI green → merge into `main`.
 4. Tag only the merge commit on `main`, after CI on `main` is green: `git tag -a vX.Y.Z -m "vX.Y.Z"`, then `git push origin vX.Y.Z`. A tag is never moved; a fix is the next PATCH.
 
 ### 1.2 Taking boilerplate updates in a derived project

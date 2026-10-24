@@ -39,7 +39,7 @@ Show the user the derived identity and the files that will change:
 | Database | `<project_name>_db` |
 | README title | `<Project Name>` |
 
-Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`), `src/modules/projects` (a parent with its dependents `project-tasks/` 1:N and `project-budgets/` 1:1) and the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are).
+Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`), `src/modules/projects` (a parent with its dependents `project-tasks/` 1:N and `project-budgets/` 1:1) and the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are). Either way `lint:setup` afterwards checks the project identity only: the examples are the project's own code from then on.
 
 Ask for confirmation before continuing.
 

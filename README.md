@@ -73,6 +73,7 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Mengubah kontrak API (route, DTO) | `bun run openapi:check` menampilkan perubahan (BREAKING / safe / docs) → review → `bun run openapi:update` — [docs/standards/openapi.md](docs/standards/openapi.md) §6 |
 | Menjalankan quality gates (`bun run validate:full`) dan perintah lain | [docs/standards/quality-gates.md](docs/standards/quality-gates.md) |
 | Melihat struktur direktori | [docs/standards/structure.md](docs/standards/structure.md) |
+| Menguji jalur developer baru sebelum rilis (clone → setup → semua varian scaffold, wizard dijawab otomatis → HTTP) | `bun run acceptance` — [docs/standards/manual-acceptance.md](docs/standards/manual-acceptance.md) |
 | Men-deploy ke server (image Docker, konfigurasi production, migrasi) | [docs/deployment.md](docs/deployment.md) |
 | Memahami keputusan arsitektur | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Aturan untuk AI agent | [.agents/AGENTS.md](.agents/AGENTS.md) |

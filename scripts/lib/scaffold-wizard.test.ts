@@ -41,6 +41,7 @@ const scripted = (...answers: Answer[]) => {
   const asked: string[] = [];
   const rejected: string[] = [];
   const offered: string[][] = [];
+  const placeholders: string[] = [];
   const next = (message: string): Answer => {
     asked.push(message);
     const answer = answers.shift();
@@ -57,6 +58,7 @@ const scripted = (...answers: Answer[]) => {
       return Promise.resolve(choice.value);
     },
     text: (question: TextQuestion) => {
+      if (question.placeholder !== undefined) placeholders.push(question.placeholder);
       for (;;) {
         const answer = next(question.message);
         const value = answer === ENTER ? (question.initial ?? '') : answer;
@@ -70,7 +72,7 @@ const scripted = (...answers: Answer[]) => {
       return Promise.resolve(true);
     },
   };
-  return { prompter, asked, rejected, offered, left: answers };
+  return { prompter, asked, rejected, offered, placeholders, left: answers };
 };
 
 const complete = (draft: Partial<ScaffoldRequest>, ...answers: Answer[]) => {
@@ -204,9 +206,11 @@ describe('scaffold wizard: one path per shape', () => {
 
   for (const [label, answers, expected, command] of cases) {
     it(`${label}: asks, then prints the command that writes the same files`, async () => {
-      const { request, left } = await complete({}, ...answers);
+      const { request, left, placeholders } = await complete({}, ...answers);
       expect(request).toEqual(expected);
       expect(left).toEqual([]);
+      // Drawn like typed text with the cursor on it: a bare example is taken for an answer.
+      expect(placeholders.filter((text) => !text.startsWith('e.g. '))).toEqual([]);
       expect(commandOf(request)).toBe(command);
       expect(parseScaffoldArgs(toArgv(request)).request).toEqual(request);
       expect(filesOfCommand(request)).toEqual(planScaffold(request, ROOT).files);

@@ -13,6 +13,7 @@
     "test:unit": "bun test src/",
     "test:e2e": "bun test test/",
     "test:int": "bun scripts/test-integration.ts",
+    "acceptance": "bun scripts/acceptance.ts",
     "test:cov": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov && bun scripts/check-coverage.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test scripts --max-warnings 0",

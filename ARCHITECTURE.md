@@ -357,6 +357,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R78 | Every route documents what it sends — its success message(s) (`response.message`, the controller's constant) and every error code (`errors`, platform middlewares document their own); under `NODE_ENV=test` a response that disagrees fails the tests, and every code matches `ERROR_CATALOG`. The integrator documents `docs/api/*.md` are generated from the same document (one per module, never hand-written) | [tsc] [test:contract-guard] [test:openapi.e2e] [test:error-catalog] [test:markdown] [script:openapi:check] |
 | R79 | The deployment path works: both images of the `Dockerfile` build (dependencies installed without lifecycle scripts), the `tools` image migrates a real PostgreSQL, and the production image starts with production settings and reports `healthy` ([docs/deployment.md](docs/deployment.md)) | [ci:docker] |
 | R80 | The documentation portal builds: every synced document is in the sidebar and no internal link or anchor is broken | [ci:docs] [script:docs:build] |
+| R81 | A release passes the acceptance run (`bun run acceptance --combo a`: per setup combination a fresh clone → setup → every scaffold variant, the wizard answered by the runner → gates → database → server → HTTP → images); its document lists exactly the runner's steps | [test:docs-sync] [review-only] — it needs real services and minutes, so CI does not run it |
 
 ---
 

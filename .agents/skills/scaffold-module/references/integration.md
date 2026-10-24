@@ -25,7 +25,7 @@ Add one entry to `INTEGRATION_REGISTRY` — the key is the code sent as `error.o
 
 ### Step 2: Create the vendor config (`src/config/<name>.config.ts`)
 
-One config group per vendor. Credentials are required outside tests (fail fast at startup); tests get harmless defaults because they never reach the real vendor. Add every variable to `.env.example` (and the plan's env registry, L1).
+One config group per vendor. Credentials are required outside tests (fail fast at startup); tests get harmless defaults because they never reach the real vendor. Add every variable to `.env.example`, under a section of its own.
 
 ```typescript
 import { z } from 'zod';

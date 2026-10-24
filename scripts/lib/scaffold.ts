@@ -446,7 +446,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
         appendExport(CONFIG_BARREL, `export ./${names.name}.config`, `./${names.name}.config`),
       ],
       nextSteps: [
-        `Add ${envVarsOf(files).join(', ')} to .env.example (and the plan's env registry, L1).`,
+        `Add ${envVarsOf(files).join(', ')} to .env.example, under a section of their own.`,
         `Replace the example endpoints and payloads in src/integrations/${names.name}/ with the vendor's documented API.`,
         `Consume ${names.camelSingular}Service from a domain service (constructor default) and document 502/504 on its routes.`,
       ],
@@ -511,7 +511,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
         registryEntry(vendor.upper, request.institution ?? titleOf(vendor.kebab)),
       ],
       nextSteps: [
-        `Add ${envVarsOf(files).join(', ')} to .env.example (and the plan's env registry, L1); empty secret = every webhook 401.`,
+        `Add ${envVarsOf(files).join(', ')} to .env.example, under a section of their own; empty secret = every webhook 401.`,
         `Replace the placeholder signature scheme in src/integrations/${vendor.kebab}/${vendor.kebab}.webhook.ts with exactly the vendor's documented one, and the payload schema with the vendor's.`,
         `Adjust the domain processing in src/modules/${names.name}/${names.name}.service.ts.`,
       ],
