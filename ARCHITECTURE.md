@@ -16,9 +16,9 @@ This document explains **what and why** for every architectural decision. **How*
 | Cache, logging, configuration, bootstrap | [cache.md](docs/standards/cache.md), [logging.md](docs/standards/logging.md), [configuration.md](docs/standards/configuration.md), [bootstrap.md](docs/standards/bootstrap.md) |
 | Outbound integrations, OpenAPI, testing | [integrations.md](docs/standards/integrations.md), [openapi.md](docs/standards/openapi.md), [testing.md](docs/standards/testing.md) |
 | Naming, new modules, git | [naming.md](docs/standards/naming.md), [new-module.md](docs/standards/new-module.md), [git-workflow.md](docs/standards/git-workflow.md) |
-| Frontend and partner guides | [docs/auth-guide.md](docs/auth-guide.md), [docs/partner-integration-guide.md](docs/partner-integration-guide.md) |
-| Adoption plan and decision log (D0…) | [docs/plans/2026-10-04-blueprint-adoption-plan.md](docs/plans/2026-10-04-blueprint-adoption-plan.md) |
-| Original NestJS blueprint (archive, not maintained) | [docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md](docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) |
+| Frontend, partner and deployment guides | [docs/auth-guide.md](docs/auth-guide.md), [docs/partner-integration-guide.md](docs/partner-integration-guide.md), [docs/deployment.md](docs/deployment.md) |
+| Adoption plan and decision log — `D13`, `L3`, "plan step 2.5" in comments and documents refer to it | [docs/plans/2026-10-04-blueprint-adoption-plan.md](docs/plans/2026-10-04-blueprint-adoption-plan.md) |
+| Finished plans and the original NestJS blueprint (history, not maintained) | [docs/archive/](docs/archive/) |
 
 Every rule is referenced by its ID in [§12 Rule Index & Enforcers](#12-rule-index--enforcers) (`R01`, `R02`, …), which names **the machine that rejects a violation**.
 
@@ -196,7 +196,7 @@ Hermetic by default — `bun test` never touches a developer's database or Redis
 
 ## 10. Quality Gates
 
-pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`). Local hooks can be skipped, CI cannot. New modules come from one generator, `bun run scaffold` (D31), which reads the `scaffold-module` templates — the only copy of template code; `verify:scaffold` runs that CLI for every variant and every gate, so neither the templates nor the CLI can fall behind the code (R67). Developers and agents use the same command: conventions hold without an AI agent, and an agent spends its effort on the domain, not on boilerplate. Detail: [quality-gates.md](docs/standards/quality-gates.md).
+pre-commit (lint-staged, tsc, ls-lint) → commit-msg (commitlint) → pre-push (`validate:full`) → CI (job `verify`: everything again + build + `verify:scaffold`; job `integration`: `test:int`; job `docker`: images, migration, healthy container; job `docs`: the portal). Local hooks can be skipped, CI cannot. New modules come from one generator, `bun run scaffold` (D31), which reads the `scaffold-module` templates — the only copy of template code; `verify:scaffold` runs that CLI for every variant and every gate, so neither the templates nor the CLI can fall behind the code (R67). Developers and agents use the same command: conventions hold without an AI agent, and an agent spends its effort on the domain, not on boilerplate. Detail: [quality-gates.md](docs/standards/quality-gates.md).
 
 ---
 
@@ -355,6 +355,8 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R76 | The API contract is the reviewed snapshot `docs/api/openapi.json`: `openapi:check` fails on any difference (labelled BREAKING / safe / docs, asymmetric for request and response); only a developer runs `openapi:update` — never a hook, CI or the scaffold CLI | [script:openapi:check] [test:compare] [test:api-contract] [ci:verify] [script:verify:scaffold] |
 | R77 | CI re-runs every local gate: each gate of `validate:full` is its own step of the CI job `verify` (`lint:branch` replaced by `validate-branch-name -t <head_ref>`: a pull request is a detached checkout) | [test:ci-gates] |
 | R78 | Every route documents what it sends — its success message(s) (`response.message`, the controller's constant) and every error code (`errors`, platform middlewares document their own); under `NODE_ENV=test` a response that disagrees fails the tests, and every code matches `ERROR_CATALOG`. The integrator documents `docs/api/*.md` are generated from the same document (one per module, never hand-written) | [tsc] [test:contract-guard] [test:openapi.e2e] [test:error-catalog] [test:markdown] [script:openapi:check] |
+| R79 | The deployment path works: both images of the `Dockerfile` build (dependencies installed without lifecycle scripts), the `tools` image migrates a real PostgreSQL, and the production image starts with production settings and reports `healthy` ([docs/deployment.md](docs/deployment.md)) | [ci:docker] |
+| R80 | The documentation portal builds: every synced document is in the sidebar and no internal link or anchor is broken | [ci:docs] [script:docs:build] |
 
 ---
 
@@ -376,6 +378,6 @@ Tooling configuration is **not** copied here; the files at the repository root a
 | `commitlint.config.ts` | Conventional Commits (types, header length) | commit-msg, CI |
 | `.validate-branch-namerc.json` | `<type>/<slug>` + environment branches | `bun run lint:branch`, CI |
 | `.prettierrc`, `.prettierignore` | Format `*.ts` (Markdown excluded) | `bun run format:check` |
-| `.github/workflows/ci.yml` | Jobs `verify` + `integration` | GitHub Actions |
+| `.github/workflows/ci.yml` | Jobs `verify`, `integration`, `docker`, `docs` | GitHub Actions |
 | `drizzle.config.ts` | Migrations from the `public` schema | `bun run db:generate` |
 | `.claude/settings.json`, `.claude/hooks/protect-env.mjs` | `.env` protection for Claude Code | Claude Code |

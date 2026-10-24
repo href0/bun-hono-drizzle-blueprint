@@ -88,25 +88,27 @@ const document = {
 };
 const owners = new Map([
   ['POST /api/v1/projects', 'projects'],
-  ['GET /api/v1/projects/{projectId}/tasks', 'projects/tasks'],
+  ['GET /api/v1/projects/{projectId}/tasks', 'projects/project-tasks'],
 ]);
 
 describe('renderContractMarkdown', () => {
   const files = renderContractMarkdown(document, owners);
 
   it('writes the index and one file per module, dependents in their parent subfolder', () => {
-    expect([...files.keys()]).toEqual(['README.md', 'projects.md', 'projects/tasks.md']);
+    expect([...files.keys()]).toEqual(['README.md', 'projects.md', 'projects/project-tasks.md']);
     expect(files.get('README.md')).toContain(
-      '- [projects](projects.md) — 1 endpoint\n  - [tasks](projects/tasks.md) — 1 endpoint',
+      '- [projects](projects.md) — 1 endpoint\n  - [project-tasks](projects/project-tasks.md) — 1 endpoint',
     );
     expect(files.get('README.md')).toContain('### `GET /`');
     expect(files.get('README.md')).toContain('| `ERR_CONFLICT` | 409 | `CONFLICT` |');
   });
 
   it('links parent and child both ways with paths relative to each file', () => {
-    expect(files.get('projects.md')).toContain('- [projects/tasks](projects/tasks.md)');
-    expect(files.get('projects/tasks.md')).toContain(
-      '[Kontrak API](../README.md) › [projects](../projects.md) › tasks',
+    expect(files.get('projects.md')).toContain(
+      '- [projects/project-tasks](projects/project-tasks.md)',
+    );
+    expect(files.get('projects/project-tasks.md')).toContain(
+      '[Kontrak API](../README.md) › [projects](../projects.md) › project-tasks',
     );
   });
 
@@ -122,7 +124,7 @@ describe('renderContractMarkdown', () => {
     expect(projects).toContain('"status_code": 201');
     expect(projects).toContain('| 409 | `ERR_CONFLICT` |');
     expect(projects).toContain('"field": "name"');
-    const tasks = files.get('projects/tasks.md') ?? '';
+    const tasks = files.get('projects/project-tasks.md') ?? '';
     expect(tasks).toContain(`GET /api/v1/projects/0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e/tasks`);
   });
 

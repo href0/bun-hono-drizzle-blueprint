@@ -1,5 +1,12 @@
+# Two images from one build (deployment guide: docs/deployment.md):
+#   docker build -t app .                    # runner: the API only, production dependencies
+#   docker build --target tools -t app-tools .  # one-off jobs: db:migrate, seed:admin, auth:purge-tokens
+#
+# Dependencies are installed with --ignore-scripts: the root `prepare` script runs husky, a
+# devDependency that is absent from a production install (and there is no .git in the image).
+
 # -------------------------------------------------------------------
-# Stage 1: Base Image & Dependencies
+# Stage 1: Base Image
 # -------------------------------------------------------------------
 FROM oven/bun:1.3-alpine AS base
 WORKDIR /app
@@ -9,10 +16,24 @@ WORKDIR /app
 # -------------------------------------------------------------------
 FROM base AS dependencies
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # -------------------------------------------------------------------
-# Stage 3: Production Runtime
+# Stage 3: Tools (migrations, seeding, maintenance) — all dependencies, scripts, drizzle config
+# -------------------------------------------------------------------
+FROM base AS tools
+ENV TZ=UTC
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --ignore-scripts
+COPY tsconfig.json drizzle.config.ts ./
+COPY src ./src
+COPY drizzle ./drizzle
+COPY scripts ./scripts
+USER bun
+CMD ["bun", "run", "db:migrate"]
+
+# -------------------------------------------------------------------
+# Stage 4: Production Runtime (default target)
 # -------------------------------------------------------------------
 FROM base AS runner
 WORKDIR /app

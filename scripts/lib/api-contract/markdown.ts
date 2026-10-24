@@ -2,7 +2,7 @@
  * Renders the API contract (the same OpenAPI document as the snapshot) as Indonesian Markdown for
  * integrators (plan D35): `docs/api/README.md` (index, envelopes, every error code, the Platform
  * routes) and one file per module named after its folder — dependent modules in their parent's
- * subfolder (`docs/api/projects/tasks.md`). Pure and deterministic: the same document gives the
+ * subfolder (`docs/api/projects/project-tasks.md`). Pure and deterministic: the same document gives the
  * same bytes, which `openapi:check` compares.
  */
 // Pure modules only (no configuration): this file is imported before the contract env is set.
@@ -215,7 +215,7 @@ const operationsOf = (document: Json): Operation[] =>
 
 const keyOf = ({ method, path }: Operation): string => `${method.toUpperCase()} ${path}`;
 
-/** Path relative to `docs/api/` of a module's file (`users.md`, `projects/tasks.md`). */
+/** Path relative to `docs/api/` of a module's file (`users.md`, `projects/project-tasks.md`). */
 const fileOf = (module: string): string => `${module}.md`;
 /** Link from one file in `docs/api/` to another. */
 const linkBetween = (from: string, to: string): string => {

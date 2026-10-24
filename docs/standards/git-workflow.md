@@ -10,6 +10,21 @@ Read this file when: creating a branch, writing a commit message, or preparing a
 - Enforced by `.validate-branch-namerc.json` — `bun run lint:branch` (pre-push) and the CI job `verify`.
 - This boilerplate repository uses `main` + one branch per step (plan D0); derived projects may use `development → staging → prod` (skill `update-version`).
 
+### 1.1 Releasing this boilerplate
+
+1. Branch `chore/release-vX.Y.Z` from `main`. Version: **MAJOR** when a derived project must change its own code to take the release (a repository base, an envelope, an environment variable renamed or removed), **MINOR** for a new capability, **PATCH** for a fix.
+2. The skill `update-version` sets `package.json` from the branch name and writes the `CHANGELOG.md` entry — what changed **for a derived project**, per area, with the steps a MAJOR release needs.
+3. Pull request → CI green → merge into `main`.
+4. Tag only the merge commit on `main`, after CI on `main` is green: `git tag -a vX.Y.Z -m "vX.Y.Z"`, then `git push origin vX.Y.Z`. A tag is never moved; a fix is the next PATCH.
+
+### 1.2 Taking boilerplate updates in a derived project
+
+A derived project keeps the boilerplate as the remote `upstream` (skill `init-project`, step 7). A full `git merge upstream/main` conflicts by design: `bun run setup` regenerated the migrations and removed the example modules. Instead:
+
+1. `git fetch upstream --tags`, then read `CHANGELOG.md` of the new tag (`git show vX.Y.Z:CHANGELOG.md`).
+2. Port each change you want on a branch of your own: `git cherry-pick <commit>` for platform changes (`src/core`, `src/database` bases, `scripts/`, `docs/standards/`), resolving conflicts in files you changed; never take the example modules or `drizzle/` of the boilerplate — generate your own migration (`bun run db:generate`) when a platform table changed.
+3. Run the gates (`bun run validate:full`, `bun run build`, `bun run test:int`) before merging.
+
 ## 2. Commit messages (Conventional Commits)
 
 ```

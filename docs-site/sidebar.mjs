@@ -17,6 +17,7 @@ export const SIDEBAR = [
       { label: 'Project Structure', slug: 'standards/structure' },
       { label: 'Configuration & Environment', slug: 'standards/configuration' },
       { label: 'Bootstrap Pipeline', slug: 'standards/bootstrap' },
+      { label: 'Deployment Guide', slug: 'guides/deployment' },
     ],
   },
   {

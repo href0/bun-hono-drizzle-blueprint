@@ -76,6 +76,11 @@ const PAGES: Page[] = [
     slug: 'guides/partner-integration-guide',
     description: 'Panduan teknis integrasi partner gateway dan HMAC signing v1',
   },
+  {
+    source: 'docs/deployment.md',
+    slug: 'guides/deployment',
+    description: 'Image Docker, konfigurasi production, migrasi, health check',
+  },
   ...standards.map((file) => ({
     source: `docs/standards/${file}`,
     slug: `standards/${file.replace(/\.md$/, '')}`,

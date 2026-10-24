@@ -26,7 +26,9 @@ Read this file when: running checks before finishing a change (definition of don
       ├─ job verify       → branch name + commitlint (PR) → typecheck → lint → ls-lint → format:check
       │                     → depcruise → knip → lint:setup → openapi:check → unit + e2e tests + coverage gate → build
       │                     → verify:scaffold
-      └─ job integration  → bun run test:int (PostgreSQL 16 + Redis 7 service containers)
+      ├─ job integration  → bun run test:int (PostgreSQL 16 + Redis 7 service containers)
+      ├─ job docker       → build runner + tools images → migrate with tools → runner healthy (R79)
+      └─ job docs         → bun run docs:build (sidebar, astro build, link check) (R80)
 ```
 
 Local hooks can be skipped with `--no-verify`; CI runs everything again, branch name and commit messages included — every gate of `validate:full` as its own step, so a failure names its gate (`test/ci-gates.test.ts` fails when a gate added to `validate` has no CI step; `lint:branch` is the one replaced, by `validate-branch-name -t <head_ref>`, because a pull request is checked out detached). `bun test` (and so `test:cov`) runs every `*.test.ts` — unit tests in `src/` and `scripts/`, e2e and guard tests in `test/`; `test:unit` / `test:e2e` are only local shortcuts. `bun run test:int` is deliberately **not** in pre-push (it needs PostgreSQL + Redis): run it yourself before finishing a change to repositories or repository bases, transactions, migrations, auth, the partner gateway or the cache — the CI job `integration` runs it on every push. Run `bun run verify:scaffold` after changing a scaffold template, the scaffold CLI (`scripts/scaffold.ts`, `scripts/lib/scaffold.ts`) or a core API the templates use (errors, response, middlewares, dto, i18n, openapi, database, http).
@@ -84,7 +86,7 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 | `bun run auth:purge-tokens [--days N]` | Deletes expired refresh tokens | Schedule daily |
 | `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Signs a partner request (signing v1) and prints headers + curl, or sends it; secret from a hidden prompt / stdin | Testing `/api/v1/partner/*` or helping a partner match a signature |
 | `bun run docs:dev` | Syncs the documents into `docs-site/` and serves the portal at `http://localhost:4321` (first run: `bun install` inside `docs-site/`) | Previewing documentation as a web page |
-| `bun run docs:build` | Syncs, builds the static portal (Astro Starlight + Pagefind) and fails on a broken internal link or anchor (`docs-site/check-links.ts`); deployed only by the manual workflow `deploy-docs.yml` | After adding or renaming a document; before publishing the portal |
+| `bun run docs:build` | Syncs, builds the static portal (Astro Starlight + Pagefind) and fails on a broken internal link or anchor (`docs-site/check-links.ts`); checked by the CI job `docs`, deployed only by the manual workflow `deploy-docs.yml` | After adding or renaming a document; before publishing the portal |
 
 ## 4. Definition of done (every change)
 
