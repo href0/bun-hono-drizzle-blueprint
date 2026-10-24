@@ -66,7 +66,7 @@ const pascal = (kebab: string): string =>
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
-const camel = (kebab: string): string => {
+export const camel = (kebab: string): string => {
   const value = pascal(kebab);
   return value.charAt(0).toLowerCase() + value.slice(1);
 };

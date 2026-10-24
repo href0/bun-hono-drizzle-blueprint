@@ -1,7 +1,7 @@
 # Implementation Plan: Interactive Documentation Portal (Astro Starlight)
 
 **Tanggal**: 2026-10-14 (direvisi 2026-10-16)  
-**Status**: SELESAI — menunggu review (di luar urutan rencana blueprint, dikerjakan sebelum Step 7.4b)  
+**Status**: SELESAI — direview dan di-merge (di luar urutan rencana blueprint, dikerjakan sebelum Step 7.4b); diarsipkan di Step 7.4e  
 **Target Engine**: Astro Starlight  
 **Target Deployment**: GitHub Actions ke GitHub Pages, **manual** (`workflow_dispatch`)  
 **Target URL**: `https://<github-user>.github.io/<repo-name>/` (base path diambil otomatis dari `actions/configure-pages`)  

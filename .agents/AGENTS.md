@@ -14,9 +14,9 @@ Before reporting a change as finished, follow the `finish-change` skill: the gat
 
 ---
 
-## Active Work Plan
+## Work Plans
 
-Ongoing work follows `docs/plans/2026-10-04-blueprint-adoption-plan.md`. Execute exactly one step at a time, meet its Definition of Done (§14.1), report with the review template (§14.2), then STOP for review. Record progress, findings and any deviation in its log (§4.1) and progress table (§5).
+Larger work follows a plan in `docs/plans/`. While one is active, execute exactly one step at a time, meet its definition of done, report with its review template, then STOP for review. Record progress, findings and any deviation in its log and progress table. Finished plans move to `docs/archive/`: they are the decision history — an ID such as `D13` or "plan step 2.5" in a comment points there.
 
 **Never commit or merge until the user explicitly asks.** The user reviews every change first: finish a step with the changes left in the working tree plus a suggested commit message (skill `generate-commit-text`). Creating a branch is fine; committing and merging are not.
 

@@ -15,6 +15,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import {
+  camel,
   parseScaffoldArgs,
   planScaffold,
   readScaffoldArgs,
@@ -92,56 +93,65 @@ const refusals = (plan: ScaffoldPlan, request: ScaffoldRequest): string[] => {
 const textOf = (path: string): string =>
   existsSync(resolve(ROOT, path)) ? readFileSync(resolve(ROOT, path), 'utf8') : '';
 
-/** What the wizard offers: taken names, and the modules a dependent can attach to (see parentProblems). */
-const wizardContext = (): WizardContext => ({
-  modules: [...folders('src/modules'), ...nestedModules().map((module) => module.name)],
-  vendors: folders('src/integrations'),
-  parents: folders('src/modules').filter(
-    (name) =>
-      textOf(`src/database/schema/domain/${name}.schema.ts`).includes('softDelete()') &&
-      !textOf(`src/modules/${name}/${name}.repository.ts`).includes('DependentRepository'),
-  ),
-});
+/** What the wizard offers: taken names, and the modules a dependent can attach to (parentModuleProblems). */
+const wizardContext = (): WizardContext => {
+  const nested = nestedModules();
+  return {
+    modules: [...folders('src/modules'), ...nested.map((module) => module.name)],
+    vendors: folders('src/integrations'),
+    parents: folders('src/modules').filter(
+      (name) => parentModuleProblems(name, camel(name), nested).length === 0,
+    ),
+  };
+};
 
 /**
- * A dependent module needs a parent that exists, is soft-deletable (its children are hidden through
- * `deleted_at`) and is not a dependent itself (two levels at most, plan D33); its route segment
- * under the parent must be free.
+ * A dependent module needs a parent that exists, exports its table, is soft-deletable (its children
+ * are hidden through `deleted_at`) and is not a dependent itself (two levels at most, plan D33). The
+ * wizard offers only the modules that pass, so a parent it lists is never refused afterwards.
  */
+const parentModuleProblems = (
+  name: string,
+  camelPlural: string,
+  nested: { parent: string; name: string }[],
+): string[] => {
+  const nestedParent = nested.find((module) => module.name === name);
+  if (nestedParent) {
+    return [
+      `parent "${name}" is itself a dependent module (src/modules/${nestedParent.parent}/${name}/): two levels at most (plan D33) — attach to "${nestedParent.parent}" instead`,
+    ];
+  }
+  const schemaPath = `src/database/schema/domain/${name}.schema.ts`;
+  const schema = textOf(schemaPath);
+  if (!folders('src/modules').includes(name) || schema === '') {
+    return [
+      `parent "${name}" not found: --parent names an existing module (src/modules/${name}/ and ${schemaPath}) — create it first, e.g. bun run scaffold module ${name}`,
+    ];
+  }
+  const problems: string[] = [];
+  if (!schema.includes(`export const ${camelPlural} = appTable(`)) {
+    problems.push(
+      `${schemaPath} does not export the table "${camelPlural}" (irregular plural? use --parent-singular=<name>)`,
+    );
+  } else if (!schema.includes('softDelete()')) {
+    problems.push(
+      `parent "${name}" has no softDelete(): a dependent hides its rows through the parent's deleted_at — the parent must be a standalone or header table`,
+    );
+  }
+  if (textOf(`src/modules/${name}/${name}.repository.ts`).includes('DependentRepository')) {
+    problems.push(
+      `parent "${name}" is itself a dependent module: two levels at most (plan D33) — attach to its parent instead`,
+    );
+  }
+  return problems;
+};
+
+/** The parent's own checks, then the child's route segment under it must be free. */
 const parentProblems = (
   { names, segment }: NonNullable<ScaffoldPlan['parent']>,
   nested: { parent: string; name: string }[],
 ): string[] => {
-  const nestedParent = nested.find((module) => module.name === names.name);
-  if (nestedParent) {
-    return [
-      `parent "${names.name}" is itself a dependent module (src/modules/${nestedParent.parent}/${names.name}/): two levels at most (plan D33) — attach to "${nestedParent.parent}" instead`,
-    ];
-  }
-  const schemaPath = `src/database/schema/domain/${names.name}.schema.ts`;
-  const schema = textOf(schemaPath);
-  if (!folders('src/modules').includes(names.name) || schema === '') {
-    return [
-      `parent "${names.name}" not found: --parent names an existing module (src/modules/${names.name}/ and ${schemaPath}) — create it first, e.g. bun run scaffold module ${names.name}`,
-    ];
-  }
-  const problems: string[] = [];
-  if (!schema.includes(`export const ${names.camelPlural} = appTable(`)) {
-    problems.push(
-      `${schemaPath} does not export the table "${names.camelPlural}" (irregular plural? use --parent-singular=<name>)`,
-    );
-  } else if (!schema.includes('softDelete()')) {
-    problems.push(
-      `parent "${names.name}" has no softDelete(): a dependent hides its rows through the parent's deleted_at — the parent must be a standalone or header table`,
-    );
-  }
-  if (
-    textOf(`src/modules/${names.name}/${names.name}.repository.ts`).includes('DependentRepository')
-  ) {
-    problems.push(
-      `parent "${names.name}" is itself a dependent module: two levels at most (plan D33) — attach to its parent instead`,
-    );
-  }
+  const problems = parentModuleProblems(names.name, names.camelPlural, nested);
   const taken =
     textOf(`src/modules/${names.name}/${names.name}.routes.ts`).includes(`'/:id/${segment}`) ||
     textOf('src/app.ts').includes(`/${names.name}/:${names.camelSingular}Id/${segment}'`);

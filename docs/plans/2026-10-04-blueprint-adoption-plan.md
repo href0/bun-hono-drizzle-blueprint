@@ -2,7 +2,7 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — **Fase 0–6 + Review 11 + Step 7.1–7.4d selesai** (7.4d di branch `feat/scaffold-wizard` @ `67041a1`, uji TTY manual menyusul di 7.4f); berikutnya 7.4e (Review 12 + perbaikan) → 7.4f (skenario uji terima manual, D37) → 7.5 (release check v1.0.0). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
+| Status | IN PROGRESS — **Fase 0–6 + Review 11 + Step 7.1–7.4d selesai** (7.4d di branch `feat/scaffold-wizard` @ `67041a1`, uji TTY manual menyusul di 7.4f); berikutnya 7.4e (Review 12 + perbaikan, 👀 menunggu review + CI `docker` / `docs`) → 7.4f (skenario uji terima manual, D37) → 7.5 (release check v1.0.0). Catatan progres di [Bagian 4.1](#41-log-keputusan--progres) |
 | Tanggal | 2026-10-04 |
 | Basis kode | branch `main` @ `a99f82e` |
 | Sumber | [`docs/archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md`](../archive/ARCHITECTURE_BLUEPRINT_FROM_NESTJS.md) (NestJS + Drizzle, proyek pemerintahan; dipindah ke arsip di Step 7.1) |
@@ -593,7 +593,7 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-13 | 7.4b–7.4c | **Keputusan user (diskusi sebelum 7.5, rekomendasi agent):** kontrak API dijaga snapshot yang di-commit + `openapi:check` / `openapi:update` (D34) dan didokumentasikan sebagai Markdown per endpoint yang di-generate (D35). Rincian yang disepakati: (a) `openapi:update` hanya dijalankan developer secara sadar — hook, CI dan `scaffold` tidak pernah menulis snapshot; `setup` satu-satunya pengecualian (baseline proyek baru); (b) `check` gagal untuk perubahan apa pun, label `BREAKING` hanya menunjukkan tingkat seriusnya; `update` menolak `BREAKING` tanpa `--allow-breaking` (selaras R19: breaking di `/v1` → pertimbangkan `/v2`); (c) field request yang dihapus = `BREAKING` (R12 menolak key tak dikenal → client lama mendapat 400) dan nilai enum response yang ditambah = `BREAKING`; (d) Markdown di-generate, bukan ditulis tangan (alasan R17), berbahasa Indonesia; (e) error code per route + pesan sukses per route ikut 7.4c, dicocokkan di `NODE_ENV=test`; (f) dipecah 7.4b (snapshot, diff, gate) dan 7.4c (Markdown, code, pesan), keduanya sebelum 7.5 sehingga v1.0.0 = baseline kontrak pertama | Belum ada dokumen kontrak per endpoint yang di-commit: hanya Scalar runtime, contoh envelope generik (`http-contract.md` §4) dan panduan naratif (`auth-guide.md`, `partner-integration-guide.md`) |
 | 2026-10-13 | 7.4c | **Keputusan user (penamaan file kontrak):** satu file per **modul** (bukan per tag OpenAPI), dinamai folder modulnya — stabil walau judul tag diganti. Modul dependent: file sendiri di **subfolder parent** mengikuti `src/` (`docs/api/projects/tasks.md`; opsi C, dipilih dari A datar `tasks.md` dan B prefix `projects.tasks.md` — titik di repo ini bermakna peran), sejalan dengan keputusan subfolder di 7.3b. Route di luar modul (`GET /`) → bagian **Platform** di `docs/api/README.md` (bukan `platform.md`). Route tanpa modul asal yang dikenal → generator gagal | Nama file tidak bisa bentrok: nama modul unik di seluruh `src/modules/` (`test/structure.test.ts`) |
 | 2026-10-16 | sisipan sebelum 7.4b | **Deviasi (inisiatif user, di luar urutan rencana): test hashing lebih cepat.** `src/core/security/password.ts` (`hashPassword` / `verifyPassword`): argon2id default Bun di semua environment, biaya murah (`m=256 KiB, t=1`) hanya saat `NODE_ENV=test` — diukur ~117 ms → ~0,9 ms per hash, verify ~123 ms → ~0,2 ms; suite 970 test ≈ 6,7 s. Dummy hash login memakai helper yang sama, jadi waktu respons email tak dikenal tetap setara. Semua pemanggil (service, `seed-admin`, test e2e/int) pindah ke helper; **R75** baru `[eslint:no-restricted-properties]` (`Bun.password` hanya di `password.ts`; `no-restricted-properties` dipilih agar tidak bertabrakan dengan grup `no-restricted-syntax`) + `auth-and-inbound.md`. Review agent membatalkan dua bagian draft: `LOG_LEVEL=silent` (nilai baru di schema produksi) → hermetic env memakai `fatal` (sesuai `logging.md`); loop rate-limit `platform.e2e` dikembalikan (bukti fail-open setelah melewati `RATE_LIMIT_MAX`; diukur 0,6 s per file, bukan penyebab lambat). `test:unit` tanpa `--coverage` (angka parsial menyesatkan) | Hash default menghabiskan ~120 ms per pemanggilan di test auth/users/seed |
-| 2026-10-16 | sisipan sebelum 7.4b | **Deviasi (inisiatif user): portal dokumentasi web** `docs-site/` (Astro Starlight 0.42, Pagefind) — rencana terpisah [2026-10-14-interactive-docs-portal-plan.md](2026-10-14-interactive-docs-portal-plan.md). Hasil review agent pada draft: 115 link `.md` rusak, judul H1 ganda, tanpa `base` (semua aset 404 di GitHub Pages), URL GitHub tebakan (repo belum punya remote), angka hardcode di halaman depan, `favicon.svg` hilang. Diperbaiki: `sync-docs.ts` menulis ulang link (portal relatif / GitHub `blob` di Actions / teks biasa lokal), membuang H1, gagal bila sumber hilang atau sidebar (`sidebar.mjs`) tidak cocok; `check-links.ts` di `docs:build` (chaos: link + anchor palsu → exit 1); workflow hanya manual (Pages selalu publik — keputusan user), `site` / `base` dari `actions/configure-pages`; dibuktikan build lokal dan `DOCS_BASE=/demo-repo`. `docs/auth-guide.md` ikut di-sync. **Nomor rule untuk 7.4b bergeser ke R76** | Membaca standar lewat Markdown di editor kurang nyaman |
+| 2026-10-16 | sisipan sebelum 7.4b | **Deviasi (inisiatif user): portal dokumentasi web** `docs-site/` (Astro Starlight 0.42, Pagefind) — rencana terpisah [2026-10-14-interactive-docs-portal-plan.md](../archive/2026-10-14-interactive-docs-portal-plan.md). Hasil review agent pada draft: 115 link `.md` rusak, judul H1 ganda, tanpa `base` (semua aset 404 di GitHub Pages), URL GitHub tebakan (repo belum punya remote), angka hardcode di halaman depan, `favicon.svg` hilang. Diperbaiki: `sync-docs.ts` menulis ulang link (portal relatif / GitHub `blob` di Actions / teks biasa lokal), membuang H1, gagal bila sumber hilang atau sidebar (`sidebar.mjs`) tidak cocok; `check-links.ts` di `docs:build` (chaos: link + anchor palsu → exit 1); workflow hanya manual (Pages selalu publik — keputusan user), `site` / `base` dari `actions/configure-pages`; dibuktikan build lokal dan `DOCS_BASE=/demo-repo`. `docs/auth-guide.md` ikut di-sync. **Nomor rule untuk 7.4b bergeser ke R76** | Membaca standar lewat Markdown di editor kurang nyaman |
 | 2026-10-16 | sisipan sebelum 7.4b | **Keputusan user: nama template = `bun-hono-drizzle-blueprint`** (remote `origin` = `github.com/href0/bun-hono-drizzle-blueprint`, belum di-push). "starter" dinilai terlalu sederhana untuk template dengan arsitektur yang ditegakkan mesin; "backend" tidak dimasukkan ke nama (tersirat dari stack, nama jadi terlalu panjang) — cukup di deskripsi + topics GitHub. Identitas default diganti di semua `IDENTITY_RULES`: `package.json` / `bun.lock`, `APP_NAME` (`.env.example`, `app.config.ts`, docker fallback), database `bun_hono_drizzle_blueprint_db`, judul README + portal; skill `init-project` mengikuti. Judul hero `index.mdx` ditambahkan ke `IDENTITY_RULES`. File env lokal developer tidak disentuh (masih nama lama sampai diubah sendiri) | Nama repo harus dipilih sebelum push pertama |
 | 2026-10-16 | 7.4c | **Keputusan user (sebelum 7.4b):** Markdown kontrak dari 7.4c ikut tampil di portal `docs-site/` sebagai grup sidebar **API Reference** yang di-generate dari isi `docs/api/` (bukan didaftar tangan di `sidebar.mjs`; dijaga `check-links.ts`). Tanpa halaman Scalar di portal — Scalar runtime `/api/docs` sudah ada. Tugas kecil terpisah (nanti): konten portal lebih lebar (`customCss`, `--sl-content-width`, sel tabel boleh turun baris) | Agar portal lengkap: standar (cara menulis) + kontrak (apa yang tersedia) |
 | 2026-10-16 | 7.4b | **Engine kontrak** `scripts/lib/api-contract/`: `document.ts` (`buildContractDocument` — mengosongkan semua kunci `.env.example` + `RENAMED_ENV_VARS`, mengisi `CONTRACT_ENV` tetap, baru meng-import `src/app` secara dinamis lalu `createApp().request('/api/docs/openapi.json')`; `info` diganti nilai tetap; `serializeDocument` = key terurut), `flatten.ts` (fakta per lokasi, `$ref` di-resolve, `X \| null` = satu node `nullable`, union = anak `<i>`, `allOf` digabung, keyword tak dikenal disimpan sebagai `x:<keyword>`), `compare.ts` (`compare` + `classify`), `report.ts`. CLI `scripts/openapi.ts check \| update [--allow-breaking]`. Snapshot pertama `docs/api/openapi.json` (±510 KB, 39 path). Deterministik: `APP_NAME` / `API_BASE_PATH` lain di env → sha snapshot sama; `.gitattributes` memaksa LF sehingga perbandingan byte aman di Windows | — |
@@ -625,6 +625,12 @@ Catatan kronologis: keputusan, temuan, penyimpangan dari rencana, penundaan, dan
 | 2026-10-24 | 7.4d | User meng-commit 7.4d (`67041a1`, branch `feat/scaffold-wizard`). Acceptance "Batal / jawaban N" di terminal asli dipindah ke skenario manual 7.4f | — |
 | 2026-10-24 | 7.4f | **Usulan user**: skenario pengecekan manual lewat CLI, dari clone repo sampai simulasi generate semua scaffold (**D37**). **Keputusan user**: dokumen tetap (`docs/standards/manual-acceptance.md`), dijalankan sebagai Step 7.4f setelah 7.4e, dikerjakan berdua (agent: langkah non-interaktif; user: wizard TTY). Step 7.5 menjalankan ulang skenario yang sama untuk rilis | — |
 | 2026-10-24 | 7.4f | **Keputusan user (revisi D37)**: skenario dijalankan lewat CLI — **runner `bun run acceptance` + dokumen** (langkah otomatis dijalankan, langkah wizard dipandu lalu diperiksa runner; `--no-tty` untuk agent); runner **tidak** masuk CI (cukup sebelum rilis; CI sudah punya `verify:scaffold` + `test:int`) | — |
+| 2026-10-24 | 7.4e | **Keputusan user (A1, revisi)**: plan **diarsipkan, bukan dihapus** — 135 rujukan `plan D13` / "plan step 2.5" di 80 file (komentar, test, standar, skill) akan menunjuk ke kekosongan bila plan dihapus. Plan selesai pindah ke `docs/archive/` (plan portal sekarang, plan adopsi di 7.5) dan tetap ada di proyek turunan sebagai riwayat keputusan; `setup` tidak menghapus apa pun dari `docs/`. `AGENTS.md` "Active Work Plan" → aturan umum **"Work Plans"** (plan aktif di `docs/plans/`, satu step, DoD, STOP; plan selesai = arsip, ID `D13` menunjuk ke sana); `ARCHITECTURE.md` / README §3 / `documentation.md` / `structure.md` menjelaskan arti ID tersebut. Komentar "adoption plan §4.1" tidak diubah (tetap terjawab lewat arsip) | Diubah dari rencana 7.4e langkah 2 (`setup` menghapus `docs/plans/` + `docs/archive/`) |
+| 2026-10-24 | 7.4e | **A2 — temuan baru: image Docker tidak bisa di-build sama sekali**: `bun install --production` menjalankan script root `prepare` (`husky`), padahal husky devDependency → `error: prepare script … exited with 1` (direproduksi lokal; Docker Desktop mati). Perbaikan: `--ignore-scripts` di kedua install. **Penyimpangan (perincian)**: selain dokumen, `Dockerfile` mendapat stage **`tools`** (semua dependency + `scripts/` + `drizzle.config.ts`) → migrasi, `seed:admin` dan `auth:purge-tokens` dijalankan sebagai container sekali jalan dari build yang sama, bukan "dari host / CI" — image runner tetap ramping. Dokumen **`docs/deployment.md`** (Indonesia): dua image, env production (yang ditolak saat start), urutan deploy (migrasi sebelum versi baru, kompatibel dengan kode lama), health check, job terjadwal, log. Job CI **`docker`**: build kedua image → migrasi PostgreSQL service dengan image tools → image runner `NODE_ENV=production` sampai `healthy` + readiness 200. Diuji lokal sejauh tanpa Docker: install production tanpa script lulus, aplikasi production lolos validasi config dan berhenti di pre-flight DB (sesuai desain), `drizzle-kit check` jalan dari install `--ignore-scripts`. **Belum terverifikasi**: build image dan job `docker` itu sendiri (terbukti saat CI pertama di branch ini) | Rule **R79** `[ci:docker]` |
+| 2026-10-24 | 7.4e | **A3**: `git-workflow.md` §1.1 — rilis boilerplate di `chore/release-vX.Y.Z` (aturan MAJOR / MINOR / PATCH dari sudut proyek turunan), skill `update-version` (versi dari nama branch; versi sama = rilis pertama, hanya changelog; `CHANGELOG.md` pertama = ringkasan per area), PR → CI → merge → tag di commit merge `main` setelah CI hijau. **A4**: §1.2 + skill `init-project` (remote **`upstream`**) + README §3 — `git merge upstream/main` pasti konflik (setup membuat ulang migrasi, contoh dihapus) → baca `CHANGELOG.md` tag baru, `cherry-pick` perubahan platform, migrasi sendiri, gate. Verifikasi identitas `init-project` dipersempit dari `:!docs/` ke `:!docs/plans/ :!docs/archive/` (identitas yang bocor ke `docs/standards/` sekarang tertangkap). **B6** checkbox 0.3 + 2.8; **B7** plan portal → `docs/archive/`, status selesai; **B8** 42 hash §5 dipetakan ulang ke `main` lewat subjek commit (semua 1:1; hash di log 4.1 tetap hash asli pra-rebase); **B9** 7.5: native atau compose, plan diarsipkan, rilis menurut §1.1; **B10** komentar + fixture `markdown.test.ts` pakai `projects/project-tasks`; **B11** job CI **`docs`** (`docs:build`) + `site` default `http://localhost:4321` (warning sitemap hilang; warning `i18n` bawaan Starlight tetap, tidak berbahaya) | Rule **R80** `[ci:docs] [script:docs:build]` |
+| 2026-10-24 | 7.4e | **Review ulang 7.4d**: (1) daftar calon parent wizard memakai salinan sebagian aturan `parentProblems` (soft delete + bukan dependent, **tanpa** cek tabel diekspor) → dua sumber untuk satu aturan; dipecah menjadi `parentModuleProblems()` yang dipakai wizard dan CLI (hasil hari ini sama: orders, partner-credentials, projects, users). Tidak ada test unit untuk daftar ini (ada di `scripts/scaffold.ts`, yang menjalankan `main` saat di-import) — dibuktikan oleh skenario 7.4f. (2) Temuan kecil di luar 7.4d: log startup mencetak `env` dua kali (`"env":"production","env":"production"`) karena base logger sudah membawanya → dihapus dari dua baris log di `src/index.ts`. Lain-lain diperiksa, tanpa temuan: validasi wizard ↔ `refusals()`, Ctrl+C di `confirm`, `--dry-run` dalam wizard, argumen parsial webhook | — |
+| 2026-10-24 | 7.4e | **Verifikasi**: `validate:full` 1049 test (coverage 99.69% / 98.55%), `build`, `verify:scaffold` (pohon kerja dipulihkan), `docs:build` 37 halaman tanpa link rusak. Salinan repo + perubahan → `bun run setup demo-backend` → contoh dihapus, `AGENTS.md` tanpa plan adopsi, `validate` + `docs-sync` hijau. **Chaos test**: label `[ci:dockr]` → `docs-sync` gagal; halaman deploy hilang dari sidebar → `sync-docs` gagal (`Add to docs-site/sidebar.mjs: guides/deployment`); install tanpa `--ignore-scripts` → exit 1, dengan → exit 0. Insiden saat chaos: pemulihan dengan `git checkout` sempat membuang edit sidebar yang belum di-commit; dikembalikan dari backup yang dibuat sebelum chaos | — |
+| 2026-10-24 | 7.4e | **Job `docker` diulang lokal** (Docker Desktop dinyalakan user; Postgres 16 + Redis 7 sebagai container sekali pakai di network sendiri, bukan layanan native user): image runner (218 MB) dan tools (410 MB) ter-build; `docker run <tools>` = `drizzle-kit migrate` → 10 tabel; runner `NODE_ENV=production` → `healthy` ±6 detik, readiness / health 200 (database + redis `UP`), `/api/docs` 404 (mati di production), log tanpa `env` ganda. Langkah panduan deploy lain: `seed:admin` lewat image tools (password dari stdin) → login lewat runner 200; `auth:purge-tokens` lewat image tools jalan. **Chaos**: salinan Dockerfile dengan install production tanpa `--ignore-scripts` → `docker build` gagal (`husky: not found`). Container, network dan image uji dihapus. Job CI `docs` = `docs:build` yang sudah hijau lokal; kedua job tetap dicentang setelah CI pertama | — |
 
 ---
 
@@ -651,50 +657,50 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 
 | Step | Judul | Status | Bergantung pada | Commit |
 |---|---|---|---|---|
-| 0.1 | Baseline commit | ✅ | — | `df3c0da` |
-| 0.2 | Review rencana & keputusan | ✅ | 0.1 | `e6fd8af` |
-| 0.3 | Paritas quality gate (ESLint, coverage, knip, hooks, CI) | ✅ | 0.2 | `9e0b75a` |
-| 1.1 | Konfigurasi per grup + `parseEnv` | ✅ | 0.3 | `159cae2` |
-| 1.2 | Request context, request ID, logger mixin | ✅ | 1.1 | `32d8661` |
-| 1.3 | Kontrak error + registry `APP_ERROR_CODES` | ✅ | 1.2 | `bd6c74e`, `dd2a7fd` |
-| 1.4 | i18n `id`/`en` | ✅ | 1.3 | `0ab188e` |
-| 1.5 | Kontrak request snake_case + DTO bersama | ✅ | 1.3 | `240d8fe` |
-| 1.6 | Ketahanan Redis & `CacheService` lanjutan | ✅ | 1.1 | `89d2e65` |
-| 1.7 | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅ | 1.2, 1.6 | `3028ac8` |
-| 1.8 | Health `UP`/`DEGRADED`/`DOWN` + base path | ✅ | 1.6 | `0f2dae5` |
-| 1.9 | Dokumentasi OpenAPI | ✅ | 1.5 | `ce62029` |
-| 2.1 | Standar tanggal & waktu (Temporal) | ✅ | 0.3 | `d1aa11a` |
-| 2.2 | Schema proyek, column helpers, UUID v7, schema referensi | ✅ | 2.1 | `208a8d8` |
-| 2.3 | Test helper data layer | ✅ | 2.2 | `137295e` |
-| 2.4 | `record_changes` + `AuditedRepository` | ✅ | 1.2, 2.3 | `f2b0582`, `029fa98` |
-| 2.5 | `BaseRepository` + `ChildRepository` | ✅ | 2.4 | `0454fa8` |
-| 2.6 | Penegakan aturan data layer | ✅ | 2.5 | `7ba1de9` |
-| 2.7 | Test konvensi schema | ✅ | 2.5 | `43bfe53` |
-| 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `27d29dc` |
-| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `a29524f` |
-| 3.1 | Primitif keamanan & config auth | ✅ | 1.1 | `c49fe51` |
-| 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ✅ | 2.8 | `f50a2f8` |
-| 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `11087c7` |
-| 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `5491544` |
-| 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `17d8265` |
-| 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `b317346` |
-| 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `6ff27d1` |
-| 5.1 | Utilitas kripto & signing partner | ✅ | 0.3 | `614e9d1` |
-| 5.2 | Kredensial partner (schema + admin API) | ✅ | 5.1, 2.8, 3.4 | `2ba2423` |
-| 5.3 | Middleware `partnerAuth()` | ✅ | 5.2, 1.6 | `85e7c2a` |
-| 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ed556d6` |
-| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bb29912` |
-| 5.6 | Webhook vendor inbound | ✅ | 5.5, 4.2 | `9e1e166` |
-| 6.1 | Integration test (Postgres + Redis asli) | ✅ | 3.5, 5.6 | `f77a229` |
-| 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ✅ | 6.1 | `8c08e0a` |
-| 7.2 | Docs SSOT: `docs/standards/` (D32) | ✅ | 7.1 | `0379e66` |
-| 7.3 | CLI scaffolder `bun run scaffold` (D31) | ✅ | 7.2 | `9558db5` |
-| 7.3b | Modul dependent: anak dengan acuan parent (D33) | ✅ | 7.3 | `9ecd483` |
-| 7.4 | Finalisasi skills AI | ✅ | 7.3b | `a99f82e` |
+| 0.1 | Baseline commit | ✅ | — | `e984c8d` |
+| 0.2 | Review rencana & keputusan | ✅ | 0.1 | `c314faf` |
+| 0.3 | Paritas quality gate (ESLint, coverage, knip, hooks, CI) | ✅ | 0.2 | `3c8cf7d` |
+| 1.1 | Konfigurasi per grup + `parseEnv` | ✅ | 0.3 | `27c279d` |
+| 1.2 | Request context, request ID, logger mixin | ✅ | 1.1 | `23d63f1` |
+| 1.3 | Kontrak error + registry `APP_ERROR_CODES` | ✅ | 1.2 | `90962db`, `60734e4` |
+| 1.4 | i18n `id`/`en` | ✅ | 1.3 | `b58d986` |
+| 1.5 | Kontrak request snake_case + DTO bersama | ✅ | 1.3 | `0c3ab09` |
+| 1.6 | Ketahanan Redis & `CacheService` lanjutan | ✅ | 1.1 | `5785e90` |
+| 1.7 | Hardening platform (IP klien, body limit, CORS, rate limit) | ✅ | 1.2, 1.6 | `eb20c9f` |
+| 1.8 | Health `UP`/`DEGRADED`/`DOWN` + base path | ✅ | 1.6 | `aed2b58` |
+| 1.9 | Dokumentasi OpenAPI | ✅ | 1.5 | `3703f32` |
+| 2.1 | Standar tanggal & waktu (Temporal) | ✅ | 0.3 | `3981db5` |
+| 2.2 | Schema proyek, column helpers, UUID v7, schema referensi | ✅ | 2.1 | `bccfbb1` |
+| 2.3 | Test helper data layer | ✅ | 2.2 | `3778233` |
+| 2.4 | `record_changes` + `AuditedRepository` | ✅ | 1.2, 2.3 | `792aab3`, `bcf79ef` |
+| 2.5 | `BaseRepository` + `ChildRepository` | ✅ | 2.4 | `0279956` |
+| 2.6 | Penegakan aturan data layer | ✅ | 2.5 | `a2db775` |
+| 2.7 | Test konvensi schema | ✅ | 2.5 | `78982bc` |
+| 2.8 | Migrasi modul `users` + template scaffold | ✅ | 2.6, 2.7 | `59b2a73` |
+| 2.9 | Modul contoh header/detail + opsi hapus contoh di `init-project` | ✅ | 2.8 | `26c9ee8` |
+| 3.1 | Primitif keamanan & config auth | ✅ | 1.1 | `7e4768b` |
+| 3.2 | Schema auth (`role`, `auth_refresh_tokens`) | ✅ | 2.8 | `aa89458` |
+| 3.3 | Modul `auth` (login, refresh, logout, me) | ✅ | 3.1, 3.2, 1.7 | `5a640d7` |
+| 3.4 | `authenticate()` default-deny + `requireRole()` | ✅ | 3.3 | `da34700` |
+| 3.5 | Proteksi `users`, seed admin, panduan FE | ✅ | 3.4 | `1d69f5e` |
+| 4.1 | Hardening `HttpClientService` | ✅ | 1.3 | `c3783fd` |
+| 4.2 | Template integrasi & cache token vendor | ✅ | 4.1 | `894beec` |
+| 5.1 | Utilitas kripto & signing partner | ✅ | 0.3 | `9ae85ae` |
+| 5.2 | Kredensial partner (schema + admin API) | ✅ | 5.1, 2.8, 3.4 | `43fffaa` |
+| 5.3 | Middleware `partnerAuth()` | ✅ | 5.2, 1.6 | `54e73d5` |
+| 5.4 | Panduan integrasi partner | ✅ | 5.3 | `ff9abfc` |
+| 5.5 | Konvensi kanal inbound & penegakannya (D23–D28) | ✅ | 5.4 | `bcd15f4` |
+| 5.6 | Webhook vendor inbound | ✅ | 5.5, 4.2 | `00fb340` |
+| 6.1 | Integration test (Postgres + Redis asli) | ✅ | 3.5, 5.6 | `3d23c8f` |
+| 7.1 | `ARCHITECTURE.md` generik + sinkronisasi docs | ✅ | 6.1 | `72c9378` |
+| 7.2 | Docs SSOT: `docs/standards/` (D32) | ✅ | 7.1 | `76df82b` |
+| 7.3 | CLI scaffolder `bun run scaffold` (D31) | ✅ | 7.2 | `aa5fcce` |
+| 7.3b | Modul dependent: anak dengan acuan parent (D33) | ✅ | 7.3 | `f0d1d6d` |
+| 7.4 | Finalisasi skills AI | ✅ | 7.3b | `56d5337` |
 | 7.4b | Snapshot kontrak API: `openapi:check` / `openapi:update` (D34) | ✅ | 7.4 | `1831bd9` |
 | 7.4c | Kontrak API Markdown + error code & pesan per route (D35) | ✅ | 7.4b | `d756cbe`, `322c485` |
-| 7.4d | Wizard interaktif `bun run scaffold` + script per varian (D36) | 👀 | 7.4c |  |
-| 7.4e | Review 12: perbaikan sebelum release (+ review ulang 7.4d) | ⬜ | 7.4d |  |
+| 7.4d | Wizard interaktif `bun run scaffold` + script per varian (D36) | ✅ | 7.4c | `67041a1` |
+| 7.4e | Review 12: perbaikan sebelum release (+ review ulang 7.4d) | 👀 | 7.4d |  |
 | 7.4f | Runner uji terima `bun run acceptance`: clone → semua varian scaffold (D37) | ⬜ | 7.4e |  |
 | 7.5 | Release check boilerplate v1.0.0 | ⬜ | 7.4f |  |
 
@@ -746,7 +752,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 - [x] File sumber baru tanpa test → `test:cov` gagal dan menyebut nama filenya (`not loaded by any test`).
 - [x] Export yang tidak dipakai di mana pun → `knip` gagal.
 - [x] `bun run validate:full` hijau; coverage nyata (tanpa file test): lines 99.41%, functions 97.14%; `bun run build` sukses.
-- [ ] Workflow CI hijau pada PR pertama. _(belum — repo belum punya remote, lihat log)_
+- [x] Workflow CI hijau pada PR pertama. _(dicentang di Review 12: CI hijau sejak repo di GitHub, terakhir `1ba3428`)_
 
 ---
 
@@ -1100,7 +1106,7 @@ Legenda status: ⬜ belum · 🔄 dikerjakan · 👀 menunggu review · ✅ sele
 - [x] `users` memakai `BaseRepository` (+ `activeUniqueIndex` email, kolom audit & soft delete), endpoint `PATCH` / `DELETE` (soft) / `POST /:id/restore`, list berurutan `created_at DESC, id DESC` (G11); `eslint-disable` sementara dari 2.6 dihapus.
 - [x] Migrasi `0003` di-generate dan dijalankan ke DB lokal; siklus create → duplikat 409 → patch → patch tanpa perubahan → delete → email dipakai ulang → restore 409 → restore 200 → list diuji lewat server nyata ke PostgreSQL & Redis lokal; `record_changes` berisi UPDATE / SOFT_DELETE / SOFT_DELETE / RESTORE (tanpa baris untuk patch kosong & restore gagal); baris uji dihapus lagi.
 - [x] Template mandiri (`BaseRepository`, update / soft delete / restore) lolos `verify:scaffold`, yang kini juga menjalankan test konvensi schema terhadap tabel hasil template (chaos test: `.unique()` biasa di template → gagal).
-- [ ] ~~Modul contoh header/detail dibuat dari template~~ → dipindah ke Step 2.9.
+- [x] ~~Modul contoh header/detail dibuat dari template~~ → dipindah ke Step 2.9 (selesai di sana).
 
 ### Step 2.9 — Modul contoh header/detail + opsi hapus contoh di `init-project`
 
@@ -1539,10 +1545,10 @@ Tujuan: menutup gap docs ↔ skills ↔ rules ↔ CI yang ditemukan Review 12 (l
 
 **Acceptance criteria**
 
-- [ ] Setiap temuan A1–A4, B6–B11 dan temuan review ulang 7.4d ditutup, atau alasannya dicatat di 4.1.
-- [ ] Salinan repo + `bun run setup demo-backend`: `docs/plans/` dan `docs/archive/` tidak ada, tidak ada tautan / rujukan plan yang putus, `AGENTS.md` tidak menyebut plan adopsi, `validate` hijau.
-- [ ] Job CI `docker build` dan `docs:build` hijau.
-- [ ] `bun run validate:full`, `build`, `verify:scaffold`, `docs:build` hijau.
+- [x] Setiap temuan A1–A4, B6–B11 dan temuan review ulang 7.4d ditutup, atau alasannya dicatat di 4.1.
+- [x] Salinan repo + `bun run setup demo-backend`: `AGENTS.md` tidak menyebut plan adopsi (aturan umum "Work Plans"), rujukan `D13` / "plan step" terjelaskan lewat `ARCHITECTURE.md` (plan diarsipkan di 7.5, bukan dihapus — keputusan user, lihat 4.1), tidak ada tautan putus, `validate` hijau.
+- [ ] Job CI `docker` dan `docs` hijau. _(langkah job `docker` diulang lokal dan hijau, lihat 4.1; dicentang setelah CI pertama di branch ini)_
+- [x] `bun run validate:full` (1049 test), `build`, `verify:scaffold`, `docs:build` hijau.
 
 ### Step 7.4f — Skenario uji terima manual (D37)
 
@@ -1574,7 +1580,7 @@ Tujuan: membuktikan jalur developer baru dari nol — clone, setup, database, se
 
 ### Step 7.5 — Release check boilerplate v1.0.0
 
-**Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → jalankan `bun run acceptance` (7.4f, penuh di terminal asli) pada commit rilis; ringkasannya: clone bersih → `/init-project demo-backend` (baseline `docs/api/` tanpa endpoint contoh, `openapi:check` hijau) → `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run scaffold module <probe>` (+ dependent `--parent`) → `openapi:check` gagal → `openapi:update` → gate → `bun run build` → `docker build` + container `healthy` → `CHANGELOG.md` → tag `v1.0.0`.
+**Langkah**: hapus `docs/plans/from-nestjs-plan.md` (keputusan user 2026-10-08, lihat 4.1) → plan ini dipindah ke `docs/archive/` sebagai riwayat keputusan (A1, keputusan user 2026-10-24) dan tautannya diperbaiki (`docs-sync` / `docs:build` menunjuk yang putus; README §3 dan `ARCHITECTURE.md` menunjuk arsip) → jalankan `bun run acceptance` (7.4f, penuh di terminal asli) pada commit rilis; ringkasannya: clone bersih → `/init-project demo-backend` (baseline `docs/api/` tanpa endpoint contoh, `openapi:check` hijau) → PostgreSQL + Redis native **atau** `docker compose up -d` → migrasi → `bun run seed:admin` → `bun run dev` → smoke test (health, login, refresh, `/users`, partner ping) → `bun run scaffold module <probe>` (+ dependent `--parent`) → `openapi:check` gagal → `openapi:update` → gate → `bun run build` → job CI `docker` hijau (image + migrasi + container `healthy`, R79) → rilis menurut `git-workflow.md` §1.1: branch `chore/release-v1.0.0`, skill `update-version` (versi sudah `1.0.0`: hanya `CHANGELOG.md` pertama), PR, CI hijau, merge → tag `v1.0.0` (hanya atas permintaan user).
 
 **Acceptance criteria**
 

@@ -63,9 +63,9 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
 
 1. No leftover boilerplate identity (expect no output):
    ```bash
-   git grep -nE "bun-hono-drizzle-blueprint|bun_hono_drizzle_blueprint_db" -- ':!.agents/skills/init-project/' ':!docs/'
+   git grep -nE "bun-hono-drizzle-blueprint|bun_hono_drizzle_blueprint_db" -- ':!.agents/skills/init-project/' ':!docs/plans/' ':!docs/archive/'
    ```
-   (This skill names the defaults on purpose; `docs/` holds the plan and the archive, which quote them as history.)
+   (This skill names the defaults on purpose; `docs/plans/` and `docs/archive/` hold the boilerplate's plans and decision history, which quote them as history.)
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.
@@ -77,7 +77,7 @@ Offer the choices and act only on an explicit answer:
 
 | Option | Commands | When |
 |---|---|---|
-| Keep history, track boilerplate upstream (recommended) | `git remote rename origin boilerplate` then the user adds their own `origin` | Wants to pull future boilerplate improvements |
+| Keep history, track boilerplate upstream (recommended) | `git remote rename origin upstream` then the user adds their own `origin` | Wants to take future boilerplate improvements (`docs/standards/git-workflow.md` §1.2) |
 | Fresh history | the steps below | Wants a clean repository |
 | Leave as is | — | Will handle git manually |
 

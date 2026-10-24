@@ -53,7 +53,7 @@ export interface Contract {
   document: Record<string, unknown>;
   /**
    * The module that mounts each operation (`GET /api/v1/users/{id}` → `users`, dependent modules as
-   * `projects/tasks`); operations mounted by `src/app.ts` itself have no entry.
+   * `projects/project-tasks`); operations mounted by `src/app.ts` itself have no entry.
    */
   owners: ReadonlyMap<string, string>;
 }

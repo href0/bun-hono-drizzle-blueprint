@@ -16,9 +16,10 @@ Read this file when: placing a new file, adding an import between layers, or add
 │   ├── standards/               # The single source of every coding standard (this folder)
 │   ├── auth-guide.md            # For frontend developers (Indonesian)
 │   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts
+│   ├── deployment.md            # For whoever deploys (Indonesian): images, production config, migrations
 │   ├── api/                     # API contract: openapi.json snapshot + one Markdown per module (README.md index), written by bun run openapi:update after review, never by hand (R76, R78)
-│   ├── plans/                   # Adoption plan & decision log
-│   └── archive/                 # Original NestJS blueprint (not maintained)
+│   ├── plans/                   # Active work plans, if any (.agents/AGENTS.md "Work Plans")
+│   └── archive/                 # Finished plans = decision history (D0…), original NestJS blueprint (not maintained)
 ├── docs-site/                   # Interactive documentation portal (Astro Starlight)
 ├── drizzle/                     # Generated SQL migrations (drizzle-kit)
 ├── src/                         # §1.1

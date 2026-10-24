@@ -1,6 +1,6 @@
 ---
 name: update-version
-description: Bump package.json version and update CHANGELOG.md according to the branching strategy (hotfix, development, staging, prod). Use when asked to update or bump the version.
+description: Bump package.json version and update CHANGELOG.md according to the branching strategy (hotfix, development, staging, prod, boilerplate release branches). Use when asked to update or bump the version or to prepare a release.
 ---
 
 # Update Version
@@ -33,6 +33,7 @@ Apply the correct rule based on branch name:
 | Branch Pattern | Rule | Example |
 |---|---|---|
 | `hotfix/v*.x.x` | Extract version from branch name directly (strict pattern: `hotfix/v{MAJOR}.{MINOR}.{PATCH}`) | `hotfix/v1.0.1` → `1.0.1` |
+| `chore/release-v*.x.x` | A release of this boilerplate (`docs/standards/git-workflow.md` §1.1): extract the version from the branch name (strict pattern `chore/release-v{MAJOR}.{MINOR}.{PATCH}`); equal to the current version (the first release, `1.0.0`) → keep it and only write the changelog | `chore/release-v1.1.0` → `1.1.0` |
 | `development` | Bump MINOR +1, reset PATCH to 0 | `1.0.0` → `1.1.0` |
 | `feat/*`, `fix/*`, `refactor/*`, or any feature branch | Do NOT change version. Skip to step 6 (add entries to `[Unreleased]`). |
 | `staging` | Do NOT change version. Inform user: "On staging branch — version should already be set from dev merge." Stop here. |
@@ -69,6 +70,8 @@ bun install
 ### 6. Update CHANGELOG.md
 
 Update `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) standards with sections for `Added`, `Changed`, `Fixed`, and `Removed`.
+
+No `CHANGELOG.md` yet (the first release): create it with the Keep a Changelog header and one section for this version that summarizes **what the project offers, per area** (HTTP contract, auth, data layer, inbound channels, integrations, tooling) — not a list of every commit. Later releases are built as below.
 
 Build the entries from the commits since the last release tag (`git describe --tags --abbrev=0`; no tag → the whole history): `git log <tag>..HEAD --pretty=format:"%s"`. Conventional Commit types map to sections — `feat` → Added, `fix` → Fixed, `refactor` / `perf` → Changed, removals → Removed; `docs`, `test`, `chore`, `ci`, `build` only when they matter to users of the project. One line per change, in plain words, without the commit hash.
 
