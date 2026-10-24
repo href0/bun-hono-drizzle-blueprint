@@ -298,6 +298,24 @@ const withoutLines = (content: string, block: string, replaceWith?: string): str
 };
 
 /**
+ * After `setup <name>` the examples are the project's own business: removed, or kept and changed
+ * around (a scaffolded webhook extends `WEBHOOK_VENDORS = [demoPayWebhook]`). `lint:setup` then
+ * checks IDENTITY_RULES only — EXAMPLE_MODULES guards the boilerplate, not a project — so a
+ * module named like an example (its own `orders`) or an edited registration is never drift.
+ */
+function stopGuardingExamples(rootDir: string): void {
+  const packagePath = resolve(rootDir, 'package.json');
+  const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+    scripts?: Record<string, string>;
+  };
+  const lintSetup = packageJson.scripts?.['lint:setup'];
+  if (packageJson.scripts && lintSetup && !lintSetup.includes('--keep-examples')) {
+    packageJson.scripts['lint:setup'] = `${lintSetup} --keep-examples`;
+    writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf-8');
+  }
+}
+
+/**
  * Removes the example modules, then regenerates the migrations from scratch. An example whose
  * files and registrations are all gone was removed by an earlier run (an initialized project): it
  * is skipped, and when every example is gone nothing is touched — the migrations of a real project
@@ -373,18 +391,7 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
       rmSync(resolve(rootDir, path), { recursive: true, force: true });
   }
   for (const [file, content] of pending) writeFileSync(resolve(rootDir, file), content, 'utf-8');
-
-  // The project has no examples left to guard: `lint:setup` keeps checking IDENTITY_RULES only, so a
-  // module the project later names like an example (e.g. its own `orders`) is not reported as drift.
-  const packagePath = resolve(rootDir, 'package.json');
-  const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
-    scripts?: Record<string, string>;
-  };
-  const lintSetup = packageJson.scripts?.['lint:setup'];
-  if (packageJson.scripts && lintSetup && !lintSetup.includes('--keep-examples')) {
-    packageJson.scripts['lint:setup'] = `${lintSetup} --keep-examples`;
-    writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf-8');
-  }
+  stopGuardingExamples(rootDir);
 
   const migrations = resolve(rootDir, 'drizzle');
   for (const entry of existsSync(migrations) ? readdirSync(migrations) : []) {
@@ -577,8 +584,12 @@ function runSetup(): void {
     );
     // Rename first so a freshly created .env inherits the new identity from .env.example.
     applyIdentity(rootDir, identity, dryRun);
-    if (keepExamples) console.log('[Setup] Keeping the example modules (--keep-examples)');
-    else removeExamples(rootDir, dryRun);
+    if (keepExamples) {
+      console.log('[Setup] Keeping the example modules (--keep-examples)');
+      if (!dryRun) stopGuardingExamples(rootDir);
+    } else {
+      removeExamples(rootDir, dryRun);
+    }
   }
 
   ensureEnvFile(rootDir, identity, dryRun);

@@ -6,7 +6,8 @@
  * Usage: bun run scaffold <module|partner|webhook|integration> <name> [options] — see USAGE. In a
  * terminal, a missing <kind> / <name> (or a webhook's vendor) opens the wizard (plan D36): it asks,
  * shows the plan, asks before writing, and prints the equivalent command. Without a terminal (CI, an
- * AI agent, verify:scaffold) nothing is ever asked: a missing argument is the usage error.
+ * AI agent, verify:scaffold) nothing is ever asked: a missing argument is the usage error — unless
+ * SCAFFOLD_WIZARD_STDIN=1, set only by `bun run acceptance`, which answers the wizard itself.
  *
  * All-or-nothing: every file and registration is computed first (a missing registration anchor or
  * an existing file aborts before anything is written), then written, then formatted with Prettier
@@ -198,7 +199,12 @@ const printNextSteps = (plan: ScaffoldPlan, heading: string, addsRoutes: boolean
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
   const draft = readScaffoldArgs(argv);
-  const interactive = needsWizard(draft.request) && process.stdin.isTTY && process.stdout.isTTY;
+  // SCAFFOLD_WIZARD_STDIN=1: a program answers the wizard through a pipe (bun run acceptance drives
+  // the real prompts with keystrokes). Never set by hand, CI or an agent: without it, no terminal
+  // means no question.
+  const driven = process.env.SCAFFOLD_WIZARD_STDIN === '1';
+  const interactive =
+    needsWizard(draft.request) && (driven || (process.stdin.isTTY && process.stdout.isTTY));
   // The wizard only completes the arguments: the request is parsed from them like any command.
   const { request, dryRun } = interactive
     ? {

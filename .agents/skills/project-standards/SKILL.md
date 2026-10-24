@@ -29,6 +29,7 @@ The standards of this project live in `docs/standards/` — one file per topic, 
 | Tests, the integration suite | `docs/standards/testing.md` |
 | A new module, endpoint, webhook receiver or vendor adapter | `docs/standards/new-module.md` (templates: skill `scaffold-module`) |
 | Gates, commands, ESLint rule groups | `docs/standards/quality-gates.md` |
+| A release, the acceptance run (`bun run acceptance`) | `docs/standards/manual-acceptance.md` |
 | Branches, commit messages | `docs/standards/git-workflow.md` |
 | Any document, a new or changed rule | `docs/standards/documentation.md` |
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
 import packageJson from '../package.json';
+import { ACCEPTANCE_STEPS } from '../scripts/lib/acceptance';
 
 /**
  * Every coding standard lives in one file under docs/standards/ (documentation.md), read by
@@ -368,5 +369,16 @@ describe('docs/standards/ is the single source of the standards', () => {
 
   it('README.md stays a quickstart (at most 150 lines)', () => {
     expect(lines(read('README.md').trimEnd()).length).toBeLessThanOrEqual(150);
+  });
+});
+
+/** The acceptance run is documented step by step: the list in its document is the runner's. */
+describe('manual-acceptance.md lists the steps of bun run acceptance', () => {
+  it('names every step of scripts/lib/acceptance.ts, in order', () => {
+    const documented = lines(read(`${STANDARDS_DIR}/manual-acceptance.md`)).flatMap((line) => {
+      const title = /^\d+\. \*\*(.+?)\*\*/.exec(line)?.at(1);
+      return title === undefined ? [] : [title];
+    });
+    expect(documented).toEqual(ACCEPTANCE_STEPS.map((step) => step.title));
   });
 });

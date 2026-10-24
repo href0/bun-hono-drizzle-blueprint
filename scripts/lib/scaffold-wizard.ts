@@ -27,6 +27,10 @@ export interface TextQuestion {
   message: string;
   /** A pre-filled answer: Enter accepts it, or the user edits it. */
   initial?: string;
+  /**
+   * An example shown while the answer is empty; never the answer. Always `e.g. …`: the terminal
+   * draws it like typed text with the cursor on it (a bare `documents` was taken for an answer).
+   */
   placeholder?: string;
   /** An error message to show, or `undefined` to accept the (trimmed) answer. */
   validate: (value: string) => string | undefined;
@@ -215,7 +219,7 @@ export const completeRequest = async (
       draft.name ??
       (await prompter.text({
         message: 'Vendor name (singular, kebab-case)',
-        placeholder: 'acme-pay',
+        placeholder: 'e.g. acme-pay',
         validate: (value) =>
           kebabError(value, 'vendor') ??
           (context.vendors.includes(value)
@@ -239,7 +243,7 @@ export const completeRequest = async (
           prompter,
           {
             message: `${kind === 'module' ? 'Module' : `${titleOf(kind)} module`} name (plural, kebab-case)`,
-            placeholder: kind === 'webhook' ? 'payment-notifications' : 'products',
+            placeholder: kind === 'webhook' ? 'e.g. payment-notifications' : 'e.g. products',
             what: 'module',
           },
           moduleTaken,
@@ -268,7 +272,7 @@ export const completeRequest = async (
       draft.vendor ??
       (await prompter.text({
         message: 'Vendor that sends the webhook (kebab-case)',
-        placeholder: 'acme-pay',
+        placeholder: 'e.g. acme-pay',
         validate: (value) =>
           kebabError(value, '--vendor') ??
           (context.modules.includes(value)
@@ -336,7 +340,7 @@ const completeDependent = async (
           prompter,
           {
             message: `${one ? 'Section (1:1)' : 'Child (1:N)'} name, plural — created as ${prefix}<name>`,
-            placeholder: one ? 'budgets' : 'documents',
+            placeholder: one ? 'e.g. budgets' : 'e.g. documents',
             what: 'module',
           },
           taken,

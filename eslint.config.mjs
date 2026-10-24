@@ -849,6 +849,20 @@ export default tseslint.config(
     },
   },
   {
+    // The acceptance runner sends requests to the API: snake_case wire keys, HTTP header names.
+    files: ['scripts/lib/acceptance.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          selector: 'property',
+          format: ['camelCase', 'UPPER_CASE', 'snake_case'],
+        },
+        { selector: 'property', modifiers: ['requiresQuotes'], format: null },
+      ],
+    },
+  },
+  {
     // Column helpers return Drizzle builder chains (e.g. PgUUIDBuilderInitial<'id'> narrowed by
     // .primaryKey().$defaultFn()); spelling them out would copy Drizzle internals and break on
     // upgrades. The inferred types are what tables need.

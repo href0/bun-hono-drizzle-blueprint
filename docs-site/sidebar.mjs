@@ -64,6 +64,7 @@ export const SIDEBAR = [
       { label: 'New Modules (Scaffold)', slug: 'standards/new-module' },
       { label: 'Quality Gates & Commands', slug: 'standards/quality-gates' },
       { label: 'Testing', slug: 'standards/testing' },
+      { label: 'Acceptance Run', slug: 'standards/manual-acceptance' },
       { label: 'Git Workflow & Commits', slug: 'standards/git-workflow' },
       { label: 'Documentation', slug: 'standards/documentation' },
     ],
