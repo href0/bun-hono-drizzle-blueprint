@@ -23,6 +23,10 @@
     "lint:branch": "validate-branch-name",
     "verify:scaffold": "bun scripts/verify-scaffold.ts",
     "scaffold": "bun scripts/scaffold.ts",
+    "scaffold:module": "bun scripts/scaffold.ts module",
+    "scaffold:partner": "bun scripts/scaffold.ts partner",
+    "scaffold:webhook": "bun scripts/scaffold.ts webhook",
+    "scaffold:integration": "bun scripts/scaffold.ts integration",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "validate": "bun run typecheck && bun run lint && bun run lint:ls && bun run format:check && bun run lint:arch && bun run lint:deps && bun run lint:setup && bun run openapi:check && bun run lint:branch",
@@ -54,6 +58,7 @@
     "zod-openapi": "^4.2.4"
   },
   "devDependencies": {
+    "@clack/prompts": "^1.8.1",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",

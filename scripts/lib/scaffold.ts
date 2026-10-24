@@ -702,8 +702,15 @@ export interface ParsedArgs {
   dryRun: boolean;
 }
 
+/** What the command line gave before `<kind>` / `<name>` are required: the wizard asks for the rest (plan D36). */
+export interface ScaffoldDraft {
+  request: Partial<ScaffoldRequest>;
+  dryRun: boolean;
+}
+
 export const USAGE = [
   'Usage: bun run scaffold <kind> <name> [options]',
+  '  (in a terminal, a missing <kind> / <name> opens a wizard that asks for them)',
   '  module <plural-name> [--variant=standalone|header-detail|record] [--singular=<name>]',
   '         header-detail: [--detail=<plural>] [--detail-singular=<name>]   (default detail: items)',
   '  module <plural-name> --parent=<parent-module> [--one] [--parent-singular=<name>] [--singular=<name>]',
@@ -729,13 +736,23 @@ const OPTIONS = [
 
 /** Parses `<kind> <name> [--option=value] [--dry-run]`; unknown options are errors. */
 export const parseScaffoldArgs = (argv: readonly string[]): ParsedArgs => {
+  const { request, dryRun } = readScaffoldArgs(argv);
+  const { kind, name } = request;
+  if (kind === undefined || name === undefined) throw new ScaffoldError(USAGE);
+  return { request: { ...request, kind, name }, dryRun };
+};
+
+/**
+ * Same checks as `parseScaffoldArgs`, but `<kind>` and `<name>` may be missing (the wizard asks for
+ * them); every option given is still checked, so a wrong flag fails before any question.
+ */
+export const readScaffoldArgs = (argv: readonly string[]): ScaffoldDraft => {
   const positional = argv.filter((arg) => !arg.startsWith('--'));
   const flags = argv.filter((arg) => arg.startsWith('--'));
   const kind = positional.at(0);
   const name = positional.at(1);
-  if (kind === undefined || name === undefined || positional.length > 2)
-    throw new ScaffoldError(USAGE);
-  if (!KINDS.some((known) => known === kind))
+  if (positional.length > 2) throw new ScaffoldError(USAGE);
+  if (kind !== undefined && !KINDS.some((known) => known === kind))
     throw new ScaffoldError(`unknown kind "${kind}"\n${USAGE}`);
 
   const options = new Map<string, string>();
@@ -790,7 +807,7 @@ export const parseScaffoldArgs = (argv: readonly string[]): ParsedArgs => {
 
   return {
     request: {
-      kind: kind as ScaffoldKind,
+      kind: kind as ScaffoldKind | undefined,
       name,
       variant: variant as ModuleVariant | undefined,
       singular: options.get('singular'),

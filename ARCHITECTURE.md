@@ -343,7 +343,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R64 | Hermetic tests (no real DB / Redis); `mock.module()` banned | [test:hermetic-env] [eslint:TEST_SYNTAX_RULES] |
 | R65 | Integration suite: no `.rejects` / `.resolves` / `spyOn` / `mock`; runs in CI | [eslint:INTEGRATION_TEST_RULES] [ci:integration] |
 | R66 | `eslint-disable` narrow and justified (`-- <reason>`) | [eslint:@eslint-community/eslint-comments/require-description] [eslint:@eslint-community/eslint-comments/no-unused-disable] |
-| R67 | Every `scaffold-module` template variant, generated through `bun run scaffold`, passes every gate — the coverage gate included, so a variant ships its own tests; the CLI registers through permanent anchors and fails before writing when one is missing | [script:verify:scaffold] [ci:verify] [test:scaffold] |
+| R67 | Every `scaffold-module` template variant, generated through `bun run scaffold`, passes every gate — the coverage gate included, so a variant ships its own tests; the CLI registers through permanent anchors and fails before writing when one is missing; its wizard (D36) only fills in the same flags — every shape plans the same files as the command it prints — and never asks without a terminal | [script:verify:scaffold] [ci:verify] [test:scaffold] [test:scaffold-wizard] |
 | R68 | `structure.md` names every script, test folder, helper and module, `quality-gates.md` every command; labels in this index are valid | [test:docs-sync] |
 | R69 | Every `.agents` skill has a `.claude` wrapper with the same name + description | [test:agent-skills] |
 | R70 | Agents never read active `.env` files (only `.env.example`) | [hook:.claude/hooks/protect-env.mjs] |
