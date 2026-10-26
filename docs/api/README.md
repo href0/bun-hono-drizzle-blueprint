@@ -9,7 +9,8 @@ Kontrak setiap endpoint: request, response sukses, dan setiap error beserta code
 - Base URL: `/api` (`API_BASE_PATH`); versi API ada di path (`/api/v1/...`). Health, docs dan webhook vendor berada di luar `/v1`.
 - Nama field request & response **snake_case** (key lain → 400 `ERR_NON_SNAKE_CASE_KEY`); waktu dalam ISO 8601 UTC (`2026-01-01T00:00:00.000Z`).
 - Bahasa pesan mengikuti `Accept-Language` (`id` / `en`, default `id`); setiap respons membawa `X-Request-ID`.
-- Autentikasi: access token (`Authorization: Bearer`) — [panduan frontend](../auth-guide.md); tanda tangan partner — [panduan partner](../partner-integration-guide.md); webhook vendor diverifikasi signature vendornya.
+- Autentikasi: access token (`Authorization: Bearer`) — [panduan frontend](../auth-guide.md); webhook vendor diverifikasi signature vendornya.
+- Tanda tangan partner (gateway partner) — [panduan partner](../partner-integration-guide.md).
 
 ## Envelope
 

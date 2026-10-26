@@ -46,6 +46,7 @@ const BEARER_ERRORS: readonly ErrorSpec[] = [
     ],
   },
 ];
+// partner:start
 const PARTNER_ERRORS: readonly ErrorSpec[] = [
   {
     status: 401,
@@ -61,6 +62,7 @@ const PARTNER_ERRORS: readonly ErrorSpec[] = [
     codes: [APP_ERROR_CODES.PARTNER_IP_FORBIDDEN, APP_ERROR_CODES.PARTNER_ROUTE_FORBIDDEN],
   },
 ];
+// partner:end
 const WEBHOOK_ERRORS: readonly ErrorSpec[] = [
   { status: 401, codes: [APP_ERROR_CODES.WEBHOOK_SIGNATURE_INVALID] },
 ];
@@ -69,6 +71,7 @@ const addErrorCodes = (operation: SecuredOperation, specs: readonly ErrorSpec[])
   operation[ERROR_CODE_LIST] = [...(operation[ERROR_CODE_LIST] ?? []), ...errorCodeEntries(specs)];
 };
 
+// partner:start
 /** The four signing headers of a partner request (spec v1), all required together. */
 const PARTNER_SECURITY_SCHEMES = {
   partnerKey: { type: 'apiKey', in: 'header', name: 'x-partner-key' },
@@ -95,6 +98,7 @@ const PARTNER_SECURITY_SCHEMES = {
 const PARTNER_REQUIREMENT = Object.fromEntries(
   Object.keys(PARTNER_SECURITY_SCHEMES).map((name) => [name, []]),
 );
+// partner:end
 
 /** Vendor webhooks under one prefix (`<base>/webhooks`), each verified by its own signature header. */
 export interface WebhookDocs {
@@ -105,8 +109,10 @@ export interface WebhookDocs {
 /** How `createApp()` authenticates each operation; the document marks them the same way. */
 export interface SecurityRules {
   requiresAuthentication?: RequiresAuthentication;
+  // partner:start
   /** Operations behind `partnerAuth()`: documented with the partner signing headers instead. */
   requiresPartnerSignature?: RequiresAuthentication;
+  // partner:end
   /** Operations behind a vendor's `webhookAuth()`: documented with that vendor's signature header. */
   webhooks?: WebhookDocs;
 }
@@ -137,13 +143,17 @@ const webhookVendorOf = (webhooks: WebhookDocs | undefined, path: string): strin
 };
 
 /**
- * Marks every operation that `authenticate()` protects (`bearerAuth` + 401), every one behind
- * `partnerAuth()` (the partner signing headers + 401, 403) and every vendor webhook (the vendor's
- * signature header + 401).
+ * Marks every operation that `authenticate()` protects (`bearerAuth` + 401) and every vendor
+ * webhook (the vendor's signature header + 401).
  */
+// partner:start
+// Operations behind `partnerAuth()` get the partner signing headers + 401, 403.
+// partner:end
 const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDocument => {
   const requiresAuthentication = rules.requiresAuthentication ?? ((): boolean => false);
+  // partner:start
   const requiresPartnerSignature = rules.requiresPartnerSignature ?? ((): boolean => false);
+  // partner:end
   for (const [path, item] of Object.entries(document.paths)) {
     for (const [method, operation] of Object.entries(item as Record<string, SecuredOperation>)) {
       const webhookVendor = webhookVendorOf(rules.webhooks, path);
@@ -151,6 +161,7 @@ const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDo
         operation.security = [{ [webhookSchemeName(webhookVendor)]: [] }];
         operation.responses = { ...operation.responses, 401: errorResponseObject(401) };
         addErrorCodes(operation, WEBHOOK_ERRORS);
+        // partner:start
       } else if (requiresPartnerSignature(method.toUpperCase(), path)) {
         operation.security = [PARTNER_REQUIREMENT];
         operation.responses = {
@@ -159,6 +170,7 @@ const addSecurity = (document: OpenApiDocument, rules: SecurityRules): OpenApiDo
           403: errorResponseObject(403),
         };
         addErrorCodes(operation, PARTNER_ERRORS);
+        // partner:end
       } else if (requiresAuthentication(method.toUpperCase(), path)) {
         operation.security = [{ bearerAuth: [] }];
         operation.responses = { ...operation.responses, 401: errorResponseObject(401) };
@@ -208,7 +220,9 @@ export const buildOpenApiDocument = async (
       components: {
         securitySchemes: {
           bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+          // partner:start
           ...PARTNER_SECURITY_SCHEMES,
+          // partner:end
           ...webhookSecuritySchemes(security.webhooks),
         },
       },

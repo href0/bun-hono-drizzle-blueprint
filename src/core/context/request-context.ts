@@ -5,7 +5,13 @@ import type { Role } from '../security/roles';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
 export type Actor =
-  `user:${string}` | `partner:${string}` | `webhook:${string}` | 'system' | 'anonymous';
+  | `user:${string}`
+  // partner:start
+  | `partner:${string}`
+  // partner:end
+  | `webhook:${string}`
+  | 'system'
+  | 'anonymous';
 
 /** The caller proven by a verified access token. */
 export interface AuthenticatedUser {
@@ -13,10 +19,12 @@ export interface AuthenticatedUser {
   readonly role: Role;
 }
 
+// partner:start
 /** The partner proven by a valid signed request (`partnerAuth()`). */
 export interface AuthenticatedPartner {
   readonly code: string;
 }
+// partner:end
 
 /** The vendor whose webhook signature was verified (`webhookAuth()`). */
 export interface AuthenticatedWebhook {
@@ -40,8 +48,10 @@ export interface RequestContext {
   actor: Actor;
   /** Set by `authenticate()`; absent for anonymous requests and public routes. */
   user?: AuthenticatedUser;
+  // partner:start
   /** Set by `partnerAuth()` on partner routes. */
   partner?: AuthenticatedPartner;
+  // partner:end
   /** Set by `webhookAuth()` on vendor webhook routes. */
   webhook?: AuthenticatedWebhook;
   /** Set by `describeEndpoint()` under `NODE_ENV=test` (contract guard). */
@@ -65,13 +75,15 @@ export const getLocale = (): Locale => storage.getStore()?.locale ?? appConfig.D
 /** The authenticated caller of the current request, if any. */
 export const getAuthenticatedUser = (): AuthenticatedUser | undefined => storage.getStore()?.user;
 
-/** Trusted client IP of the current request; `undefined` outside a request. */
+// partner:start
 export const getAuthenticatedPartner = (): AuthenticatedPartner | undefined =>
   storage.getStore()?.partner;
+// partner:end
 
 export const getAuthenticatedWebhook = (): AuthenticatedWebhook | undefined =>
   storage.getStore()?.webhook;
 
+/** Trusted client IP of the current request; `undefined` outside a request. */
 export const getClientIp = (): string | undefined => storage.getStore()?.clientIp;
 
 export const runWithRequestContext = <T>(context: RequestContext, fn: () => T): T =>
@@ -99,6 +111,7 @@ export const setAuthenticatedUser = (user: AuthenticatedUser): void => {
   if (context) context.user = user;
 };
 
+// partner:start
 /**
  * Records the partner proven by a signed request: the actor becomes `partner:<code>` (audit
  * columns, logs). Throws outside a request, like `setActor`.
@@ -108,6 +121,7 @@ export const setAuthenticatedPartner = (partner: AuthenticatedPartner): void => 
   const context = storage.getStore();
   if (context) context.partner = partner;
 };
+// partner:end
 
 /**
  * Records the vendor proven by a verified webhook signature: the actor becomes `webhook:<vendor>`

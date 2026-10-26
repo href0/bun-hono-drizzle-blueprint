@@ -34,7 +34,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
     Repository dasar per jenis tabel; setiap perubahan tercatat atomik. Lihat [Database](standards/database/).
   </Card>
   <Card title="Kanal inbound aman" icon="random">
-    Default-deny JWT dengan refresh cookie HttpOnly, partner gateway bertanda tangan HMAC, webhook vendor fail-closed. Lihat [Auth & Inbound](standards/auth-and-inbound/).
+    Default-deny JWT dengan refresh cookie HttpOnly, kanal inbound bertanda tangan HMAC (webhook vendor, gateway partner opsional) yang fail-closed. Lihat [Auth & Inbound](standards/auth-and-inbound/).
   </Card>
   <Card title="Quality gate berlapis" icon="approve-check-circle">
     Setiap aturan punya penegak mesin (ESLint, dependency-cruiser, test, script). Lihat [Quality Gates](standards/quality-gates/).

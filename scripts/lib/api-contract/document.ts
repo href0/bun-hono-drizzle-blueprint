@@ -18,8 +18,10 @@ const CONTRACT_ENV: Record<string, string> = {
   DATABASE_URL: 'postgresql://contract:contract@127.0.0.1:1/contract',
   REDIS_HOST: '127.0.0.1',
   REDIS_PORT: '1',
+  // partner:start
   PARTNER_SECRET_KEYS: `contract:${'0'.repeat(64)}`,
   PARTNER_SECRET_ACTIVE_KEY_ID: 'contract',
+  // partner:end
   DEMO_PAY_WEBHOOK_SECRET: 'contract-only-webhook-secret',
 };
 

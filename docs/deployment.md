@@ -21,7 +21,7 @@ Semua konfigurasi lewat environment variable. Daftar lengkap dan defaultnya ada 
   - `DATABASE_URL`;
   - `REDIS_HOST` / `REDIS_PORT` (dan `REDIS_PASSWORD` bila ada);
   - `JWT_SECRET` (minimal 32 karakter, acak);
-  - `PARTNER_SECRET_KEYS` + `PARTNER_SECRET_ACTIVE_KEY_ID`. Cara membuat kuncinya ada di komentar `.env.example`. Simpan kunci ini dengan aman: tanpanya, secret partner yang tersimpan tidak bisa dibaca.
+  - `PARTNER_SECRET_KEYS` + `PARTNER_SECRET_ACTIVE_KEY_ID`. Cara membuat kuncinya ada di komentar `.env.example`. Simpan kunci ini dengan aman: tanpanya, secret partner yang tersimpan tidak bisa dibaca. <!-- partner -->
 - Periksa juga:
   - `CORS_ORIGINS`: origin frontend yang diizinkan. `*` ditolak di production.
   - `TRUST_PROXY_HOPS`: jumlah reverse proxy / load balancer di depan aplikasi (biasanya `1`). Dengan `0`, aplikasi memakai alamat socket, sehingga rate limit per IP menghitung semua klien sebagai satu IP proxy.

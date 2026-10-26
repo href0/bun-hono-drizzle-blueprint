@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test';
 import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig, buildAppConfig } from '../src/config';
 import { ERROR_CATALOG } from '../src/core/errors';
-import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
+import {
+  // partner:start
+  isPartnerRoute,
+  // partner:end
+  isPublicRoute,
+} from '../src/core/security/public-routes';
 import { isSnakeCaseKey } from '../src/utils/case-converter.util';
 
 interface Operation {
@@ -168,7 +173,9 @@ describe('OpenAPI document (createApp)', () => {
     const wrong = Object.entries((await loadDocument()).paths).flatMap(([path, item]) =>
       Object.entries(item).flatMap(([method, operation]) => {
         const routePath = path.slice(v1.length).replace(/\{(\w+)\}/g, ':$1');
+        // partner:start
         if (path.startsWith(`${v1}/`) && isPartnerRoute(routePath)) return [];
+        // partner:end
         if (path.startsWith(`${appConfig.API_BASE_PATH}/webhooks/`)) return [];
         const protectedRoute =
           path.startsWith(`${v1}/`) && !isPublicRoute(method.toUpperCase(), routePath);
@@ -206,6 +213,7 @@ describe('OpenAPI document (createApp)', () => {
     }
   });
 
+  // partner:start
   it('marks partner routes with the four signing headers (not bearerAuth), 401 and 403', async () => {
     const document = await loadDocument();
     const v1 = `${appConfig.API_BASE_PATH}/v1`;
@@ -229,6 +237,7 @@ describe('OpenAPI document (createApp)', () => {
       expect(Object.keys(op.responses)).toEqual(expect.arrayContaining(['401', '403']));
     }
   });
+  // partner:end
 
   it('serves the reference UI', async () => {
     const res = await app.request(docsPath);

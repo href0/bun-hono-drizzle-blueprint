@@ -23,7 +23,7 @@ import {
 } from './acceptance';
 import type { ComboResult, StepLabel } from './acceptance-progress';
 
-const [NEW_PROJECT, KEEP_EXAMPLES] = COMBOS as [Combo, Combo];
+const [NEW_PROJECT, KEEP_EXAMPLES, NO_PARTNER] = COMBOS as [Combo, Combo, Combo];
 
 describe('arguments', () => {
   it('defaults: menu, HEAD, stage C on', () => {
@@ -54,7 +54,7 @@ describe('arguments', () => {
     expect(() => parseAcceptanceArgs(['--fast'])).toThrow('unknown argument --fast');
     expect(() => parseAcceptanceArgs(['--ref'])).toThrow('--ref needs a value');
     expect(() => parseAcceptanceArgs(['--combo', '--keep'])).toThrow('--combo needs a value');
-    expect(() => parseCombos('3')).toThrow('choose 1, 2 or a');
+    expect(() => parseCombos('4')).toThrow('choose 1, 2, 3 or a');
     expect(() => parseCombos(' ')).toThrow('unknown combination');
   });
 
@@ -110,6 +110,7 @@ const COMMAND_OUTPUT = [
   'two levels at most',
   '[dry run] Scaffolding',
   'Usage: bun run scaffold',
+  'unknown kind "partner"',
 ].join('\n');
 
 const reply = (
@@ -143,9 +144,10 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
   const env = new Map<string, string>();
   const references = new Set<string>();
   const events = new Set<string>();
-  const files = new Set<string>(
-    combo.keepExamples ? ['src/modules/orders', 'src/modules/user-posts'] : [],
-  );
+  const files = new Set<string>([
+    ...(combo.keepExamples ? ['src/modules/orders', 'src/modules/user-posts'] : []),
+    ...(combo.partner ? ['src/modules/partner-gateway'] : []),
+  ]);
   let nextId = 0;
   let released = 0;
 
@@ -307,6 +309,7 @@ describe('the steps against a well-behaved machine', () => {
       { question: 'Title (README heading', text: PROJECT_TITLE },
       { question: 'Description', enter: true },
       { question: 'Keep the example modules', confirm: false },
+      { question: 'Accept calls from partner systems', confirm: true },
       { question: 'Apply these changes?', confirm: true },
     ]);
     expect(machine.conversations.at(2)).toEqual([
@@ -337,11 +340,22 @@ describe('the steps against a well-behaved machine', () => {
     );
   });
 
+  it('--no-partner: the wizard removes the gateway, scaffold partner is refused', async () => {
+    const machine = fakeMachine(NO_PARTNER);
+    const { result } = await runAll(machine);
+    expect(result.failedStep).toBeUndefined();
+    expect(machine.conversations.at(0)).toContainEqual({
+      question: 'Remove the partner gateway',
+      confirm: true,
+    });
+    expect(machine.commands).toContain('bun scripts/scaffold.ts partner shipments');
+  });
+
   it('setup that leaves the examples of a new project fails the step', async () => {
     const machine = fakeMachine(NEW_PROJECT, { exists: (path) => path === 'src/modules/orders' });
     const { result } = await runAll(machine);
     expect(result.failedStep).toBe(
-      'bun run setup: the wizard (combination 1) or flags (combination 2)',
+      'bun run setup: the wizard (combinations 1, 3) or flags (combination 2)',
     );
   });
 

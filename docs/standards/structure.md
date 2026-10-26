@@ -15,7 +15,7 @@ Read this file when: placing a new file, adding an import between layers, or add
 ├── docs/
 │   ├── standards/               # The single source of every coding standard (this folder)
 │   ├── auth-guide.md            # For frontend developers (Indonesian)
-│   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts
+│   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts <!-- partner -->
 │   ├── deployment.md            # For whoever deploys (Indonesian): images, production config, migrations
 │   ├── api/                     # API contract: openapi.json snapshot + one Markdown per module (README.md index), written by bun run openapi:update after review, never by hand (R76, R78)
 │   ├── plans/                   # Active work plans, if any (.agents/AGENTS.md "Work Plans")
@@ -34,7 +34,7 @@ src/
 ├── config/                      # Zero-trust configuration, one Zod group per file (fail-fast on startup)
 │   ├── env-source.ts            # The only reader of process.env (+ TZ=UTC, missing env file guard)
 │   ├── parse-env.ts             # Validation per group; errors name the variable, never the value; RENAMED_ENV_VARS
-│   ├── <group>.config.ts        # app, auth, database, redis, http, partner, one per vendor (`<vendor>.config.ts`)
+│   ├── <group>.config.ts        # app, auth, database, redis, http, one per optional feature or vendor (`<vendor>.config.ts`)
 │   └── index.ts                 # Barrel
 │
 ├── core/                        # Cross-cutting, domain-agnostic building blocks
@@ -45,10 +45,11 @@ src/
 │   ├── http/                    # HttpClientService (keep-alive pool, required timeout, X-Request-ID, vendor masking), vendor-body.ts (vendor body redaction for logs), access-token-cache.ts (single-flight vendor token)
 │   ├── i18n/                    # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting messages)
 │   ├── logger/                  # Pino logger with redaction
-│   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, partnerAuth, webhookAuth, requireRole, validate, globalErrorHandler, …
+│   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, webhookAuth, requireRole, validate, globalErrorHandler, …
 │   ├── openapi/                 # describeEndpoint, envelope schemas, OpenAPI document + Scalar UI (<base>/docs), contract guard (NODE_ENV=test)
 │   ├── response/                # ApiResponse (success envelope), error envelope builder
-│   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist), partner API keys + secret cipher
+│   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist)
+│       └── partner-credentials.ts # partnerAuth() keys: API key hash, secret cipher (the partner gateway) <!-- partner -->
 │
 ├── database/                    # Drizzle infrastructure & data layer
 │   ├── connection.ts            # PostgreSQL pool (postgres driver), session timezone UTC
@@ -81,8 +82,8 @@ src/
 │   ├── auth/                    # Login, refresh-token rotation (HttpOnly cookie), logout, /me (/api/v1/auth)
 │   ├── health/                  # Health UP/DEGRADED/DOWN, readiness, liveness (/api/health, unversioned)
 │   ├── orders/                  # Example header + detail module (removed by `bun run setup` unless --keep-examples)
-│   ├── partner-credentials/     # Admin API for inbound partner credentials (/api/v1/partner-credentials, admin only)
-│   ├── partner-gateway/         # Example signed partner endpoints (/api/v1/partner/ping, /echo)
+│   ├── partner-credentials/     # Admin API for inbound partner credentials (/api/v1/partner-credentials, admin only) <!-- partner -->
+│   ├── partner-gateway/         # Example signed partner endpoints (/api/v1/partner/ping, /echo) <!-- partner -->
 │   ├── payment-notifications/   # Example vendor webhook receiver (POST /api/webhooks/demo-pay, idempotent)
 │   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)
 │   │   ├── project-tasks/       # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/project-tasks/:id)
@@ -98,7 +99,7 @@ src/
 │       ├── users.routes.ts      # describeEndpoint + validate + controller
 │       └── *.test.ts            # Co-located unit tests
 │
-├── utils/                       # Pure functions (datetime, crypto, case converter, partner signature, ip/route match, record diff, …)
+├── utils/                       # Pure functions (datetime, crypto, secret cipher, case converter, ip/route match, record diff, …)
 ├── app.ts                       # createApp(): middleware pipeline, versioned router, WEBHOOK_VENDORS; `// scaffold:*` markers = where `bun run scaffold` registers
 └── index.ts                     # Bun.serve, startup checks, graceful shutdown
 ```
@@ -108,11 +109,13 @@ src/
 ```
 test/
 ├── setup/hermetic-env.ts        # Preload: no real database / Redis in `bun test`
-├── helpers/                     # sql-recorder.ts (+ sql-recorder.test.ts; SQL recorder), repository-fixtures.ts (generic test tables), auth-fakes.ts (in-memory auth repositories), authorized-app.ts (tokens for contract tests), partner-signing-vectors.ts (published signing vectors), integration.ts (asActor, rejectionOf, unique for test:int)
-├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, partner (*.int.ts)
-├── *.e2e.test.ts                # health, auth, users, orders (example), partner-credentials, partner-gateway, vendor-webhooks, openapi, platform, default-deny, outbound
+├── helpers/                     # sql-recorder.ts (+ sql-recorder.test.ts; SQL recorder), repository-fixtures.ts (generic test tables), auth-fakes.ts (in-memory auth repositories), authorized-app.ts (tokens for contract tests), integration.ts (asActor, rejectionOf, unique for test:int)
+│   └── partner-signing-vectors.ts # published signing vectors of the partner gateway <!-- partner -->
+├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, … (*.int.ts)
+│   └── partner.int.ts           # the partner gateway against a real database and Redis <!-- partner -->
+├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, outbound, …
 ├── hermetic-env.test.ts         # Guards the hermetic preload
-├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes)
+├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes) <!-- partner -->
 ├── structure.test.ts            # File names, module / integration patterns, dependent subfolders named after their parent, unique module names, module ≠ vendor, channel routers, *.int.ts placement
 ├── docs-sync.test.ts            # This tree and the command table name everything; rule-index labels; links; docs SSOT
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
@@ -126,14 +129,14 @@ test/
 
 ```
 scripts/
-├── setup.ts                     # `bun run setup [<name>]` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES; no name in a terminal → the wizard)
+├── setup.ts                     # `bun run setup [<name>]` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES, the partner switch; no name in a terminal → the wizard)
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = the single source of thresholds)
-├── scaffold.ts                  # `bun run scaffold <module|partner|webhook|integration> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
+├── scaffold.ts                  # `bun run scaffold <kind> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: runs the scaffold CLI for every template, then every gate
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
 ├── acceptance.ts                # `bun run acceptance`: per setup combination a fresh clone through setup, every scaffold variant (the wizard answered by the runner), a database, a server, HTTP, Docker (manual-acceptance.md)
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
-├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing
+├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing <!-- partner -->
 ├── openapi.ts                   # `bun run openapi:check` / `openapi:update`: the API contract snapshot (docs/api/openapi.json)
 ├── lib/acceptance.ts            # The acceptance stages A–D as data, the wizard driver, the run of a combination (+ lib/acceptance.test.ts)
 ├── lib/acceptance-progress.ts   # What the acceptance run shows: live step line, heartbeat, summary table (+ lib/acceptance-progress.test.ts)
@@ -143,7 +146,8 @@ scripts/
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 ├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup
 ├── lib/prompter.ts             # The questions of a CLI wizard behind one interface: scripted in tests, @clack/prompts for a person (+ lib/prompter.test.ts: the real prompts on streams)
-├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (plan D38): name, --title, description, examples (+ lib/setup-wizard.test.ts)
+├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (plan D38): name, --title, description, examples, --no-partner (+ lib/setup-wizard.test.ts)
+├── lib/partner-prune.ts        # The partner switch of setup (plan D39): marked regions, PARTNER_ONLY, the no-partner simulation of lint:setup (+ lib/partner-prune.test.ts)
 ├── lib/scaffold-wizard.ts       # The scaffold wizard (plan D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
@@ -172,7 +176,7 @@ config ──► libraries only (root of the graph)
 | `src/integrations/<vendor>/` | `core/http`, `config`, `utils` | `modules`, `database`, another vendor | `strict-integrations-isolation`, `no-cross-integration-deps`, `integrations-no-presentation` |
 | `src/modules/<module>/` (incl. its dependent subfolders `<module>/<child>/`) | `core`, `database` (abstractions), `integrations`, `config`, `utils`; parent ↔ its dependents (same module folder) | `database/connection.ts`, another module | `no-module-direct-db-connection`, `no-cross-module-deps` |
 
-A module never imports another module: a cross-module need is injected through a constructor or function parameter (e.g. `partnerAuth()` receives the credential lookup of `partner-credentials` in `src/app.ts`). Also enforced everywhere: `no-circular`, `no-orphans`, `no-test-in-src`, `not-to-unresolvable`, `not-to-unlisted-dep`; single-purpose rules (`http-client-only-in-integrations`, `redis-client-only-in-cache`, `record-changes-only-in-database`, `transaction-host-only-in-repositories`, `webhook-verifier-only-in-app`) are described in the topic that owns them.
+A module never imports another module: a cross-module need is injected through a constructor or function parameter (e.g. a guard receives the lookup it needs as an option in `src/app.ts`). Also enforced everywhere: `no-circular`, `no-orphans`, `no-test-in-src`, `not-to-unresolvable`, `not-to-unlisted-dep`; single-purpose rules (`http-client-only-in-integrations`, `redis-client-only-in-cache`, `record-changes-only-in-database`, `transaction-host-only-in-repositories`, `webhook-verifier-only-in-app`) are described in the topic that owns them.
 
 ## 3. Flow inside a module
 
@@ -191,4 +195,4 @@ Routes ──► Controller ──► Service ──► Repository ──► Pos
 | `*.repository.ts` | database (TransactionHost, bases, schema), `utils` | service, controller, routes | `repository-no-service-or-controller` |
 | `*.transformer.ts` | DTO / schema types | service, repository, controller | `transformer-pure` |
 
-File naming (which suffix makes a file a controller, a partner route, …): [naming.md](naming.md).
+File naming (which suffix makes a file a controller, a webhook route, …): [naming.md](naming.md).

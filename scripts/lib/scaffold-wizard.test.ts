@@ -97,14 +97,16 @@ const filesOfCommand = (request: ScaffoldRequest) => {
 };
 
 describe('scaffold wizard: one path per shape', () => {
-  it('offers the eight shapes', () => {
+  it('offers every shape', () => {
     expect(SHAPES.map((shape) => shape.value)).toEqual([
       'standalone',
       'header-detail',
       'record',
       'dependent',
       'dependent-one',
+      // partner:start
       'partner',
+      // partner:end
       'webhook',
       'integration',
     ]);
@@ -175,12 +177,14 @@ describe('scaffold wizard: one path per shape', () => {
       },
       'bun run scaffold module charters --parent=projects --one',
     ],
+    // partner:start
     [
       'partner',
       ['partner', 'shipments', ENTER],
       { kind: 'partner', name: 'shipments', singular: undefined, variant: undefined },
       'bun run scaffold partner shipments',
     ],
+    // partner:end
     [
       'webhook',
       ['webhook', 'refund-notifications', ENTER, 'globex', 'Globex Payments'],
@@ -228,8 +232,10 @@ describe('scaffold wizard: only what is missing', () => {
     ]);
   });
 
-  it('scaffold:partner / :webhook / :integration skip the menu', async () => {
+  it('a kind given on the command line (scaffold:webhook, …) skips the menu', async () => {
+    // partner:start
     expect((await complete({ kind: 'partner' }, 'shipments', ENTER)).offered).toEqual([]);
+    // partner:end
     expect((await complete({ kind: 'integration' }, 'globex', ENTER)).offered).toEqual([]);
     const webhook = await complete({ kind: 'webhook' }, 'payouts', ENTER, 'globex', ENTER);
     expect(webhook.offered).toEqual([]);
@@ -377,7 +383,9 @@ describe('when the wizard opens', () => {
     expect(() => readScaffoldArgs(['module', '--colour=red'])).toThrow(
       'unknown option --colour=red',
     );
+    // partner:start
     expect(() => readScaffoldArgs(['partner', '--parent=orders'])).toThrow('--parent is only for');
+    // partner:end
     expect(() => readScaffoldArgs(['gadget'])).toThrow('unknown kind "gadget"');
   });
 

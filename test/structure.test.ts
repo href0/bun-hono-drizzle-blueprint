@@ -11,7 +11,7 @@ import { appConfig } from '../src/config';
  *   exactly `.ts`, so `Users.Controller.ts` would pass it);
  * - module files are `<module>[-<qualifier>][.<channel>].<role>[.test].ts` — ESLint and
  *   dependency-cruiser find controllers, services, … by that suffix, so a near miss such as
- *   `payments.partner-routes.ts` would silently escape every architecture rule;
+ *   `payments.webhook-routes.ts` would silently escape every architecture rule;
  * - a dependent module (plan D33) lives in one subfolder of its parent,
  *   `src/modules/<parent>/<child>/<child>.<role>.ts`: one level only, a subfolder holds a
  *   `DependentRepository` module, and a child name is used once across `src/modules/` (it names
@@ -21,8 +21,8 @@ import { appConfig } from '../src/config';
  *   `setup.ts` preload — a `*.int.ts` elsewhere would never run, a `*.test.ts` there would run
  *   in the hermetic suite without services;
  * - a module is named after its domain, never after a vendor in `src/integrations/`;
- * - routers of `*.partner.routes.ts` are mounted only under `<base>/v1/partner`, routers of
- *   `*.webhook.routes.ts` only under `<base>/webhooks`, and nothing else is mounted there.
+ * - routers of `*.<channel>.routes.ts` are mounted only under their channel's prefix
+ *   (`*.webhook.routes.ts` under `<base>/webhooks`, …), and nothing else is mounted there.
  */
 
 const ROOT = resolve(import.meta.dir, '..');
@@ -38,7 +38,12 @@ const MODULE_ROLES = [
   'util',
 ] as const;
 const INTEGRATION_ROLES = ['service', 'dto', 'webhook', 'webhook\\.dto'] as const;
-const CHANNELS = ['partner', 'webhook'] as const;
+const CHANNELS = [
+  // partner:start
+  'partner',
+  // partner:end
+  'webhook',
+] as const;
 type Channel = (typeof CHANNELS)[number];
 
 const KEBAB_SEGMENT = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -74,7 +79,7 @@ export const fileNameViolations = (path: string): string[] => {
       !modulePattern(module).test(name)
     ) {
       problems.push(
-        `${path}: module files are src/modules/<module>/<module>[-<qualifier>][.partner|.webhook].<role>[.test].ts with <role> one of ${MODULE_ROLES.join(', ')} — a dependent module one level down: src/modules/<parent>/<child>/<child>.<role>.ts`,
+        `${path}: module files are src/modules/<module>/<module>[-<qualifier>][.${CHANNELS.join('|.')}].<role>[.test].ts with <role> one of ${MODULE_ROLES.join(', ')} — a dependent module one level down: src/modules/<parent>/<child>/<child>.<role>.ts`,
       );
     }
   }
@@ -243,24 +248,31 @@ describe('file layout (src/, test/, scripts/)', () => {
 });
 
 describe('inbound channels are mounted where their name says', () => {
-  it('partner routers only under <base>/v1/partner, webhook routers only under <base>/webhooks', async () => {
+  it('channel routers only under their prefix (webhook: <base>/webhooks), nothing else there', async () => {
     const base = appConfig.API_BASE_PATH;
     const channels = [
+      // partner:start
       {
         channel: 'partner' as const,
         prefix: `${base}/v1/partner`,
         handlers: await channelHandlers('partner'),
       },
+      // partner:end
       {
         channel: 'webhook' as const,
         prefix: `${base}/webhooks`,
         handlers: await channelHandlers('webhook'),
       },
     ];
-    // Guards the enumeration: partner-gateway is permanent; webhook receivers exist only with
-    // a registered vendor (none in a fresh project after `bun run setup`).
-    expect(channels.at(0)?.handlers.size).toBeGreaterThan(0);
-    expect((channels.at(1)?.handlers.size ?? 0) > 0).toBe(WEBHOOK_VENDORS.length > 0);
+    const handlerCount = new Map<Channel, number>(
+      channels.map(({ channel, handlers }) => [channel, handlers.size]),
+    );
+    // partner:start
+    // Guards the enumeration: the partner gateway always has routes (ping / echo).
+    expect(handlerCount.get('partner')).toBeGreaterThan(0);
+    // partner:end
+    // Webhook receivers exist only with a registered vendor (none in a fresh project after setup).
+    expect((handlerCount.get('webhook') ?? 0) > 0).toBe(WEBHOOK_VENDORS.length > 0);
 
     expect(channelMountViolations(createApp().routes, channels)).toEqual([]);
   });
@@ -269,8 +281,8 @@ describe('inbound channels are mounted where their name says', () => {
 describe('the checks themselves (deliberately broken examples)', () => {
   it('reject near-miss and badly cased file names', () => {
     for (const path of [
-      'src/modules/payments/payments.partner-routes.ts',
-      'src/modules/payments/payments.partner.route.ts',
+      'src/modules/payments/payments.webhook-routes.ts',
+      'src/modules/payments/payments.webhook.route.ts',
       'src/modules/payments/payment.service.ts',
       'src/modules/payments/payments-service.ts',
       'src/modules/payments/payments.service.spec.ts',
@@ -297,15 +309,18 @@ describe('the checks themselves (deliberately broken examples)', () => {
 
   it('accept the conventional names', () => {
     for (const path of [
+      // partner:start
       'src/modules/payments/payments.partner.routes.ts',
       'src/modules/payments/payments.partner.controller.test.ts',
+      // partner:end
       'src/modules/messaging/messaging.webhook.routes.ts',
+      'src/modules/messaging/messaging.webhook.controller.test.ts',
       'src/modules/auth/auth-users.repository.ts',
       'src/modules/auth/auth-cookie.util.ts',
       'src/integrations/wahref/wahref.webhook.dto.ts',
       'src/integrations/wahref/index.ts',
       'src/integrations/registry.test.ts',
-      'src/core/middlewares/partner-auth.ts',
+      'src/core/middlewares/webhook-auth.ts',
       'test/integration/data-layer.int.ts',
       'test/integration/setup.ts',
       'src/modules/projects/tasks/tasks.service.ts',
@@ -360,29 +375,29 @@ describe('the checks themselves (deliberately broken examples)', () => {
   });
 
   it('report a channel router mounted elsewhere and a foreign router under a channel prefix', () => {
-    const partnerHandler = (): void => undefined;
+    const webhookHandler = (): void => undefined;
     const userHandler = (): void => undefined;
     const channels = [
       {
-        channel: 'partner' as const,
-        prefix: '/api/v1/partner',
-        handlers: new Set<unknown>([partnerHandler]),
+        channel: 'webhook' as const,
+        prefix: '/api/webhooks',
+        handlers: new Set<unknown>([webhookHandler]),
       },
     ];
 
     expect(
       channelMountViolations(
         [
-          { method: 'GET', path: '/api/v1/payments', handler: partnerHandler },
-          { method: 'GET', path: '/api/v1/partner/users', handler: userHandler },
-          { method: 'GET', path: '/api/v1/partner/ping', handler: partnerHandler },
-          { method: 'ALL', path: '/api/v1/partner/*', handler: userHandler },
+          { method: 'POST', path: '/api/v1/payments', handler: webhookHandler },
+          { method: 'POST', path: '/api/webhooks/users', handler: userHandler },
+          { method: 'POST', path: '/api/webhooks/acme', handler: webhookHandler },
+          { method: 'ALL', path: '/api/webhooks/*', handler: userHandler },
         ],
         channels,
       ),
     ).toEqual([
-      'GET /api/v1/payments: from a *.partner.routes.ts file, must be under /api/v1/partner',
-      'GET /api/v1/partner/users: under /api/v1/partner, must come from a *.partner.routes.ts file',
+      'POST /api/v1/payments: from a *.webhook.routes.ts file, must be under /api/webhooks',
+      'POST /api/webhooks/users: under /api/webhooks, must come from a *.webhook.routes.ts file',
     ]);
   });
 });

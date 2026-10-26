@@ -111,14 +111,14 @@ describe('rateLimit', () => {
   it('isUnderPath accepts several prefixes', async () => {
     const cache = fakeCache();
     const app = new Hono();
-    const skip = isUnderPath('/health', '/api/v1/partner');
+    const skip = isUnderPath('/health', '/api/inbound');
     app.use('*', rateLimit({ windowSeconds: 60, max: 0, keyPrefix: 'g', cache, skip }));
     app.get('*', (c) => c.text('ok'));
     app.onError(globalErrorHandler);
 
     expect((await app.request('/health')).status).toBe(200);
-    expect((await app.request('/api/v1/partner/ping')).status).toBe(200);
-    expect((await app.request('/api/v1/partners')).status).toBe(429);
+    expect((await app.request('/api/inbound/ping')).status).toBe(200);
+    expect((await app.request('/api/inbounds')).status).toBe(429);
   });
 
   it('falls back to the window length when Redis reports no TTL', async () => {

@@ -6,7 +6,7 @@
  *
  * Runs the CLI (scripts/scaffold.ts) for every variant — standalone, header-detail, record,
  * dependent (1:N and 1:1, attached afterwards to the standalone probe, whose files must stay
- * byte-identical), partner, webhook — and for an outbound vendor adapter, exactly as a developer
+ * byte-identical), the inbound channels (webhook, …) — and for an outbound vendor adapter, exactly as a developer
  * would; then runs
  * prettier --check, tsc, eslint, ls-lint, dependency-cruiser, knip, the generated tests and the
  * schema conventions, plus live requests through `createApp()`. Everything the CLI created or
@@ -25,6 +25,7 @@ import {
   REGISTRY_PATH,
   SCHEMA_BARREL,
   STRUCTURE_PATH,
+  type ScaffoldKind,
   type ScaffoldRequest,
 } from './lib/scaffold';
 import { SNAPSHOT_PATH } from './lib/api-contract/document';
@@ -37,8 +38,8 @@ interface Variant {
   documented: [string, string][];
   /** A request that must be rejected with 400 by validate() once authenticated. */
   invalid: { path: string; method: string; body?: string };
-  /** Inbound channel: users with access tokens (default), partners or vendor webhooks. */
-  channel?: 'partner' | 'webhook';
+  /** Inbound channel: users with access tokens (default), or a channel kind (vendor webhooks, …). */
+  channel?: Exclude<ScaffoldKind, 'module' | 'integration'>;
 }
 
 /** Kebab-case names with a hyphen on purpose: exercises naming rules for multi-word modules. */
@@ -140,6 +141,7 @@ const VARIANTS: Variant[] = [
       body: '{}',
     },
   },
+  // partner:start
   {
     label: 'partner',
     request: { kind: 'partner', name: 'probe-submissions' },
@@ -154,6 +156,7 @@ const VARIANTS: Variant[] = [
     },
     channel: 'partner',
   },
+  // partner:end
   {
     label: 'webhook',
     request: { kind: 'webhook', name: 'probe-receipts', vendor: 'probe-hooks' },
@@ -307,6 +310,7 @@ const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid, ch
 const doc = await (await app.request(base + '/docs/openapi.json')).json();
 // Generated routes are protected (default-deny): without a token they must answer 401 ...
 const { token } = await signAccessToken({ userId: '0192f1d0-0000-7000-8000-00000000a11c', role: 'admin' });
+// partner:start
 // Partner routes need a signed request: a probe credential behind the real partnerAuth() lookup.
 const { partnerCredentialsService } = await import('./src/modules/partner-credentials/partner-credentials.service.ts');
 const { hashPartnerApiKey, partnerSecretCipher } = await import('./src/core/security/partner-credentials.ts');
@@ -317,22 +321,30 @@ partnerCredentialsService.findForGateway = async (hash) => hash === hashPartnerA
   ? { partnerCode: 'scaffold-probe', encryptedSecret: partnerSecretCipher.encrypt(probeSecret), ipWhitelist: [], allowedRoutes: ['/*'], rateLimitRpm: 1000, isActive: true }
   : null;
 let nonce = 0;
+// partner:end
+const expectedCodes = new Map([['webhook', 'ERR_WEBHOOK_SIGNATURE_INVALID']]);
+// partner:start
+expectedCodes.set('partner', 'ERR_PARTNER_HEADERS_MISSING');
+// partner:end
 for (const variant of variants) {
   const { path, method, body: requestBody } = variant.invalid;
   const anonymous = await app.request(base + path, { method, body: requestBody });
   const anonymousCode = (await anonymous.json()).error?.code;
-  const expectedCode = variant.channel === 'partner' ? 'ERR_PARTNER_HEADERS_MISSING' : variant.channel === 'webhook' ? 'ERR_WEBHOOK_SIGNATURE_INVALID' : 'ERR_UNAUTHORIZED';
+  const expectedCode = expectedCodes.get(variant.channel) ?? 'ERR_UNAUTHORIZED';
   if (anonymous.status !== 401 || anonymousCode !== expectedCode) {
     console.error(variant.label + ': expected 401 ' + expectedCode + ' without credentials (default-deny), got', anonymous.status, anonymousCode);
     process.exit(1);
   }
-  // ... and validate their input once authenticated (access token or partner signature).
+  // ... and validate their input once authenticated (access token or the channel's signature).
   const webhookTimestamp = String(Math.floor(Date.now() / 1000));
-  const credentials = variant.channel === 'webhook'
+  let credentials = variant.channel === 'webhook'
     ? { 'x-probe-hooks-timestamp': webhookTimestamp, 'x-probe-hooks-signature': signProbeHooksWebhook('verify-scaffold-webhook-secret', webhookTimestamp, requestBody ?? '') }
-    : variant.channel === 'partner'
-    ? partnerSignatureHeaders({ apiKey: probeKey, secret: probeSecret, method, url: base + path, body: requestBody ?? '', timestamp: String(Date.now()), nonce: 'verify_scaffold_' + String(++nonce).padStart(8, '0') })
     : { Authorization: 'Bearer ' + token };
+  // partner:start
+  if (variant.channel === 'partner') {
+    credentials = partnerSignatureHeaders({ apiKey: probeKey, secret: probeSecret, method, url: base + path, body: requestBody ?? '', timestamp: String(Date.now()), nonce: 'verify_scaffold_' + String(++nonce).padStart(8, '0') });
+  }
+  // partner:end
   const res = await app.request(base + path, { method, body: requestBody, headers: { 'Accept-Language': 'en', 'Content-Type': 'application/json', ...credentials } });
   const body = await res.json();
   if (res.status !== 400 || body.error?.code !== 'ERR_INVALID_INPUT') {
@@ -393,7 +405,7 @@ const main = (): void => {
         ...plannedFiles.filter((path) => path.endsWith('.test.ts')).map((path) => `./${path}`),
         // The generated tables are exported from the schema barrel: they must pass the conventions.
         './src/database/schema/schema-conventions.test.ts',
-        // File names, module/vendor naming and channel mounting (partner routers under /partner).
+        // File names, module/vendor naming and channel mounting (webhook routers under /webhooks).
         './test/structure.test.ts',
         // The CLI lists each new module in the canonical tree (docs/standards/structure.md).
         './test/docs-sync.test.ts',

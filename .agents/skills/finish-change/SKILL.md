@@ -9,7 +9,7 @@ Use this before saying a change is done. The definition of done and the report f
 
 ## Steps
 
-1. **List what changed**: `git status --short` and `git diff --stat` (staged and unstaged). Note every area touched: repositories / transactions / migrations / auth / partner / cache, scaffold templates or the CLI, core APIs, docs, rules.
+1. **List what changed**: `git status --short` and `git diff --stat` (staged and unstaged). Note every area touched: repositories / transactions / migrations / auth / inbound gateways / cache, scaffold templates or the CLI, core APIs, docs, rules.
 2. **Pick the gates** from `docs/standards/quality-gates.md` §1 for those areas: always `bun run validate:full` and `bun run build`; `bun run test:int`, `bun run verify:scaffold` and `bun run acceptance` only when §1 says so (acceptance creates databases: ask first, `docs/standards/database.md` §4). Run them; on a failure, fix and run again — never report a red gate as done.
 3. **Walk the definition of done** (`quality-gates.md` §4) item by item against the diff. A new rule needs its enforcer, its row in `ARCHITECTURE.md` §12 and a chaos test (break it, see the gate fail, restore, `git status` clean).
 4. **Docs in the same change**: the topic file in `docs/standards/` (`docs/standards/documentation.md`); the work plan's log and progress table when the change is a plan step (`.agents/AGENTS.md`).

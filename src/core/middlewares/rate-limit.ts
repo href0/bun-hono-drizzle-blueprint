@@ -67,11 +67,11 @@ const REJECTED_STATUSES: ReadonlySet<number> = new Set([401, 403]);
 
 /**
  * Fixed-window limit on **refused** attempts (401 / 403) per trusted client IP, for routes that
- * authenticate the caller themselves and bypass the global `rateLimit()` — the partner gateway
- * (its own per-partner `rate_limit_rpm`) and vendor webhooks (bursts of retries from a few IPs).
- * Accepted requests never count, so a busy partner is limited only by its own quota, while a
- * client guessing keys or signatures gets 429 (`Retry-After` = the window, an upper bound) before
- * its requests reach the credential lookup. No `RateLimit-*` headers: the partner quota owns them.
+ * authenticate the caller themselves and bypass the global `rateLimit()` — vendor webhooks (bursts
+ * of retries from a few IPs) and signed gateways with their own per-caller quota. Accepted requests
+ * never count, so a busy caller is limited only by its own quota, while a client guessing keys or
+ * signatures gets 429 (`Retry-After` = the window, an upper bound) before its requests reach the
+ * credential lookup. No `RateLimit-*` headers: the caller's own quota owns them.
  * Fails open like `rateLimit()`.
  */
 export const rejectionLimit = ({

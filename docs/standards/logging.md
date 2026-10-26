@@ -32,7 +32,7 @@ Vendor response bodies are not covered by these paths (vendors name fields freel
 - `requestId`: the inbound `X-Request-ID` when it matches `^[A-Za-z0-9._:-]{1,128}$` (prevents log injection), otherwise a new UUID v7. Echoed in the `X-Request-ID` response header and in error envelopes (`request_id`).
 - `locale`: the response language negotiated from `Accept-Language` (fallback `DEFAULT_LOCALE`); `getLocale()`.
 - `clientIp`: the trusted client address — the socket address, or with `TRUST_PROXY_HOPS = n > 0` the n-th `X-Forwarded-For` entry from the right; `unknown` without a socket (tests). `getClientIp()`; logged on the `Incoming request` line and used as the rate-limit key.
-- `actor`: `anonymous` until authentication sets it (`setActor('user:<id>')` / `partner:<code>`); `system` outside a request.
+- `actor`: `anonymous` until authentication sets it (`setActor('user:<id>')`, `webhook:<vendor>`, …); `system` outside a request.
 
 The logger's `mixin` adds `requestId` and `actor` to **every** log line written during the request, in any layer. Never pass them manually and never read them from the Hono `Context`:
 

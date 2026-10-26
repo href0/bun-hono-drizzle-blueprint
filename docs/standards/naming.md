@@ -1,6 +1,6 @@
 # Naming
 
-Read this file when: naming a file, a folder, a module, an identifier or a table. A file name is a **marker read by machines**: ESLint and dependency-cruiser pick their rules from the suffix (`*.controller.ts`, `*.repository.ts`, `*.partner.routes.ts`), so a near miss (`payments.partner-routes.ts`) would escape every architecture rule.
+Read this file when: naming a file, a folder, a module, an identifier or a table. A file name is a **marker read by machines**: ESLint and dependency-cruiser pick their rules from the suffix (`*.controller.ts`, `*.repository.ts`, `*.webhook.routes.ts`), so a near miss (`payments.webhook-routes.ts`) would escape every architecture rule.
 
 ---
 
@@ -9,7 +9,7 @@ Read this file when: naming a file, a folder, a module, an identifier or a table
 | Element | Format | Example |
 |---|---|---|
 | Folders and every dot segment of a file name | `kebab-case` | `user-profile.service.ts`, `auth/` |
-| Module file | `<module>[-<qualifier>][.partner\|.webhook].<role>[.test].ts` | `payments.partner.routes.ts`, `auth-users.repository.ts` |
+| Module file | `<module>[-<qualifier>][.<channel>].<role>[.test].ts` | `payments.webhook.routes.ts`, `auth-users.repository.ts` |
 | Dependent module (plan D33) | one subfolder of its parent, named after it — `<parent singular>-<name>`, as a header-detail table is `order_items`: `src/modules/<parent>/<child>/<child>.<role>[.test].ts` | `src/modules/projects/project-tasks/project-tasks.service.ts` |
 | Integration file | `src/integrations/<vendor>/<vendor>.<role>[.test].ts` (`service`, `dto`, `webhook`, `webhook.dto`) or `index.ts` | `acme-pay.webhook.ts` |
 | Unit test | next to the file: `<file>.test.ts` | `users.service.test.ts` |
@@ -17,7 +17,7 @@ Read this file when: naming a file, a folder, a module, an identifier or a table
 | Integration test | `test/integration/<area>.int.ts` (only there) | `test/integration/redis.int.ts` |
 
 - `<module>` is the folder name; `<role>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util` (a module-local helper). A qualifier names a second file of the same role (`auth-users.repository.ts`).
-- The channel segment (`.partner`, `.webhook`) says which caller the file serves: [auth-and-inbound.md](auth-and-inbound.md) §1.
+- The channel segment (`.webhook`, …) says which caller the file serves: [auth-and-inbound.md](auth-and-inbound.md) §1.
 - No `integration-*` prefix for vendor files: the folder is the marker.
 - A **dependent module** lives in a subfolder of its parent, one level only; its files are named after the subfolder, the subfolder holds a `DependentRepository` module, and a module name is used once across `src/modules/` (it also names a table and the flat routes `/<child>/:id`) — [new-module.md](new-module.md) §2.7.
 - **Modules are named after their domain** (`messaging`, `payments`), never after a vendor; the vendor lives only in `src/integrations/<vendor>/`, so changing vendors means a new adapter, not a new module (plan D26).

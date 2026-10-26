@@ -2,7 +2,7 @@
  * Integration tests against a real PostgreSQL and Redis (plan step 6.1).
  *
  *   bun run test:int              # every test/integration/*.int.ts
- *   bun run test:int partner      # only files whose name contains "partner"
+ *   bun run test:int auth         # only files whose name contains "auth"
  *   bun run test:int --keep-db    # keep the database afterwards (debugging)
  *   bun run test:int --dry-run    # print the targets a run would use, touch nothing
  *

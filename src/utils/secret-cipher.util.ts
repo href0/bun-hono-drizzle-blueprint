@@ -83,7 +83,8 @@ const loadKeys = (keyring: SecretKeyring): ReadonlyMap<string, Buffer> => {
 };
 
 /**
- * AES-256-GCM for secrets the server must read back (partner HMAC secrets): a fresh random
+ * AES-256-GCM for secrets the server must read back (an HMAC secret it verifies signatures with,
+ * a vendor token it sends): a fresh random
  * 12-byte IV per encryption, the 16-byte tag checked on decrypt. The payload names its key, so
  * rotating the active key keeps every older payload readable while its key stays in the ring.
  * Throws {@link SecretCipherError} at creation for an invalid keyring (fail fast at startup).

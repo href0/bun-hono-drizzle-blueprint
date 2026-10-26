@@ -3,7 +3,9 @@ import { Hono, type Context } from 'hono';
 import {
   getActor,
   getAuthenticatedUser,
+  // partner:start
   setAuthenticatedPartner,
+  // partner:end
 } from '../context/request-context';
 import { UnauthorizedError } from '../errors';
 import { signAccessToken } from '../security/jwt';
@@ -110,6 +112,7 @@ describe('authenticate (default-deny)', () => {
   });
 });
 
+// partner:start
 describe('authenticate — partner routes', () => {
   it('leaves /partner/* to partnerAuth() only once a partner is verified (fail-closed)', async () => {
     const app = new Hono();
@@ -139,3 +142,4 @@ describe('authenticate — partner routes', () => {
     ).toBe('ERR_UNAUTHORIZED');
   });
 });
+// partner:end

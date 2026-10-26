@@ -7,9 +7,13 @@ description: Scaffold a new feature/domain module under src/modules/<name>/ (sch
 
 Use this skill when asked to create, add, or scaffold a new domain/feature module under `src/modules/<module-name>/`.
 
-**Pick the variant first**: `docs/standards/new-module.md` §1 (table kinds, templates, working examples). Standalone tables use Steps 2–12 below; the other variants are in `references/` (`header-detail.md`, `dependent.md`, `dependent-one.md`, `record.md`, `partner.md`, `webhook.md`, `integration.md`).
+**Pick the variant first**: `docs/standards/new-module.md` §1 (table kinds, templates, working examples). Standalone tables use Steps 2–12 below; the other variants are in `references/` (`header-detail.md`, `dependent.md`, `dependent-one.md`, `record.md`, `webhook.md`, `integration.md`).
+<!-- partner:start -->
 
-**Then generate with the CLI — do not copy the templates by hand**: `bun run scaffold <module|partner|webhook|integration> <name> [options]` (commands, naming rules, refusals: `docs/standards/new-module.md` §2; `--dry-run` first to check the plan and the singular it derived). It writes every file of the variant, registers it in the shared files, formats the result and prints the next steps. Always pass the arguments: the interactive wizard (`bun run scaffold` without arguments, `scaffold:<kind>`) is for people at a terminal and never opens without one — never set `SCAFFOLD_WIZARD_STDIN`, which only `bun run acceptance` uses to answer it. Your work starts after it: the domain fields, rules, messages and tests, following the standards each step links, then `bun run validate:full`.
+With the partner gateway: `references/partner.md` (signed partner endpoints).
+<!-- partner:end -->
+
+**Then generate with the CLI — do not copy the templates by hand**: `bun run scaffold <kind> <name> [options]` (commands, naming rules, refusals: `docs/standards/new-module.md` §2; `--dry-run` first to check the plan and the singular it derived). It writes every file of the variant, registers it in the shared files, formats the result and prints the next steps. Always pass the arguments: the interactive wizard (`bun run scaffold` without arguments, `scaffold:<kind>`) is for people at a terminal and never opens without one — never set `SCAFFOLD_WIZARD_STDIN`, which only `bun run acceptance` uses to answer it. Your work starts after it: the domain fields, rules, messages and tests, following the standards each step links, then `bun run validate:full`.
 
 The order of work and the standard behind each step: `docs/standards/new-module.md` §3. This file holds only the template code the CLI reads (verified by `bun run verify:scaffold`, which runs the CLI); the rules each step relies on are linked, never restated. Changing a template changes what the CLI generates: run `bun run verify:scaffold` afterwards.
 
@@ -724,7 +728,7 @@ Add the integration test when the module has its own queries, locks, unique inde
 
 New routes change the API contract: `bun run openapi:check` lists them (all `safe`); review them, then `bun run openapi:update` and commit `docs/api/` (snapshot + the generated `docs/api/<name>.md`) with the module — `docs/standards/openapi.md` §6. Every `describeEndpoint()` carries the `message` its controller sends and the domain error codes its service throws (`errors`); under `NODE_ENV=test` a mismatch fails the tests (`docs/standards/openapi.md` §5).
 
-These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/dependent.md`, `references/dependent-one.md`, `references/record.md`, `references/partner.md`, `references/webhook.md`) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
+These templates are verified mechanically by `bun run verify:scaffold` (also in CI): it runs `bun run scaffold` for each variant (this file, `references/header-detail.md`, `references/dependent.md`, `references/dependent-one.md`, `references/record.md`, `references/webhook.md`, and `references/partner.md` with the partner gateway) plus a vendor adapter (`references/integration.md`) and runs every gate, the generated tests and the schema conventions. After editing a template, the CLI, or any core API they use, run it.
 
 The templates are formatted for a short module name; `bun run scaffold` formats what it writes. After your own edits (or when copying a block by hand), format before validating:
 ```bash

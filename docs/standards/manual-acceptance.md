@@ -14,7 +14,7 @@ When: before every release (`git-workflow.md` §1.1), and after a change to `scr
 
 ```bash
 bun run acceptance                         # menu: choose the combinations, see the plan, confirm
-bun run acceptance --combo 1,2             # no menu (an AI agent, automation); a = all
+bun run acceptance --combo 1,3             # no menu (an AI agent, automation); a = all
 bun run acceptance --combo 1 --plan        # only the steps and the estimate
 bun run acceptance --clean                 # remove work folders and databases of earlier runs
 ```
@@ -25,6 +25,7 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 |---|---|---|
 | 1 | `bun run setup` — the wizard, answered by the runner | a new project: examples removed, migrations regenerated |
 | 2 | `setup acceptance-demo --title "Acceptance Demo API" --keep-examples` | the generators next to the examples; an example route still answers |
+| 3 | `bun run setup` — the wizard, answered No to partners (= `--no-partner`) | a project without the partner gateway: its gates pass, `scaffold partner` is refused |
 
 - **What it tests**: the commit `--ref` (default the last commit), cloned into a work folder `_acceptance/acceptance-<date>-<time>/` **next to** this repository — never the working tree; it says so when there are uncommitted changes.
 - **While it runs**: one line per step; on a terminal a spinner and a timer that keeps counting, then `✓ 1m52s` / `✗` / `-` (skipped, with the reason). In a pipe or a log file: one line per finished step plus a heartbeat every minute. At the end, a table: one row per combination, one column per stage.
@@ -40,7 +41,7 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 Combination 1 — new project: setup removes the examples (default)
   [ 1/24] A  Clone the commit under test into the work folder .......... ✓ 2s
   [ 2/24] A  bun install ............................................... ✓ 5s
-  [ 3/24] A  bun run setup: the wizard (combination 1) or flags (combination 2) ... ✓ 3s
+  [ 3/24] A  bun run setup: the wizard (combinations 1, 3) or flags (combination 2) ... ✓ 3s
   [ 4/24] A  Gates of the new project: validate:full + build ........... ⠹ 31s running
 ```
 
@@ -75,7 +76,7 @@ The runner's steps, in order, per combination (`scripts/lib/acceptance.ts`; `tes
 
 1. **Clone the commit under test into the work folder** — on the branch `test/acceptance`, a name the project's own gates accept.
 2. **bun install**
-3. **bun run setup: the wizard (combination 1) or flags (combination 2)** — the wizard answered by the runner (name, title, Enter on the description, No to the examples, Yes to apply), or `--title … --keep-examples`; the README carries the title, the examples (incl. `user-posts`) are removed (1) or kept (2).
+3. **bun run setup: the wizard (combinations 1, 3) or flags (combination 2)** — the wizard answered by the runner (name, title, Enter on the description, No to the examples, Yes to partners — or No and Yes to removing the gateway (3) — Yes to apply), or `--title … --keep-examples`; the README carries the title, the examples (incl. `user-posts`) are removed (1, 3) or kept (2), the partner gateway is kept (1, 2) or removed (3).
 4. **Gates of the new project: validate:full + build**
 
 **B — generators**
@@ -85,7 +86,7 @@ The runner's steps, in order, per combination (`scripts/lib/acceptance.ts`; `tes
 7. **Flags: record module audit-entries**
 8. **Wizard (bun run scaffold:module): dependent 1:N product-reviews** — the parent picked from the list.
 9. **Flags: dependent 1:1 product-specs (--one)**
-10. **Flags: partner endpoint shipments**
+10. **Flags: partner endpoint shipments (refused without the gateway)** — combination 3: `unknown kind`.
 11. **Wizard (bun run scaffold:webhook): refund-notifications from globex** — then the vendor's secret is set, as its next steps ask.
 12. **Flags (bun run scaffold:integration): outbound adapter acme-mail** — then its variables are set.
 13. **Wizard: answering No, then Ctrl+C, writes nothing**
@@ -96,10 +97,10 @@ The runner's steps, in order, per combination (`scripts/lib/acceptance.ts`; `tes
 **C — database and server** (skipped without PostgreSQL / Redis, or with `--no-db`)
 
 17. **Database: create, db:migrate, seed:admin**
-18. **Server: health, login, refresh, users, partner ping** — refresh with the cookie; `/users` with and without a token; combination 2 also an example route; a partner credential, a signed and an unsigned ping.
+18. **Server: health, login, refresh, users, partner ping (with the gateway)** — refresh with the cookie; `/users` with and without a token; combination 2 also an example route; with the gateway a partner credential, a signed and an unsigned ping.
 19. **HTTP: products, invoices with lines, audit entries** — success, a validation error (400), no token (401).
 20. **HTTP: a review and a spec under the product**
-21. **HTTP: signed partner shipments, signed globex webhook** — 201, the same reference 409, unsigned 401; the signed event 2xx, again `duplicate: true`, a forged signature 401.
+21. **HTTP: signed partner shipments (with the gateway), signed globex webhook** — with the gateway 201, the same reference 409, unsigned 401; the signed event 2xx, again `duplicate: true`, a forged signature 401.
 22. **Stop the server, drop the database and the Redis keys**
 
 **D — images** (skipped when Docker is not running; the running container is proven by the CI job `docker`, R79)

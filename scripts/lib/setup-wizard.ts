@@ -1,7 +1,8 @@
 /**
  * The arguments of `bun run setup` and its wizard (plan D38). In a terminal, `bun run setup` without
- * a project name asks for it — and for the title, the description and whether to keep the examples
- * — then runs exactly what the printed equivalent command runs (`setupArgv` → `parseSetupArgs`).
+ * a project name asks for it — and for the title, the description, whether to keep the examples and
+ * the partner gateway — then runs exactly what the printed equivalent command runs (`setupArgv` →
+ * `parseSetupArgs`).
  * Without a terminal nothing is asked: no name = only the local env file, as before.
  */
 import type { Prompter } from './prompter';
@@ -15,10 +16,14 @@ export interface SetupRequest {
   title?: string;
   description?: string;
   keepExamples: boolean;
+  /** Keep the partner gateway; false = `--no-partner` removes it (plan D39). */
+  partner: boolean;
 }
 
-export interface SetupArgs extends Partial<Omit<SetupRequest, 'keepExamples'>> {
+export interface SetupArgs extends Partial<Omit<SetupRequest, 'keepExamples' | 'partner'>> {
   keepExamples: boolean;
+  /** `--no-partner` given: the wizard does not ask about the gateway again. */
+  noPartner: boolean;
   dryRun: boolean;
 }
 
@@ -26,7 +31,15 @@ export class SetupArgsError extends Error {}
 
 export const SETUP_USAGE = `Usage:
   bun run setup                                     only the local env file (in a terminal: the wizard)
-  bun run setup <project-name> [--title "<Title>"] [--description "<text>"] [--keep-examples] [--dry-run]`;
+  bun run setup <project-name> [--title "<Title>"] [--description "<text>"] [--keep-examples] [--no-partner] [--dry-run]`;
+
+/** Shown before the wizard removes the gateway; a separate Yes is asked after it. */
+export const NO_PARTNER_WARNING = [
+  'WARNING — removing the partner gateway deletes from this project:',
+  '  the partner-credentials and partner-gateway modules, the partner_credentials table, partnerAuth(),',
+  '  the PARTNER_* settings, bun run partner:sign, bun run scaffold:partner and the partner guide.',
+  '  Switching it on later is manual: docs/standards/project-setup.md (§ Partner gateway).',
+].join('\n');
 
 /** `api-gateway` → `Api Gateway`. */
 export const titleOf = (name: string): string =>
@@ -58,7 +71,7 @@ const nameProblem = (name: string): string | undefined =>
 const VALUE_FLAGS = ['--title', '--description'] as const;
 
 export const parseSetupArgs = (argv: readonly string[]): SetupArgs => {
-  const args: SetupArgs = { keepExamples: false, dryRun: false };
+  const args: SetupArgs = { keepExamples: false, noPartner: false, dryRun: false };
   const rest = [...argv];
   for (let arg = rest.shift(); arg !== undefined; arg = rest.shift()) {
     if (arg === '--dry-run') {
@@ -67,6 +80,10 @@ export const parseSetupArgs = (argv: readonly string[]): SetupArgs => {
     }
     if (arg === '--keep-examples') {
       args.keepExamples = true;
+      continue;
+    }
+    if (arg === '--no-partner') {
+      args.noPartner = true;
       continue;
     }
     const flag = VALUE_FLAGS.find((name) => arg === name || arg.startsWith(`${name}=`));
@@ -93,8 +110,32 @@ export const parseSetupArgs = (argv: readonly string[]): SetupArgs => {
 /** True when the command line names no project: only then the wizard has something to ask. */
 export const needsSetupWizard = (args: SetupArgs): boolean => args.name === undefined;
 
-/** Asks for what the command line left out; what it gave is kept and never asked again. */
-export const completeSetup = async (args: SetupArgs, prompter: Prompter): Promise<SetupRequest> => {
+/**
+ * Whether to keep the partner gateway: default Yes; a No shows what goes and needs its own Yes,
+ * otherwise the gateway stays.
+ */
+const askPartner = async (prompter: Prompter, warn: (text: string) => void): Promise<boolean> => {
+  if (
+    await prompter.confirm(
+      'Accept calls from partner systems (partner gateway: signed API keys, partner-credentials)?',
+      true,
+    )
+  ) {
+    return true;
+  }
+  warn(NO_PARTNER_WARNING);
+  return !(await prompter.confirm('Remove the partner gateway from this project?'));
+};
+
+/**
+ * Asks for what the command line left out; what it gave is kept and never asked again. `warn`
+ * prints the no-partner warning (red in a terminal).
+ */
+export const completeSetup = async (
+  args: SetupArgs,
+  prompter: Prompter,
+  warn: (text: string) => void = console.warn,
+): Promise<SetupRequest> => {
   const name =
     args.name ??
     (await prompter.text({
@@ -121,20 +162,32 @@ export const completeSetup = async (args: SetupArgs, prompter: Prompter): Promis
     (await prompter.confirm(
       'Keep the example modules (orders, projects, demo-pay, user-posts) as a reference?',
     ));
+  const partner = !args.noPartner && (await askPartner(prompter, warn));
   return {
     name,
     title: title === titleOf(name) ? undefined : title,
     description: description === '' ? undefined : description,
     keepExamples,
+    partner,
   };
 };
 
-/** The command-line arguments of a request: `parseSetupArgs(setupArgv(request))` gives it back. */
+/** The request of parsed arguments that name a project (no questions asked). */
+export const requestOf = (args: SetupArgs & { name: string }): SetupRequest => ({
+  name: args.name,
+  title: args.title,
+  description: args.description,
+  keepExamples: args.keepExamples,
+  partner: !args.noPartner,
+});
+
+/** The command-line arguments of a request: `requestOf(parseSetupArgs(setupArgv(r)))` gives it back. */
 export const setupArgv = (request: SetupRequest): string[] => [
   request.name,
   ...(request.title === undefined ? [] : [`--title=${request.title}`]),
   ...(request.description === undefined ? [] : [`--description=${request.description}`]),
   ...(request.keepExamples ? ['--keep-examples'] : []),
+  ...(request.partner ? [] : ['--no-partner']),
 ];
 
 /** The same request as one command to copy (values with spaces or shell characters quoted). */

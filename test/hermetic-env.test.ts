@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { databaseConfig, partnerConfig, redisConfig } from '../src/config';
+import {
+  databaseConfig,
+  // partner:start
+  partnerConfig,
+  // partner:end
+  redisConfig,
+} from '../src/config';
 import { sqlClient } from '../src/database/connection';
 import { pingDatabase } from '../src/database/health-probe';
 import { HERMETIC_ENV } from './setup/hermetic-env';
@@ -12,12 +18,14 @@ describe('hermetic test environment (bunfig.toml preload)', () => {
     expect(process.env.NODE_ENV).toBe('test');
   });
 
+  // partner:start
   it('uses the test partner keyring, never the developer keyring (it encrypts real secrets)', () => {
     expect(partnerConfig.PARTNER_SECRET_ACTIVE_KEY_ID).toBe(
       HERMETIC_ENV.PARTNER_SECRET_ACTIVE_KEY_ID,
     );
     expect(partnerConfig.PARTNER_SECRET_KEYS).toEqual({ test: '0'.repeat(64) });
   });
+  // partner:end
 
   it('runs in UTC whatever the host zone (plan D13)', () => {
     expect(process.env.TZ).toBe('UTC');

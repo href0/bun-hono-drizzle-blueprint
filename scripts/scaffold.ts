@@ -1,9 +1,9 @@
 /**
- * Generates a module, a partner endpoint, a vendor webhook receiver or an outbound vendor adapter
+ * Generates a module, an inbound channel endpoint, a vendor webhook receiver or an outbound adapter
  * from the scaffold-module skill's templates (plan D31) — no AI agent needed, same code as the
  * skill, verified in CI because `bun run verify:scaffold` runs this very command.
  *
- * Usage: bun run scaffold <module|partner|webhook|integration> <name> [options] — see USAGE. In a
+ * Usage: bun run scaffold <kind> <name> [options] — the kinds are in USAGE. In a
  * terminal, a missing <kind> / <name> (or a webhook's vendor) opens the wizard (plan D36): it asks,
  * shows the plan, asks before writing, and prints the equivalent command. Without a terminal (CI, an
  * AI agent, verify:scaffold) nothing is ever asked: a missing argument is the usage error — unless

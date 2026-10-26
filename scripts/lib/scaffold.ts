@@ -26,10 +26,22 @@ export const APP_MARKERS = {
   v1Routes: '  // scaffold:v1-routes',
 } as const;
 
-export type ScaffoldKind = 'module' | 'partner' | 'webhook' | 'integration';
+export type ScaffoldKind =
+  | 'module'
+  // partner:start
+  | 'partner'
+  // partner:end
+  | 'webhook'
+  | 'integration';
 /** Table kind of a module; a dependent module (`--parent`) is a standalone variant with a parent. */
 export type ModuleVariant = 'standalone' | 'header-detail' | 'record';
 export const MODULE_VARIANTS: readonly ModuleVariant[] = ['standalone', 'header-detail', 'record'];
+/** What a module plan generates: a table kind, or an endpoint of another channel (a kind). */
+type PlanVariant =
+  // partner:start
+  | 'partner'
+  // partner:end
+  | ModuleVariant;
 
 export class ScaffoldError extends Error {}
 
@@ -356,8 +368,37 @@ export interface ScaffoldPlan {
   parent?: { names: Names; segment: string };
 }
 
+/** A module's variant and the router it registers: `/<name>`, or its channel's prefix. */
+const moduleRouterOf = (
+  request: ScaffoldRequest,
+  names: Names,
+): { variant: PlanVariant; router: { file: string; symbol: string; mount: string } } => {
+  // partner:start
+  if (request.kind === 'partner') {
+    return {
+      variant: 'partner',
+      router: {
+        file: `${names.name}.partner.routes`,
+        symbol: `${names.camelPlural}PartnerRoutes`,
+        mount: `/partner/${names.name}`,
+      },
+    };
+  }
+  // partner:end
+  return {
+    variant: request.variant ?? 'standalone',
+    router: {
+      file: `${names.name}.routes`,
+      symbol: `${names.camelPlural}Router`,
+      mount: `/${names.name}`,
+    },
+  };
+};
+
 const templateOf = (request: ScaffoldRequest): string => {
+  // partner:start
   if (request.kind === 'partner') return `${SKILL_DIR}/references/partner.md`;
+  // partner:end
   if (request.kind === 'webhook') return `${SKILL_DIR}/references/webhook.md`;
   if (request.kind === 'integration') return `${SKILL_DIR}/references/integration.md`;
   if (request.parent !== undefined) {
@@ -521,8 +562,9 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
 
   if (request.parent !== undefined) return planDependent(request, text, template, names);
 
-  // A module: standalone, header-detail or record (users with access tokens), or partner.
-  const isHeaderDetail = request.kind === 'module' && request.variant === 'header-detail';
+  // A module: standalone, header-detail or record (users with access tokens), or a channel kind.
+  // Only a module takes --variant (readScaffoldArgs refuses it elsewhere).
+  const isHeaderDetail = request.variant === 'header-detail';
   const detailName = request.detail ?? DEFAULT_DETAIL;
   // A refused detail name is answered with the same command and the suggested --detail.
   const retryDetail: Retry = (guess) =>
@@ -541,19 +583,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
       )
     : undefined;
   const files = materialize(text, names, [APP_PATH], undefined, detail);
-  const isPartner = request.kind === 'partner';
-  const variant = isPartner ? 'partner' : (request.variant ?? 'standalone');
-  const router = isPartner
-    ? {
-        file: `${names.name}.partner.routes`,
-        symbol: `${names.camelPlural}PartnerRoutes`,
-        mount: `/partner/${names.name}`,
-      }
-    : {
-        file: `${names.name}.routes`,
-        symbol: `${names.camelPlural}Router`,
-        mount: `/${names.name}`,
-      };
+  const { variant, router } = moduleRouterOf(request, names);
   const edits: PlannedEdit[] = [
     appendExport(SCHEMA_BARREL, `export ./${names.name}.schema`, `./${names.name}.schema`),
     {
@@ -576,7 +606,9 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
         standalone: `Standalone-table module (/api/v1/${names.name})`,
         'header-detail': `Header + detail module (/api/v1/${names.name}[/:id/${detail?.kebabPlural ?? DEFAULT_DETAIL}])`,
         record: `Record (append-only) module (/api/v1/${names.name})`,
+        // partner:start
         partner: `Partner endpoints (/api/v1/partner/${names.name})`,
+        // partner:end
       }[variant],
     ),
   );
@@ -607,11 +639,13 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
       ...(variant === 'record'
         ? [`Write the reason of ${names.snakePlural} in APPEND_ONLY_TABLES.`]
         : []),
-      ...(isPartner
+      // partner:start
+      ...(variant === 'partner'
         ? [
             `Add /${names.name} and /${names.name}/* to the allowed_routes of the partner credentials that may call it.`,
           ]
         : []),
+      // partner:end
       "Generate the migration: bun run db:generate (applying it is the developer's call).",
     ],
   };
@@ -717,13 +751,22 @@ export const USAGE = [
   '  module <plural-name> --parent=<parent-module> [--one] [--parent-singular=<name>] [--singular=<name>]',
   '         dependent of an existing module: 1:N, or 1:1 with --one (at most one live row per parent);',
   '         created as <parent-singular>-<name> (documents under orders → order-documents, table order_documents)',
+  // partner:start
   '  partner <plural-name> [--singular=<name>]',
+  // partner:end
   '  webhook <plural-name> --vendor=<vendor> [--singular=<name>] [--institution="<name>"]',
   '  integration <vendor> [--institution="<name>"]',
   '  --dry-run   print the plan, write nothing',
 ].join('\n');
 
-const KINDS: readonly ScaffoldKind[] = ['module', 'partner', 'webhook', 'integration'];
+const KINDS: readonly ScaffoldKind[] = [
+  'module',
+  // partner:start
+  'partner',
+  // partner:end
+  'webhook',
+  'integration',
+];
 const OPTIONS = [
   'variant',
   'singular',

@@ -8,6 +8,8 @@
  * (schema-conventions.test.ts) fails for an unlisted plain unique and for a stale entry.
  */
 export const PERMANENT_UNIQUE_INDEXES: Readonly<Record<string, string>> = {
+  // partner:start
   partner_credentials_partner_code_uq:
     'partner code is the audit actor (partner:<code>) in created_by/updated_by: never reused, even after a delete',
+  // partner:end
 };

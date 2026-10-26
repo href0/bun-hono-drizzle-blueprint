@@ -6,7 +6,7 @@ import { documentErrors } from '../openapi/describe-endpoint';
 import type { Role } from '../security/roles';
 import { currentUser } from './authenticate';
 
-/** Operation extension listing who may call the route (`admin`, `self:<param>`, `partner:<code>`). */
+/** Operation extension listing who may call the route (`admin`, `self:<param>`, …). */
 const ALLOWED_CALLERS = 'x-allowed-callers';
 
 const roleForbidden = (): ForbiddenError =>

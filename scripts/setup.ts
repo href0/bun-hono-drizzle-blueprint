@@ -3,10 +3,11 @@
  *
  * Usage:
  *   bun run setup                                  # only create .env from .env.example
- *   bun run setup <project-name> [--title "..."] [--description "..."] [--keep-examples] [--dry-run]
+ *   bun run setup <project-name> [--title "..."] [--description "..."] [--keep-examples] [--no-partner] [--dry-run]
  *
  * In a terminal, `bun run setup` without a name opens a wizard (plan D38): it asks for the name, the
- * title, the description and whether to keep the examples, shows the plan (a dry run), asks before
+ * title, the description, whether to keep the examples and the partner gateway, shows the plan (a
+ * dry run), asks before
  * changing anything, and prints the equivalent command (scripts/lib/setup-wizard.ts). Without a
  * terminal it never asks — unless SETUP_WIZARD_STDIN=1, set only by `bun run acceptance`.
  *
@@ -17,6 +18,9 @@
  * EXAMPLE_MODULES lists the example code a new project starts without (default): its files and
  * registrations are removed and the migrations are regenerated from scratch — a new project has
  * no database yet, so its history starts clean. `--keep-examples` keeps them. Same drift guard.
+ *
+ * The partner gateway is kept (only its markers go) or removed with `--no-partner`: marked regions
+ * and PARTNER_ONLY files (scripts/lib/partner-prune.ts, plan D39).
  */
 import {
   copyFileSync,
@@ -30,11 +34,13 @@ import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { SNAPSHOT_PATH } from './lib/api-contract/document';
 import { gitHooksAdvice, readGitState } from './lib/git-hooks';
+import { PARTNER_SCRIPTS, planPartner } from './lib/partner-prune';
 import { CancelledError, terminalPrompter } from './lib/prompter';
 import {
   completeSetup,
   needsSetupWizard,
   parseSetupArgs,
+  requestOf,
   SetupArgsError,
   setupArgv,
   setupCommandOf,
@@ -392,12 +398,13 @@ function stopGuardingExamples(rootDir: string): void {
 }
 
 /**
- * Removes the example modules, then regenerates the migrations from scratch. An example whose
- * files and registrations are all gone was removed by an earlier run (an initialized project): it
- * is skipped, and when every example is gone nothing is touched — the migrations of a real project
- * are never regenerated. A partly present example is drift and aborts before writing anything.
+ * Removes the example modules; true when any was removed (the migrations then need a new
+ * baseline). An example whose files and registrations are all gone was removed by an earlier run
+ * (an initialized project): it is skipped, and when every example is gone nothing is touched — the
+ * migrations of a real project are never regenerated. A partly present example is drift and aborts
+ * before writing anything.
  */
-function removeExamples(rootDir: string, dryRun: boolean): void {
+function removeExamples(rootDir: string, dryRun: boolean): boolean {
   const pending = new Map<string, string>();
   const failures: string[] = [];
   const present: ExampleModule[] = [];
@@ -449,18 +456,11 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
     process.exit(1);
   }
 
-  if (present.length === 0) return;
+  if (present.length === 0) return false;
   for (const example of present) {
     console.log(`[Setup] ${dryRun ? 'Would remove' : 'Remove'} example: ${example.label}`);
   }
-  console.log(
-    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} database migrations from scratch (drizzle/)`,
-  );
-  // The one machine that writes the contract snapshot: a new project's baseline, not a change.
-  console.log(
-    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} the API contract baseline (${SNAPSHOT_PATH} + docs/api/*.md) without the examples`,
-  );
-  if (dryRun) return;
+  if (dryRun) return true;
 
   for (const example of present) {
     for (const path of example.paths)
@@ -468,6 +468,90 @@ function removeExamples(rootDir: string, dryRun: boolean): void {
   }
   for (const [file, content] of pending) writeFileSync(resolve(rootDir, file), content, 'utf-8');
   stopGuardingExamples(rootDir);
+  return true;
+}
+
+const printPartnerProblems = (problems: readonly string[]): never => {
+  console.error('[Setup] Error: the partner gateway markers are out of sync with the codebase:');
+  problems.forEach((problem) => {
+    console.error(`  - ${problem}`);
+  });
+  console.error(
+    '[Setup] Mark the partner lines (// partner:start … // partner:end; scripts/lib/partner-prune.ts) or fix PARTNER_ONLY. No files were changed.',
+  );
+  process.exit(1);
+};
+
+/**
+ * Keeps the partner gateway (only its markers go) or removes it (`--no-partner`, plan D39). True
+ * when the gateway was removed, so the migrations and the contract need a new baseline.
+ */
+function applyPartner(rootDir: string, keepPartner: boolean, dryRun: boolean): boolean {
+  const plan = planPartner(rootDir, keepPartner);
+  if (plan.problems.length > 0) printPartnerProblems(plan.problems);
+  if (plan.regions === 0 && plan.remove.length === 0) return false;
+  if (keepPartner) {
+    console.log(
+      `[Setup] ${dryRun ? 'Would keep' : 'Keep'} the partner gateway (${plan.regions} marked regions: markers removed)`,
+    );
+  } else {
+    console.log(
+      `[Setup] ${dryRun ? 'Would remove' : 'Remove'} the partner gateway (--no-partner): ${plan.remove.length} files / folders, ${plan.regions} marked regions, scripts ${PARTNER_SCRIPTS.join(', ')}`,
+    );
+  }
+  if (dryRun) return !keepPartner;
+  for (const path of plan.remove) rmSync(resolve(rootDir, path), { recursive: true, force: true });
+  for (const [file, content] of plan.edits) {
+    writeFileSync(resolve(rootDir, file), content, 'utf-8');
+  }
+  // A dropped region can leave code Prettier would join (a one-element array, a short union).
+  const code = [...plan.edits.keys()].filter((file) => file.endsWith('.ts'));
+  if (code.length > 0) {
+    const format = Bun.spawnSync(['bunx', 'prettier', '--write', ...code], {
+      cwd: rootDir,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    if (format.exitCode !== 0) {
+      console.warn(
+        `[Setup] WARNING: prettier failed (${format.stderr.toString().trim()}); run "bun run format".`,
+      );
+    }
+  }
+  return !keepPartner;
+}
+
+/**
+ * Notes in package.json which boilerplate version and commit the project started from, and whether
+ * it kept the partner gateway — what a future `partner:enable` needs to fetch the same code.
+ */
+function recordBoilerplateOrigin(rootDir: string, keepPartner: boolean, dryRun: boolean): void {
+  const packagePath = resolve(rootDir, 'package.json');
+  const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as Record<string, unknown>;
+  if (packageJson.boilerplate !== undefined) return;
+  const head = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: rootDir, stderr: 'pipe' });
+  const commit = head.exitCode === 0 ? head.stdout.toString().trim() : undefined;
+  console.log(
+    `[Setup] ${dryRun ? 'Would record' : 'Record'} the boilerplate origin in package.json (version, commit, partner)`,
+  );
+  if (dryRun) return;
+  packageJson.boilerplate = { version: packageJson.version, commit, partner: keepPartner };
+  writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf-8');
+}
+
+/**
+ * A new project's first migration and contract, after examples or the partner gateway left:
+ * migrations regenerated from scratch (no database exists yet) and the contract snapshot rewritten.
+ */
+function regenerateBaseline(rootDir: string, dryRun: boolean): void {
+  console.log(
+    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} database migrations from scratch (drizzle/)`,
+  );
+  // The one machine that writes the contract snapshot: a new project's baseline, not a change.
+  console.log(
+    `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} the API contract baseline (${SNAPSHOT_PATH} + docs/api/*.md)`,
+  );
+  if (dryRun) return;
 
   const migrations = resolve(rootDir, 'drizzle');
   for (const entry of existsSync(migrations) ? readdirSync(migrations) : []) {
@@ -558,7 +642,8 @@ function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): v
 
 /**
  * Values the app refuses to start without, generated for a local .env: the JWT secret (32+
- * characters) and the keyring that encrypts partner secrets (one 32-byte key, `k1`).
+ * characters) and the keyring that encrypts partner secrets (one 32-byte key, `k1`). Only those
+ * `.env.example` declares: a project without the partner gateway has no keyring.
  */
 const GENERATED_SECRETS: readonly { name: string; generate: () => string }[] = [
   { name: 'JWT_SECRET', generate: () => randomBytes(48).toString('base64url') },
@@ -570,11 +655,12 @@ const GENERATED_SECRETS: readonly { name: string; generate: () => string }[] = [
  * Fills each GENERATED_SECRETS variable the .env does not set (empty or missing line). An existing
  * value is never replaced or printed.
  */
-function ensureGeneratedSecrets(envPath: string, dryRun: boolean): void {
+function ensureGeneratedSecrets(envPath: string, template: string, dryRun: boolean): void {
   let content = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
   const generated: string[] = [];
 
   for (const { name, generate } of GENERATED_SECRETS) {
+    if (!new RegExp(`^${name}=`, 'm').test(template)) continue;
     if (new RegExp(`^${name}=\\S`, 'm').test(content)) continue;
     const emptyLine = new RegExp(`^${name}=[ \\t]*$`, 'm');
     const line = `${name}=${generate()}`;
@@ -589,24 +675,31 @@ function ensureGeneratedSecrets(envPath: string, dryRun: boolean): void {
   console.log(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} ${generated.join(', ')} in .env`);
 }
 
-function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun: boolean): void {
+/** `template`: the `.env.example` a dry run would leave (the file itself is not changed yet). */
+function ensureEnvFile(
+  rootDir: string,
+  id: ProjectIdentity | undefined,
+  dryRun: boolean,
+  template?: string,
+): void {
   const envPath = resolve(rootDir, '.env');
   const envExamplePath = resolve(rootDir, '.env.example');
 
+  if (!existsSync(envExamplePath)) {
+    console.error('[Setup] Error: .env.example not found');
+    process.exit(1);
+  }
+  template ??= readFileSync(envExamplePath, 'utf-8');
   if (!existsSync(envPath)) {
-    if (!existsSync(envExamplePath)) {
-      console.error('[Setup] Error: .env.example not found');
-      process.exit(1);
-    }
     if (!dryRun) copyFileSync(envExamplePath, envPath);
     console.log(`[Setup] ${dryRun ? 'Would create' : 'Created'} .env from .env.example`);
-    ensureGeneratedSecrets(envPath, dryRun);
+    ensureGeneratedSecrets(envPath, template, dryRun);
     return;
   }
 
   // Existing .env holds local secrets: only APP_NAME and missing GENERATED_SECRETS are touched,
   // and no value is ever printed.
-  ensureGeneratedSecrets(envPath, dryRun);
+  ensureGeneratedSecrets(envPath, template, dryRun);
   if (id) {
     if (!dryRun) {
       const content = readFileSync(envPath, 'utf-8');
@@ -621,24 +714,36 @@ function ensureEnvFile(rootDir: string, id: ProjectIdentity | undefined, dryRun:
   }
 }
 
-/** Renames, removes or keeps the examples, and prepares the env file; `dryRun` only prints. */
+/**
+ * Renames, removes or keeps the examples and the partner gateway, and prepares the env file;
+ * `dryRun` only prints.
+ */
 function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: boolean): void {
   let identity: ProjectIdentity | undefined;
+  let template: string | undefined;
   if (request) {
     identity = toIdentity(request);
     console.log(
       `[Setup] name=${identity.name} db=${identity.snakeName}_db title="${identity.title}"`,
     );
+    // Checked before anything is written: the partner markers fail like a drifted identity rule.
+    const partnerPlan = planPartner(rootDir, request.partner);
+    if (partnerPlan.problems.length > 0) printPartnerProblems(partnerPlan.problems);
     // Rename first so a freshly created .env inherits the new identity from .env.example.
     applyIdentity(rootDir, identity, dryRun);
+    let newBaseline = false;
     if (request.keepExamples) {
       console.log('[Setup] Keeping the example modules (--keep-examples)');
       if (!dryRun) stopGuardingExamples(rootDir);
     } else {
-      removeExamples(rootDir, dryRun);
+      newBaseline = removeExamples(rootDir, dryRun);
     }
+    newBaseline = applyPartner(rootDir, request.partner, dryRun) || newBaseline;
+    if (dryRun) template = partnerPlan.edits.get('.env.example');
+    recordBoilerplateOrigin(rootDir, request.partner, dryRun);
+    if (newBaseline) regenerateBaseline(rootDir, dryRun);
   }
-  ensureEnvFile(rootDir, identity, dryRun);
+  ensureEnvFile(rootDir, identity, dryRun, template);
 }
 
 const printNextSteps = (dryRun: boolean): void => {
@@ -668,7 +773,7 @@ async function runSetup(): Promise<void> {
     needsSetupWizard(args) && (driven || (process.stdin.isTTY && process.stdout.isTTY));
 
   if (!interactive) {
-    const request = args.name === undefined ? undefined : { ...args, name: args.name };
+    const request = args.name === undefined ? undefined : requestOf({ ...args, name: args.name });
     console.log(`[Setup] Starting project initialization${args.dryRun ? ' (dry run)' : ''}...`);
     initialize(rootDir, request, args.dryRun);
     printNextSteps(args.dryRun);
@@ -676,9 +781,10 @@ async function runSetup(): Promise<void> {
   }
 
   // The answers become the same arguments as a typed command, parsed like one.
-  const answers = await completeSetup(args, terminalPrompter);
-  const parsed = parseSetupArgs(setupArgv(answers));
-  const request: SetupRequest = { ...parsed, name: answers.name };
+  const answers = await completeSetup(args, terminalPrompter, (text) => {
+    console.warn(process.stdout.isTTY ? `\u001b[31m${text}\u001b[0m` : text);
+  });
+  const request = requestOf({ ...parseSetupArgs(setupArgv(answers)), name: answers.name });
   console.log('\n[Setup] Plan (nothing is changed yet):');
   initialize(rootDir, request, true);
   const equivalent = `\nSame result without the wizard:\n  ${setupCommandOf(request)}`;

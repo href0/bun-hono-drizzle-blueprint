@@ -20,7 +20,7 @@ Violations are caught automatically: the pre-commit and pre-push hooks block the
 | Naming | [naming.md](docs/standards/naming.md) | Naming a file, module, identifier or table |
 | Gates & commands | [quality-gates.md](docs/standards/quality-gates.md) | Running checks, adding a script or an ESLint rule |
 | HTTP contract | [http-contract.md](docs/standards/http-contract.md) | Controllers, validation, DTOs, envelopes, errors, messages |
-| Authentication & inbound channels | [auth-and-inbound.md](docs/standards/auth-and-inbound.md) | Who may call a route; roles; partner endpoints; vendor webhooks |
+| Authentication & inbound channels | [auth-and-inbound.md](docs/standards/auth-and-inbound.md) | Who may call a route; roles; inbound channels; vendor webhooks |
 | OpenAPI | [openapi.md](docs/standards/openapi.md) | Documenting a route or a response schema |
 | Database | [database.md](docs/standards/database.md) | Tables, columns, migrations, repositories, audit trail |
 | Transactions | [transactions.md](docs/standards/transactions.md) | Atomic operations, `@Transactional()`, repository tests |

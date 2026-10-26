@@ -16,7 +16,8 @@ This document explains **what and why** for every architectural decision. **How*
 | Cache, logging, configuration, bootstrap | [cache.md](docs/standards/cache.md), [logging.md](docs/standards/logging.md), [configuration.md](docs/standards/configuration.md), [bootstrap.md](docs/standards/bootstrap.md) |
 | Outbound integrations, OpenAPI, testing | [integrations.md](docs/standards/integrations.md), [openapi.md](docs/standards/openapi.md), [testing.md](docs/standards/testing.md) |
 | Naming, new modules, git | [naming.md](docs/standards/naming.md), [new-module.md](docs/standards/new-module.md), [git-workflow.md](docs/standards/git-workflow.md) |
-| Frontend, partner and deployment guides | [docs/auth-guide.md](docs/auth-guide.md), [docs/partner-integration-guide.md](docs/partner-integration-guide.md), [docs/deployment.md](docs/deployment.md) |
+| Frontend and deployment guides | [docs/auth-guide.md](docs/auth-guide.md), [docs/deployment.md](docs/deployment.md) |
+| Partner guide | [docs/partner-integration-guide.md](docs/partner-integration-guide.md) | <!-- partner -->
 | Adoption plan and decision log — `D13`, `L3`, "plan step 2.5" in comments and documents refer to it | [docs/plans/2026-10-04-blueprint-adoption-plan.md](docs/plans/2026-10-04-blueprint-adoption-plan.md) |
 | Finished plans and the original NestJS blueprint (history, not maintained) | [docs/archive/](docs/archive/) |
 
@@ -33,7 +34,7 @@ Every rule is referenced by its ID in [§12 Rule Index & Enforcers](#12-rule-ind
 ├── [2] Strict Layer Isolation              → Routes → Controller → Service → Repository (dependency-cruiser)
 ├── [3] Declarative ACID Transactions       → @Transactional() in services + TransactionHost (AsyncLocalStorage)
 ├── [4] Audited Data Layer                  → 4 repository bases; every UPDATE/DELETE recorded in record_changes
-├── [5] Default-Deny Access                 → JWT + refresh cookie (users), HMAC v1 (partners), per-vendor verifier (webhooks)
+├── [5] Default-Deny Access                 → JWT + refresh cookie (users), signed inbound channels (per-vendor verifier, HMAC v1)
 ├── [6] Zero-Trust Configuration            → process.env read in one file; every group validated with Zod at start
 ├── [7] Resilient & Observable Platform     → Redis fail-open, Pino + request ID, health UP/DEGRADED/DOWN
 └── [8] Machine-Enforced Quality Gates      → tsc, ESLint AST, ls-lint, depcruise, knip, guard tests, coverage, CI
@@ -74,9 +75,9 @@ database/schema ──► utils only
 config ──► libraries only (root of the graph)
 ```
 
-Why: the domain (`modules`) may depend on infrastructure, never the reverse — `core` and `database` are reused by every module, so they may not know any module (R02). Modules do not import each other (R03): a cross-module need is injected through a parameter (e.g. `partnerAuth()` receives the credential lookup of `partner-credentials` in `app.ts`). Inside a module the flow is one-way, Routes → Controller → Service → Repository, with pure transformers (R01).
+Why: the domain (`modules`) may depend on infrastructure, never the reverse — `core` and `database` are reused by every module, so they may not know any module (R02). Modules do not import each other (R03): a cross-module need is injected through a parameter (e.g. a guard receives the lookup it needs as an option in `app.ts`). Inside a module the flow is one-way, Routes → Controller → Service → Repository, with pure transformers (R01).
 
-File names are **markers read by machines**: ESLint and dependency-cruiser choose rules by suffix (`*.controller.ts`, `*.partner.routes.ts`), so a near miss (`x.partner-routes.ts`) would escape every rule — hence the patterns are tested (R05, R06). Modules are named after their domain, never a vendor (D26). TypeScript is camelCase; snake_case is only for SQL and the wire (R07). Details: [naming.md](docs/standards/naming.md).
+File names are **markers read by machines**: ESLint and dependency-cruiser choose rules by suffix (`*.controller.ts`, `*.webhook.routes.ts`), so a near miss (`x.webhook-routes.ts`) would escape every rule — hence the patterns are tested (R05, R06). Modules are named after their domain, never a vendor (D26). TypeScript is camelCase; snake_case is only for SQL and the wire (R07). Details: [naming.md](docs/standards/naming.md).
 
 ---
 
@@ -92,12 +93,12 @@ One factory serves `src/index.ts` and every e2e test, so tests run the productio
  3. secureHeaders()       security headers
  4. cors()                only when CORS_ORIGINS is set (empty = no CORS headers)
  5. bodySizeLimit()       413 in the standard envelope
- 6. rateLimit()           global per IP (Redis, fail-open) — except health, partner, webhook;
-    rejectionLimit()      on the partner & webhook prefixes: per IP only 401/403 answers count
+ 6. rateLimit()           global per IP (Redis, fail-open) — except health and the self-authenticated prefixes;
+    rejectionLimit()      on the self-authenticated prefixes: per IP only 401/403 answers count
  7. health                public, outside /v1
  8. webhookAuth(vendor)   per WEBHOOK_VENDORS, then requireVerifiedWebhook() → fail-closed
- 9. partnerAuth()         <base>/v1/partner/* (signing v1)
-10. authenticate()        <base>/v1/* default-deny, except PUBLIC_ROUTES and verified partners
+ 9. partnerAuth()         <base>/v1/partner/* (signing v1) <!-- partner -->
+10. authenticate()        <base>/v1/* default-deny, except PUBLIC_ROUTES and routes a guard above verified
 11. v1 router             modules (requireRole per route); mountApiDocs() (off in production)
 12. onError / notFound    globalErrorHandler, notFoundHandler (error envelope)
 ```
@@ -133,13 +134,13 @@ Three kinds, never mixed — instant (`*_at`), calendar date (`*_date`), local s
 | Caller | Channel | Authenticated by | Actor |
 |---|---|---|---|
 | Users (FE, mobile) | `<base>/v1/<module>` | JWT Bearer (`authenticate()`) | `user:<id>` |
-| Partner systems | `<base>/v1/partner/...` | HMAC signing v1 (`partnerAuth()`) | `partner:<code>` |
+| Partner systems | `<base>/v1/partner/...` | HMAC signing v1 (`partnerAuth()`) | `partner:<code>` | <!-- partner -->
 | Vendor webhooks | `<base>/webhooks/<vendor>` (outside `/v1`) | the vendor's verifier (`webhookAuth()`) | `webhook:<vendor>` |
 | No request (jobs, seeds) | — | — | `system` |
 
-- **Separate channels** (D23): the partner contract is ours, a webhook contract is the vendor's. Loosening `partnerAuth()` for one vendor would weaken every partner. Each channel's helpers are allowed only in its files (R43), and channel routers only under their prefix (R44).
+- **Separate channels** (D23): a webhook contract is the vendor's; each vendor gets its own verifier. Each channel's helpers are allowed only in its files (R43), and channel routers only under their prefix (R44).
 - **Users** (D1–D7): short-lived JWT access token (15 min) in the body; an opaque refresh token in an `HttpOnly; Secure; SameSite=Strict` cookie, stored hashed, rotated on every refresh, with reuse revoking the whole family (theft detection) (R40, R41). Opaque + database instead of a stateless JWT refresh because it must be revocable; database instead of Redis because Redis is fail-open and auth state must not vanish. **Default-deny** (D7): authentication is mounted once for all of `/v1`, with a short `PUBLIC_ROUTES` list — forgetting to add auth is no longer a hole, because there is nothing to add (R38). RBAC per route (R39).
-- **Partners** (D21, D27–D29): signed requests (timestamp, single-use nonce, signature over method + path + query + body), IP whitelist, route ACL, per-partner rate limit (R42). Nonce and rate limit use fail-open Redis — a conscious trade for gateway availability — so partner writes must be idempotent per `(partner_code, partner_reference)` (R47). An endpoint for one partner adds `requirePartner()` so an admin's ACL mistake cannot open it to others.
+- **Partners** (D21, D27–D29): signed requests (timestamp, single-use nonce, signature over method + path + query + body), IP whitelist, route ACL, per-partner rate limit (R42). Nonce and rate limit use fail-open Redis — a conscious trade for gateway availability — so partner writes must be idempotent per `(partner_code, partner_reference)` (R47). An endpoint for one partner adds `requirePartner()` so an admin's ACL mistake cannot open it to others. The partner contract is ours: loosening `partnerAuth()` for one vendor would weaken every partner. <!-- partner -->
 - **Webhooks** (D23, D28): the verifier follows the vendor's scheme; the prefix is fail-closed (R45); events are stored unique per `(vendor, event_id)` and processed in the same transaction, so a vendor retry is answered 200 without running twice (R47).
 
 Detail: [auth-and-inbound.md](docs/standards/auth-and-inbound.md).
@@ -298,13 +299,15 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R39 | Per-route authorization `requireRole` / `requireSelfOrRole` → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI | [test:require-role] [test:openapi.e2e] |
 | R40 | Refresh token only in an HttpOnly cookie, rotated; reuse revokes the whole family | [test:auth.service] [test:auth.e2e] [test:auth] |
 | R41 | Cookie endpoints use `csrfProtection()` | [test:csrf] [test:auth.e2e] |
-| R42 | Partner routes only through `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), also with a bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] |
-| R43 | Helpers per channel: `currentPartner` / `requirePartner` only in `*.partner.*`, `requireRole` / `requireSelfOrRole` / `currentUser` never there, neither in `*.webhook.*` | [eslint:local/inbound-channel] |
-| R44 | Channel routers only under their prefix (`*.partner.routes.ts` under `/v1/partner`, `*.webhook.routes.ts` under `/webhooks`) | [test:structure] |
+| R42 | Partner routes only through `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), also with a bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] | <!-- partner -->
+<!-- no-partner: | R42 | Partner gateway: removed by `bun run setup --no-partner` (plan D39) — no partner routes | [review-only] | -->
+| R43 | Helpers per channel: a channel's helpers only in its files (`*.<channel>.*`), `requireRole` / `requireSelfOrRole` / `currentUser` never there (`*.webhook.*`, …) | [eslint:local/inbound-channel] |
+| R44 | Channel routers only under their prefix (`*.webhook.routes.ts` under `/webhooks`, …) | [test:structure] |
 | R45 | Webhook verifiers imported only by `app.ts`; the webhook prefix is fail-closed (no valid signature → 401) | [depcruise:webhook-verifier-only-in-app] [test:webhook-auth] [test:default-deny.e2e] |
 | R46 | `bodyKeys: 'verbatim'` (vendor casing) only in `*.webhook.*` files | [eslint:local/inbound-channel] [test:validate] |
-| R47 | Idempotent inbound: `webhook_events` unique `(vendor, event_id)`; partner writes unique `(partner_code, partner_reference)` — the `partner.md` / `webhook.md` templates carry it, hand-written modules are not checked | [script:verify:scaffold] [review-only] |
-| R48 | The partner guide (signing vectors, headers, error codes) matches the code | [test:partner-guide] |
+| R47 | Idempotent inbound: `webhook_events` unique `(vendor, event_id)`, a channel's own writes unique per caller reference — the channel templates (`webhook.md`, …) carry it, hand-written modules are not checked | [script:verify:scaffold] [review-only] |
+| R48 | The partner guide (signing vectors, headers, error codes) matches the code | [test:partner-guide] | <!-- partner -->
+<!-- no-partner: | R48 | Partner guide: removed with the partner gateway (`--no-partner`, plan D39) | [review-only] | -->
 
 ### Outbound integrations
 
@@ -358,6 +361,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R79 | The deployment path works: both images of the `Dockerfile` build (dependencies installed without lifecycle scripts), the `tools` image migrates a real PostgreSQL, and the production image starts with production settings and reports `healthy` ([docs/deployment.md](docs/deployment.md)) | [ci:docker] |
 | R80 | The documentation portal builds: every synced document is in the sidebar and no internal link or anchor is broken | [ci:docs] [script:docs:build] |
 | R81 | A release passes the acceptance run (`bun run acceptance --combo a`: per setup combination a fresh clone → setup → every scaffold variant, the wizard answered by the runner → gates → database → server → HTTP → images); its document lists exactly the runner's steps | [test:docs-sync] [review-only] — it needs real services and minutes, so CI does not run it |
+| R82 | The partner gateway is removable (`bun run setup --no-partner`, D39): partner code of shared files sits in balanced, unnested marked regions, partner-only files are in `PARTNER_ONLY`, and the pruned `src/`, `test/`, `.env.example` mention no partner | [script:lint:setup] [test:partner-prune] |
 
 ---
 

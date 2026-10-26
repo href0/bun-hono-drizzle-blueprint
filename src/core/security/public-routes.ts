@@ -23,6 +23,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { method: 'POST', path: '/auth/register' },
 ];
 
+// partner:start
 /**
  * Partner gateway routes, relative to `<API_BASE_PATH>/v1`: authenticated by a signed request
  * (`partnerAuth()`, HMAC), never by an access token. Not public — a request without valid partner
@@ -33,6 +34,7 @@ export const PARTNER_ROUTE_PREFIX = '/partner';
 /** Whether a versioned path (relative to `<API_BASE_PATH>/v1`) is a partner gateway route. */
 export const isPartnerRoute = (path: string): boolean =>
   matchRoutePattern(`${PARTNER_ROUTE_PREFIX}/*`, path);
+// partner:end
 
 /** `HEAD` is answered by `GET` handlers, so a public `GET` is public for `HEAD` too. */
 export const isPublicRoute = (

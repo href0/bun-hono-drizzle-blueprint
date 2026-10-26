@@ -1,20 +1,27 @@
 # Authentication, Authorization & Inbound Channels
 
-Read this file when: adding a route (who may call it?), a role check, a public route, a partner endpoint or a vendor webhook. Frontend-facing guide: [docs/auth-guide.md](../auth-guide.md); partner-facing guide: [docs/partner-integration-guide.md](../partner-integration-guide.md).
+Read this file when: adding a route (who may call it?), a role check, a public route, an endpoint of an inbound channel or a vendor webhook. Frontend-facing guide: [docs/auth-guide.md](../auth-guide.md).
+<!-- partner:start -->
+
+Partner-facing guide: [docs/partner-integration-guide.md](../partner-integration-guide.md). The partner gateway (§3, §4) is optional: `bun run setup --no-partner` removes it ([project-setup.md](project-setup.md)).
+<!-- partner:end -->
 
 ---
 
-## 1. Three inbound channels
+## 1. Inbound channels
 
 | Caller | Files | Mounted under | Authenticated by | Helpers allowed | Actor |
 |---|---|---|---|---|---|
 | Users (FE, mobile) | `<module>.<role>.ts` | `<API_BASE_PATH>/v1/<module>` | `authenticate()` — JWT Bearer | `requireRole`, `requireSelfOrRole`, `currentUser` | `user:<id>` |
-| Partner systems | `<module>.partner.<role>.ts` | `<API_BASE_PATH>/v1/partner/...` | `partnerAuth()` — signing v1 | `currentPartner`, `requirePartner` | `partner:<code>` |
+| Partner systems | `<module>.partner.<role>.ts` | `<API_BASE_PATH>/v1/partner/...` | `partnerAuth()` — signing v1 | `currentPartner`, `requirePartner` | `partner:<code>` | <!-- partner -->
 | Vendor webhooks | `<module>.webhook.<role>.ts` | `<API_BASE_PATH>/webhooks/<vendor>` (outside `/v1`) | `webhookAuth()` — the vendor's verifier | `currentWebhook` | `webhook:<vendor>` |
 
-Outside a request (jobs, seeders) the actor is `system`. The partner contract is ours (signing v1); a webhook contract is the vendor's — loosening `partnerAuth()` for one vendor would weaken every partner (plan D23).
+Outside a request (jobs, seeders) the actor is `system`. A webhook contract is the vendor's: each vendor gets its own verifier, never a shared one loosened for it.
+<!-- partner:start -->
+The partner contract is ours (signing v1); a webhook contract is the vendor's — loosening `partnerAuth()` for one vendor would weaken every partner (plan D23).
+<!-- partner:end -->
 
-Enforced: ESLint `local/inbound-channel` (the helpers per channel, read from the file name; `bodyKeys: 'verbatim'` only in `*.webhook.*` files) and `test/structure.test.ts` (`*.partner.routes.ts` routers only under `/v1/partner` and nothing else there, `*.webhook.routes.ts` only under `/webhooks`). File naming: [naming.md](naming.md).
+Enforced: ESLint `local/inbound-channel` (the helpers per channel, read from the file name; `bodyKeys: 'verbatim'` only in `*.webhook.*` files) and `test/structure.test.ts` (each channel's routers only under its prefix and nothing else there: `*.webhook.routes.ts` only under `/webhooks`, `*.partner.routes.ts` only under `/v1/partner`). File naming: [naming.md](naming.md).
 
 ## 2. Users: default-deny JWT
 
@@ -42,6 +49,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 
 Enforced: `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones nothing).
 
+<!-- partner:start -->
 ## 3. Partners: signed requests (spec v1)
 
 `partnerAuth()` is mounted on `<API_BASE_PATH>/v1/partner/*` before `authenticate()`. Checks in order, each with its refusal:
@@ -68,6 +76,7 @@ Enforced: `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 
 - Generate them from the scaffold variant `.agents/skills/scaffold-module/references/partner.md` (`<module>.partner.routes.ts`), mount under `/api/v1/partner/...`, then add the route pattern to the credential's `allowed_routes`.
 - An endpoint for one partner only adds `requirePartner('<code>')` after `describeEndpoint()` (403 `ERR_PARTNER_ROUTE_FORBIDDEN`, documented) — on top of `allowed_routes`, so an admin's mistake cannot open it to another partner (plan D27).
 - **Idempotent writes**: the partner sends its own reference; `(partner_code, partner_reference)` is unique (`activeUniqueIndex`) and a retry is a 409. The partner code always comes from `currentPartner()`, never from the body; reads are scoped to the calling partner. `[review-only]` for hand-written modules (the template carries it).
+<!-- partner:end -->
 
 ## 5. Vendor webhooks
 

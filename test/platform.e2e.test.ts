@@ -44,20 +44,22 @@ describe('Platform hardening — createApp() pipeline', () => {
     expect(res.headers.get('RateLimit-Limit')).toBeNull();
   });
 
-  it('partner and webhook prefixes skip the global limit; per IP only their refused attempts count', async () => {
+  it('self-authenticated prefixes skip the global limit; per IP only their refused attempts count', async () => {
     const counted: string[] = [];
     const increment = spyOn(cacheService, 'increment').mockImplementation((key) => {
       counted.push(key.split(':').slice(0, 2).join(':'));
       return Promise.resolve({ count: 1, ttlSeconds: 60 });
     });
     const get = spyOn(cacheService, 'get').mockResolvedValue(null);
+    const inbound = [`${appConfig.API_BASE_PATH}/webhooks/unknown-vendor`];
+    // partner:start
+    inbound.push(`${appConfig.API_BASE_PATH}/v1/partner/ping`);
+    // partner:end
     try {
       expect((await app.request('/')).status).toBe(200);
-      expect((await app.request(`${appConfig.API_BASE_PATH}/v1/partner/ping`)).status).toBe(401);
-      const webhook = await app.request(`${appConfig.API_BASE_PATH}/webhooks/unknown-vendor`, {
-        method: 'POST',
-      });
-      expect(webhook.status).toBe(401);
+      for (const path of inbound) {
+        expect((await app.request(path, { method: 'POST' })).status).toBe(401);
+      }
     } finally {
       increment.mockRestore();
       get.mockRestore();
@@ -65,8 +67,7 @@ describe('Platform hardening — createApp() pipeline', () => {
 
     expect(counted).toEqual([
       'rate-limit:global',
-      'rate-limit:inbound-rejected',
-      'rate-limit:inbound-rejected',
+      ...inbound.map(() => 'rate-limit:inbound-rejected'),
     ]);
   });
 });

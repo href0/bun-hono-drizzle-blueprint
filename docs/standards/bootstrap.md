@@ -8,9 +8,10 @@ Read this file when: modifying `src/app.ts` or `src/index.ts`, changing the midd
 
 Source of truth: `src/app.ts` — read it rather than a copy. `createApp()` builds a fresh Hono app so tests instantiate it (`createApp().request(...)`) without ports or lifecycle leaks; the same factory serves production, so tests exercise the real pipeline.
 
-- Paths derive from `API_BASE_PATH`: `<base>/health`, `<base>/webhooks`, `<base>/v1`, `<base>/v1/partner`.
+- Paths derive from `API_BASE_PATH`: `<base>/health`, `<base>/webhooks`, `<base>/v1`.
+- The partner gateway lives under `<base>/v1/partner`. <!-- partner -->
 - `WEBHOOK_VENDORS` (exported) lists the vendor verifiers — the only place they are imported ([auth-and-inbound.md](auth-and-inbound.md) §5).
-- The `partnerAuth()` credential lookup is injected here from the `partner-credentials` service (modules never import each other).
+- The `partnerAuth()` credential lookup is injected here from the `partner-credentials` service (modules never import each other). <!-- partner -->
 - Modules register on the versioned router: `v1.route('/<module>', router)`; `GET /` returns the service identity.
 - `mountApiDocs()` runs after every route so the document sees them all; its `requiresAuthentication` uses the same `PUBLIC_ROUTES` rule as `authenticate()`.
 
@@ -36,10 +37,10 @@ Source of truth: `src/index.ts`. `bootstrap()`:
 | 3 | `secureHeaders()` | `X-Content-Type-Options`, `X-Frame-Options`, HSTS, … |
 | 4 | `corsMiddleware(CORS_ORIGINS)` | Mounted only when `CORS_ORIGINS` is non-empty; allowlist with credentials; unlisted origins get no `Access-Control-Allow-Origin` |
 | 5 | `bodySizeLimit(HTTP_BODY_LIMIT_BYTES)` | 413 `ERR_PAYLOAD_TOO_LARGE` by `Content-Length` or while streaming |
-| 6 | `rateLimit({ keyPrefix: 'global' })` · `rejectionLimit({ keyPrefix: 'inbound-rejected' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped. The partner and webhook prefixes skip the global limit (a partner has its own `rate_limit_rpm`, vendors send bursts of retries from few IPs): there `rejectionLimit()` counts only refused attempts (401 / 403) per IP, so key or signature guessing still gets 429 before the credential lookup |
+| 6 | `rateLimit({ keyPrefix: 'global' })` · `rejectionLimit({ keyPrefix: 'inbound-rejected' })` | Fixed window per trusted client IP via Redis `increment`; `RateLimit-*` headers; 429 + `Retry-After`; fails open; health probes skipped. The self-authenticated prefixes (`selfAuthenticatedPaths`: webhooks — vendors send bursts of retries from few IPs — and gateways with their own quota) skip the global limit: there `rejectionLimit()` counts only refused attempts (401 / 403) per IP, so key or signature guessing still gets 429 before the credential lookup |
 | 7 | Routes | `<API_BASE_PATH>/health` (unversioned, public) |
 | 7b | `webhookAuth(vendor)` per `WEBHOOK_VENDORS` entry, then `requireVerifiedWebhook()` | `<API_BASE_PATH>/webhooks/*`, outside `/v1`: each vendor's verifier on `/webhooks/<vendor>/*`, then a fail-closed guard (401 `ERR_WEBHOOK_SIGNATURE_INVALID` for anything no verifier accepted); actor `webhook:<vendor>` |
-| 8 | `partnerAuth({ basePath: '<API_BASE_PATH>/v1/partner', lookup })` | Partner gateway: request signed per spec v1 (headers, timestamp window, API key → active credential, IP whitelist, `allowed_routes`, signature over the raw body read once, nonce, per-partner rate limit); actor `partner:<code>`; one audit log line per request. Lookup injected from the `partner-credentials` module |
+| 8 | `partnerAuth({ basePath: '<API_BASE_PATH>/v1/partner', lookup })` | Partner gateway: request signed per spec v1 (headers, timestamp window, API key → active credential, IP whitelist, `allowed_routes`, signature over the raw body read once, nonce, per-partner rate limit); actor `partner:<code>`; one audit log line per request. Lookup injected from the `partner-credentials` module | <!-- partner -->
 | 9 | `authenticate({ basePath: '<API_BASE_PATH>/v1' })` | **Default-deny**: every versioned route needs `Authorization: Bearer <access token>` except `PUBLIC_ROUTES` (`src/core/security/public-routes.ts`); sets actor `user:<id>` + role. Unversioned routes (health, docs, `/`) are public by design (asserted by `test/default-deny.e2e.test.ts`). Partner routes (`/v1/partner/*`) pass only once `partnerAuth()` verified the partner (fail-closed) |
 | 10 | Routes | The versioned router `<API_BASE_PATH>/v1` holding the domain modules (`v1.route('/users', …)`; `validate()` and `requireRole()` per route, controllers return `ApiResponse`). The version is code, not env: a new version is a new router |
 | — | `mountApiDocs()` | `<API_BASE_PATH>/docs` (Scalar UI) + `/docs/openapi.json`, mounted after every route so the document sees them all; not mounted when `API_DOCS_ENABLED` is false (production default) |

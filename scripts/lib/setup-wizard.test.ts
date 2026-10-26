@@ -3,7 +3,9 @@ import type { Prompter, TextQuestion } from './prompter';
 import {
   completeSetup,
   needsSetupWizard,
+  NO_PARTNER_WARNING,
   parseSetupArgs,
+  requestOf,
   setupArgv,
   setupCommandOf,
   titleOf,
@@ -45,7 +47,7 @@ const scripted = (...answers: Answer[]) => {
 describe('parseSetupArgs', () => {
   it('no arguments: only the env file, and the wizard is wanted', () => {
     const args = parseSetupArgs([]);
-    expect(args).toEqual({ keepExamples: false, dryRun: false });
+    expect(args).toEqual({ keepExamples: false, noPartner: false, dryRun: false });
     expect(needsSetupWizard(args)).toBe(true);
   });
 
@@ -56,6 +58,7 @@ describe('parseSetupArgs', () => {
       'Order Service API',
       '--description=Orders and invoices',
       '--keep-examples',
+      '--no-partner',
       '--dry-run',
     ]);
     expect(args).toEqual({
@@ -63,6 +66,7 @@ describe('parseSetupArgs', () => {
       title: 'Order Service API',
       description: 'Orders and invoices',
       keepExamples: true,
+      noPartner: true,
       dryRun: true,
     });
     expect(needsSetupWizard(args)).toBe(false);
@@ -95,13 +99,21 @@ describe('titleOf / titleProblem', () => {
 
 describe('completeSetup (the wizard)', () => {
   it('asks name, title (derived, editable), description, examples; prints only what differs', async () => {
-    const session = scripted('Order Service', 'order-service', 'Order Service API', ENTER, false);
+    const session = scripted(
+      'Order Service',
+      'order-service',
+      'Order Service API',
+      ENTER,
+      false,
+      true,
+    );
     const request = await completeSetup(parseSetupArgs([]), session.prompter);
     expect(request).toEqual({
       name: 'order-service',
       title: 'Order Service API',
       description: undefined,
       keepExamples: false,
+      partner: true,
     });
     expect(session.rejected).toEqual([
       'the project name must be kebab-case (lowercase letters, digits, single hyphens; starts with a letter), got "Order Service"',
@@ -112,19 +124,21 @@ describe('completeSetup (the wizard)', () => {
       'Title (README heading, docs portal)',
       'Description (one line for package.json; Enter to skip)',
       'Keep the example modules (orders, projects, demo-pay, user-posts) as a reference?',
+      'Accept calls from partner systems (partner gateway: signed API keys, partner-credentials)?',
     ]);
     expect(session.placeholders.every((text) => text.startsWith('e.g. '))).toBe(true);
     expect(setupCommandOf(request)).toBe('bun run setup order-service --title="Order Service API"');
   });
 
   it('Enter keeps the derived title (not printed); a description and examples kept are', async () => {
-    const session = scripted('api-gateway', ENTER, 'Routes and limits', true);
+    const session = scripted('api-gateway', ENTER, 'Routes and limits', true, true);
     const request = await completeSetup(parseSetupArgs([]), session.prompter);
     expect(request).toEqual({
       name: 'api-gateway',
       title: undefined,
       description: 'Routes and limits',
       keepExamples: true,
+      partner: true,
     });
     expect(setupCommandOf(request)).toBe(
       'bun run setup api-gateway --description="Routes and limits" --keep-examples',
@@ -133,14 +147,34 @@ describe('completeSetup (the wizard)', () => {
 
   it('values from the command line are not asked again', async () => {
     const session = scripted('demo');
-    const args = { ...parseSetupArgs(['--title', 'Demo', '--description=x', '--keep-examples']) };
+    const args = {
+      ...parseSetupArgs(['--title', 'Demo', '--description=x', '--keep-examples', '--no-partner']),
+    };
     expect(await completeSetup(args, session.prompter)).toEqual({
       name: 'demo',
       title: undefined,
       description: 'x',
       keepExamples: true,
+      partner: false,
     });
     expect(session.asked).toHaveLength(1);
+  });
+
+  it('No to partners shows the warning and needs its own Yes; a second No keeps the gateway', async () => {
+    const warnings: string[] = [];
+    const removed = scripted('demo', ENTER, ENTER, false, false, true);
+    const request = await completeSetup(parseSetupArgs([]), removed.prompter, (text) =>
+      warnings.push(text),
+    );
+    expect(request.partner).toBe(false);
+    expect(warnings).toEqual([NO_PARTNER_WARNING]);
+    expect(removed.asked.at(-1)).toBe('Remove the partner gateway from this project?');
+    expect(setupCommandOf(request)).toBe('bun run setup demo --no-partner');
+
+    const kept = scripted('demo', ENTER, ENTER, false, false, false);
+    const keptRequest = await completeSetup(parseSetupArgs([]), kept.prompter, () => undefined);
+    expect(keptRequest.partner).toBe(true);
+    expect(setupCommandOf(keptRequest)).toBe('bun run setup demo');
   });
 
   it('the printed command parses back to the same request', () => {
@@ -149,9 +183,11 @@ describe('completeSetup (the wizard)', () => {
       title: 'Demo & Co (beta)',
       description: 'A = b; c',
       keepExamples: false,
+      partner: true,
     };
-    const parsed = parseSetupArgs(setupArgv(request));
-    expect({ ...parsed, dryRun: undefined }).toEqual({ ...request, dryRun: undefined });
+    expect(requestOf({ ...parseSetupArgs(setupArgv(request)), name: request.name })).toEqual(
+      request,
+    );
     expect(setupCommandOf(request)).toBe(
       'bun run setup demo --title="Demo & Co (beta)" --description="A = b; c"',
     );

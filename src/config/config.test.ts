@@ -4,7 +4,9 @@ import { buildAuthConfig } from './auth.config';
 import { buildDatabaseConfig } from './database.config';
 import { buildHttpConfig } from './http.config';
 import { buildJsonPlaceholderConfig } from './jsonplaceholder.config';
+// partner:start
 import { buildPartnerConfig } from './partner.config';
+// partner:end
 import { buildRedisConfig } from './redis.config';
 
 describe('Configuration groups (Unit)', () => {
@@ -199,6 +201,7 @@ describe('Configuration groups (Unit)', () => {
     );
   });
 
+  // partner:start
   const K1 = 'a'.repeat(64);
   const K0 = 'B'.repeat(64);
   const partnerError = (source: Record<string, string>): string => {
@@ -271,4 +274,5 @@ describe('Configuration groups (Unit)', () => {
       expect(message.toLowerCase()).not.toContain(K0.toLowerCase());
     }
   });
+  // partner:end
 });

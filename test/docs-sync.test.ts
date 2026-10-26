@@ -48,12 +48,15 @@ describe('structure.md and quality-gates.md name everything a contributor works 
     const areas = entries('test/integration')
       .filter((name) => name.endsWith('.int.ts'))
       .map((name) => name.replace(/\.int\.ts$/, ''));
-    // Areas are short words (auth, redis): they must appear on the tree line of integration/.
+    // Areas are short words (auth, redis): they must appear on the tree line of integration/, or
+    // as their own `<area>.int.ts` entry (an area of an optional feature, removed with it).
     const integrationLine = lines(structure).find((line) => line.includes('── integration/')) ?? '';
     expect([
       ...missingFrom(structure, folders, (name) => `${name}/`),
       ...missingFrom(structure, helpers),
-      ...missingFrom(integrationLine, areas),
+      ...missingFrom(integrationLine, areas).filter(
+        (area) => !structure.includes(`${area}.int.ts`),
+      ),
     ]).toEqual([]);
   });
 

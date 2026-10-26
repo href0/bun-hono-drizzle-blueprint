@@ -12,7 +12,9 @@ import {
   loggerMiddleware,
   notFoundHandler,
   isUnderPath,
+  // partner:start
   partnerAuth,
+  // partner:end
   rateLimit,
   rejectionLimit,
   requestContextMiddleware,
@@ -22,13 +24,20 @@ import {
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
 import { describeEndpoint, mountApiDocs } from './core/openapi';
-import { isPartnerRoute, isPublicRoute } from './core/security/public-routes';
+import {
+  // partner:start
+  isPartnerRoute,
+  // partner:end
+  isPublicRoute,
+} from './core/security/public-routes';
 import { ApiResponse } from './core/response';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
+// partner:start
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
 import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
 import { partnerGatewayRoutes } from './modules/partner-gateway/partner-gateway.partner.routes';
+// partner:end
 import { userRoutes } from './modules/users/users.routes';
 // Example outbound module (JSONPlaceholder → /users/:id/external-posts): removed by `bun run setup <name>` unless --keep-examples.
 import { userPostRoutes } from './modules/user-posts/user-posts.routes';
@@ -68,7 +77,16 @@ export const createApp = (): Hono => {
   const healthPath = `${basePath}/health`;
   const webhooksPath = `${basePath}/webhooks`;
   const v1Path = `${basePath}/v1`;
+  // partner:start
   const partnerPath = `${v1Path}/partner`;
+  // partner:end
+  /** Prefixes whose callers authenticate themselves (their own quotas, bursts of retries). */
+  const selfAuthenticatedPaths = [
+    webhooksPath,
+    // partner:start
+    partnerPath,
+    // partner:end
+  ];
 
   // 1–2. Request context (request ID, locale, trusted client IP) and request logging
   app.use('*', requestContextMiddleware());
@@ -83,9 +101,8 @@ export const createApp = (): Hono => {
   // 5. Body size limit → 413 in the standard error envelope
   app.use('*', bodySizeLimit(httpConfig.HTTP_BODY_LIMIT_BYTES));
 
-  // 6. Global rate limit per trusted client IP (Redis, fail-open). Exempt: probes, and the partner
-  //    and webhook prefixes — they authenticate the caller themselves (per-partner rate_limit_rpm),
-  //    so per IP only their refused attempts are limited
+  // 6. Global rate limit per trusted client IP (Redis, fail-open). Exempt: probes, and the
+  //    self-authenticated prefixes — per IP only their refused attempts are limited
   const limitWindow = {
     windowSeconds: httpConfig.RATE_LIMIT_WINDOW_SECONDS,
     max: httpConfig.RATE_LIMIT_MAX,
@@ -95,10 +112,10 @@ export const createApp = (): Hono => {
     rateLimit({
       ...limitWindow,
       keyPrefix: 'global',
-      skip: isUnderPath(healthPath, partnerPath, webhooksPath),
+      skip: isUnderPath(healthPath, ...selfAuthenticatedPaths),
     }),
   );
-  for (const prefix of [partnerPath, webhooksPath]) {
+  for (const prefix of selfAuthenticatedPaths) {
     app.use(`${prefix}/*`, rejectionLimit({ ...limitWindow, keyPrefix: 'inbound-rejected' }));
   }
 
@@ -114,6 +131,7 @@ export const createApp = (): Hono => {
   app.route(`${webhooksPath}/${demoPayWebhook.vendor}`, paymentNotificationWebhookRoutes);
   // scaffold:webhook-routes — `bun run scaffold` adds webhook receivers above this line; keep it.
 
+  // partner:start
   // 8. Partner gateway: signed requests (HMAC, spec v1) instead of access tokens
   app.use(
     `${partnerPath}/*`,
@@ -122,9 +140,10 @@ export const createApp = (): Hono => {
       lookup: (apiKeyHash) => partnerCredentialsService.findForGateway(apiKeyHash),
     }),
   );
+  // partner:end
 
-  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES and
-  //    partner routes that partnerAuth() verified
+  // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES and the
+  //    routes an inbound guard above already verified
   app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
 
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
@@ -132,8 +151,10 @@ export const createApp = (): Hono => {
   v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
   v1.route('/users', userPostRoutes);
+  // partner:start
   v1.route('/partner-credentials', partnerCredentialRoutes);
   v1.route('/partner', partnerGatewayRoutes);
+  // partner:end
   v1.route('/orders', ordersRouter);
   v1.route('/projects', projectsRouter);
   v1.route('/projects/:projectId/tasks', projectTasksParentRouter);
@@ -174,14 +195,16 @@ export const createApp = (): Hono => {
   mountApiDocs(app, {
     basePath,
     enabled: appConfig.API_DOCS_ENABLED,
-    // Same rules as authenticate(), partnerAuth() and webhookAuth()
+    // Same rules as the guards above
     security: {
       requiresAuthentication: (method, path) =>
         path.startsWith(`${v1Path}/`) &&
         !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+      // partner:start
       requiresPartnerSignature: (_method, path) =>
         path.startsWith(`${v1Path}/`) &&
         isPartnerRoute(path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+      // partner:end
       webhooks: { pathPrefix: webhooksPath, vendors: WEBHOOK_VENDORS },
     },
     info: {

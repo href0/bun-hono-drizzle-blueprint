@@ -14,6 +14,7 @@ import {
   singularOf,
   titleOf,
   type ModuleVariant,
+  type ScaffoldKind,
   type ScaffoldRequest,
 } from './scaffold';
 
@@ -27,9 +28,16 @@ export interface WizardContext {
   parents: readonly string[];
 }
 
-/** The eight things the CLI generates: the module variants, the two dependents and the other kinds. */
+/** What the CLI generates: the module variants, the two dependents and the other kinds. */
 export type Shape =
-  ModuleVariant | 'dependent' | 'dependent-one' | 'partner' | 'webhook' | 'integration';
+  | ModuleVariant
+  | 'dependent'
+  | 'dependent-one'
+  // partner:start
+  | 'partner'
+  // partner:end
+  | 'webhook'
+  | 'integration';
 
 export const SHAPES: readonly Choice<Shape>[] = [
   {
@@ -57,11 +65,13 @@ export const SHAPES: readonly Choice<Shape>[] = [
     label: 'Module — dependent 1:1 of an existing module',
     hint: 'at most one section per parent (projects → project-budgets)',
   },
+  // partner:start
   {
     value: 'partner',
     label: 'Partner endpoint',
     hint: 'a partner system calls us, HMAC-signed (/v1/partner/...)',
   },
+  // partner:end
   {
     value: 'webhook',
     label: 'Vendor webhook receiver',
@@ -74,9 +84,24 @@ export const SHAPES: readonly Choice<Shape>[] = [
   },
 ];
 
-const MODULE_SHAPES = SHAPES.filter(
-  (shape) => !['partner', 'webhook', 'integration'].includes(shape.value),
-);
+/** The shapes that are not a module of src/modules/ for users with access tokens. */
+const OTHER_KINDS: readonly Shape[] = [
+  // partner:start
+  'partner',
+  // partner:end
+  'webhook',
+  'integration',
+];
+
+const MODULE_SHAPES = SHAPES.filter((shape) => !OTHER_KINDS.includes(shape.value));
+
+/** The kind of a shape that asks for a module name: a channel kind, or a plain module. */
+const namedKindOf = (shape: Shape): Exclude<ScaffoldKind, 'integration'> => {
+  // partner:start
+  if (shape === 'partner') return 'partner';
+  // partner:end
+  return shape === 'webhook' ? 'webhook' : 'module';
+};
 
 /** True when the command line misses something only a question can supply. */
 export const needsWizard = (request: Partial<ScaffoldRequest>): boolean =>
@@ -211,7 +236,7 @@ export const completeRequest = async (
     return completeDependent(draft, context, prompter, shape === 'dependent-one');
   }
 
-  const kind = shape === 'partner' || shape === 'webhook' ? shape : 'module';
+  const kind = namedKindOf(shape);
   const named =
     draft.name === undefined
       ? await askPlural(

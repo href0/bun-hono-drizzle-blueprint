@@ -11,7 +11,9 @@
  * unit-tested against a fake machine.
  */
 import { createHmac, randomBytes } from 'node:crypto';
+// partner:start
 import { partnerSignatureHeaders } from '../../src/utils/partner-signature.util';
+// partner:end
 import type { ComboResult, ProgressReporter, StageResult, StepLabel } from './acceptance-progress';
 
 export type Stage = 'A' | 'B' | 'C' | 'D';
@@ -20,12 +22,30 @@ export type Stage = 'A' | 'B' | 'C' | 'D';
 export interface Combo {
   id: number;
   keepExamples: boolean;
+  /** Setup keeps the partner gateway; false = `--no-partner` (answered No in the wizard). */
+  partner: boolean;
   label: string;
 }
 
 export const COMBOS: readonly Combo[] = [
-  { id: 1, keepExamples: false, label: 'new project: setup removes the examples (default)' },
-  { id: 2, keepExamples: true, label: 'setup --keep-examples: generators next to the examples' },
+  {
+    id: 1,
+    keepExamples: false,
+    partner: true,
+    label: 'new project: setup removes the examples (default)',
+  },
+  {
+    id: 2,
+    keepExamples: true,
+    partner: true,
+    label: 'setup --keep-examples: generators next to the examples',
+  },
+  {
+    id: 3,
+    keepExamples: false,
+    partner: false,
+    label: 'setup --no-partner: a project without the partner gateway',
+  },
 ];
 
 export interface CommandResult {
@@ -162,6 +182,7 @@ const scaffoldRefused = (ctx: AcceptanceContext, args: string[]): Promise<Comman
 
 const token = (ctx: AcceptanceContext): string => ctx.state.get('token') ?? '';
 
+// partner:start
 /** A partner request signed per spec v1 with the credential created in stage C. */
 const partnerRequest = (
   ctx: AcceptanceContext,
@@ -181,6 +202,27 @@ const partnerRequest = (
   });
   return ctx.http(method, path, { raw: body === undefined ? undefined : raw, headers });
 };
+
+/** The scaffolded partner endpoint, signed: created, refused as a duplicate, refused unsigned. */
+const partnerShipments = async (ctx: AcceptanceContext): Promise<void> => {
+  const body = { partner_reference: 'REF-0001', description: 'Acceptance shipment' };
+  expectStatus(
+    await partnerRequest(ctx, 'POST', '/api/v1/partner/shipments', body),
+    201,
+    'signed partner POST',
+  );
+  expectStatus(
+    await partnerRequest(ctx, 'POST', '/api/v1/partner/shipments', body),
+    409,
+    'the same partner reference again',
+  );
+  expectStatus(
+    await ctx.http('POST', '/api/v1/partner/shipments', { body }),
+    401,
+    'unsigned partner POST',
+  );
+};
+// partner:end
 
 /** The placeholder signature scheme of a generated webhook verifier (references/webhook.md). */
 const webhookSignature = (secret: string, timestamp: string, body: string): string =>
@@ -222,7 +264,7 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'A',
-    title: 'bun run setup: the wizard (combination 1) or flags (combination 2)',
+    title: 'bun run setup: the wizard (combinations 1, 3) or flags (combination 2)',
     minutes: 0.1,
     run: async (ctx) => {
       const result = ctx.combo.keepExamples
@@ -241,6 +283,10 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
               { question: 'Title (README heading', text: PROJECT_TITLE },
               { question: 'Description', enter: true },
               { question: 'Keep the example modules', confirm: false },
+              { question: 'Accept calls from partner systems', confirm: ctx.combo.partner },
+              ...(ctx.combo.partner
+                ? []
+                : [{ question: 'Remove the partner gateway', confirm: true }]),
               { question: 'Apply these changes?', confirm: true },
             ],
           );
@@ -249,6 +295,11 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         ctx.readFile('README.md').startsWith(`# ${PROJECT_TITLE}`),
         `README.md titled "${PROJECT_TITLE}"`,
         ctx.readFile('README.md').split('\n', 1)[0] ?? '',
+      );
+      check(
+        ctx.exists('src/modules/partner-gateway') === ctx.combo.partner,
+        `partner gateway ${ctx.combo.partner ? 'kept' : 'removed'}`,
+        ctx.exists('src/modules/partner-gateway') ? 'exists' : 'is gone',
       );
       for (const example of ['src/modules/orders', 'src/modules/user-posts']) {
         check(
@@ -332,10 +383,20 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'B',
-    title: 'Flags: partner endpoint shipments',
+    title: 'Flags: partner endpoint shipments (refused without the gateway)',
     minutes: 0.1,
     run: async (ctx) => {
-      await scaffold(ctx, ['partner', 'shipments']);
+      // partner:start
+      if (ctx.combo.partner) {
+        await scaffold(ctx, ['partner', 'shipments']);
+        return;
+      }
+      // partner:end
+      expectOutput(
+        await scaffoldRefused(ctx, ['partner', 'shipments']),
+        'unknown kind',
+        'scaffold partner without the gateway',
+      );
     },
   },
   {
@@ -463,7 +524,7 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'C',
-    title: 'Server: health, login, refresh, users, partner ping',
+    title: 'Server: health, login, refresh, users, partner ping (with the gateway)',
     minutes: 0.1,
     skipWhen: databaseStage,
     run: async (ctx) => {
@@ -494,6 +555,8 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         );
       }
 
+      // partner:start
+      if (!ctx.combo.partner) return;
       const credential = await ctx.http('POST', '/api/v1/partner-credentials', {
         token: token(ctx),
         body: {
@@ -507,6 +570,7 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
       ctx.state.set('partnerSecret', String(credential.json.data?.secret));
       expectStatus(await partnerRequest(ctx, 'GET', '/api/v1/partner/ping'), 200, 'signed ping');
       expectStatus(await ctx.http('GET', '/api/v1/partner/ping'), 401, 'unsigned ping');
+      // partner:end
     },
   },
   {
@@ -612,27 +676,15 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'C',
-    title: 'HTTP: signed partner shipments, signed globex webhook',
+    title: 'HTTP: signed partner shipments (with the gateway), signed globex webhook',
     minutes: 0.05,
     skipWhen: databaseStage,
     run: async (ctx) => {
-      const body = { partner_reference: 'REF-0001', description: 'Acceptance shipment' };
-      expectStatus(
-        await partnerRequest(ctx, 'POST', '/api/v1/partner/shipments', body),
-        201,
-        'signed partner POST',
-      );
-      expectStatus(
-        await partnerRequest(ctx, 'POST', '/api/v1/partner/shipments', body),
-        409,
-        'the same partner reference again',
-      );
-      expectStatus(
-        await ctx.http('POST', '/api/v1/partner/shipments', { body }),
-        401,
-        'unsigned partner POST',
-      );
-
+      // partner:start
+      if (ctx.combo.partner) {
+        await partnerShipments(ctx);
+      }
+      // partner:end
       const secret = ctx.state.get('webhookSecret') ?? '';
       const raw = JSON.stringify({ id: 'evt_0001', type: 'refund.created', data: { amount: 1 } });
       const timestamp = String(Math.floor(Date.now() / 1000));

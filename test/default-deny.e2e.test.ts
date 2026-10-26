@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig } from '../src/config';
-import { isPartnerRoute, isPublicRoute } from '../src/core/security/public-routes';
+import {
+  // partner:start
+  isPartnerRoute,
+  // partner:end
+  isPublicRoute,
+} from '../src/core/security/public-routes';
 import { authorize } from './helpers/authorized-app';
 
 /**
@@ -38,8 +43,10 @@ const routes = [
 const versioned = routes.filter(({ path }) => path.startsWith(`${v1}/`));
 const isPublic = (method: string, path: string): boolean =>
   isPublicRoute(method, path.slice(v1.length));
+// partner:start
 /** Partner routes are guarded by partnerAuth() (signed requests), not by access tokens. */
 const isPartner = (path: string): boolean => isPartnerRoute(path.slice(v1.length));
+// partner:end
 
 describe('default-deny authentication (every route of createApp)', () => {
   it('finds the routes (guards the enumeration itself)', () => {
@@ -100,7 +107,10 @@ describe('default-deny authentication (every route of createApp)', () => {
   it('every versioned route not in PUBLIC_ROUTES answers 401 ERR_UNAUTHORIZED without a token', async () => {
     const open: string[] = [];
     for (const { method, path, concrete } of versioned) {
-      if (isPublic(method, path) || isPartner(path)) continue;
+      if (isPublic(method, path)) continue;
+      // partner:start
+      if (isPartner(path)) continue;
+      // partner:end
       const res = await app.request(concrete, { method });
       const body = (await res.json()) as { error?: { code: string } };
       if (res.status !== 401 || body.error?.code !== 'ERR_UNAUTHORIZED') {
@@ -111,6 +121,7 @@ describe('default-deny authentication (every route of createApp)', () => {
     expect(open).toEqual([]);
   });
 
+  // partner:start
   it('every partner route answers 401 ERR_PARTNER_HEADERS_MISSING without partner headers — also with a valid access token', async () => {
     const partnerRoutes = versioned.filter(({ path }) => isPartner(path));
     expect(partnerRoutes.length).toBeGreaterThan(0);
@@ -132,6 +143,7 @@ describe('default-deny authentication (every route of createApp)', () => {
 
     expect(open).toEqual([]);
   });
+  // partner:end
 
   it('public routes are reachable without a token', async () => {
     for (const { method, path, concrete } of versioned.filter((r) => isPublic(r.method, r.path))) {

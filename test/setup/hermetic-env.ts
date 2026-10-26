@@ -17,9 +17,11 @@ export const HERMETIC_ENV = {
   REDIS_HOST: '127.0.0.1',
   REDIS_PORT: '1',
   REDIS_PASSWORD: '',
+  // partner:start
   // Tests never use the developer's real partner keyring (it encrypts real partner secrets).
   PARTNER_SECRET_KEYS: `test:${'0'.repeat(64)}`,
   PARTNER_SECRET_ACTIVE_KEY_ID: 'test',
+  // partner:end
   // The example webhook vendor is enabled in tests with a test-only secret, never a real one.
   DEMO_PAY_WEBHOOK_SECRET: 'test-only-demo-pay-webhook-secret',
 } as const;

@@ -100,7 +100,7 @@ export const timestamps = () => ({
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Who created / last changed the row: the request actor (`user:<id>`, `partner:<code>`, `system`).
+ * Who created / last changed the row: the request actor (`user:<id>`, `webhook:<vendor>`, `system`, …).
  * Filled by the base repository (plan step 2.5), never by callers.
  */
 export const auditColumns = () => ({

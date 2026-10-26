@@ -36,6 +36,7 @@ export const I18N_MESSAGES = {
     en: 'Access token has expired. Please refresh it',
   },
   AUTH_TOKEN_INVALID: { id: 'Token akses tidak valid', en: 'Invalid access token' },
+  // partner:start
   PARTNER_HEADERS_MISSING: {
     id: 'Header partner tidak lengkap atau tidak valid (x-partner-key, x-partner-timestamp, x-partner-nonce, x-partner-signature)',
     en: 'Partner headers missing or malformed (x-partner-key, x-partner-timestamp, x-partner-nonce, x-partner-signature)',
@@ -49,11 +50,13 @@ export const I18N_MESSAGES = {
     id: 'Signature partner tidak valid',
     en: 'Invalid partner signature',
   },
+  // partner:end
   WEBHOOK_SIGNATURE_INVALID: {
     id: 'Signature webhook tidak valid',
     en: 'Invalid webhook signature',
   },
   FORBIDDEN: { id: 'Akses ditolak', en: 'Access denied' },
+  // partner:start
   PARTNER_IP_FORBIDDEN: {
     id: 'Alamat IP tidak diizinkan untuk partner ini',
     en: 'IP address not allowed for this partner',
@@ -62,6 +65,7 @@ export const I18N_MESSAGES = {
     id: 'Route ini tidak diizinkan untuk partner ini',
     en: 'This route is not allowed for this partner',
   },
+  // partner:end
   ROLE_FORBIDDEN: {
     id: 'Peran Anda tidak memiliki akses ke fitur ini',
     en: 'Your role is not allowed to use this feature',

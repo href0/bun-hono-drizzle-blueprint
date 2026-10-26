@@ -90,6 +90,7 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
       en: 'An old refresh token was reused: the whole session was revoked',
     },
   },
+  // partner:start
   [CODE.PARTNER_HEADERS_MISSING]: {
     status: 401,
     type: TYPE.UNAUTHORIZED,
@@ -119,6 +120,7 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
     type: TYPE.UNAUTHORIZED,
     meaning: { id: 'Signature partner tidak cocok', en: 'The partner signature does not match' },
   },
+  // partner:end
   [CODE.WEBHOOK_SIGNATURE_INVALID]: {
     status: 401,
     type: TYPE.UNAUTHORIZED,
@@ -156,6 +158,7 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
       en: 'An admin cannot delete, deactivate or demote their own account',
     },
   },
+  // partner:start
   [CODE.PARTNER_IP_FORBIDDEN]: {
     status: 403,
     type: TYPE.FORBIDDEN,
@@ -172,6 +175,7 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
       en: 'The route is not in the partner `allowed_routes` (or reserved for another partner)',
     },
   },
+  // partner:end
   [CODE.NOT_FOUND]: {
     status: 404,
     type: TYPE.NOT_FOUND,

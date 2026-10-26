@@ -71,11 +71,13 @@ const PAGES: Page[] = [
     slug: 'guides/auth-guide',
     description: 'Panduan integrasi frontend: login, refresh cookie, CSRF',
   },
+  // partner:start
   {
     source: 'docs/partner-integration-guide.md',
     slug: 'guides/partner-integration-guide',
     description: 'Panduan teknis integrasi partner gateway dan HMAC signing v1',
   },
+  // partner:end
   {
     source: 'docs/deployment.md',
     slug: 'guides/deployment',

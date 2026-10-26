@@ -34,7 +34,9 @@ export const SIDEBAR = [
     items: [
       { label: 'Auth & Inbound Channels', slug: 'standards/auth-and-inbound' },
       { label: 'Auth Guide (Frontend)', slug: 'guides/auth-guide' },
+      // partner:start
       { label: 'Partner Integration Guide', slug: 'guides/partner-integration-guide' },
+      // partner:end
     ],
   },
   {

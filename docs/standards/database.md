@@ -107,7 +107,7 @@ Time values follow [datetime.md](datetime.md): the driver hands `timestamptz`/`d
 | `id` comes from `uuidPrimaryKey()` — or `sequentialPrimaryKey()` / `sequentialId()` for tables in `APPEND_ONLY_TABLES` | One id strategy; sequential ids never become public resource ids |
 | Every `APPEND_ONLY_TABLES` entry is an exported table with a sequential id | No stale allowlist entries |
 | No `serial` / `bigserial` columns | Identity through the helpers instead |
-| A table with `deleted_at` has no plain unique (column, constraint or index without `WHERE`), except a named `uniqueIndex` listed in `PERMANENT_UNIQUE_INDEXES` (`src/database/schema/permanent-unique-indexes.ts`) with its reason | A soft-deleted row would block re-creating the value — use `activeUniqueIndex()`. A value that must never be reused (e.g. `partner_credentials.partner_code`, the audit actor `partner:<code>`) is the deliberate exception |
+| A table with `deleted_at` has no plain unique (column, constraint or index without `WHERE`), except a named `uniqueIndex` listed in `PERMANENT_UNIQUE_INDEXES` (`src/database/schema/permanent-unique-indexes.ts`) with its reason | A soft-deleted row would block re-creating the value — use `activeUniqueIndex()`. A value that must never be reused (e.g. a code that names an audit actor) is the deliberate exception |
 | Every `PERMANENT_UNIQUE_INDEXES` entry names a plain unique index of a soft-deleted exported table | No stale allowlist entries |
 | `record_changes`: primary key `(id, changed_at)`, no FK / unique, action and parent CHECKs | Partition-ready audit trail |
 
@@ -134,7 +134,7 @@ Every UPDATE, soft delete, restore and hard delete of an audited table appends o
 | `table_name`, `record_id` | Which row (lookup index `(table_name, record_id, changed_at DESC)`) |
 | `action` | `UPDATE` · `SOFT_DELETE` · `RESTORE` · `DELETE` (CHECK) |
 | `changes` | `jsonb` keyed by **column name**: `{ "full_name": { "from": "A", "to": "B" } }` for changed columns only; for `DELETE` the whole row. Redacted columns: `"[REDACTED]"` |
-| `actor`, `request_id` | From the request context (`user:<id>`, `partner:<code>`, `anonymous`; `system` outside a request) |
+| `actor`, `request_id` | From the request context (`user:<id>`, `webhook:<vendor>`, `anonymous`, …; `system` outside a request) |
 | `parent_table`, `parent_id` | The header of a detail row (`ChildRepository`, step 2.5) — both set or both null (CHECK). A header's full history, including its hard-deleted details: `where (table_name = 'orders' and record_id = $1) or (parent_table = 'orders' and parent_id = $1) order by changed_at` (partial index `record_changes_parent_idx`) |
 
 No foreign keys and no other unique constraints: the audited row may be deleted, and a partitioned table needs the partition key in every unique index.

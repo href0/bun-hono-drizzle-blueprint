@@ -1,6 +1,6 @@
 # Adding a Module or a Vendor Adapter
 
-Read this file when: creating a module, a resource, a CRUD endpoint, a partner endpoint, a webhook receiver or an outbound vendor adapter. The code templates live in the skill `scaffold-module` (`.agents/skills/scaffold-module/`) — the only copy of template code. **`bun run scaffold` generates from them** (plan D31), for developers and agents alike; `bun run verify:scaffold` runs that CLI for every template in CI, so neither can fall behind the core APIs.
+Read this file when: creating a module, a resource, a CRUD endpoint, an inbound channel endpoint, a webhook receiver or an outbound vendor adapter. The code templates live in the skill `scaffold-module` (`.agents/skills/scaffold-module/`) — the only copy of template code. **`bun run scaffold` generates from them** (plan D31), for developers and agents alike; `bun run verify:scaffold` runs that CLI for every template in CI, so neither can fall behind the core APIs.
 
 ---
 
@@ -14,7 +14,7 @@ Read this file when: creating a module, a resource, a CRUD endpoint, a partner e
 | Dependent section: at most one per parent (an application's contact person, a user's profile) | `module <plural> --parent=<parent-module> --one` | `.agents/skills/scaffold-module/references/dependent-one.md` | `DependentRepository` | `src/modules/projects/project-budgets` (removed by `bun run setup` unless `--keep-examples`) |
 | Record (append-only log / history) | `module <plural> --variant=record` | `.agents/skills/scaffold-module/references/record.md` | `AppendOnlyRepository` | `record_changes` |
 | Reference data owned by another system | — (by hand: a `.existing()` view, [database.md](database.md) §2) | — | `ReadOnlyRepository` | — |
-| Partner endpoint (signed requests) | `partner <plural>` | `.agents/skills/scaffold-module/references/partner.md` | `BaseRepository` (unique `partner_code` + `partner_reference`) | `src/modules/partner-gateway` |
+| Partner endpoint (signed requests) | `partner <plural>` | `.agents/skills/scaffold-module/references/partner.md` | `BaseRepository` (unique `partner_code` + `partner_reference`) | `src/modules/partner-gateway` | <!-- partner -->
 | Vendor webhook (the vendor's contract) | `webhook <plural> --vendor=<vendor>` | `.agents/skills/scaffold-module/references/webhook.md` | `AppendOnlyRepository` (`webhook_events`) | `src/modules/payment-notifications` + `src/integrations/demo-pay` (removed by `bun run setup` unless `--keep-examples`) |
 | Outbound vendor adapter (not a module) | `integration <vendor>` | `.agents/skills/scaffold-module/references/integration.md` | — (`HttpClientService` + `AccessTokenCache`) | `src/integrations/jsonplaceholder` + `src/modules/user-posts` (removed by `bun run setup` unless --keep-examples) |
 
@@ -34,7 +34,7 @@ There are two ways to run the same generator: the **wizard**, which asks, and **
 |---|---|
 | `bun run scaffold` (no arguments) | the menu of the eight shapes |
 | `bun run scaffold:module` | the menu of the five module shapes |
-| `bun run scaffold:partner` · `bun run scaffold:webhook` · `bun run scaffold:integration` | the first question of that kind (no menu) |
+| `bun run scaffold:webhook` · `bun run scaffold:integration` (and the other kinds) | the first question of that kind (no menu) |
 
 Arguments already on the command line are not asked again: `bun run scaffold:module --parent=orders` asks only for the child's name, `bun run scaffold webhook payment-receipts` only for the vendor and the institution.
 
@@ -43,7 +43,7 @@ Arguments already on the command line are not asked again: `bun run scaffold:mod
 | Module — standalone · Module — record (append-only) | name (plural) → singular |
 | Module — header + detail | name → singular → detail name (`items` pre-filled) → detail singular |
 | Module — dependent 1:N / 1:1 of an existing module | parent (a list of the modules that can be one) → the parent's singular, only when it cannot be derived (`people`) → child name, created as `<parent singular>-<name>` → singular |
-| Partner endpoint | name → singular |
+| Partner endpoint | name → singular | <!-- partner -->
 | Vendor webhook receiver | name → singular → vendor → institution (the vendor's title pre-filled) |
 | Outbound vendor integration | vendor → institution |
 
@@ -88,7 +88,7 @@ bun run scaffold module invoices --variant=header-detail --detail=line-items    
 bun run scaffold module audit-events --variant=record      # append-only records
 bun run scaffold module members --parent=applications      # dependent 1:N → application-members: /applications/:applicationId/members, /application-members/:id
 bun run scaffold module contacts --parent=applications --one   # dependent 1:1 → application-contacts: /applications/:applicationId/contact
-bun run scaffold partner submissions                       # → /api/v1/partner/submissions (signed requests)
+bun run scaffold partner submissions                       # → /api/v1/partner/submissions (signed requests) <!-- partner -->
 bun run scaffold webhook payment-receipts --vendor=acme-pay   # → POST /api/webhooks/acme-pay
 bun run scaffold integration acme-pay                      # outbound adapter for a login-based vendor
 bun run scaffold module people --singular=person           # irregular plural
@@ -99,7 +99,7 @@ bun run scaffold integration acme-pay --institution="Acme Payments"   # registry
 |---|---|---|
 | `--variant=standalone\|header-detail\|record` | `module` | Table kind (default `standalone`) |
 | `--vendor=<vendor>` | `webhook` (required) | The vendor whose verifier is generated (`src/integrations/<vendor>/`) |
-| `--singular=<name>` | `module`, `partner`, `webhook` | The singular, when the derived one is wrong (§2.3) |
+| `--singular=<name>` | `module`, `webhook`, the channel kinds | The singular, when the derived one is wrong (§2.3) |
 | `--detail=<plural>` | `module --variant=header-detail` | The detail's name (default `items`): the table is `<header singular>_<detail>`, the routes `/:id/<detail>` (§2.3) |
 | `--detail-singular=<name>` | with `--detail` | The detail's singular, when the derived one is wrong (`--detail=people --detail-singular=person`) |
 | `--parent=<parent-module>` | `module` (no `--variant`) | A dependent module of an existing standalone / header module (§2.7) |
@@ -144,7 +144,7 @@ What each kind registers in shared files:
 | Kind | Shared files edited |
 |---|---|
 | `module` | schema barrel, `src/app.ts` (import + `v1.route('/<name>', …)`), `structure.md` tree; `record` also `APPEND_ONLY_TABLES`; `--parent` two routes (`v1.route('/<parent>/:<parent>Id/<segment>', …)` + `v1.route('/<parent-singular>-<segment>', …)`), its line under the parent in the tree, and never a file of the parent (its files go to `src/modules/<parent>/<parent-singular>-<segment>/`) |
-| `partner` | schema barrel, `src/app.ts` (`v1.route('/partner/<name>', …)`), `structure.md` tree |
+| `partner` | schema barrel, `src/app.ts` (`v1.route('/partner/<name>', …)`), `structure.md` tree | <!-- partner -->
 | `webhook` | `src/app.ts` (imports, `WEBHOOK_VENDORS`, `app.route(…/webhooks/<vendor>, …)`), config barrel, `INTEGRATION_REGISTRY`, `structure.md` tree |
 | `integration` | `INTEGRATION_REGISTRY`, config barrel |
 
@@ -207,7 +207,7 @@ Every refusal exits with code 1 and writes nothing.
 | You ran | It answers | Do this |
 |---|---|---|
 | `module product` | `"product" does not look plural (it does not end in -s). … Did you mean "products"?  →  bun run scaffold module products` | Run the suggested command (kind and options are kept: `--variant`, `--vendor`) |
-| `partner status` | `"status" looks singular (it ends in -us). … Did you mean "statuses"?  →  bun run scaffold partner statuses` | Same |
+| `partner status` | `"status" looks singular (it ends in -us). … Did you mean "statuses"?  →  bun run scaffold partner statuses` | Same | <!-- partner -->
 | `module product --singular=product` | `the singular must differ from the name ("product") … did you mean "products"?` | Use the plural name; the singular is the other form |
 | `module Products` | `name must be kebab-case (…), got "Products"` | Lowercase, single hyphens: `products`, `order-items` |
 | `module users` | `refusing to scaffold: - src/modules/users/users.dto.ts already exists …` | Pick another name — the CLI never overwrites |
@@ -217,7 +217,7 @@ Every refusal exits with code 1 and writes nothing.
 | `webhook payments` | `webhook needs --vendor=<vendor>` | Add `--vendor=<vendor>` |
 | `module classes --variant=header-detail --detail=member` | `"member" does not look plural … →  bun run scaffold module classes --variant=header-detail --detail=members` | Run the suggested command |
 | `module classes --detail=members` | `--detail is only for "module … --variant=header-detail"` | Add `--variant=header-detail` (details only exist under a header) |
-| `module products --variant=webhook` | `--variant is standalone \| header-detail \| record and only for "module"` | Use the `webhook` / `partner` kinds instead |
+| `module products --variant=webhook` | `--variant is standalone \| header-detail \| record and only for "module"` | Use the `webhook` kind (or another channel kind) instead |
 | `module notes --parent=projects` (no such module) | `parent "projects" not found: --parent names an existing module …` | Create the parent first (`bun run scaffold module projects`) |
 | `module notes --parent=project` | `"project" does not look plural … →  bun run scaffold module notes --parent=projects` | Run the suggested command (`--parent-singular` for an irregular plural) |
 | `module notes --parent=<a dependent module>` | `parent "…" is itself a dependent module: two levels at most` | Attach to its parent instead |
@@ -230,7 +230,7 @@ Every refusal exits with code 1 and writes nothing.
 
 The generated code compiles, passes lint, is registered, and comes with its tests — repository (SQL recorder), service (every branch, with a fake repository), transformer and controller (through its routes, service spied) — so `bun run validate:full` passes right away, coverage gate included (`bun run verify:scaffold` proves it for every variant). It is a working but generic resource. Your work is the domain:
 
-1. Follow the printed next steps: domain fields (schema, DTOs, response schema), messages (replace the placeholder Indonesian nouns), business rules in the service, and the generated tests updated for them (they assert the example fields `name` / `code` / `kind`); `bun run db:generate`; for partners `allowed_routes`; for vendors the env variables, the real signature scheme and payloads.
+1. Follow the printed next steps: domain fields (schema, DTOs, response schema), messages (replace the placeholder Indonesian nouns), business rules in the service, and the generated tests updated for them (they assert the example fields `name` / `code` / `kind`); `bun run db:generate`; for vendors the env variables, the real signature scheme and payloads.
 2. `bun run openapi:check` lists the new operations (all `safe`): review them, then `bun run openapi:update` and commit `docs/api/` with the module — the snapshot and the module's generated contract document `docs/api/<name>.md` ([openapi.md](openapi.md) §6). Errors your domain rules add go in the route's `describeEndpoint({ errors })` (the contract guard fails the tests otherwise).
 3. `bun run validate:full` (and `bun run test:int` when the module has its own queries, locks, unique indexes or Redis behaviour — [testing.md](testing.md) §7).
 
@@ -290,7 +290,7 @@ src/modules/projects/
 8. **Service** (`@Transactional()` on multi-step writes; `null` → `NotFoundError`, unique violation → `ConflictError`) — [transactions.md](transactions.md), [http-contract.md](http-contract.md) §5.
 9. **Controller** returning `ApiResponse` — [http-contract.md](http-contract.md) §1.
 10. **Routes**: `describeEndpoint()` → (`requireRole()`) → `validate()` → handler; protected by default — [openapi.md](openapi.md), [auth-and-inbound.md](auth-and-inbound.md).
-11. **Register** in `src/app.ts`: `v1.route('/<name>', router)` (partner / webhook routers: [auth-and-inbound.md](auth-and-inbound.md)).
+11. **Register** in `src/app.ts`: `v1.route('/<name>', router)` (channel routers: [auth-and-inbound.md](auth-and-inbound.md)).
 12. **Tests**: co-located repository (SQL recorder), service, transformer, controller tests + `test/<name>.e2e.test.ts` through `authorize(createApp())`; `test/integration/<name>.int.ts` when the module has its own queries, locks, unique indexes or Redis behaviour — [testing.md](testing.md).
 13. **Gates**: `bun run validate:full` — [quality-gates.md](quality-gates.md).
 

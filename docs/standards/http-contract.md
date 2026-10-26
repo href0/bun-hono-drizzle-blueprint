@@ -101,12 +101,12 @@ Business failures **throw** an `ApiError` subclass from `src/core/errors/`: `new
 | `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` (default) · `ERR_ROUTE_NOT_FOUND` | Entity not found · no such route (`notFoundHandler`) |
 | `ConflictError` | 409 | `CONFLICT` | `ERR_CONFLICT` | Unique value already taken — map `isUniqueViolation()` to it, never a 500 |
 | `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body over the limit |
-| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Global limit · refused attempts per IP on the partner / webhook prefixes · a partner's `rate_limit_rpm` · too many login attempts per (email, IP); optional `retryAfterSeconds` |
+| `TooManyRequestsError` | 429 | `TOO_MANY_REQUESTS` | `ERR_RATE_LIMITED` (default) · `ERR_AUTH_LOGIN_LOCKED` | Global limit · refused attempts per IP on the self-authenticated prefixes · a caller's own quota (`rate_limit_rpm`) · too many login attempts per (email, IP); optional `retryAfterSeconds` |
 | `ServiceUnavailableError` | 503 | `SERVICE_UNAVAILABLE` | `ERR_SERVICE_UNAVAILABLE` | A core dependency (database) is down |
 | `ExternalServiceError(kind, message, { integration, details? })` | 502 / 504 | `EXTERNAL_SERVICE_ERROR` | `ERR_EXT_TIMEOUT` · `ERR_EXT_UNREACHABLE` · `ERR_EXT_ERROR` | Vendor failure; the vendor's status and body are never forwarded ([integrations.md](integrations.md)) |
 | `InternalServerError` | 500 | `INTERNAL_SERVER_ERROR` | `ERR_INTERNAL` | Broken invariant; its message is logged, never sent |
 
-Partner-gateway and webhook refusals use their own registry codes (`ERR_PARTNER_*`, `ERR_WEBHOOK_*`): [auth-and-inbound.md](auth-and-inbound.md). Every code with its status, type and meaning: `ERROR_CATALOG` (`src/core/errors/error-catalog.ts`, tested against the classes); which codes each endpoint sends: [docs/api/README.md](../api/README.md) (generated, [openapi.md](openapi.md) §6).
+Inbound-channel refusals use their own registry codes (`ERR_WEBHOOK_*`, …): [auth-and-inbound.md](auth-and-inbound.md). Every code with its status, type and meaning: `ERROR_CATALOG` (`src/core/errors/error-catalog.ts`, tested against the classes); which codes each endpoint sends: [docs/api/README.md](../api/README.md) (generated, [openapi.md](openapi.md) §6).
 
 ## 6. Localized messages (`id` / `en`)
 

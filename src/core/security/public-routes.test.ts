@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { isPartnerRoute, isPublicRoute, PUBLIC_ROUTES } from './public-routes';
+import {
+  // partner:start
+  isPartnerRoute,
+  // partner:end
+  isPublicRoute,
+  PUBLIC_ROUTES,
+} from './public-routes';
 
 describe('PUBLIC_ROUTES', () => {
   it('holds only the token-issuing / cookie endpoints of auth (keep this list short)', () => {
@@ -28,6 +34,7 @@ describe('PUBLIC_ROUTES', () => {
   });
 });
 
+// partner:start
 describe('isPartnerRoute', () => {
   it('is /partner and everything below it, on segment boundaries', () => {
     expect(isPartnerRoute('/partner')).toBe(true);
@@ -39,3 +46,4 @@ describe('isPartnerRoute', () => {
     expect(isPartnerRoute('/partner/../users')).toBe(false);
   });
 });
+// partner:end

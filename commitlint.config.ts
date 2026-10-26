@@ -13,8 +13,10 @@ export const PLATFORM_SCOPES = [
   'database/migrations',
   'utils',
   'integrations',
+  // partner:start
   'partner',
   'partner-auth',
+  // partner:end
   'webhooks',
   'conventions',
   'quality-gates',

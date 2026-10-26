@@ -158,17 +158,21 @@ describe('buildOpenApiDocument security rules', () => {
       },
     });
 
-  it('marks vendor webhook, partner and bearer operations each with its own scheme', async () => {
+  it('marks each kind of protected operation with its own scheme', async () => {
     const app = new Hono();
     app.post('/api/webhooks/acme', documented('Acme webhook'), (c) => c.text('ok'));
     app.post('/api/webhooks/unlisted', documented('Unlisted vendor'), (c) => c.text('ok'));
+    // partner:start
     app.get('/api/v1/partner/ping', documented('Partner ping'), (c) => c.text('ok'));
+    // partner:end
     app.get('/api/v1/users', documented('Users'), (c) => c.text('ok'));
     app.get('/public', documented('Public'), (c) => c.text('ok'));
 
     const doc = await buildOpenApiDocument(app, info, {
       requiresAuthentication: (_method, path) => path.startsWith('/api/v1/'),
+      // partner:start
       requiresPartnerSignature: (_method, path) => path.startsWith('/api/v1/partner/'),
+      // partner:end
       webhooks: {
         pathPrefix: '/api/webhooks',
         vendors: [{ vendor: 'acme', signatureHeader: 'x-acme-signature' }],
@@ -186,9 +190,11 @@ describe('buildOpenApiDocument security rules', () => {
     expect(Object.keys(operation('/api/webhooks/acme', 'post').responses ?? {})).toContain('401');
     // A path under the prefix whose vendor is not listed gets no webhook scheme.
     expect(operation('/api/webhooks/unlisted', 'post').security).toBeUndefined();
+    // partner:start
     expect(Object.keys(operation('/api/v1/partner/ping', 'get').responses ?? {})).toEqual(
       expect.arrayContaining(['401', '403']),
     );
+    // partner:end
     expect(operation('/api/v1/users', 'get').security).toEqual([{ bearerAuth: [] }]);
     expect(operation('/public', 'get').security).toBeUndefined();
   });

@@ -382,6 +382,7 @@ describe('planScaffold (against the real templates)', () => {
     expect(plan.template).toEndWith('references/header-detail.md');
   });
 
+  // partner:start
   it('partner: mounted under /partner, with the allowed_routes reminder', () => {
     const plan = planScaffold({ kind: 'partner', name: 'submissions' }, ROOT);
     expect(plan.files.map((file) => file.path)).toContain(
@@ -392,6 +393,7 @@ describe('planScaffold (against the real templates)', () => {
     );
     expect(plan.nextSteps.join('\n')).toContain('allowed_routes');
   });
+  // partner:end
 
   it('webhook: verifier + receiver, appended to WEBHOOK_VENDORS (empty or not), config, registry', () => {
     const plan = planScaffold(
@@ -724,20 +726,26 @@ describe('parseScaffoldArgs', () => {
       ['module', 'notes', '--variant=record', '--parent=projects'],
       '--parent is only for "module" without --variant',
     ],
+    // partner:start
     [['partner', 'notes', '--parent=projects'], '--parent is only for'],
+    // partner:end
     [['module'], 'Usage'],
     [['module', 'a', 'b'], 'Usage'],
     [['table', 'products'], 'unknown kind "table"'],
     [['module', 'products', '--force'], 'unknown option --force'],
     [['module', 'products', '--variant=webhook'], '--variant is'],
+    // partner:start
     [['partner', 'products', '--variant=record'], '--variant is'],
+    // partner:end
     [['module', 'products', '--vendor=acme'], '--vendor is only for "webhook"'],
     [['integration', 'acme-pay', '--singular=acme'], 'no --singular'],
     [
       ['module', 'classes', '--detail=members'],
       '--detail is only for "module … --variant=header-detail"',
     ],
+    // partner:start
     [['partner', 'classes', '--detail=members'], '--detail is only for'],
+    // partner:end
     [
       ['module', 'classes', '--variant=header-detail', '--detail-singular=member'],
       '--detail-singular needs --detail',

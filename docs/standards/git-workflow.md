@@ -59,7 +59,8 @@ The allowed types are exactly `type-enum` in `commitlint.config.ts` — there is
 |---|---|
 | From the source tree | `<module>` (every folder of `src/modules/`, dependent modules included: `users`, `project-tasks`), `core/<area>` (`core/cache`), `database/<folder>` (`database/schema`), `integrations/<vendor>`, `utils/<name>` (from `<name>.util.ts`) |
 | Application & layers | `app`, `config`, `core`, `database`, `database/migrations`, `utils`, `integrations` |
-| Inbound channels | `partner` (gateway, signing), `partner-auth`, `webhooks`, `conventions` (channel and naming conventions) |
+| Inbound channels | `webhooks`, `conventions` (channel and naming conventions) |
+| Partner gateway | `partner` (gateway, signing), `partner-auth` | <!-- partner -->
 | Quality gates & tooling | `quality-gates`, `deps`, `lint`, `scripts`, `ci`, `docker`, `scaffold` (templates, `verify:scaffold`), `setup` (`bun run setup`), `integration` (`test:int`) |
 | Reviews, docs, agents | `review` (fixes from a review), `standards`, `architecture`, `agents`, `skills`, `plans`, `readme`, `release` |
 

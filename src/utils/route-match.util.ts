@@ -5,7 +5,7 @@ const segmentsOf = (path: string): string[] => path.split('/').slice(1);
  * - a literal segment matches itself exactly (case-sensitive, like the router);
  * - `:name` matches any one non-empty segment;
  * - a trailing `*` matches the prefix itself and everything below it, on segment boundaries
- *   (`/partner/*` matches `/partner` and `/partner/a/b`, never `/partners`).
+ *   (`/files/*` matches `/files` and `/files/a/b`, never `/filesystem`).
  *
  * Paths with `.` / `..` or empty segments (`//`, a trailing `/`) never match: they are not routes,
  * and a matcher that tolerated them would let an odd path slip past an allowlist.

@@ -238,8 +238,10 @@ class ContractMarkdown {
     if (schemes.length === 0) lines.push('Publik (tanpa autentikasi)');
     else if (schemes.includes('bearerAuth')) {
       lines.push('Access token: `Authorization: Bearer <access_token>`');
+      // partner:start
     } else if (schemes.some((scheme) => scheme.startsWith('partner'))) {
       lines.push('Tanda tangan partner (header `x-partner-*`, signing v1 — lihat panduan partner)');
+      // partner:end
     } else {
       for (const scheme of schemes) {
         const header = asString(
@@ -253,7 +255,9 @@ class ContractMarkdown {
       const who = callers.map((caller) => {
         if (caller.startsWith('self:'))
           return `pemilik resource (\`${caller.slice(5)}\` = id Anda)`;
+        // partner:start
         if (caller.startsWith('partner:')) return `partner \`${caller.slice(8)}\``;
+        // partner:end
         return `role \`${caller}\``;
       });
       lines.push(`Hanya: ${who.join(' atau ')}`);
@@ -477,7 +481,10 @@ class ContractMarkdown {
       '- Base URL: `/api` (`API_BASE_PATH`); versi API ada di path (`/api/v1/...`). Health, docs dan webhook vendor berada di luar `/v1`.',
       '- Nama field request & response **snake_case** (key lain → 400 `ERR_NON_SNAKE_CASE_KEY`); waktu dalam ISO 8601 UTC (`2026-01-01T00:00:00.000Z`).',
       '- Bahasa pesan mengikuti `Accept-Language` (`id` / `en`, default `id`); setiap respons membawa `X-Request-ID`.',
-      '- Autentikasi: access token (`Authorization: Bearer`) — [panduan frontend](../auth-guide.md); tanda tangan partner — [panduan partner](../partner-integration-guide.md); webhook vendor diverifikasi signature vendornya.',
+      '- Autentikasi: access token (`Authorization: Bearer`) — [panduan frontend](../auth-guide.md); webhook vendor diverifikasi signature vendornya.',
+      // partner:start
+      '- Tanda tangan partner (gateway partner) — [panduan partner](../partner-integration-guide.md).',
+      // partner:end
       '',
       '## Envelope',
       '',

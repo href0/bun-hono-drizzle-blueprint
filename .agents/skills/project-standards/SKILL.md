@@ -15,7 +15,7 @@ The standards of this project live in `docs/standards/` — one file per topic, 
 | Where a file goes, imports between layers, a new script / test area / module | `docs/standards/structure.md` |
 | A file, module, identifier or table name | `docs/standards/naming.md` |
 | Controllers, validation, DTOs, envelopes, errors, user-facing messages | `docs/standards/http-contract.md` |
-| Who may call a route, roles, public routes, partner endpoints, vendor webhooks | `docs/standards/auth-and-inbound.md` |
+| Who may call a route, roles, public routes, inbound channels, vendor webhooks | `docs/standards/auth-and-inbound.md` |
 | Route documentation, response schemas | `docs/standards/openapi.md` |
 | Tables, columns, migrations, repositories, audit trail | `docs/standards/database.md` |
 | Atomic operations, `@Transactional()`, repository tests | `docs/standards/transactions.md` |

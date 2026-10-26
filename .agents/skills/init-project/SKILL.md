@@ -43,7 +43,11 @@ Show the user the derived identity and the files that will change:
 
 Also tell the user what happens to the **example modules** — `src/modules/orders` (header + detail, with `order_items`), `src/modules/projects` (a parent with its dependents `project-tasks/` 1:N and `project-budgets/` 1:1) the vendor webhook example `src/integrations/demo-pay` + `src/modules/payment-notifications` (with its `DEMO_PAY_*` settings) and the outbound example `src/integrations/jsonplaceholder` + `src/modules/user-posts` (`/users/:id/external-posts`, `JSONPLACEHOLDER_*`): by default they are removed — files, registrations, their tests — and the migrations in `drizzle/` are regenerated from scratch (a new project has no database yet, so its history starts with one clean `0000`). Ask whether they want to keep it as a reference; if yes, add `--keep-examples` (the migrations then stay as they are). Either way `lint:setup` afterwards checks the project identity only: the examples are the project's own code from then on.
 
+Then ask about the **partner gateway** (`src/modules/partner-credentials`, `src/modules/partner-gateway`, `partnerAuth()`, `PARTNER_*` settings): will other systems call this API server-to-server with signed requests? Default keep it. If the user says no, add `--no-partner`: it removes the gateway's files and marked regions, `partner:sign` / `scaffold:partner`, and regenerates the migrations and contract baseline; switching it on later is manual (`docs/standards/project-setup.md` §4.3). Never choose `--no-partner` on your own.
+
 Ask for confirmation before continuing.
+
+If the dry run reports `partner gateway markers are out of sync`, STOP: a partner line is outside a marked region or a `PARTNER_ONLY` path is missing — a boilerplate maintenance task, report it.
 
 If the dry run reports `example modules out of sync`, STOP: `EXAMPLE_MODULES` in `scripts/setup.ts` no longer matches the codebase (same handling as below), or run with `--keep-examples`.
 
@@ -52,7 +56,7 @@ If the dry run reports `identity rules out of sync`, STOP: `IDENTITY_RULES` in `
 ### 4. Apply
 
 ```bash
-bun run setup <project-name> --title "<title>" --description "<description>"   # add --keep-examples to keep the example modules
+bun run setup <project-name> --title "<title>" --description "<description>"   # add --keep-examples to keep the example modules, --no-partner to remove the partner gateway
 ```
 
 The script also creates `.env` from `.env.example` when missing. Do NOT read or edit `.env` yourself (`env-protection` skill). If the script says an existing `.env` was kept, tell the user to review `POSTGRES_DB` / `DATABASE_URL` in it manually.
@@ -71,7 +75,7 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.
-4. Without `--keep-examples`: `src/modules/orders`, `src/modules/projects`, `src/modules/payment-notifications`, `src/modules/user-posts`, `src/integrations/demo-pay` and `src/integrations/jsonplaceholder` are gone, `WEBHOOK_VENDORS` and `INTEGRATION_REGISTRY` are empty, and `drizzle/` holds a single `0000_*.sql` (the platform tables: users, auth_refresh_tokens, record_changes, partner_credentials, webhook_events). `src/modules/partner-gateway` stays (partners test their signing with its ping/echo).
+4. Without `--keep-examples`: `src/modules/orders`, `src/modules/projects`, `src/modules/payment-notifications`, `src/modules/user-posts`, `src/integrations/demo-pay` and `src/integrations/jsonplaceholder` are gone, `WEBHOOK_VENDORS` and `INTEGRATION_REGISTRY` are empty, and `drizzle/` holds a single `0000_*.sql` (the platform tables: users, auth_refresh_tokens, record_changes, partner_credentials, webhook_events). `src/modules/partner-gateway` stays (partners test their signing with its ping/echo) — with `--no-partner` it is gone too, with `partner_credentials`, and `git grep -il partner -- src test .env.example docs/api` prints nothing.
 
 ### 7. Git History (Optional — Ask, Never Assume)
 

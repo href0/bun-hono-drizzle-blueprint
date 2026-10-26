@@ -164,10 +164,13 @@ jobs:
       # Throwaway secrets: this container only proves that the image starts.
       - name: Start the production image and wait until healthy
         run: |
+          secrets=(-e "JWT_SECRET=$(openssl rand -hex 48)")
+          # partner:start
+          secrets+=(-e "PARTNER_SECRET_KEYS=k1:$(openssl rand -hex 32)" -e PARTNER_SECRET_ACTIVE_KEY_ID=k1)
+          # partner:end
           docker run -d --name app --network host \
             -e DATABASE_URL -e REDIS_HOST=localhost -e REDIS_PORT=6379 \
-            -e JWT_SECRET="$(openssl rand -hex 48)" \
-            -e PARTNER_SECRET_KEYS="k1:$(openssl rand -hex 32)" -e PARTNER_SECRET_ACTIVE_KEY_ID=k1 \
+            "${secrets[@]}" \
             -e CORS_ORIGINS=https://app.example.com \
             app:ci
           for attempt in $(seq 1 30); do

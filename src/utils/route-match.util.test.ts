@@ -20,16 +20,16 @@ describe('matchRoutePattern', () => {
   });
 
   it('a trailing * covers the prefix and everything below it, on segment boundaries', () => {
-    expect(matchRoutePattern('/partner/*', '/partner')).toBe(true);
-    expect(matchRoutePattern('/partner/*', '/partner/ping')).toBe(true);
-    expect(matchRoutePattern('/partner/*', '/partner/a/b')).toBe(true);
-    expect(matchRoutePattern('/partner/*', '/partners')).toBe(false);
-    expect(matchRoutePattern('/partner/*', '/')).toBe(false);
+    expect(matchRoutePattern('/files/*', '/files')).toBe(true);
+    expect(matchRoutePattern('/files/*', '/files/ping')).toBe(true);
+    expect(matchRoutePattern('/files/*', '/files/a/b')).toBe(true);
+    expect(matchRoutePattern('/files/*', '/filesystem')).toBe(false);
+    expect(matchRoutePattern('/files/*', '/')).toBe(false);
   });
 
   it('never matches paths with dot or empty segments, or relative paths', () => {
-    for (const path of ['/partner/../users', '/partner/./x', '/auth//login', 'auth/login', '']) {
-      expect(matchRoutePattern('/partner/*', path)).toBe(false);
+    for (const path of ['/files/../users', '/files/./x', '/auth//login', 'auth/login', '']) {
+      expect(matchRoutePattern('/files/*', path)).toBe(false);
       expect(matchRoutePattern('/auth/login', path)).toBe(false);
     }
     expect(matchRoutePattern('auth/login', '/auth/login')).toBe(false);

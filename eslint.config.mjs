@@ -364,21 +364,29 @@ const TX_HOST_IMPORT_PATTERN = {
 
 /*
  * Inbound channels (adoption plan D23–D27). A module file name says which caller it serves —
- * `<module>[.<channel>].<role>.ts`, channel `partner` | `webhook` (no channel = users with access
+ * `<module>[.<channel>].<role>.ts`, a channel of CHANNEL_CALLERS (no channel = users with access
  * tokens) — and only that caller's helpers may appear in it. A dedicated rule (not
  * `no-restricted-syntax`) so it never collides with the role-based groups above.
  */
-/** @typedef {'default' | 'partner' | 'webhook'} Channel */
-/** @typedef {'user' | 'partner' | 'webhook'} Caller */
-
-/** @type {Record<Caller, string[]>} */
+/** @type {Record<string, string[]>} Helpers per caller. */
 const CHANNEL_HELPERS = {
   user: ['requireRole', 'requireSelfOrRole', 'currentUser'],
+  // partner:start
   partner: ['currentPartner', 'requirePartner'],
+  // partner:end
   webhook: ['currentWebhook'],
 };
-/** @type {Record<Channel, Caller[]>} */
-const CHANNEL_CALLERS = { default: ['user'], partner: ['partner'], webhook: ['webhook'] };
+/** @typedef {keyof typeof CHANNEL_HELPERS} Caller */
+
+/** @type {Record<string, Caller[]>} Callers per channel (`default` = no channel in the name). */
+const CHANNEL_CALLERS = {
+  default: ['user'],
+  // partner:start
+  partner: ['partner'],
+  // partner:end
+  webhook: ['webhook'],
+};
+/** @typedef {keyof typeof CHANNEL_CALLERS} Channel */
 
 /**
  * @param {string} filename
@@ -386,9 +394,8 @@ const CHANNEL_CALLERS = { default: ['user'], partner: ['partner'], webhook: ['we
  */
 const channelOf = (filename) => {
   const base = filename.split(/[\\/]/).pop() ?? '';
-  if (base.includes('.partner.')) return 'partner';
-  if (base.includes('.webhook.')) return 'webhook';
-  return 'default';
+  const channel = Object.keys(CHANNEL_CALLERS).find((name) => base.includes(`.${name}.`));
+  return channel ?? 'default';
 };
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -398,7 +405,7 @@ const inboundChannelRule = {
     schema: [],
     messages: {
       forbidden:
-        '"{{name}}" is a {{kind}}-channel helper, but this file serves the {{channel}} channel. Name partner files <module>.partner.<role>.ts and webhook files <module>.webhook.<role>.ts; keep each channel in its own files (plan D24).',
+        '"{{name}}" is a {{kind}}-channel helper, but this file serves the {{channel}} channel. Name the files of a channel <module>.<channel>.<role>.ts (webhook: <module>.webhook.<role>.ts); keep each channel in its own files (plan D24).',
       verbatimBody:
         "bodyKeys: 'verbatim' (vendor-owned payload casing) is only for vendor webhooks, in <module>.webhook.<role>.ts files; our own contracts are snake_case (plan D10, D23).",
     },

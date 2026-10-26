@@ -27,7 +27,8 @@ export interface TextQuestion {
 export interface Prompter {
   select: <T extends string>(message: string, choices: readonly Choice<T>[]) => Promise<T>;
   text: (question: TextQuestion) => Promise<string>;
-  confirm: (message: string) => Promise<boolean>;
+  /** Yes / No; `initial` is the answer Enter accepts (default No). */
+  confirm: (message: string, initial?: boolean) => Promise<boolean>;
 }
 
 /** The person pressed Ctrl+C / Esc: the wizard stops before anything is written. */
@@ -64,7 +65,8 @@ export const clackPrompter = (io: { input?: Readable; output?: Writable } = {}):
         validate: (value) => validate((value ?? '').trim()),
       }),
     ).trim(),
-  confirm: async (message) => answered(await confirm({ ...io, message, initialValue: false })),
+  confirm: async (message, initial = false) =>
+    answered(await confirm({ ...io, message, initialValue: initial })),
 });
 
 export const terminalPrompter: Prompter = clackPrompter();

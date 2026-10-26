@@ -14,7 +14,7 @@ import { logger } from '../logger/logger';
 export const CONTRACT_CHECKS = appConfig.NODE_ENV === 'test';
 
 /**
- * Codes sent by the platform's own middlewares (validation, authentication, partner / webhook
+ * Codes sent by the platform's own middlewares (validation, authentication, signature
  * verification, roles, CSRF, body limit, rate limits, 404 route, error handler). Each documents
  * itself on the routes it guards, so they are allowed on any route; domain codes must be listed
  * by the route's `describeEndpoint({ errors })`.
@@ -26,15 +26,19 @@ const PLATFORM_CODES: ReadonlySet<AppErrorCode> = new Set([
   APP_ERROR_CODES.UNAUTHORIZED,
   APP_ERROR_CODES.AUTH_TOKEN_EXPIRED,
   APP_ERROR_CODES.AUTH_TOKEN_INVALID,
+  // partner:start
   APP_ERROR_CODES.PARTNER_HEADERS_MISSING,
   APP_ERROR_CODES.PARTNER_INVALID_KEY,
   APP_ERROR_CODES.PARTNER_REPLAY_REJECTED,
   APP_ERROR_CODES.PARTNER_SIGNATURE_INVALID,
+  // partner:end
   APP_ERROR_CODES.WEBHOOK_SIGNATURE_INVALID,
   APP_ERROR_CODES.ROLE_FORBIDDEN,
   APP_ERROR_CODES.CSRF_ORIGIN_FORBIDDEN,
+  // partner:start
   APP_ERROR_CODES.PARTNER_IP_FORBIDDEN,
   APP_ERROR_CODES.PARTNER_ROUTE_FORBIDDEN,
+  // partner:end
   APP_ERROR_CODES.ROUTE_NOT_FOUND,
   APP_ERROR_CODES.PAYLOAD_TOO_LARGE,
   APP_ERROR_CODES.RATE_LIMITED,
