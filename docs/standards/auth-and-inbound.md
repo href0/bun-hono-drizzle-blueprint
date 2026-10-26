@@ -34,7 +34,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 | Who is calling (controller) | `currentUser()` → `{ id, role }`; services take the id as an argument or read `getActor()` (`user:<id>`, used for audit columns) |
 | A new public route | Add it to `PUBLIC_ROUTES` (reviewed) — never a per-route "skip auth" |
 | Contract tests | `authorize(createApp(), role, userId?)` from `test/helpers/authorized-app.ts` |
-| First admin | `bun run seed:admin --email <email>` (password from a hidden prompt / stdin); last-resort recovery `--promote` |
+| First admin | `bun run seed:admin --email <email>` (in a terminal the password is asked masked, twice; piped, from stdin); last-resort recovery `--promote` |
 | Change password | Own: `POST /auth/change-password`; admin: `PUT /users/:id/password`. Both set `users.password_changed_at` → refresh refuses token families started before it |
 | Expired refresh tokens | `bun run auth:purge-tokens [--days 7]`, scheduled daily |
 

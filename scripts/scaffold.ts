@@ -21,9 +21,11 @@ import {
   planScaffold,
   readScaffoldArgs,
   ScaffoldError,
+  USAGE,
   type ScaffoldPlan,
   type ScaffoldRequest,
 } from './lib/scaffold';
+import { exitOnHelp } from './lib/cli-args';
 import {
   commandOf,
   completeRequest,
@@ -198,6 +200,7 @@ const printNextSteps = (plan: ScaffoldPlan, heading: string, addsRoutes: boolean
 
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
+  exitOnHelp(argv, USAGE);
   const draft = readScaffoldArgs(argv);
   // SCAFFOLD_WIZARD_STDIN=1: a program answers the wizard through a pipe (bun run acceptance drives
   // the real prompts with keystrokes). Never set by hand, CI or an agent: without it, no terminal

@@ -11,6 +11,7 @@ Violations are caught automatically: the pre-commit and pre-push hooks block the
 1. Read the quickstart in [README.md](README.md) (install, `bun run setup` — [project-setup.md](docs/standards/project-setup.md), migrations, first admin, `bun run dev`).
 2. Skim [ARCHITECTURE.md](ARCHITECTURE.md) once — the pillars and the rule index.
 3. Before writing code, open the standards for what you are about to touch (§2).
+4. `bun run help` lists every command; `bun run help <command>` or `bun run <command> --help` explains one.
 
 ## 2. Standards (the single source)
 

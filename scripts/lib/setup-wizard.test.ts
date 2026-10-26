@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Prompter, TextQuestion } from './prompter';
+import { ENTER, scriptedPrompter as scripted } from './scripted-prompter';
 import {
   completeSetup,
   needsSetupWizard,
@@ -12,37 +12,6 @@ import {
   titleProblem,
   type SetupRequest,
 } from './setup-wizard';
-
-const ENTER = Symbol('enter');
-type Answer = string | boolean | typeof ENTER;
-
-/** Answers in order like a person; a text answer the question rejects is recorded, the next tried. */
-const scripted = (...answers: Answer[]) => {
-  const asked: string[] = [];
-  const rejected: string[] = [];
-  const placeholders: string[] = [];
-  const next = (message: string): Answer => {
-    asked.push(message);
-    const answer = answers.shift();
-    if (answer === undefined) throw new Error(`no answer left for "${message}"`);
-    return answer;
-  };
-  const prompter: Prompter = {
-    select: () => Promise.reject(new Error('setup asks no select')),
-    text: (question: TextQuestion) => {
-      if (question.placeholder !== undefined) placeholders.push(question.placeholder);
-      for (;;) {
-        const answer = next(question.message);
-        const value = answer === ENTER ? (question.initial ?? '') : String(answer);
-        const problem = question.validate(value);
-        if (problem === undefined) return Promise.resolve(value);
-        rejected.push(problem);
-      }
-    },
-    confirm: (message) => Promise.resolve(next(message) === true),
-  };
-  return { prompter, asked, rejected, placeholders, left: answers };
-};
 
 describe('parseSetupArgs', () => {
   it('no arguments: only the env file, and the wizard is wanted', () => {

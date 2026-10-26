@@ -1,5 +1,3 @@
-import { CANCEL_SYMBOL } from '@clack/prompts';
-import { answered, type Prompter, type TextQuestion } from './prompter';
 import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
 import {
@@ -18,6 +16,8 @@ import {
   toArgv,
   type WizardContext,
 } from './scaffold-wizard';
+import { CancelledError } from './prompter';
+import { CANCEL, ENTER, scriptedPrompter as scripted, type Answer } from './scripted-prompter';
 
 const ROOT = resolve(import.meta.dir, '../..');
 
@@ -25,52 +25,6 @@ const CONTEXT: WizardContext = {
   modules: ['users', 'orders', 'projects', 'project-tasks', 'order-documents'],
   vendors: ['acme-pay'],
   parents: ['orders', 'projects', 'users'],
-};
-
-/** Accepts the pre-filled answer of a text question, like pressing Enter. */
-const ENTER = Symbol('enter');
-type Answer = string | typeof ENTER;
-
-/**
- * Answers questions in order, like a user would: a text answer the question rejects is recorded and
- * the next answer is tried (the terminal asks again); a select answer must be one of its choices.
- */
-const scripted = (...answers: Answer[]) => {
-  const asked: string[] = [];
-  const rejected: string[] = [];
-  const offered: string[][] = [];
-  const placeholders: string[] = [];
-  const next = (message: string): Answer => {
-    asked.push(message);
-    const answer = answers.shift();
-    if (answer === undefined) throw new Error(`no answer left for "${message}"`);
-    return answer;
-  };
-  const prompter: Prompter = {
-    select: (message, choices) => {
-      offered.push(choices.map((choice) => choice.value));
-      const answer = next(message);
-      const choice = choices.find((option) => option.value === answer);
-      if (choice === undefined)
-        throw new Error(`"${String(answer)}" is not a choice of "${message}"`);
-      return Promise.resolve(choice.value);
-    },
-    text: (question: TextQuestion) => {
-      if (question.placeholder !== undefined) placeholders.push(question.placeholder);
-      for (;;) {
-        const answer = next(question.message);
-        const value = answer === ENTER ? (question.initial ?? '') : answer;
-        const problem = question.validate(value);
-        if (problem === undefined) return Promise.resolve(value);
-        rejected.push(problem);
-      }
-    },
-    confirm: (message) => {
-      next(message);
-      return Promise.resolve(true);
-    },
-  };
-  return { prompter, asked, rejected, offered, placeholders, left: answers };
 };
 
 const complete = (draft: Partial<ScaffoldRequest>, ...answers: Answer[]) => {
@@ -409,12 +363,10 @@ describe('when the wizard opens', () => {
 });
 
 describe('terminal answers', () => {
-  it('Ctrl+C / Esc in any question stops the run before anything is planned or written', () => {
-    expect(() => answered(CANCEL_SYMBOL)).toThrow(
-      new ScaffoldError('cancelled: nothing was written'),
-    );
-    expect(answered('products')).toBe('products');
-    expect(answered(false)).toBe(false);
+  it('Ctrl+C / Esc in any question stops the run before anything is planned or written', async () => {
+    const error = await complete({}, 'standalone', CANCEL).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(CancelledError);
+    expect((error as Error).message).toBe('cancelled: nothing was written');
   });
 });
 

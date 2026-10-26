@@ -29,6 +29,8 @@ import {
   type ScaffoldRequest,
 } from './lib/scaffold';
 import { SNAPSHOT_PATH } from './lib/api-contract/document';
+import { readCli } from './lib/cli-args';
+import { usageOf } from './lib/commands';
 import { toArgv } from './lib/scaffold-wizard';
 
 interface Variant {
@@ -363,6 +365,7 @@ for (const variant of variants) {
 }`;
 
 const main = (): void => {
+  readCli(process.argv.slice(2), usageOf('verify-scaffold.ts'), {});
   const existing = [...plannedFiles, ...probeFolders].filter((path) => existsSync(path));
   if (existing.length > 0) {
     console.error(`Refusing to run: ${existing.join(', ')} already exist(s).`);

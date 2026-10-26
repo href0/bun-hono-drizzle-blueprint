@@ -4,15 +4,16 @@ import {
   ACCEPTANCE_STEPS,
   activeOption,
   ADMIN_EMAIL,
+  askCombos,
   COMBOS,
   keysOf,
   KEYS,
-  menuText,
   parseAcceptanceArgs,
   parseCombos,
   plainText,
   planText,
   PROJECT_TITLE,
+  readinessText,
   runCombo,
   StepFailure,
   type AcceptanceContext,
@@ -22,6 +23,7 @@ import {
   type Turn,
 } from './acceptance';
 import type { ComboResult, StepLabel } from './acceptance-progress';
+import { ENTER, scriptedPrompter } from './scripted-prompter';
 
 const [NEW_PROJECT, KEEP_EXAMPLES, NO_PARTNER] = COMBOS as [Combo, Combo, Combo];
 
@@ -65,13 +67,26 @@ describe('arguments', () => {
 });
 
 describe('menu and plan', () => {
-  it('the menu explains the stages and lists the combinations with an estimate', () => {
-    const menu = menuText(ACCEPTANCE_STEPS);
-    expect(menu).toContain('  B  generators: 8 variants (3 through the wizard');
-    expect(menu).toMatch(
-      / {2}1 {2}new project: setup removes the examples \(default\) {2}\(~\d+m\)/,
+  it('the menu explains the stages, what this machine runs, and offers every combination ticked', async () => {
+    const session = scriptedPrompter(['3', '1']);
+    const combos = await askCombos(session.prompter, ACCEPTANCE_STEPS, {
+      C: { runs: 'PostgreSQL localhost:5432 (DATABASE_URL)' },
+      D: { skipped: 'Docker is not running' },
+    });
+    expect(combos).toEqual([NO_PARTNER, NEW_PROJECT]);
+    expect(session.shown.at(0)).toContain('B  generators: 8 variants (3 through the wizard');
+    expect(session.shown.at(1)).toBe(
+      'note: This machine: C  PostgreSQL localhost:5432 (DATABASE_URL)\nD  skipped: Docker is not running',
     );
-    expect(menu).toContain('  a  all combinations');
+    expect(session.offered).toEqual([['1', '2', '3']]);
+    // Enter keeps the first ticks: every combination, as a release needs.
+    expect(await askCombos(scriptedPrompter(ENTER).prompter, ACCEPTANCE_STEPS, {})).toEqual([
+      ...COMBOS,
+    ]);
+  });
+
+  it('readiness lists only the stages it was given', () => {
+    expect(readinessText({ D: { runs: 'Docker is running' } })).toBe('D  Docker is running');
   });
 
   it('the plan numbers every step per combination and sums the estimate', () => {

@@ -33,6 +33,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { SNAPSHOT_PATH } from './lib/api-contract/document';
+import { exitOnHelp } from './lib/cli-args';
 import { gitHooksAdvice, readGitState } from './lib/git-hooks';
 import { PARTNER_SCRIPTS, planPartner } from './lib/partner-prune';
 import { CancelledError, terminalPrompter } from './lib/prompter';
@@ -44,6 +45,7 @@ import {
   SetupArgsError,
   setupArgv,
   setupCommandOf,
+  SETUP_USAGE,
   titleOf,
   type SetupRequest,
 } from './lib/setup-wizard';
@@ -766,6 +768,7 @@ const printNextSteps = (dryRun: boolean): void => {
 
 async function runSetup(): Promise<void> {
   const rootDir = process.cwd();
+  exitOnHelp(process.argv.slice(2), SETUP_USAGE);
   const args = parseSetupArgs(process.argv.slice(2));
   // SETUP_WIZARD_STDIN=1: `bun run acceptance` answers the wizard through a pipe; never set by hand.
   const driven = process.env.SETUP_WIZARD_STDIN === '1';

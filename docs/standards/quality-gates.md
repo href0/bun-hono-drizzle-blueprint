@@ -52,12 +52,15 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 
 **Composing ESLint rules**: in flat config a later override **replaces** the whole `no-restricted-syntax` / `no-restricted-imports` array of an earlier one for files matched by both. Never redefine those rules ad hoc in an override — compose the group constants at the top of `eslint.config.mjs` (`MODULE_SYNTAX_RULES`, `CONTROLLER_SYNTAX_RULES`, …). A new group needs a row in the rule index (`ARCHITECTURE.md` §12) — `test/docs-sync.test.ts` fails otherwise.
 
+**Command line** (R83): `bun run help` prints the registry `COMMAND_GROUPS` of `scripts/lib/commands.ts` — one short line per script, for the terminal; the table of §3 stays the documentation, and both name exactly the `package.json` scripts (`scripts/lib/commands.test.ts`, `test/docs-sync.test.ts`). A new `package.json` script needs its registry entry; a new `scripts/*.ts` its usage in `SCRIPT_USAGE`, read with `readCli` / `exitOnHelp` (`scripts/lib/cli-args.ts`) before anything else — modules with side effects (the database connection) are imported after it, dynamically. Every question goes through the `Prompter` (`terminalPrompter`; `scriptedPrompter` in tests; `@clack/*` and `readline` elsewhere fail lint); without a terminal nothing is asked, flags and stdin do it.
+
 **Prettier** formats `*.ts` only. Markdown is excluded (`.prettierignore`): see [documentation.md](documentation.md).
 
 ## 3. Commands
 
 | Command | What it does | When |
 |---|---|---|
+| `bun run help [<command>]` | Prints every command of this project, grouped, one line each — only the scripts `package.json` has, so a project without the partner gateway does not see its commands; `bun run help <command>` adds what it runs and its usage. Every `scripts/*.ts` command also answers `--help` / `-h` without doing anything | Looking for a command or its options |
 | `bun run dev` | Development server with reload (`bun --watch src/index.ts`) | While developing |
 | `bun run start` | Server without watch (`bun src/index.ts`) | Running a checkout as is |
 | `bun run build` | Bundles `src/index.ts` into `dist/` (`--target bun`); run by CI | Before a release / to prove the bundle builds |
@@ -87,9 +90,9 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 | `bun run setup` (in a terminal: the wizard) · `bun run setup <name> [--title "…"] [--description "…"] [--keep-examples] [--dry-run]` | Initializes a fresh clone as a named project (identity and title, examples removed, migrations and the API contract baseline regenerated). Without a name and in a terminal it asks — name, title, description, keep the examples? — shows the plan, confirms, and prints the equivalent command; without a terminal and without a name it only prepares the local env file ([project-setup.md](project-setup.md); skill `init-project`) | Once per new project |
 | `bun run openapi:check` | Fails on any difference between the API of `createApp()` and the snapshot `docs/api/openapi.json` (each change labelled BREAKING / safe / docs), or between the generated contract documents and `docs/api/*.md` ([openapi.md](openapi.md) §6) | Part of `validate`; after changing a route or a DTO |
 | `bun run openapi:update [--allow-breaking]` | Writes the snapshot after you reviewed the changes; refuses BREAKING without the flag. Never run by a hook, CI or `scaffold` | After the review of an intended contract change |
-| `bun run seed:admin --email <email> [--promote]` | Creates the first admin (password from a hidden prompt / stdin) | After the first migration; recovery of a locked-out admin |
+| `bun run seed:admin [--email <email>] [--name "<name>"] [--promote]` | Creates the first admin, or `--promote`s an existing user. In a terminal it asks for what is missing (email, name, the password masked and twice); piped, `--email` is required and the password is the first line of stdin | After the first migration; recovery of a locked-out admin |
 | `bun run auth:purge-tokens [--days N]` | Deletes expired refresh tokens | Schedule daily |
-| `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Signs a partner request (signing v1) and prints headers + curl, or sends it; secret from a hidden prompt / stdin | Testing `/api/v1/partner/*` or helping a partner match a signature | <!-- partner -->
+| `bun run partner:sign --key <pk_…> --url <url> [--method POST --body '<json>'] [--send]` | Signs a partner request (signing v1) and prints headers + curl, or sends it; secret from a masked prompt / stdin | Testing `/api/v1/partner/*` or helping a partner match a signature | <!-- partner -->
 | `bun run docs:dev` | Syncs the documents into `docs-site/` and serves the portal at `http://localhost:4321` (first run: `bun install` inside `docs-site/`) | Previewing documentation as a web page |
 | `bun run docs:build` | Syncs, builds the static portal (Astro Starlight + Pagefind) and fails on a broken internal link or anchor (`docs-site/check-links.ts`); checked by the CI job `docs`, deployed only by the manual workflow `deploy-docs.yml` | After adding or renaming a document; before publishing the portal |
 

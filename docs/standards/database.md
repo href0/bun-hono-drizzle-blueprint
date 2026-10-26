@@ -247,6 +247,6 @@ Every change of a domain row goes through a base repository (row lock, soft-dele
 | No `sql.raw(` (use `sql.identifier()`; a static fragment = `eslint-disable` + reason) | all of `src/` | [eslint:SQL_RAW_RULES] |
 
 - **The one approved exception** (plan log 4.1, 2026-10-04): the refresh-token repository `src/modules/auth/auth.repository.ts` (table `auth_refresh_tokens`: high-volume security state without audit columns or soft delete — `revoked_at` + `replaced_by_id` are its trail). A one-file override in `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) lets it skip the base and `tx.update(authRefreshTokens)` only; updating any other table and `tx.delete` stay rejected.
-- **Seeders** (`src/database/seeds/**`) belong to the database layer, not to a module: the module rules do not apply, but they still write through the base repositories (actor `system`, audited). Example: `seed-admin.ts` (password from a hidden prompt / stdin, never argv or env).
+- **Seeders** (`src/database/seeds/**`) belong to the database layer, not to a module: the module rules do not apply, but they still write through the base repositories (actor `system`, audited). Example: `seed-admin.ts` (password from a masked prompt / stdin, never argv or env).
 - `users.role` is matched against `ROLES` (`src/core/security/roles.ts`) by `src/database/roles-column.test.ts`.
 - `[review-only]`: custom reads inside a `BaseRepository` subclass start from `this.scoped(...)` so deleted rows stay hidden.

@@ -119,6 +119,7 @@ test/
 ├── structure.test.ts            # File names, module / integration patterns, dependent subfolders named after their parent, unique module names, module ≠ vendor, channel routers, *.int.ts placement
 ├── docs-sync.test.ts            # This tree and the command table name everything; rule-index labels; links; docs SSOT
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
+├── cli-help.test.ts             # Every scripts/*.ts answers --help with its usage and exit 0 without side effects, and refuses an unknown option (R83)
 ├── ci-gates.test.ts             # Every gate of validate:full is its own step of the CI job verify
 ├── api-contract.test.ts         # openapi:check runs in validate and CI; no hook, CI workflow or the scaffold CLI runs openapi:update
 ├── commit-scopes.test.ts        # Fixed commit scopes in commitlint.config.ts = the table in git-workflow.md; scopes derived from src/
@@ -129,6 +130,7 @@ test/
 
 ```
 scripts/
+├── help.ts                      # `bun run help [<command>]`: every command, grouped (the registry of lib/commands.ts); prints only
 ├── setup.ts                     # `bun run setup [<name>]` (init-project skill, IDENTITY_RULES, EXAMPLE_MODULES, the partner switch; no name in a terminal → the wizard)
 ├── check-coverage.ts            # Coverage gate (THRESHOLDS = the single source of thresholds)
 ├── scaffold.ts                  # `bun run scaffold <kind> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
@@ -142,10 +144,14 @@ scripts/
 ├── lib/acceptance-progress.ts   # What the acceptance run shows: live step line, heartbeat, summary table (+ lib/acceptance-progress.test.ts)
 ├── lib/api-contract/            # Contract engine: document.ts (generation with a fixed config + module of each route), flatten.ts, compare.ts (labels; + compare.test.ts), report.ts, markdown.ts (docs/api/*.md; + markdown.test.ts)
 ├── lib/git-hooks.ts             # Are the Husky hooks active (core.hooksPath)? bun run setup warns when not (+ lib/git-hooks.test.ts)
-├── lib/read-secret.ts           # CLI secrets from a hidden prompt / stdin, never argv or env
+├── lib/read-secret.ts           # CLI secrets: masked through the Prompter or the first line of piped stdin, never argv or env
+├── lib/admin-questions.ts       # What bun run seed:admin asks in a terminal: email, name, password twice (+ lib/admin-questions.test.ts)
+├── lib/cli-args.ts              # The command line of every script: --help / -h → usage, exit 0, before any work; unknown option → exit 1 (+ lib/cli-args.test.ts)
+├── lib/commands.ts              # The bun run help registry (COMMAND_GROUPS) and the usage of every script (SCRIPT_USAGE), R83 (+ lib/commands.test.ts)
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 ├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup
-├── lib/prompter.ts             # The questions of a CLI wizard behind one interface: scripted in tests, @clack/prompts for a person (+ lib/prompter.test.ts: the real prompts on streams)
+├── lib/prompter.ts             # Every CLI question and what is drawn around it (text, select, multiselect, password, confirm, intro, note, spinner, outro) behind one interface; the only importer of @clack/prompts (+ lib/prompter.test.ts: the real prompts on streams)
+├── lib/scripted-prompter.ts    # The Prompter of the tests: answers in order, records the questions and what was drawn (+ lib/scripted-prompter.test.ts)
 ├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (plan D38): name, --title, description, examples, --no-partner (+ lib/setup-wizard.test.ts)
 ├── lib/partner-prune.ts        # The partner switch of setup (plan D39): marked regions, PARTNER_ONLY, the no-partner simulation of lint:setup (+ lib/partner-prune.test.ts)
 ├── lib/scaffold-wizard.ts       # The scaffold wizard (plan D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)

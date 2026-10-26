@@ -362,6 +362,23 @@ const TX_HOST_IMPORT_PATTERN = {
     'TransactionHost is for repositories and *.queries.ts only. Services call repositories; use @Transactional() / runInTransaction() for transactions.',
 };
 
+/**
+ * CLI questions only through scripts/lib/prompter.ts (plan D40): one look and one cancel for every
+ * script, and the tests answer them with a scripted Prompter.
+ */
+const CLI_PROMPT_IMPORT_PATTERNS = [
+  {
+    group: ['@clack/*'],
+    message:
+      'Ask through the Prompter of scripts/lib/prompter.ts (terminalPrompter; scriptedPrompter in tests), never @clack directly.',
+  },
+  {
+    group: ['readline', 'readline/*', 'node:readline', 'node:readline/*'],
+    message:
+      'Questions go through the Prompter of scripts/lib/prompter.ts; piped input through readPipedLine (scripts/lib/read-secret.ts).',
+  },
+];
+
 /*
  * Inbound channels (adoption plan D23–D27). A module file name says which caller it serves —
  * `<module>[.<channel>].<role>.ts`, a channel of CHANNEL_CALLERS (no channel = users with access
@@ -932,6 +949,14 @@ export default tseslint.config(
       'no-process-env': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
+    },
+  },
+  {
+    // One Prompter for every CLI question (R83); its own test drives the real prompts on streams.
+    files: ['scripts/**/*.ts'],
+    ignores: ['scripts/lib/prompter.ts', 'scripts/lib/prompter.test.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: CLI_PROMPT_IMPORT_PATTERNS }],
     },
   },
 );

@@ -6,6 +6,7 @@ import { answered, CancelledError, clackPrompter } from './prompter';
 const DOWN = '\u001b[B';
 const ENTER = '\r';
 const CTRL_C = '\u0003';
+const SPACE = ' ';
 
 /**
  * The real clack prompts on streams: keys are written once the question is on the screen, like a
@@ -14,10 +15,13 @@ const CTRL_C = '\u0003';
 const session = (): {
   prompter: ReturnType<typeof clackPrompter>;
   answer: (question: string, keys: string) => void;
+  /** Everything drawn so far. */
+  drawn: () => string;
 } => {
   const input = new PassThrough();
   const output = new PassThrough();
   let screen = '';
+  let all = '';
   const pending: { question: string; keys: string }[] = [];
   const flush = (): void => {
     const next = pending.at(0);
@@ -28,6 +32,7 @@ const session = (): {
   };
   output.on('data', (chunk: Buffer) => {
     screen += chunk.toString();
+    all += chunk.toString();
     flush();
   });
   return {
@@ -36,6 +41,7 @@ const session = (): {
       pending.push({ question, keys });
       flush();
     },
+    drawn: () => all,
   };
 };
 
@@ -84,6 +90,57 @@ describe('clackPrompter', () => {
     expect(await prompter.confirm('Write?')).toBe(false);
     answer('Again?', `y${ENTER}`);
     expect(await prompter.confirm('Again?')).toBe(true);
+  });
+
+  it('multiselect toggles with Space, starts from the initial ticks, and returns them in order', async () => {
+    const { prompter, answer } = session();
+    const choices = [
+      { value: '1', label: 'Default', hint: '~12m' },
+      { value: '2', label: 'Keep examples', hint: '~12m' },
+      { value: '3', label: 'No partner', hint: '~12m' },
+    ];
+    answer('Combinations?', `${DOWN}${DOWN}${SPACE}${ENTER}`);
+    expect(await prompter.multiselect('Combinations?', choices, ['1'])).toEqual(['1', '3']);
+  });
+
+  it('password masks what is typed and re-asks while validation fails', async () => {
+    const { prompter, answer, drawn } = session();
+    answer('Secret?', `short${ENTER}`);
+    const typed = prompter.password({
+      message: 'Secret?',
+      validate: (value) => {
+        if (value.length >= 8) return undefined;
+        answer('Secret?', `${'\u007f'.repeat(5)}long enough ${ENTER}`);
+        return 'at least 8 characters';
+      },
+    });
+    // Never trimmed: a secret may end with a space.
+    expect(await typed).toBe('long enough ');
+    expect(drawn()).not.toContain('long enough');
+    expect(drawn()).toContain('at least 8 characters');
+  });
+
+  it('intro, note, spinner and outro draw on the same output', () => {
+    const { prompter, drawn } = session();
+    prompter.intro('bun run acceptance');
+    prompter.note('1  Default', 'Plan');
+    const line = prompter.spinner();
+    line.start('Checking PostgreSQL');
+    line.stop('PostgreSQL answers');
+    const failing = prompter.spinner();
+    failing.start('Checking Docker');
+    failing.error('Docker is not running');
+    prompter.outro('Done');
+    for (const text of [
+      'bun run acceptance',
+      'Plan',
+      '1  Default',
+      'PostgreSQL answers',
+      'Docker is not running',
+      'Done',
+    ]) {
+      expect(drawn()).toContain(text);
+    }
   });
 
   it('Ctrl+C cancels: nothing is written', async () => {

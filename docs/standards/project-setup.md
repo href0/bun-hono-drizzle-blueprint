@@ -147,7 +147,7 @@ Not a command yet (backlog: `bun run partner:enable`). By hand, from the boilerp
 ## 5. After setup
 
 1. PostgreSQL and Redis running (native, or `docker compose up -d`).
-2. `bun run db:migrate`, then `bun run seed:admin --email <email>` (the password is asked, hidden).
+2. `bun run db:migrate`, then `bun run seed:admin --email <email>` (the password is asked, masked).
 3. `bun run dev`.
 4. A fresh git history is optional: delete `.git`, `git init -b main`, then `bun run prepare` — **required**, it installs the Husky hooks (setup warns while they are missing). Or keep the history with the boilerplate as the remote `upstream` to take its updates later ([git-workflow.md](git-workflow.md) §1.2).
 

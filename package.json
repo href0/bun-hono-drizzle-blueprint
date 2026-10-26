@@ -4,6 +4,7 @@
   "description": "Production-grade backend blueprint for Bun, Hono, Drizzle ORM and PostgreSQL",
   "type": "module",
   "scripts": {
+    "help": "bun scripts/help.ts",
     "setup": "bun scripts/setup.ts",
     "lint:setup": "bun scripts/setup.ts registry-check --dry-run",
     "dev": "bun --watch src/index.ts",

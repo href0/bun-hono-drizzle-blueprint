@@ -15,6 +15,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { partnerSignatureHeaders } from '../../src/utils/partner-signature.util';
 // partner:end
 import type { ComboResult, ProgressReporter, StageResult, StepLabel } from './acceptance-progress';
+import type { Prompter } from './prompter';
 
 export type Stage = 'A' | 'B' | 'C' | 'D';
 
@@ -759,8 +760,8 @@ export interface AcceptanceArgs {
 }
 
 export const ACCEPTANCE_USAGE = `Usage:
-  bun run acceptance                         menu: choose the combinations
-  bun run acceptance --combo 1,2             no menu (1, 2, or a = all)
+  bun run acceptance                         in a terminal: tick the combinations, see the plan, confirm
+  bun run acceptance --combo 1,2             no questions (1, 2, or a = all)
   bun run acceptance --combo 1 --plan        only show the steps and the estimate
   bun run acceptance --clean                 remove work folders and databases of earlier runs
 
@@ -819,17 +820,45 @@ const STAGES: Record<Stage, string> = {
   D: 'Docker images (skipped when Docker is not running)',
 };
 
-/** The menu: what each stage does, then the combinations with their estimate. */
-export const menuText = (steps: readonly AcceptanceStep[]): string =>
+/** What each stage does: the first note of the menu. */
+export const stagesText = (): string =>
   [
     'Each combination runs in a work folder next to this repository, stage by stage:',
-    ...Object.entries(STAGES).map(([stage, text]) => `  ${stage}  ${text}`),
-    '',
-    ...COMBOS.map(
-      (combo) => `  ${String(combo.id)}  ${combo.label}  (${formatMinutes(minutesOf(steps))})`,
-    ),
-    '  a  all combinations',
+    ...Object.entries(STAGES).map(([stage, text]) => `${stage}  ${text}`),
   ].join('\n');
+
+/** A stage that depends on this machine runs (`runs`: with what) or is skipped (`skipped`: why). */
+export type StageReadiness = { runs: string } | { skipped: string };
+
+export const readinessText = (readiness: Partial<Record<Stage, StageReadiness>>): string =>
+  Object.entries(readiness)
+    .map(
+      ([stage, state]) => `${stage}  ${'runs' in state ? state.runs : `skipped: ${state.skipped}`}`,
+    )
+    .join('\n');
+
+/**
+ * The menu (only in a terminal; `--combo` skips it): the stages, what this machine can run, then
+ * the combinations to tick — all of them at first, as a release needs.
+ */
+export const askCombos = async (
+  prompter: Prompter,
+  steps: readonly AcceptanceStep[],
+  readiness: Partial<Record<Stage, StageReadiness>>,
+): Promise<Combo[]> => {
+  prompter.note(stagesText(), 'Stages');
+  prompter.note(readinessText(readiness), 'This machine');
+  const ids = await prompter.multiselect(
+    'Combinations to run (Space toggles, Enter starts the plan)',
+    COMBOS.map((combo) => ({
+      value: String(combo.id),
+      label: combo.label,
+      hint: formatMinutes(minutesOf(steps)),
+    })),
+    COMBOS.map((combo) => String(combo.id)),
+  );
+  return parseCombos(ids.join(','));
+};
 
 /** The steps of each chosen combination and the total estimate (`--plan`, and before a run). */
 export const planText = (

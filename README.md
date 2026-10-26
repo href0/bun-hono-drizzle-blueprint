@@ -47,7 +47,7 @@ bun run setup my-backend --title "My Backend API" --description "Deskripsi singk
 
 # 3. Jalankan migrasi database, buat admin pertama & start dev server
 bun run db:migrate
-bun run seed:admin --email admin@example.com   # password ditanyakan (tidak terlihat)
+bun run seed:admin --email admin@example.com   # password ditanyakan (disamarkan, dua kali)
 bun run dev
 ```
 
@@ -74,6 +74,7 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Membuat modul / endpoint / webhook / adapter vendor | `bun run scaffold` tanpa argumen = wizard interaktif (atau `bun run scaffold:module`, `:webhook`, `:integration`, …), atau langsung dengan flag `bun run scaffold module <nama-jamak>` (`--dry-run` untuk melihat rencana) — [docs/standards/new-module.md](docs/standards/new-module.md); lewat AI agent: "scaffold module <nama>" |
 | Kontrak setiap endpoint untuk integrator (request, response, kode error) | [docs/api/README.md](docs/api/README.md) (di-generate) |
 | Mengubah kontrak API (route, DTO) | `bun run openapi:check` menampilkan perubahan (BREAKING / safe / docs) → review → `bun run openapi:update` — [docs/standards/openapi.md](docs/standards/openapi.md) §6 |
+| Melihat semua perintah proyek (dikelompokkan, satu baris per perintah) | `bun run help`; satu perintah: `bun run help <perintah>` atau `bun run <perintah> --help` |
 | Menjalankan quality gates (`bun run validate:full`) dan perintah lain | [docs/standards/quality-gates.md](docs/standards/quality-gates.md) |
 | Memahami `bun run setup`: wizard, opsi, apa yang diganti dan dihapus | [docs/standards/project-setup.md](docs/standards/project-setup.md) |
 | Melihat struktur direktori | [docs/standards/structure.md](docs/standards/structure.md) |

@@ -20,6 +20,8 @@ import { buildContract, serializeDocument, SNAPSHOT_PATH } from './lib/api-contr
 import { flatten } from './lib/api-contract/flatten';
 import { renderContractMarkdown } from './lib/api-contract/markdown';
 import { countBySeverity, formatReport } from './lib/api-contract/report';
+import { exitWithUsage, readCli } from './lib/cli-args';
+import { usageOf } from './lib/commands';
 
 const ROOT = resolve(import.meta.dir, '..');
 const snapshotFile = resolve(ROOT, SNAPSHOT_PATH);
@@ -141,15 +143,23 @@ const update = (
 };
 
 const main = async (): Promise<void> => {
-  const [command, ...flags] = process.argv.slice(2);
+  const usage = usageOf('openapi.ts');
+  const cli = readCli(process.argv.slice(2), usage, {
+    flags: ['--allow-breaking'],
+    positionals: 1,
+  });
+  const [command] = cli.positionals;
   if (command !== 'check' && command !== 'update') {
-    fail('usage: bun scripts/openapi.ts check | update [--allow-breaking]');
+    exitWithUsage('the first argument is check or update', usage);
+  }
+  if (command === 'check' && cli.flags.has('--allow-breaking')) {
+    exitWithUsage('--allow-breaking is an option of update', usage);
   }
   const { document, owners } = await buildContract(ROOT);
   const serialized = serializeDocument(document);
   const markdown = renderContractMarkdown(document, owners);
   if (command === 'check') check(document, serialized, markdown);
-  else update(document, serialized, markdown, flags.includes('--allow-breaking'));
+  else update(document, serialized, markdown, cli.flags.has('--allow-breaking'));
 };
 
 try {

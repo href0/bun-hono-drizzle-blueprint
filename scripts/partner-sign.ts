@@ -8,56 +8,42 @@
  * Without --send it prints the four x-partner-* headers and a ready curl command (valid until the
  * timestamp leaves the server's tolerance, single use: the nonce is spent by the first request).
  * With --send it sends the request and prints the status and the response body.
- * The secret is read from the terminal (hidden) or the first line of piped stdin — never from
- * arguments or environment variables.
+ * The secret is asked masked in a terminal (the Prompter) or is the first line of piped stdin —
+ * never an argument or an environment variable.
  */
 import { readFileSync } from 'node:fs';
 import { generateOpaqueToken } from '../src/utils/crypto.util';
 import { partnerSignatureHeaders } from '../src/utils/partner-signature.util';
-import { readHidden, readPipedLine } from './lib/read-secret';
+import { exitWithUsage, readCli } from './lib/cli-args';
+import { usageOf } from './lib/commands';
+import { CancelledError, terminalPrompter } from './lib/prompter';
+import { askSecret, readPipedLine } from './lib/read-secret';
 
-interface Args {
-  key?: string;
-  method: string;
-  url?: string;
-  body: string;
-  send: boolean;
-}
+const usage = usageOf('partner-sign.ts');
 
-const usage =
-  'Usage: bun run partner:sign --key <api key> --url <absolute url> [--method GET] ' +
-  "[--body '<raw body>' | --body-file <path>] [--send]";
-
-const fail = (message: string): never => {
-  console.error(`${message}\n${usage}`);
-  process.exit(1);
-};
-
-const parseArgs = (argv: string[]): Args => {
-  const args: Args = { method: 'GET', body: '', send: false };
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--key') args.key = argv[(i += 1)];
-    else if (arg === '--url') args.url = argv[(i += 1)];
-    else if (arg === '--method') args.method = (argv[(i += 1)] ?? 'GET').toUpperCase();
-    else if (arg === '--body') args.body = argv[(i += 1)] ?? '';
-    else if (arg === '--body-file') args.body = readFileSync(argv[(i += 1)] ?? '', 'utf8');
-    else if (arg === '--send') args.send = true;
-    else fail(`Unknown argument: ${arg}`);
-  }
-  return args;
-};
+const fail = (message: string): never => exitWithUsage(message, usage);
 
 /** Single-quotes a value for a POSIX shell. */
 const shellQuote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`;
 
 const main = async (): Promise<void> => {
-  const args = parseArgs(process.argv.slice(2));
-  const key = args.key ?? fail('--key is required');
-  const url = args.url ?? fail('--url is required');
+  const cli = readCli(process.argv.slice(2), usage, {
+    values: ['--key', '--url', '--method', '--body', '--body-file'],
+    flags: ['--send'],
+  });
+  const key = cli.values.get('--key') ?? fail('--key is required');
+  const url = cli.values.get('--url') ?? fail('--url is required');
   if (!URL.canParse(url)) fail('--url must be an absolute URL (http://host/api/v1/partner/…)');
+  const bodyFile = cli.values.get('--body-file');
+  if (bodyFile !== undefined && cli.values.has('--body')) fail('--body or --body-file, not both');
+  const args = {
+    method: (cli.values.get('--method') ?? 'GET').toUpperCase(),
+    body:
+      bodyFile === undefined ? (cli.values.get('--body') ?? '') : readFileSync(bodyFile, 'utf8'),
+    send: cli.flags.has('--send'),
+  };
 
-  const secret = (await readPipedLine()) ?? (await readHidden('Partner secret: '));
+  const secret = (await readPipedLine()) ?? (await askSecret(terminalPrompter, 'Partner secret'));
   if (secret === '') fail('The secret is empty');
 
   const headers = partnerSignatureHeaders({
@@ -93,4 +79,10 @@ const main = async (): Promise<void> => {
   if (!res.ok) process.exitCode = 1;
 };
 
-await main();
+try {
+  await main();
+} catch (error) {
+  if (!(error instanceof CancelledError)) throw error;
+  console.error(error.message);
+  process.exit(1);
+}

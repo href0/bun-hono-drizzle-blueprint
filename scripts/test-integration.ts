@@ -16,6 +16,8 @@
  */
 import { readdirSync } from 'node:fs';
 import postgres from 'postgres';
+import { readCli } from './lib/cli-args';
+import { usageOf } from './lib/commands';
 import {
   databaseBaseOf,
   deleteRedisKeys,
@@ -89,11 +91,16 @@ const dropStaleDatabases = async (admin: postgres.Sql, baseName: string): Promis
 };
 
 const main = async (): Promise<void> => {
-  const args = process.argv.slice(2);
-  const keepDatabase = args.includes('--keep-db');
-  const dryRun = args.includes('--dry-run');
-  const files = integrationFiles(args.filter((arg) => !arg.startsWith('--')));
-  if (files.length === 0) fail(`no ${INTEGRATION_DIR}/*.int.ts file matches ${args.join(' ')}`);
+  const cli = readCli(process.argv.slice(2), usageOf('test-integration.ts'), {
+    flags: ['--keep-db', '--dry-run'],
+    positionals: Number.POSITIVE_INFINITY,
+  });
+  const keepDatabase = cli.flags.has('--keep-db');
+  const dryRun = cli.flags.has('--dry-run');
+  const files = integrationFiles([...cli.positionals]);
+  if (files.length === 0) {
+    fail(`no ${INTEGRATION_DIR}/*.int.ts file matches ${cli.positionals.join(' ')}`);
+  }
 
   const runId = Date.now().toString(36);
   const targets = resolveTargets(runId);

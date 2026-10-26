@@ -13,8 +13,8 @@ When: before every release (`git-workflow.md` §1.1), and after a change to `scr
 ## 2. How to run it
 
 ```bash
-bun run acceptance                         # menu: choose the combinations, see the plan, confirm
-bun run acceptance --combo 1,3             # no menu (an AI agent, automation); a = all
+bun run acceptance                         # terminal: what this machine runs, tick the combinations, plan, confirm
+bun run acceptance --combo 1,3             # no questions (an AI agent, automation); a = all
 bun run acceptance --combo 1 --plan        # only the steps and the estimate
 bun run acceptance --clean                 # remove work folders and databases of earlier runs
 ```
@@ -27,13 +27,14 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 | 2 | `setup acceptance-demo --title "Acceptance Demo API" --keep-examples` | the generators next to the examples; an example route still answers |
 | 3 | `bun run setup` — the wizard, answered No to partners (= `--no-partner`) | a project without the partner gateway: its gates pass, `scaffold partner` is refused |
 
+- **The menu** (a terminal, no `--combo`): first the stages and what this machine can run — stage C with the PostgreSQL / Redis it would use, or `skipped: <reason>`; stage D `Docker is running`, or skipped —, then the combinations, all ticked (Space toggles one), the plan, and `Start the run?` (default No). Without a terminal nothing is asked: `--combo` is required.
 - **What it tests**: the commit `--ref` (default the last commit), cloned into a work folder `_acceptance/acceptance-<date>-<time>/` **next to** this repository — never the working tree; it says so when there are uncommitted changes.
 - **While it runs**: one line per step; on a terminal a spinner and a timer that keeps counting, then `✓ 1m52s` / `✗` / `-` (skipped, with the reason). In a pipe or a log file: one line per finished step plus a heartbeat every minute. At the end, a table: one row per combination, one column per stage.
 - **Output**: every command writes to the step's log (`combo-<n>/logs/<nn>-<stage>.log`), never to the screen. A failing step shows the expected and the actual result, the last 30 lines of its log and the log's path; the remaining steps of that combination are shown as skipped, and the next combination still runs. A command still running after 15 minutes is killed and reported as `timed out after 15 min`, not as an ordinary failure.
 - **The wizards**: started with `SCAFFOLD_WIZARD_STDIN=1` / `SETUP_WIZARD_STDIN=1`, the switches that let a program answer them through a pipe (`scripts/scaffold.ts`, `scripts/setup.ts`); the runner waits for each question, moves to the option by its label, types, presses Enter, answers No, presses Ctrl+C.
 - **Services (stage C)**: PostgreSQL and Redis from `TEST_DATABASE_URL` / `TEST_REDIS_*`, or the local development settings on a developer machine only — the same rules as `bun run test:int` ([testing.md](testing.md), `scripts/lib/test-services.ts`). Not reachable (or `--no-db`) → stage C is skipped with the reason. Each combination gets its own database `<name>_acceptance_c<n>` (marked by a comment) and Redis prefix.
 - **Cleanup**: the server, the database and the Redis keys of a combination go when it ends — also after a failure and on Ctrl+C; the Docker images right after they are built. The work folder is removed when everything passed and kept otherwise (`--keep` always). A new run removes what earlier runs left (only folders and databases this runner names and marks).
-- **AI agents** run it with `--combo` (no menu without a terminal). It creates and drops its own databases on the local PostgreSQL: ask the developer first, as for any database command ([database.md](database.md) §4).
+- **AI agents** run it with `--combo` (no questions without a terminal). It creates and drops its own databases on the local PostgreSQL: ask the developer first, as for any database command ([database.md](database.md) §4).
 
 **What you see** (a terminal; the running line counts up in place, then turns into the result):
 

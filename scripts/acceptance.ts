@@ -4,8 +4,8 @@
  * becomes a new project in a work folder next to this repository and goes through stages A–D (see
  * scripts/lib/acceptance.ts). The runner answers the wizard itself: nobody types anything.
  *
- *   bun run acceptance                    menu: choose the combinations, then confirm
- *   bun run acceptance --combo 1,2        no menu (agents, automation)
+ *   bun run acceptance                    in a terminal: tick the combinations, see the plan, confirm
+ *   bun run acceptance --combo 1,2        no questions (agents, automation)
  *   bun run acceptance --combo 1 --plan   only the steps and the estimate
  *   bun run acceptance --clean            remove work folders and databases of earlier runs
  *
@@ -18,19 +18,18 @@
  */
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { createInterface } from 'node:readline/promises';
 import type { Subprocess } from 'bun';
 import Redis from 'ioredis';
 import postgres from 'postgres';
 import {
   ACCEPTANCE_STEPS,
+  ACCEPTANCE_USAGE,
   activeOption,
+  askCombos,
   check,
   keysOf,
   KEYS,
-  menuText,
   parseAcceptanceArgs,
-  parseCombos,
   plainText,
   planText,
   PROJECT_NAME,
@@ -43,9 +42,12 @@ import {
   type HttpOptions,
   type HttpResult,
   type RunOptions,
+  type StageReadiness,
   type Turn,
 } from './lib/acceptance';
 import { ProgressReporter, summaryTable, type ComboResult } from './lib/acceptance-progress';
+import { exitOnHelp } from './lib/cli-args';
+import { terminalPrompter } from './lib/prompter';
 import {
   databaseBaseOf,
   deleteRedisKeys,
@@ -565,15 +567,6 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
 
 // --- the run --------------------------------------------------------------------------------------
 
-const ask = async (question: string): Promise<string> => {
-  const prompt = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    return (await prompt.question(question)).trim();
-  } finally {
-    prompt.close();
-  }
-};
-
 /** `acceptance-20261024-1530` (UTC, so the name does not depend on the machine's zone). */
 const workdirName = (now: Date): string =>
   `acceptance-${now.toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')}`;
@@ -581,16 +574,51 @@ const workdirName = (now: Date): string =>
 /** Releases the database of the running combination (Ctrl+C). */
 let releaseCurrent: (() => Promise<void>) | undefined;
 
-const chooseCombos = async (args: AcceptanceArgs): Promise<Combo[]> => {
-  if (args.combos !== undefined) return args.combos;
+/** Whether stages C and D can run on this machine, and with what (shown before the menu). */
+const readinessOf = async (
+  args: AcceptanceArgs,
+  services: ServiceTargets | string,
+): Promise<Record<'C' | 'D', StageReadiness>> => {
+  const docker = (await quiet(['docker', 'info'])).exitCode === 0;
+  const D: StageReadiness = docker
+    ? { runs: 'Docker is running' }
+    : { skipped: 'Docker is not running' };
+  if (!args.db) return { C: { skipped: '--no-db' }, D };
+  if (typeof services === 'string') return { C: { skipped: services }, D };
+  const problem = await unreachable(services);
+  if (problem !== undefined) return { C: { skipped: problem }, D };
+  return {
+    C: {
+      runs: `PostgreSQL ${services.adminUrl.host} (${services.databaseSource}), Redis ${services.redis.host}:${String(services.redis.port)} (${services.redisSource})`,
+    },
+    D,
+  };
+};
+
+/** `--combo` as given, or the menu in a terminal: readiness, combinations, the plan. */
+const chooseCombos = async (
+  args: AcceptanceArgs,
+  services: ServiceTargets | string,
+): Promise<Combo[]> => {
+  if (args.combos !== undefined) {
+    say(`\n${planText(args.combos, ACCEPTANCE_STEPS, args.ref)}\n`);
+    return args.combos;
+  }
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error('Without a terminal choose the combinations with --combo (1, 2 or a).');
   }
-  say(`${menuText(ACCEPTANCE_STEPS)}\n`);
-  return parseCombos(await ask('Choose (e.g. 1, or 1,2, or a): '));
+  terminalPrompter.intro('bun run acceptance');
+  const probe = terminalPrompter.spinner();
+  probe.start('Checking PostgreSQL, Redis and Docker');
+  const readiness = await readinessOf(args, services);
+  probe.stop('Checked PostgreSQL, Redis and Docker');
+  const combos = await askCombos(terminalPrompter, ACCEPTANCE_STEPS, readiness);
+  terminalPrompter.note(planText(combos, ACCEPTANCE_STEPS, args.ref), 'Plan');
+  return combos;
 };
 
 const main = async (): Promise<void> => {
+  exitOnHelp(process.argv.slice(2), ACCEPTANCE_USAGE);
   const args = parseAcceptanceArgs(process.argv.slice(2));
   const services = servicesOf();
 
@@ -604,9 +632,12 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const combos = await chooseCombos(args);
-  say(`\n${planText(combos, ACCEPTANCE_STEPS, args.ref)}\n`);
-  if (args.plan) return;
+  const asking = args.combos === undefined;
+  const combos = await chooseCombos(args, services);
+  if (args.plan) {
+    if (asking) terminalPrompter.outro('--plan: nothing was run');
+    return;
+  }
 
   const commit = (
     await quiet(['git', 'rev-parse', '--verify', `${args.ref}^{commit}`])
@@ -618,13 +649,14 @@ const main = async (): Promise<void> => {
       `Note: uncommitted changes are not part of the run (it tests ${args.ref} = ${commit.slice(0, 7)}).`,
     );
   }
-  say(
-    typeof services === 'string'
-      ? `Stage C: ${args.db ? `skipped — ${services}` : 'skipped (--no-db)'}`
-      : `Stage C services: PostgreSQL ${services.adminUrl.host} (${services.databaseSource}), Redis ${services.redis.host}:${String(services.redis.port)} (${services.redisSource})`,
-  );
-  if (args.combos === undefined && !/^y(es)?$/i.test(await ask('Start? (y/N): '))) {
-    say('Cancelled.');
+  if (!asking) {
+    say(
+      typeof services === 'string'
+        ? `Stage C: ${args.db ? `skipped — ${services}` : 'skipped (--no-db)'}`
+        : `Stage C services: PostgreSQL ${services.adminUrl.host} (${services.databaseSource}), Redis ${services.redis.host}:${String(services.redis.port)} (${services.redisSource})`,
+    );
+  } else if (!(await terminalPrompter.confirm('Start the run?'))) {
+    terminalPrompter.outro('Cancelled: nothing was run');
     return;
   }
   const leftovers = await cleanLeftovers(services);

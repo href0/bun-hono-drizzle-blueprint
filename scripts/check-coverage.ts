@@ -12,6 +12,10 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { readCli } from './lib/cli-args';
+import { usageOf } from './lib/commands';
+
+readCli(process.argv.slice(2), usageOf('check-coverage.ts'), {});
 
 const THRESHOLDS = {
   globalLines: 95,

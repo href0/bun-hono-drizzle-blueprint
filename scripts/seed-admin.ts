@@ -1,69 +1,61 @@
 /**
  * Creates the first administrator in the database configured by the env file.
  *
- *   bun run seed:admin --email admin@example.com [--name "Jane Admin"]   # prompts for the password
+ *   bun run seed:admin                                                     # terminal: asks everything
+ *   bun run seed:admin --email admin@example.com [--name "Jane Admin"]   # asks the password
  *   bun run seed:admin --email someone@example.com --promote             # existing user → admin
  *   printf '%s\n' "$ADMIN_PASSWORD" | bun run seed:admin --email …        # non-interactive (CI)
  *
- * The password is read from the terminal (hidden, asked twice) or from stdin when piped — never
- * from arguments or environment variables, which end up in shell history and process listings.
+ * In a terminal the questions go through the Prompter (scripts/lib/admin-questions.ts; the
+ * password masked, twice); piped, `--email` is required and the password is the first line of
+ * stdin — never an argument or an environment variable, which end up in shell history and process
+ * listings. The database is imported only after the command line is read, so `--help` touches
+ * nothing.
  */
-import { CACHE_KEYS, cacheService } from '../src/core/cache';
-import { closeRedisClient, redisClient } from '../src/core/cache/redis.client';
-import { sqlClient } from '../src/database/connection';
-import { SeedAdminError, seedAdmin } from '../src/database/seeds/seed-admin';
-import { readHidden, readPipedLine } from './lib/read-secret';
+import { askAdmin, DEFAULT_ADMIN_NAME, type AdminAnswers } from './lib/admin-questions';
+import { exitWithUsage, readCli } from './lib/cli-args';
+import { usageOf } from './lib/commands';
+import { CancelledError, terminalPrompter } from './lib/prompter';
+import { readPipedLine } from './lib/read-secret';
 
-interface Args {
-  email?: string;
-  name: string;
-  promote: boolean;
-}
-
-const usage = 'Usage: bun run seed:admin --email <email> [--name "<full name>"] [--promote]';
-
-const parseArgs = (argv: string[]): Args => {
-  const args: Args = { name: 'Administrator', promote: false };
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--email') args.email = argv[(i += 1)];
-    else if (arg === '--name') args.name = argv[(i += 1)] ?? args.name;
-    else if (arg === '--promote') args.promote = true;
-    else {
-      console.error(`Unknown argument: ${arg}\n${usage}`);
-      process.exit(1);
-    }
-  }
-  return args;
+const usage = usageOf('seed-admin.ts');
+const cli = readCli(process.argv.slice(2), usage, {
+  values: ['--email', '--name'],
+  flags: ['--promote'],
+});
+const flags = {
+  email: cli.values.get('--email')?.trim().toLowerCase(),
+  name: cli.values.get('--name'),
+  promote: cli.flags.has('--promote'),
 };
 
-const readPassword = async (): Promise<string> => {
-  const piped = await readPipedLine();
-  if (piped !== null) return piped;
-  const password = await readHidden('Password for the new admin: ');
-  const confirmation = await readHidden('Repeat the password: ');
-  if (password !== confirmation) {
-    console.error('The passwords do not match; nothing was written.');
-    process.exit(1);
-  }
-  return password;
+/** Piped stdin: nothing is asked. */
+const fromPipe = async (): Promise<AdminAnswers> => {
+  const email = flags.email ?? exitWithUsage('--email is required without a terminal', usage);
+  return {
+    email,
+    fullName: flags.name ?? DEFAULT_ADMIN_NAME,
+    password: flags.promote ? undefined : ((await readPipedLine()) ?? ''),
+  };
 };
 
 const main = async (): Promise<void> => {
-  const args = parseArgs(process.argv.slice(2));
-  if (!args.email) {
-    console.error(usage);
+  let answers: AdminAnswers;
+  try {
+    answers = process.stdin.isTTY ? await askAdmin(flags, terminalPrompter) : await fromPipe();
+  } catch (error) {
+    if (!(error instanceof CancelledError)) throw error;
+    console.error(error.message);
     process.exit(1);
   }
 
+  const { CACHE_KEYS, cacheService } = await import('../src/core/cache');
+  const { closeRedisClient, redisClient } = await import('../src/core/cache/redis.client');
+  const { sqlClient } = await import('../src/database/connection');
+  const seeds = await import('../src/database/seeds/seed-admin');
   try {
-    const result = await seedAdmin(
-      {
-        email: args.email.trim().toLowerCase(),
-        fullName: args.name,
-        promote: args.promote,
-        password: args.promote ? undefined : await readPassword(),
-      },
+    const result = await seeds.seedAdmin(
+      { ...answers, email: answers.email.trim().toLowerCase(), promote: flags.promote },
       undefined,
       undefined,
       (userId) => cacheService.del(CACHE_KEYS.userDetail(userId)),
@@ -75,7 +67,7 @@ const main = async (): Promise<void> => {
     };
     console.log(`${messages[result.action]} ${result.user.email} (id ${result.user.id})`);
   } catch (error) {
-    if (!(error instanceof SeedAdminError)) throw error;
+    if (!(error instanceof seeds.SeedAdminError)) throw error;
     console.error(error.message);
     process.exitCode = 1;
   } finally {
