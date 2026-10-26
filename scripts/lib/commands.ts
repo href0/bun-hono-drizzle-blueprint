@@ -234,7 +234,9 @@ export const SCRIPT_USAGE: Scripts = {
   'openapi.ts': `Usage:
   bun run openapi:check                       fail on any difference from docs/api/openapi.json or docs/api/*.md
   bun run openapi:update [--allow-breaking]   write both after reviewing the changes; BREAKING needs the flag
-  A developer runs openapi:update, consciously: never a hook, CI or bun run scaffold.`,
+  A developer runs openapi:update, consciously: never a hook, CI or bun run scaffold. In a terminal
+  it shows the changes and asks (BREAKING has its own question, default No); without one, BREAKING
+  needs --allow-breaking.`,
   'seed-admin.ts': `Usage: bun run seed:admin [--email <email>] [--name "<full name>"] [--promote]
   Creates the first administrator in the database of the env file, or makes an existing user an
   active admin (--promote, no password). In a terminal a missing email and name are asked and the
@@ -243,7 +245,8 @@ export const SCRIPT_USAGE: Scripts = {
     printf '%s\\n' "$ADMIN_PASSWORD" | bun run seed:admin --email admin@example.com`,
   'purge-refresh-tokens.ts': `Usage: bun run auth:purge-tokens [--days <whole number ≥ 0>]
   Deletes refresh tokens that expired more than N days ago (default 7). Schedule it daily: cron,
-  a CI job, a Kubernetes CronJob.`,
+  a CI job, a Kubernetes CronJob — without a terminal it never asks. In a terminal it shows how many
+  would go and asks first (default No).`,
   // partner:start
   'partner-sign.ts': `Usage: bun run partner:sign --key <api key> --url <absolute url> [--method GET] [--body '<raw body>' | --body-file <path>] [--send]
   Prints the four x-partner-* headers and a ready curl (single use, valid within the server's

@@ -64,7 +64,7 @@ src/
 │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
 │   ├── health-probe.ts          # pingDatabase() for health checks
 │   ├── seeds/                   # seed-admin.ts (`bun run seed:admin`)
-│   ├── maintenance/             # purge-refresh-tokens.ts (`bun run auth:purge-tokens`)
+│   ├── maintenance/             # purge-refresh-tokens.ts (`bun run auth:purge-tokens`: the purge and the count it shows first)
 │   └── schema/                  # Table definitions (public) & reference views
 │       ├── schemas.ts           # appTable (public) & referenceSchema — the only pgTable / pgSchema
 │       ├── columns.ts           # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …
@@ -147,6 +147,7 @@ scripts/
 ├── lib/read-secret.ts           # CLI secrets: masked through the Prompter or the first line of piped stdin, never argv or env
 ├── lib/admin-questions.ts       # What bun run seed:admin asks in a terminal: email, name, password twice (+ lib/admin-questions.test.ts)
 ├── lib/cli-args.ts              # The command line of every script: --help / -h → usage, exit 0, before any work; unknown option → exit 1 (+ lib/cli-args.test.ts)
+├── lib/confirmations.ts         # What openapi:update and auth:purge-tokens show and ask in a terminal before they write (+ lib/confirmations.test.ts)
 ├── lib/commands.ts              # The bun run help registry (COMMAND_GROUPS) and the usage of every script (SCRIPT_USAGE), R83 (+ lib/commands.test.ts)
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 ├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup

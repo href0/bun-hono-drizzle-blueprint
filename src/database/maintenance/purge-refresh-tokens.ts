@@ -1,4 +1,4 @@
-import { lt } from 'drizzle-orm';
+import { count, lt, type SQL } from 'drizzle-orm';
 import type { Temporal } from 'temporal-polyfill';
 import { nowInstant } from '../../utils/datetime.util';
 import { authRefreshTokens } from '../schema';
@@ -6,6 +6,14 @@ import { defaultTxHost, type TransactionHost } from '../transaction-host';
 
 /** Default retention after expiry: a few days of history for support and incident review. */
 export const DEFAULT_RETENTION_DAYS = 7;
+
+/** Tokens that expired more than `retentionDays` before `now`. */
+const purgeable = (retentionDays: number, now: Temporal.Instant): SQL => {
+  if (!Number.isInteger(retentionDays) || retentionDays < 0) {
+    throw new RangeError(`retentionDays must be a whole number ≥ 0, got ${String(retentionDays)}`);
+  }
+  return lt(authRefreshTokens.expiresAt, now.subtract({ hours: retentionDays * 24 }));
+};
 
 /**
  * Deletes refresh tokens that expired more than `retentionDays` ago (`bun run auth:purge-tokens`,
@@ -21,13 +29,25 @@ export const purgeRefreshTokens = async (
   txHost: TransactionHost = defaultTxHost,
   now: Temporal.Instant = nowInstant(),
 ): Promise<number> => {
-  if (!Number.isInteger(retentionDays) || retentionDays < 0) {
-    throw new RangeError(`retentionDays must be a whole number ≥ 0, got ${String(retentionDays)}`);
-  }
-  const cutoff = now.subtract({ hours: retentionDays * 24 });
   const deleted = await txHost.tx
     .delete(authRefreshTokens)
-    .where(lt(authRefreshTokens.expiresAt, cutoff))
+    .where(purgeable(retentionDays, now))
     .returning({ id: authRefreshTokens.id });
   return deleted.length;
+};
+
+/**
+ * How many tokens `purgeRefreshTokens` would delete now (same criterion): what the command shows
+ * before it asks in a terminal.
+ */
+export const countPurgeableRefreshTokens = async (
+  retentionDays: number = DEFAULT_RETENTION_DAYS,
+  txHost: TransactionHost = defaultTxHost,
+  now: Temporal.Instant = nowInstant(),
+): Promise<number> => {
+  const rows = await txHost.tx
+    .select({ total: count() })
+    .from(authRefreshTokens)
+    .where(purgeable(retentionDays, now));
+  return rows.at(0)?.total ?? 0;
 };

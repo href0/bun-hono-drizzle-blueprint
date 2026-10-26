@@ -9,9 +9,11 @@
  * `check` compares the document of `createApp()` (fixed configuration, never the local env file)
  * with the snapshot semantically and labels each change BREAKING / safe / docs, then compares the
  * Markdown byte for byte. `update` is run by a developer only, consciously: never by a hook, CI or
- * `bun run scaffold` (`bun run setup` writes the baseline of a new project). It refuses BREAKING
- * changes unless `--allow-breaking` is given — a breaking change under /v1 usually deserves a /v2
- * instead (R19) — and removes Markdown files of modules that no longer exist.
+ * `bun run scaffold` (`bun run setup` writes the baseline of a new project). It removes Markdown
+ * files of modules that no longer exist. In a terminal it shows the changes and asks — BREAKING
+ * changes get their own question (default No) unless `--allow-breaking` is given
+ * (scripts/lib/confirmations.ts); without one it refuses BREAKING unless `--allow-breaking` is
+ * given — a breaking change under /v1 usually deserves a /v2 instead (R19).
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -22,6 +24,8 @@ import { renderContractMarkdown } from './lib/api-contract/markdown';
 import { countBySeverity, formatReport } from './lib/api-contract/report';
 import { exitWithUsage, readCli } from './lib/cli-args';
 import { usageOf } from './lib/commands';
+import { confirmContractUpdate } from './lib/confirmations';
+import { terminalPrompter } from './lib/prompter';
 
 const ROOT = resolve(import.meta.dir, '..');
 const snapshotFile = resolve(ROOT, SNAPSHOT_PATH);
@@ -102,14 +106,17 @@ const pruneEmptyFolders = (): void => {
   }
 };
 
-const update = (
+/** A person at a terminal: `update` shows the changes and asks (plan D40); otherwise it never asks. */
+const terminal = process.stdin.isTTY && process.stdout.isTTY;
+
+const update = async (
   current: unknown,
   serialized: string,
   markdown: ReadonlyMap<string, string>,
   allowBreaking: boolean,
-): void => {
-  if (existsSync(snapshotFile)) {
-    const changes = changesAgainstSnapshot(current);
+): Promise<void> => {
+  const changes = existsSync(snapshotFile) ? changesAgainstSnapshot(current) : [];
+  if (!terminal) {
     if (changes.length > 0) console.log(formatReport(changes));
     if (countBySeverity(changes).BREAKING > 0 && !allowBreaking) {
       fail(
@@ -126,6 +133,13 @@ const update = (
     console.log(`[openapi] ${SNAPSHOT_PATH} and ${DOCS_PATH}/*.md are already up to date`);
     return;
   }
+  if (terminal) {
+    terminalPrompter.intro('bun run openapi:update');
+    if (!(await confirmContractUpdate(terminalPrompter, { changes, drift, allowBreaking }))) {
+      terminalPrompter.outro('Nothing was written');
+      return;
+    }
+  }
   mkdirSync(DOCS_DIR, { recursive: true });
   writeFileSync(snapshotFile, serialized, 'utf-8');
   for (const path of existingMarkdown().filter((file) => !markdown.has(file))) {
@@ -137,9 +151,9 @@ const update = (
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, content, 'utf-8');
   }
-  console.log(
-    `[openapi] Wrote ${SNAPSHOT_PATH} and ${String(markdown.size)} contract documents — commit them with the change they document`,
-  );
+  const written = `Wrote ${SNAPSHOT_PATH} and ${String(markdown.size)} contract documents — commit them with the change they document`;
+  if (terminal) terminalPrompter.outro(written);
+  else console.log(`[openapi] ${written}`);
 };
 
 const main = async (): Promise<void> => {
@@ -159,7 +173,7 @@ const main = async (): Promise<void> => {
   const serialized = serializeDocument(document);
   const markdown = renderContractMarkdown(document, owners);
   if (command === 'check') check(document, serialized, markdown);
-  else update(document, serialized, markdown, cli.flags.has('--allow-breaking'));
+  else await update(document, serialized, markdown, cli.flags.has('--allow-breaking'));
 };
 
 try {

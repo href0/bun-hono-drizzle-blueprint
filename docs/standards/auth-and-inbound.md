@@ -36,7 +36,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 | Contract tests | `authorize(createApp(), role, userId?)` from `test/helpers/authorized-app.ts` |
 | First admin | `bun run seed:admin --email <email>` (in a terminal the password is asked masked, twice; piped, from stdin); last-resort recovery `--promote` |
 | Change password | Own: `POST /auth/change-password`; admin: `PUT /users/:id/password`. Both set `users.password_changed_at` → refresh refuses token families started before it |
-| Expired refresh tokens | `bun run auth:purge-tokens [--days 7]`, scheduled daily |
+| Expired refresh tokens | `bun run auth:purge-tokens [--days 7]`, scheduled daily (no terminal: no question); run by hand in a terminal it shows how many would go and asks first (default No) |
 
 - Login returns a JWT HS256 access token (TTL `ACCESS_TOKEN_TTL_SECONDS`, default 15 min) in the body; the refresh token is **opaque**, only in the `refresh_token` cookie (`HttpOnly; Secure; SameSite=Strict; Path=<base>/v1/auth`), stored as a SHA-256 hash in `auth_refresh_tokens` (plan D1–D3).
 - Every refresh rotates the token; reusing an old one revokes its whole family (theft detection, 401 `ERR_AUTH_REFRESH_REUSED`).

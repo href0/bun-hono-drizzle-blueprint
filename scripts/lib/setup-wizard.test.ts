@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { resolve } from 'node:path';
 import { ENTER, scriptedPrompter as scripted } from './scripted-prompter';
 import {
   completeSetup,
@@ -12,6 +13,26 @@ import {
   titleProblem,
   type SetupRequest,
 } from './setup-wizard';
+
+describe('bun run setup without a terminal', () => {
+  it('prints plain [Setup] lines: no frames, notes or spinner (D40)', () => {
+    // No name: only the env file is planned, so the run does not depend on the registries (under
+    // verify:scaffold generated modules are in place).
+    const run = Bun.spawnSync(['bun', 'scripts/setup.ts', '--dry-run'], {
+      cwd: resolve(import.meta.dir, '../..'),
+      timeout: 30_000,
+      stdin: 'pipe',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    const out = run.stdout.toString();
+    expect(run.exitCode).toBe(0);
+    expect(out).toStartWith('[Setup] Starting project initialization (dry run)...\n');
+    expect(out).toContain('[Setup] Project initialization preview finished — nothing was changed');
+    expect(out).toContain('  2. Apply database migrations: bun run db:migrate');
+    expect(out).not.toMatch(/[│◇◆┌└]/);
+  });
+});
 
 describe('parseSetupArgs', () => {
   it('no arguments: only the env file, and the wizard is wanted', () => {

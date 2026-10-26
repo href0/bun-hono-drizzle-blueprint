@@ -360,6 +360,22 @@ describe('when the wizard opens', () => {
     expect(run.exitCode).toBe(1);
     expect(run.stderr.toString()).toContain('Usage: bun run scaffold');
   });
+
+  it('without a terminal the output stays plain lines: no frames, notes or spinner (D40)', () => {
+    const run = Bun.spawnSync(['bun', 'scripts/scaffold.ts', 'module', 'widgets', '--dry-run'], {
+      cwd: ROOT,
+      timeout: 15_000,
+      stdin: 'pipe',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    const lines = run.stdout.toString().split('\n');
+    expect(run.exitCode).toBe(0);
+    expect(lines.at(0)).toStartWith('[dry run] Scaffolding standalone module widgets');
+    expect(lines).toContain('  create src/modules/widgets/widgets.routes.ts');
+    expect(lines).toContain('Next steps (after a real run — nothing was written):');
+    expect(run.stdout.toString()).not.toMatch(/[│◇◆┌└]/);
+  });
 });
 
 describe('terminal answers', () => {

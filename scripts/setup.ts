@@ -67,6 +67,35 @@ interface IdentityRule {
   replace: (id: ProjectIdentity) => string;
 }
 
+/** Lines collected for a note of the wizard; undefined = straight to the console. */
+let collecting: string[] | undefined;
+
+/** A progress line of setup: printed as is, or collected while the wizard shows a note (plan D40). */
+const say = (text: string): void => {
+  if (collecting === undefined) console.log(text);
+  else collecting.push(text);
+};
+
+/**
+ * Runs `work` and returns the lines it said, without the `[Setup] ` prefix. A failure inside it
+ * exits the process (`process.exit(1)` after its error): the lines said until then are printed then.
+ */
+const collect = (work: () => void): string[] => {
+  const lines: string[] = [];
+  const flush = (): void => {
+    console.log(lines.join('\n'));
+  };
+  collecting = lines;
+  process.once('exit', flush);
+  try {
+    work();
+  } finally {
+    collecting = undefined;
+    process.off('exit', flush);
+  }
+  return lines.map((line) => line.replace(/^\[Setup\] /, '').replace(/^\n/, ''));
+};
+
 const IDENTITY_RULES: IdentityRule[] = [
   {
     file: 'package.json',
@@ -436,7 +465,7 @@ function removeExamples(rootDir: string, dryRun: boolean): boolean {
     }
 
     if (found.length === 0) {
-      console.log(`[Setup] Example already removed: ${example.label}`);
+      say(`[Setup] Example already removed: ${example.label}`);
       continue;
     }
     if (missing.length > 0) {
@@ -460,7 +489,7 @@ function removeExamples(rootDir: string, dryRun: boolean): boolean {
 
   if (present.length === 0) return false;
   for (const example of present) {
-    console.log(`[Setup] ${dryRun ? 'Would remove' : 'Remove'} example: ${example.label}`);
+    say(`[Setup] ${dryRun ? 'Would remove' : 'Remove'} example: ${example.label}`);
   }
   if (dryRun) return true;
 
@@ -493,11 +522,11 @@ function applyPartner(rootDir: string, keepPartner: boolean, dryRun: boolean): b
   if (plan.problems.length > 0) printPartnerProblems(plan.problems);
   if (plan.regions === 0 && plan.remove.length === 0) return false;
   if (keepPartner) {
-    console.log(
+    say(
       `[Setup] ${dryRun ? 'Would keep' : 'Keep'} the partner gateway (${plan.regions} marked regions: markers removed)`,
     );
   } else {
-    console.log(
+    say(
       `[Setup] ${dryRun ? 'Would remove' : 'Remove'} the partner gateway (--no-partner): ${plan.remove.length} files / folders, ${plan.regions} marked regions, scripts ${PARTNER_SCRIPTS.join(', ')}`,
     );
   }
@@ -533,7 +562,7 @@ function recordBoilerplateOrigin(rootDir: string, keepPartner: boolean, dryRun: 
   if (packageJson.boilerplate !== undefined) return;
   const head = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: rootDir, stderr: 'pipe' });
   const commit = head.exitCode === 0 ? head.stdout.toString().trim() : undefined;
-  console.log(
+  say(
     `[Setup] ${dryRun ? 'Would record' : 'Record'} the boilerplate origin in package.json (version, commit, partner)`,
   );
   if (dryRun) return;
@@ -546,11 +575,11 @@ function recordBoilerplateOrigin(rootDir: string, keepPartner: boolean, dryRun: 
  * migrations regenerated from scratch (no database exists yet) and the contract snapshot rewritten.
  */
 function regenerateBaseline(rootDir: string, dryRun: boolean): void {
-  console.log(
+  say(
     `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} database migrations from scratch (drizzle/)`,
   );
   // The one machine that writes the contract snapshot: a new project's baseline, not a change.
-  console.log(
+  say(
     `[Setup] ${dryRun ? 'Would regenerate' : 'Regenerate'} the API contract baseline (${SNAPSHOT_PATH} + docs/api/*.md)`,
   );
   if (dryRun) return;
@@ -634,7 +663,7 @@ function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): v
   }
 
   changes.forEach((change) => {
-    console.log(`[Setup] ${dryRun ? 'Would update' : 'Update'} ${change}`);
+    say(`[Setup] ${dryRun ? 'Would update' : 'Update'} ${change}`);
   });
   if (dryRun) return;
   for (const [file, content] of pending) {
@@ -674,7 +703,7 @@ function ensureGeneratedSecrets(envPath: string, template: string, dryRun: boole
 
   if (generated.length === 0) return;
   if (!dryRun) writeFileSync(envPath, content, 'utf-8');
-  console.log(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} ${generated.join(', ')} in .env`);
+  say(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} ${generated.join(', ')} in .env`);
 }
 
 /** `template`: the `.env.example` a dry run would leave (the file itself is not changed yet). */
@@ -694,7 +723,7 @@ function ensureEnvFile(
   template ??= readFileSync(envExamplePath, 'utf-8');
   if (!existsSync(envPath)) {
     if (!dryRun) copyFileSync(envExamplePath, envPath);
-    console.log(`[Setup] ${dryRun ? 'Would create' : 'Created'} .env from .env.example`);
+    say(`[Setup] ${dryRun ? 'Would create' : 'Created'} .env from .env.example`);
     ensureGeneratedSecrets(envPath, template, dryRun);
     return;
   }
@@ -707,12 +736,12 @@ function ensureEnvFile(
       const content = readFileSync(envPath, 'utf-8');
       writeFileSync(envPath, content.replace(/^APP_NAME=.*$/m, `APP_NAME=${id.name}`), 'utf-8');
     }
-    console.log(
+    say(
       `[Setup] Existing .env detected: ${dryRun ? 'would update' : 'updated'} APP_NAME only. ` +
         'Review POSTGRES_DB / DATABASE_URL manually.',
     );
   } else {
-    console.log('[Setup] Existing .env detected, leaving existing values intact');
+    say('[Setup] Existing .env detected, leaving existing values intact');
   }
 }
 
@@ -725,9 +754,7 @@ function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: 
   let template: string | undefined;
   if (request) {
     identity = toIdentity(request);
-    console.log(
-      `[Setup] name=${identity.name} db=${identity.snakeName}_db title="${identity.title}"`,
-    );
+    say(`[Setup] name=${identity.name} db=${identity.snakeName}_db title="${identity.title}"`);
     // Checked before anything is written: the partner markers fail like a drifted identity rule.
     const partnerPlan = planPartner(rootDir, request.partner);
     if (partnerPlan.problems.length > 0) printPartnerProblems(partnerPlan.problems);
@@ -735,7 +762,7 @@ function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: 
     applyIdentity(rootDir, identity, dryRun);
     let newBaseline = false;
     if (request.keepExamples) {
-      console.log('[Setup] Keeping the example modules (--keep-examples)');
+      say('[Setup] Keeping the example modules (--keep-examples)');
       if (!dryRun) stopGuardingExamples(rootDir);
     } else {
       newBaseline = removeExamples(rootDir, dryRun);
@@ -748,22 +775,26 @@ function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: 
   ensureEnvFile(rootDir, identity, dryRun, template);
 }
 
+const NEXT_STEPS = [
+  '1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)',
+  '2. Apply database migrations: bun run db:migrate',
+  '3. Create the first admin:     bun run seed:admin --email <email>',
+  '4. Start development server:  bun run dev',
+];
+
 const printNextSteps = (dryRun: boolean): void => {
-  console.log('----------------------------------------------------');
-  console.log(
+  say('----------------------------------------------------');
+  say(
     dryRun
       ? '[Setup] Project initialization preview finished — nothing was changed'
       : '[Setup] Project initialization completed successfully',
   );
   // Husky's hooks live in .git/config: a fresh git init loses them silently.
   const hooksAdvice = gitHooksAdvice(readGitState(process.cwd()));
-  if (hooksAdvice) console.log(`[Setup] WARNING: ${hooksAdvice}`);
-  console.log('Next steps:');
-  console.log('  1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)');
-  console.log('  2. Apply database migrations: bun run db:migrate');
-  console.log('  3. Create the first admin:     bun run seed:admin --email <email>');
-  console.log('  4. Start development server:  bun run dev');
-  console.log('----------------------------------------------------');
+  if (hooksAdvice) say(`[Setup] WARNING: ${hooksAdvice}`);
+  say('Next steps:');
+  for (const step of NEXT_STEPS) say(`  ${step}`);
+  say('----------------------------------------------------');
 };
 
 async function runSetup(): Promise<void> {
@@ -777,29 +808,49 @@ async function runSetup(): Promise<void> {
 
   if (!interactive) {
     const request = args.name === undefined ? undefined : requestOf({ ...args, name: args.name });
-    console.log(`[Setup] Starting project initialization${args.dryRun ? ' (dry run)' : ''}...`);
+    say(`[Setup] Starting project initialization${args.dryRun ? ' (dry run)' : ''}...`);
     initialize(rootDir, request, args.dryRun);
     printNextSteps(args.dryRun);
     return;
   }
 
-  // The answers become the same arguments as a typed command, parsed like one.
-  const answers = await completeSetup(args, terminalPrompter, (text) => {
-    console.warn(process.stdout.isTTY ? `\u001b[31m${text}\u001b[0m` : text);
+  // The wizard (plan D40): the answers become the same arguments as a typed command, parsed like one.
+  const prompter = terminalPrompter;
+  prompter.intro('bun run setup');
+  const answers = await completeSetup(args, prompter, (text) => {
+    prompter.note(text, 'Partner gateway');
   });
   const request = requestOf({ ...parseSetupArgs(setupArgv(answers)), name: answers.name });
-  console.log('\n[Setup] Plan (nothing is changed yet):');
-  initialize(rootDir, request, true);
-  const equivalent = `\nSame result without the wizard:\n  ${setupCommandOf(request)}`;
+  prompter.note(
+    collect(() => {
+      initialize(rootDir, request, true);
+    }).join('\n'),
+    'Plan — nothing is changed yet',
+  );
+  const equivalent = setupCommandOf(request);
   if (args.dryRun) {
-    console.log(equivalent);
+    prompter.note(equivalent, 'Same result without the wizard');
+    prompter.outro('Dry run: nothing was changed');
     return;
   }
-  if (!(await terminalPrompter.confirm('Apply these changes?'))) throw new CancelledError();
-  console.log('\n[Setup] Starting project initialization...');
-  initialize(rootDir, request, false);
-  printNextSteps(false);
-  console.log(equivalent);
+  if (!(await prompter.confirm('Apply these changes?'))) throw new CancelledError();
+  const line = prompter.spinner();
+  line.start('Initializing the project: identity, examples, migrations, API contract, formatting');
+  // initialize() runs its tools synchronously: let the spinner draw its first frame before.
+  await Bun.sleep(100);
+  const changes = collect(() => {
+    initialize(rootDir, request, false);
+  });
+  line.stop('Project initialization completed successfully');
+  prompter.note(changes.join('\n'), 'Changes');
+  // Husky's hooks live in .git/config: a fresh git init loses them silently.
+  const hooksAdvice = gitHooksAdvice(readGitState(process.cwd()));
+  prompter.note(
+    [...(hooksAdvice ? [`WARNING: ${hooksAdvice}`, ''] : []), ...NEXT_STEPS].join('\n'),
+    'Next steps',
+  );
+  prompter.note(equivalent, 'Same result without the wizard');
+  prompter.outro('Project initialization completed successfully');
 }
 
 try {

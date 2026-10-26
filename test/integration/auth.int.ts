@@ -5,7 +5,14 @@ import { createApp } from '../../src/app';
 import { authConfig } from '../../src/config';
 import { hashPassword } from '../../src/core/security/password';
 import { db } from '../../src/database/connection';
+import {
+  countPurgeableRefreshTokens,
+  purgeRefreshTokens,
+} from '../../src/database/maintenance/purge-refresh-tokens';
 import { authRefreshTokens } from '../../src/database/schema';
+import { defaultTxHost } from '../../src/database/transaction-host';
+import { sha256Hex } from '../../src/utils/crypto.util';
+import { parseInstant } from '../../src/utils/datetime.util';
 import { UsersRepository } from '../../src/modules/users/users.repository';
 import { asActor, unique } from '../helpers/integration';
 
@@ -122,5 +129,36 @@ describe('refresh-token rotation on PostgreSQL', () => {
     const results = await Promise.all([post('/refresh', { cookie }), post('/refresh', { cookie })]);
 
     expect(results.map((res) => res.status).sort()).toEqual([200, 401]);
+  });
+});
+
+describe('purging expired refresh tokens (bun run auth:purge-tokens)', () => {
+  it('counts what the purge deletes, then deletes exactly that', async () => {
+    const user = await createUser();
+    // Expired in the year 2000: no other test's token is older, so "now" in 2000 isolates them.
+    const token = (expiresAt: string) => ({
+      userId: user.id,
+      familyId: crypto.randomUUID(),
+      tokenHash: sha256Hex(crypto.randomUUID()),
+      expiresAt: parseInstant(expiresAt),
+      familyStartedAt: parseInstant('1999-12-01T00:00:00Z'),
+    });
+    await db
+      .insert(authRefreshTokens)
+      .values([
+        token('2000-01-01T00:00:00Z'),
+        token('2000-01-02T00:00:00Z'),
+        token('2000-01-09T00:00:00Z'),
+      ]);
+    const now = parseInstant('2000-01-10T00:00:00Z');
+
+    expect(await countPurgeableRefreshTokens(7, defaultTxHost, now)).toBe(2);
+    expect(await purgeRefreshTokens(7, defaultTxHost, now)).toBe(2);
+    expect(await countPurgeableRefreshTokens(7, defaultTxHost, now)).toBe(0);
+    const left = await db
+      .select()
+      .from(authRefreshTokens)
+      .where(eq(authRefreshTokens.userId, user.id));
+    expect(left.map((row) => row.expiresAt.toString())).toEqual(['2000-01-09T00:00:00Z']);
   });
 });

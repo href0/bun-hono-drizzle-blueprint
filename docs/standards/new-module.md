@@ -47,9 +47,11 @@ Arguments already on the command line are not asked again: `bun run scaffold:mod
 | Vendor webhook receiver | name → singular → vendor → institution (the vendor's title pre-filled) |
 | Outbound vendor integration | vendor → institution |
 
-Then the plan (every file it creates and edits), **Write these files?** (default No), the files, the next steps and the equivalent command. A session:
+Then the plan in a note (every file it creates and edits), **Write these files?** (default No), a spinner while it writes, registers and formats, and notes with the next steps and the equivalent command. A session:
 
 ```text
+┌  bun run scaffold
+│
 ◇  What do you want to scaffold?
 │  Module — dependent 1:N of an existing module
 ◇  Parent module
@@ -58,16 +60,21 @@ Then the plan (every file it creates and edits), **Write these files?** (default
 │  reviews
 ◇  Singular of "reviews"
 │  review
-Scaffolding dependent module product-reviews in src/modules/products/product-reviews/ (1:N, /products/:productId/reviews)
-  create src/database/schema/domain/product-reviews.schema.ts
-  …
-  edit   src/app.ts — register productReviewsParentRouter on /products/:productId/reviews and productReviewsRouter on /product-reviews
+│
+◇  dependent module product-reviews in src/modules/products/product-reviews/ (1:N, …) ──╮
+│  create src/database/schema/domain/product-reviews.schema.ts                           │
+│  …                                                                                      │
+│  edit   src/app.ts — register productReviewsParentRouter on /products/:productId/reviews …
+├─────────────────────────────────────────────────────────────────────────────────────────╯
 ◇  Write these files?
 │  Yes
-Next steps: …
-Same result without the wizard:
-  bun run scaffold module reviews --parent=products
+◇  Wrote 9 file(s), edited 5
+◇  Next steps ─────╮  1. …
+◇  Same result without the wizard ─╮  bun run scaffold module reviews --parent=products
+└  Scaffolded
 ```
+
+Without a terminal (flags, an agent, CI, `--dry-run` in a pipe) the output is plain lines, as before: `Scaffolding …`, `  create …`, `Next steps:`.
 
 - **Keys**: ↑ / ↓ and Enter choose an option; Enter on a pre-filled answer (a suggested singular, `items`, the institution) keeps it, or edit it first.
 - **Grey `e.g. …` text is only an example**, never the answer: type your own value.

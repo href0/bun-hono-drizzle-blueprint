@@ -191,11 +191,107 @@ const applyEdits = (plan: ScaffoldPlan): Map<string, string> => {
 const CONTRACT_REMINDER =
   'API contract: bun run openapi:check lists the new operations; review them, then bun run openapi:update';
 
-const printNextSteps = (plan: ScaffoldPlan, heading: string, addsRoutes: boolean): void => {
-  console.log(`\n${heading}`);
-  const steps = [...plan.nextSteps, ...(addsRoutes ? [CONTRACT_REMINDER] : [])];
-  for (const [index, step] of steps.entries()) console.log(`  ${String(index + 1)}. ${step}`);
-  console.log(`  ${String(steps.length + 1)}. bun run validate:full`);
+/** `1. …` per step, the contract reminder for new routes, validate:full last. */
+const nextStepLines = (plan: ScaffoldPlan, addsRoutes: boolean): string[] => {
+  const steps = [
+    ...plan.nextSteps,
+    ...(addsRoutes ? [CONTRACT_REMINDER] : []),
+    'bun run validate:full',
+  ];
+  return steps.map((step, index) => `${String(index + 1)}. ${step}`);
+};
+
+/** What the run creates and edits. */
+const planLines = (plan: ScaffoldPlan): string[] => [
+  ...plan.files.map((file) => `create ${file.path}`),
+  ...plan.edits.map((edit) => `edit   ${edit.path} — ${edit.label}`),
+];
+
+/** Writes the plan, then formats exactly what it created or changed (async: a spinner can turn). */
+const writePlan = async (
+  plan: ScaffoldPlan,
+  edited: ReadonlyMap<string, string>,
+): Promise<void> => {
+  for (const file of plan.files) {
+    const path = resolve(ROOT, file.path);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, file.content);
+  }
+  for (const [path, content] of edited) writeFileSync(resolve(ROOT, path), content);
+
+  // The templates are formatted for a short name; format exactly what was created or changed.
+  const touched = [...plan.files.map((file) => file.path), ...edited.keys()].filter((path) =>
+    path.endsWith('.ts'),
+  );
+  const prettier = Bun.spawn(['bunx', 'prettier', '--write', ...touched], {
+    cwd: ROOT,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  });
+  const [stderr, exitCode] = await Promise.all([
+    new Response(prettier.stderr).text(),
+    prettier.exited,
+  ]);
+  if (exitCode !== 0) {
+    console.error(stderr.trim());
+    throw new ScaffoldError(
+      'prettier failed on the generated files (they are written; fix and format them)',
+    );
+  }
+};
+
+/** Without the wizard (flags, an agent, CI): plain lines, as they always were. */
+const runPlain = async (
+  plan: ScaffoldPlan,
+  edited: ReadonlyMap<string, string>,
+  dryRun: boolean,
+  addsRoutes: boolean,
+): Promise<void> => {
+  console.log(`${dryRun ? '[dry run] ' : ''}Scaffolding ${plan.label} from ${plan.template}`);
+  for (const line of planLines(plan)) console.log(`  ${line}`);
+  const printNextSteps = (heading: string): void => {
+    console.log(`\n${heading}`);
+    for (const line of nextStepLines(plan, addsRoutes)) console.log(`  ${line}`);
+  };
+  if (dryRun) {
+    printNextSteps('Next steps (after a real run — nothing was written):');
+    return;
+  }
+  await writePlan(plan, edited);
+  printNextSteps('Next steps:');
+};
+
+/** The wizard in a terminal (plan D40): the plan in a note, a Yes, a spinner, the next steps. */
+const runWizard = async (
+  plan: ScaffoldPlan,
+  edited: ReadonlyMap<string, string>,
+  { dryRun, addsRoutes, command }: { dryRun: boolean; addsRoutes: boolean; command: string },
+): Promise<void> => {
+  const prompter = terminalPrompter;
+  prompter.note(
+    planLines(plan).join('\n'),
+    `${dryRun ? 'Dry run — ' : ''}${plan.label} from ${plan.template}`,
+  );
+  if (dryRun) {
+    prompter.note(nextStepLines(plan, addsRoutes).join('\n'), 'Next steps after a real run');
+    prompter.note(command, 'Same result without the wizard');
+    prompter.outro('Dry run: nothing was written');
+    return;
+  }
+  if (!(await prompter.confirm('Write these files?')))
+    throw new ScaffoldError('cancelled: nothing was written');
+  const line = prompter.spinner();
+  line.start('Writing, registering and formatting the files');
+  try {
+    await writePlan(plan, edited);
+  } catch (error) {
+    line.error('Formatting failed');
+    throw error;
+  }
+  line.stop(`Wrote ${String(plan.files.length)} file(s), edited ${String(edited.size)}`);
+  prompter.note(nextStepLines(plan, addsRoutes).join('\n'), 'Next steps');
+  prompter.note(command, 'Same result without the wizard');
+  prompter.outro('Scaffolded');
 };
 
 const main = async (): Promise<void> => {
@@ -208,6 +304,7 @@ const main = async (): Promise<void> => {
   const driven = process.env.SCAFFOLD_WIZARD_STDIN === '1';
   const interactive =
     needsWizard(draft.request) && (driven || (process.stdin.isTTY && process.stdout.isTTY));
+  if (interactive) terminalPrompter.intro('bun run scaffold');
   // The wizard only completes the arguments: the request is parsed from them like any command.
   const { request, dryRun } = interactive
     ? {
@@ -225,48 +322,11 @@ const main = async (): Promise<void> => {
   // An outbound adapter adds no route; every other kind does.
   const addsRoutes = request.kind !== 'integration';
 
-  console.log(`${dryRun ? '[dry run] ' : ''}Scaffolding ${plan.label} from ${plan.template}`);
-  for (const file of plan.files) console.log(`  create ${file.path}`);
-  for (const edit of plan.edits) console.log(`  edit   ${edit.path} — ${edit.label}`);
-  const equivalent = (): void => {
-    if (interactive)
-      console.log(`
-Same result without the wizard:
-  ${commandOf(request)}`);
-  };
-  if (dryRun) {
-    printNextSteps(plan, 'Next steps (after a real run — nothing was written):', addsRoutes);
-    equivalent();
-    return;
+  if (interactive) {
+    await runWizard(plan, edited, { dryRun, addsRoutes, command: commandOf(request) });
+  } else {
+    await runPlain(plan, edited, dryRun, addsRoutes);
   }
-  if (interactive && !(await terminalPrompter.confirm('Write these files?')))
-    throw new ScaffoldError('cancelled: nothing was written');
-
-  for (const file of plan.files) {
-    const path = resolve(ROOT, file.path);
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, file.content);
-  }
-  for (const [path, content] of edited) writeFileSync(resolve(ROOT, path), content);
-
-  // The templates are formatted for a short name; format exactly what was created or changed.
-  const touched = [...plan.files.map((file) => file.path), ...edited.keys()].filter((path) =>
-    path.endsWith('.ts'),
-  );
-  const prettier = Bun.spawnSync(['bunx', 'prettier', '--write', ...touched], {
-    cwd: ROOT,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
-  if (prettier.exitCode !== 0) {
-    console.error(prettier.stderr.toString().trim());
-    throw new ScaffoldError(
-      'prettier failed on the generated files (they are written; fix and format them)',
-    );
-  }
-
-  printNextSteps(plan, 'Next steps:', addsRoutes);
-  equivalent();
 };
 
 try {

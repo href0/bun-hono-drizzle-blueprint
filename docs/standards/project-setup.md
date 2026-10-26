@@ -69,7 +69,7 @@ Both value forms work: `--title "API Gateway"` and `--title="API Gateway"`. An u
 | Title | pre-filled with the derived title: Enter keeps it, or edit it |
 | Description | one line, or Enter to skip |
 | Keep the example modules … as a reference? | default No |
-| Accept calls from partner systems (partner gateway …)? | default **Yes**; No shows what would be removed (red in a terminal) and asks *Remove the partner gateway from this project?* (default No — a No keeps the gateway) |
+| Accept calls from partner systems (partner gateway …)? | default **Yes**; No shows what would be removed (a note) and asks *Remove the partner gateway from this project?* (default No — a No keeps the gateway) |
 | Apply these changes? | after the plan; default No |
 
 ```text
@@ -83,23 +83,23 @@ Both value forms work: `--title "API Gateway"` and `--title="API Gateway"`. An u
 │  No
 ◇  Accept calls from partner systems (partner gateway: signed API keys, partner-credentials)?
 │  Yes
-
-[Setup] Plan (nothing is changed yet):
-[Setup] name=order-service db=order_service_db title="Order Service API"
-[Setup] Would update package.json → package name
-…
-[Setup] Would remove example: jsonplaceholder + user-posts (outbound adapter example)
-[Setup] Would regenerate database migrations from scratch (drizzle/)
+│
+◇  Plan — nothing is changed yet ──────────────────────────────────╮
+│  name=order-service db=order_service_db title="Order Service API" │
+│  Would update package.json → package name                         │
+│  …                                                                │
+│  Would regenerate database migrations from scratch (drizzle/)     │
+├───────────────────────────────────────────────────────────────────╯
 ◇  Apply these changes?
 │  Yes
-
-[Setup] Starting project initialization...
-…
-[Setup] Project initialization completed successfully
-
-Same result without the wizard:
-  bun run setup order-service --title="Order Service API"
+◇  Project initialization completed successfully
+◇  Changes ─╮  Update package.json → package name …
+◇  Next steps ─╮  1. Make sure PostgreSQL and Redis are running …
+◇  Same result without the wizard ─╮  bun run setup order-service --title="Order Service API"
+└  Project initialization completed successfully
 ```
+
+While it applies the changes the spinner stands still: setup runs its tools (drizzle-kit, the contract baseline, Prettier) one after the other, synchronously. Without a terminal the output is the plain `[Setup] …` lines, as before.
 
 - **Keys**: Enter accepts a pre-filled answer; grey `e.g. …` text is only an example, never the answer.
 - **Cancel**: answer No to *Apply these changes?*, or press Ctrl+C / Esc at any question — nothing is changed (`cancelled: nothing was written`, exit 1).
