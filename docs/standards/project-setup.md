@@ -137,7 +137,7 @@ MDX has no HTML comments: write `.mdx` without partner-only sentences. Code arou
 
 ### 4.3 Switching the gateway on later
 
-Not a command yet (backlog: `bun run partner:enable`). By hand, from the boilerplate at the commit in `package.json` → `boilerplate.commit` (the remote `upstream`, [git-workflow.md](git-workflow.md) §1.2):
+Not a command yet (backlog: `bun run partner:enable`). By hand, from the boilerplate at the commit in `package.json` → `boilerplate.commit` (the remote `upstream`, [git-workflow.md](git-workflow.md) §1.2); a copy set up without git records no commit — then use the release tag `v<boilerplate.version>`:
 
 1. Copy back the `PARTNER_ONLY` paths.
 2. Bring back each marked region of the shared files (`git grep -n "partner:start\|<!-- partner -->" <commit>` in the boilerplate lists them) — merge by hand where your code changed around them.

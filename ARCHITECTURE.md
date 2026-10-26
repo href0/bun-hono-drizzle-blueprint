@@ -361,7 +361,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R79 | The deployment path works: both images of the `Dockerfile` build (dependencies installed without lifecycle scripts), the `tools` image migrates a real PostgreSQL, and the production image starts with production settings and reports `healthy` ([docs/deployment.md](docs/deployment.md)) | [ci:docker] |
 | R80 | The documentation portal builds: every synced document is in the sidebar and no internal link or anchor is broken | [ci:docs] [script:docs:build] |
 | R81 | A release passes the acceptance run (`bun run acceptance --combo a`: per setup combination a fresh clone → setup → every scaffold variant, the wizard answered by the runner → gates → database → server → HTTP → images); its document lists exactly the runner's steps | [test:docs-sync] [review-only] — it needs real services and minutes, so CI does not run it |
-| R82 | The partner gateway is removable (`bun run setup --no-partner`, D39): partner code of shared files sits in balanced, unnested marked regions, partner-only files are in `PARTNER_ONLY`, and the pruned `src/`, `test/`, `.env.example` mention no partner | [script:lint:setup] [test:partner-prune] |
+| R82 | In the boilerplate the partner gateway stays removable (`bun run setup --no-partner`, D39): partner code of shared files sits in balanced, unnested marked regions, partner-only files are in `PARTNER_ONLY`, and the pruned `src/`, `test/`, `.env.example` mention no partner. Setup drops every marker, so a project has none and `lint:setup` no longer checks them (`package.json` → `boilerplate`) | [script:lint:setup] [test:partner-prune] |
 
 ---
 

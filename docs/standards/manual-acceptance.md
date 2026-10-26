@@ -29,7 +29,7 @@ Options: `--ref <commit|tag>` (what is tested; default `HEAD`), `--no-db` (skip 
 
 - **What it tests**: the commit `--ref` (default the last commit), cloned into a work folder `_acceptance/acceptance-<date>-<time>/` **next to** this repository — never the working tree; it says so when there are uncommitted changes.
 - **While it runs**: one line per step; on a terminal a spinner and a timer that keeps counting, then `✓ 1m52s` / `✗` / `-` (skipped, with the reason). In a pipe or a log file: one line per finished step plus a heartbeat every minute. At the end, a table: one row per combination, one column per stage.
-- **Output**: every command writes to the step's log (`combo-<n>/logs/<nn>-<stage>.log`), never to the screen. A failing step shows the expected and the actual result, the last 30 lines of its log and the log's path; the remaining steps of that combination are shown as skipped, and the next combination still runs.
+- **Output**: every command writes to the step's log (`combo-<n>/logs/<nn>-<stage>.log`), never to the screen. A failing step shows the expected and the actual result, the last 30 lines of its log and the log's path; the remaining steps of that combination are shown as skipped, and the next combination still runs. A command still running after 15 minutes is killed and reported as `timed out after 15 min`, not as an ordinary failure.
 - **The wizards**: started with `SCAFFOLD_WIZARD_STDIN=1` / `SETUP_WIZARD_STDIN=1`, the switches that let a program answer them through a pipe (`scripts/scaffold.ts`, `scripts/setup.ts`); the runner waits for each question, moves to the option by its label, types, presses Enter, answers No, presses Ctrl+C.
 - **Services (stage C)**: PostgreSQL and Redis from `TEST_DATABASE_URL` / `TEST_REDIS_*`, or the local development settings on a developer machine only — the same rules as `bun run test:int` ([testing.md](testing.md), `scripts/lib/test-services.ts`). Not reachable (or `--no-db`) → stage C is skipped with the reason. Each combination gets its own database `<name>_acceptance_c<n>` (marked by a comment) and Redis prefix.
 - **Cleanup**: the server, the database and the Redis keys of a combination go when it ends — also after a failure and on Ctrl+C; the Docker images right after they are built. The work folder is removed when everything passed and kept otherwise (`--keep` always). A new run removes what earlier runs left (only folders and databases this runner names and marks).
@@ -46,10 +46,11 @@ Combination 1 — new project: setup removes the examples (default)
 ```
 
 ```text
-Combination                                                 Stage A  Stage B  Stage C  Stage D  Total
-----------------------------------------------------------  -------  -------  -------  -------  -----
-1 — new project: setup removes the examples (default)       ✓ 54s    ✓ 1m02s  ✓ 4s     ✓ 19s    2m19s
-2 — setup --keep-examples: generators next to the examples  ✓ 56s    ✓ 1m06s  ✓ 4s     ✓ 19s    2m24s
+Combination                                                    Stage A  Stage B  Stage C  Stage D  Total
+-------------------------------------------------------------  -------  -------  -------  -------  -----
+1 — new project: setup removes the examples (default)          ✓ 54s    ✓ 1m04s  ✓ 6s     ✓ 19s    2m23s
+2 — setup --keep-examples: generators next to the examples     ✓ 1m00s  ✓ 59s    ✓ 4s     ✓ 19s    2m22s
+3 — setup --no-partner: a project without the partner gateway  ✓ 51s    ✓ 52s    ✓ 3s     ✓ 19s    2m05s
 
 All passed. Work folder removed.
 ```

@@ -725,7 +725,7 @@ const planDependent = (
     ],
     nextSteps: [
       `Adjust the domain fields in the schema, DTOs, messages (Indonesian nouns) and tests of src/modules/${parent.name}/${names.name}/.`,
-      `When ${parent.name} rows are owned (by a user or a partner), override parentScope() in src/modules/${parent.name}/${names.name}/${names.name}.repository.ts: another owner's rows then answer 404. To lock these rows by the parent's state, override assertParentWritable().`,
+      `When ${parent.name} rows are owned (for example by a user), override parentScope() in src/modules/${parent.name}/${names.name}/${names.name}.repository.ts: another owner's rows then answer 404. To lock these rows by the parent's state, override assertParentWritable().`,
       "Generate the migration: bun run db:generate (applying it is the developer's call).",
     ],
     parent: { names: parent, segment },

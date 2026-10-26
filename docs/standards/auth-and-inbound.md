@@ -21,7 +21,7 @@ Outside a request (jobs, seeders) the actor is `system`. A webhook contract is t
 The partner contract is ours (signing v1); a webhook contract is the vendor's — loosening `partnerAuth()` for one vendor would weaken every partner (plan D23).
 <!-- partner:end -->
 
-Enforced: ESLint `local/inbound-channel` (the helpers per channel, read from the file name; `bodyKeys: 'verbatim'` only in `*.webhook.*` files) and `test/structure.test.ts` (each channel's routers only under its prefix and nothing else there: `*.webhook.routes.ts` only under `/webhooks`, `*.partner.routes.ts` only under `/v1/partner`). File naming: [naming.md](naming.md).
+Enforced: ESLint `local/inbound-channel` (the helpers per channel, read from the file name; `bodyKeys: 'verbatim'` only in `*.webhook.*` files) and `test/structure.test.ts` (each channel's routers only under its prefix and nothing else there, e.g. `*.webhook.routes.ts` only under `/webhooks`). File naming: [naming.md](naming.md).
 
 ## 2. Users: default-deny JWT
 

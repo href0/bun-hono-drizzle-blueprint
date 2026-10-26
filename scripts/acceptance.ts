@@ -283,7 +283,9 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
     const child = spawn(command);
     if (options.stdin !== undefined) void child.stdin.write(options.stdin);
     void child.stdin.end();
+    const timeout = { hit: false };
     const timer = setTimeout(() => {
+      timeout.hit = true;
       child.kill();
     }, COMMAND_TIMEOUT_MS);
     let output = '';
@@ -293,7 +295,14 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
     ]);
     const exitCode = await child.exited;
     clearTimeout(timer);
-    write(`\n[exit ${String(exitCode)}]\n\n`);
+    // A killed command exits like a failing one (143): say it hung, not that it failed.
+    const limit = `${String(COMMAND_TIMEOUT_MS / 60_000)} min`;
+    write(`\n[exit ${String(exitCode)}${timeout.hit ? `, killed after ${limit}` : ''}]\n\n`);
+    check(
+      !timeout.hit,
+      `\`${command.join(' ')}\` finishes within ${limit}`,
+      `timed out after ${limit}, killed (the log lines below show where it stopped)`,
+    );
     expectExit(command, exitCode, options.expect);
     return { exitCode, output: plainText(output) };
   };
