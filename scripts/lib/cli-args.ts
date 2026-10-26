@@ -72,7 +72,8 @@ export const parseCli = (argv: readonly string[], spec: CliSpec): Cli => {
     const name = spec.values?.find((option) => arg === option || arg.startsWith(`${option}=`));
     if (name === undefined) throw new CliArgsError(`unknown option ${arg}`);
     const value = arg === name ? rest.shift() : arg.slice(name.length + 1);
-    if (value === undefined || value.startsWith('--')) {
+    // `--days=` is no value: an empty string would be read as 0 (`Number('')`), or as a blank email.
+    if (value === undefined || value === '' || value.startsWith('--')) {
       throw new CliArgsError(`${name} needs a value`);
     }
     values.set(name, value);

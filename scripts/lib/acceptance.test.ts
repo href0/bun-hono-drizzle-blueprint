@@ -225,9 +225,15 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
     cloneRepository: () => Promise.resolve(),
     run: (command, options = {}) => {
       commands.push(command.join(' '));
+      // Like a real project of this combination: the partner commands only with the gateway.
+      const help = command.join(' ') === 'bun run help';
       return Promise.resolve({
         exitCode: options.expect === 'failure' ? 1 : 0,
-        output: COMMAND_OUTPUT,
+        output: help
+          ? combo.partner
+            ? 'partner:sign  Sign a partner request'
+            : 'dev'
+          : COMMAND_OUTPUT,
       });
     },
     converse: (command, turns, options = {}) => {
@@ -410,6 +416,23 @@ describe('the steps against a well-behaved machine', () => {
         1,
     );
     expect(machine.released()).toBe(1);
+  });
+
+  it('a project without the gateway whose bun run help still lists partner:sign fails setup', async () => {
+    // Every command succeeds; only the help still names the removed command.
+    const machine = fakeMachine(NO_PARTNER, {
+      run: (command) =>
+        Promise.resolve({
+          exitCode: 0,
+          output:
+            command.join(' ') === 'bun run help'
+              ? 'partner:sign  Sign a partner request'
+              : COMMAND_OUTPUT,
+        }),
+    });
+    const { result, lines } = await runAll(machine);
+    expect(result.failedStep).toStartWith('bun run setup');
+    expect(lines.join('\n')).toContain('bun run help does not list partner:sign');
   });
 
   it('the wizard that wrote other files fails its step', async () => {

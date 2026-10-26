@@ -691,9 +691,14 @@ const main = async (): Promise<void> => {
   const stages = [...new Set(ACCEPTANCE_STEPS.map((step) => step.stage))];
   say(`\n${summaryTable(results, stages)}`);
   const failed = results.filter((result) => result.failedStep !== undefined);
+  // The session that started with the menu ends like every other one (plan D40).
+  const end = (text: string): void => {
+    if (asking) terminalPrompter.outro(text);
+  };
   if (failed.length === 0 && !args.keep) {
     rmSync(workdir, { recursive: true, force: true, maxRetries: 5 });
     say('\nAll passed. Work folder removed.');
+    end('Acceptance passed');
     return;
   }
   for (const result of failed) {
@@ -703,6 +708,7 @@ const main = async (): Promise<void> => {
   }
   say(`\nWork folder kept: ${workdir} (bun run acceptance --clean removes it)`);
   if (failed.length > 0) process.exitCode = 1;
+  end(failed.length > 0 ? 'Acceptance failed: see the combinations above' : 'Acceptance passed');
 };
 
 process.once('SIGINT', () => {

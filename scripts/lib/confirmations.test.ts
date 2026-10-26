@@ -22,6 +22,7 @@ describe('confirmContractUpdate (openapi:update in a terminal)', () => {
         changes: [SAFE],
         drift: [],
         allowBreaking: false,
+        snapshot: 'current',
       }),
     ).toBe(true);
     expect(session.shown.at(0)).toStartWith(
@@ -37,6 +38,7 @@ describe('confirmContractUpdate (openapi:update in a terminal)', () => {
         changes: [SAFE, BREAKING],
         drift: [],
         allowBreaking: false,
+        snapshot: 'current',
       }),
     ).toBe(false);
     expect(session.asked.at(0)).toStartWith('Write 1 BREAKING change(s)?');
@@ -51,6 +53,7 @@ describe('confirmContractUpdate (openapi:update in a terminal)', () => {
         changes: [BREAKING],
         drift: [],
         allowBreaking: false,
+        snapshot: 'current',
       }),
     ).toBe(true);
     expect(accepted.asked).toHaveLength(2);
@@ -60,6 +63,7 @@ describe('confirmContractUpdate (openapi:update in a terminal)', () => {
         changes: [BREAKING],
         drift: [],
         allowBreaking: true,
+        snapshot: 'current',
       }),
     ).toBe(false);
     expect(flagged.asked).toEqual(['Write the snapshot and docs/api/*.md?']);
@@ -71,12 +75,36 @@ describe('confirmContractUpdate (openapi:update in a terminal)', () => {
       (_, i) => `docs/api/module-${String(i)}.md`,
     );
     const session = scriptedPrompter(true);
-    await confirmContractUpdate(session.prompter, { changes: [], drift, allowBreaking: false });
+    await confirmContractUpdate(session.prompter, {
+      changes: [],
+      drift,
+      allowBreaking: false,
+      snapshot: 'current',
+    });
     const note = session.shown.at(0) ?? '';
     expect(note).toContain('No change to the API contract');
     expect(note).toContain('Contract documents to regenerate:');
     expect(note).toContain('more line(s): bun run openapi:check lists all');
     expect(note.split('\n')).toHaveLength(NOTE_LINES + 1);
+  });
+
+  it('says what happens to the snapshot itself: created, or rewritten in its generated form', async () => {
+    const created = scriptedPrompter(true);
+    await confirmContractUpdate(created.prompter, {
+      changes: [],
+      drift: ['docs/api/README.md'],
+      allowBreaking: false,
+      snapshot: 'missing',
+    });
+    expect(created.shown.at(0)).toContain('No snapshot yet: docs/api/openapi.json is created');
+    const rewritten = scriptedPrompter(true);
+    await confirmContractUpdate(rewritten.prompter, {
+      changes: [],
+      drift: [],
+      allowBreaking: false,
+      snapshot: 'stale',
+    });
+    expect(rewritten.shown.at(0)).toContain('the snapshot is rewritten in its generated form');
   });
 });
 
@@ -105,7 +133,8 @@ describe('purgeAfterConfirmation (auth:purge-tokens in a terminal)', () => {
     expect(session.asked).toEqual(['Delete 3 refresh token(s) expired more than 7 day(s) ago?']);
     expect(session.shown).toEqual([
       'spinner: Deleting 3 refresh token(s) expired more than 7 day(s) ago',
-      'done: Deleted 3 refresh token(s) expired more than 7 day(s) ago',
+      'done: Deleted',
+      'outro: Deleted 3 refresh token(s) expired more than 7 day(s) ago',
     ]);
     expect(fake.calls).toEqual(['count 7', 'purge 7']);
   });

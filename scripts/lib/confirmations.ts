@@ -21,7 +21,21 @@ export interface ContractUpdate {
   /** Contract documents that differ from what the code generates. */
   drift: readonly string[];
   allowBreaking: boolean;
+  /** `missing`: no snapshot yet; `stale`: not byte for byte what the generator writes; `current`. */
+  snapshot: 'missing' | 'stale' | 'current';
 }
+
+/** The first lines of the note: what happens to the snapshot itself. */
+const snapshotLines = (
+  changes: readonly ClassifiedChange[],
+  snapshot: ContractUpdate['snapshot'],
+): string[] => {
+  if (snapshot === 'missing') return ['No snapshot yet: docs/api/openapi.json is created'];
+  if (changes.length > 0) return formatReport(changes).split('\n');
+  return snapshot === 'stale'
+    ? ['No change to the API contract; the snapshot is rewritten in its generated form']
+    : ['No change to the API contract'];
+};
 
 /**
  * `bun run openapi:update` in a terminal: the changes in a note, a separate Yes for BREAKING (unless
@@ -29,10 +43,9 @@ export interface ContractUpdate {
  */
 export const confirmContractUpdate = async (
   prompter: Prompter,
-  { changes, drift, allowBreaking }: ContractUpdate,
+  { changes, drift, allowBreaking, snapshot }: ContractUpdate,
 ): Promise<boolean> => {
-  const report =
-    changes.length === 0 ? ['No change to the API contract'] : formatReport(changes).split('\n');
+  const report = snapshotLines(changes, snapshot);
   const documents =
     drift.length === 0
       ? []
@@ -86,6 +99,7 @@ export const purgeAfterConfirmation = async (
   const line = prompter.spinner();
   line.start(`Deleting ${tokens(found, days)}`);
   const deleted = await store.purge(days);
-  line.stop(`Deleted ${tokens(deleted, days)}`);
+  line.stop('Deleted');
+  prompter.outro(`Deleted ${tokens(deleted, days)}`);
   return deleted;
 };

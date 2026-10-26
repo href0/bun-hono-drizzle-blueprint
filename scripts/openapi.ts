@@ -125,21 +125,32 @@ const update = async (
       );
     }
   }
-  pruneEmptyFolders();
   const drift = markdownDrift(markdown);
-  const snapshotCurrent =
-    existsSync(snapshotFile) && readFileSync(snapshotFile, 'utf-8') === serialized;
-  if (snapshotCurrent && drift.length === 0) {
+  const snapshot = !existsSync(snapshotFile)
+    ? 'missing'
+    : readFileSync(snapshotFile, 'utf-8') === serialized
+      ? 'current'
+      : 'stale';
+  if (snapshot === 'current' && drift.length === 0) {
+    pruneEmptyFolders();
     console.log(`[openapi] ${SNAPSHOT_PATH} and ${DOCS_PATH}/*.md are already up to date`);
     return;
   }
   if (terminal) {
     terminalPrompter.intro('bun run openapi:update');
-    if (!(await confirmContractUpdate(terminalPrompter, { changes, drift, allowBreaking }))) {
+    const write = await confirmContractUpdate(terminalPrompter, {
+      changes,
+      drift,
+      allowBreaking,
+      snapshot,
+    });
+    if (!write) {
       terminalPrompter.outro('Nothing was written');
       return;
     }
   }
+  // Only now, after the answer: a No leaves even empty folders as they were.
+  pruneEmptyFolders();
   mkdirSync(DOCS_DIR, { recursive: true });
   writeFileSync(snapshotFile, serialized, 'utf-8');
   for (const path of existingMarkdown().filter((file) => !markdown.has(file))) {

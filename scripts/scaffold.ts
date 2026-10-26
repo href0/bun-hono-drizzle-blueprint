@@ -285,7 +285,7 @@ const runWizard = async (
   try {
     await writePlan(plan, edited);
   } catch (error) {
-    line.error('Formatting failed');
+    line.error('Stopped: the error follows');
     throw error;
   }
   line.stop(`Wrote ${String(plan.files.length)} file(s), edited ${String(edited.size)}`);

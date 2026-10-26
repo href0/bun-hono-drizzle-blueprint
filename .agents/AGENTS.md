@@ -28,6 +28,12 @@ Database commands are run by the developer. An agent may run migrations and read
 
 ---
 
+## Commands
+
+`bun run help` lists every command (`*` = run by the developer, never by an agent); `bun run <command> --help` prints its usage and runs nothing. Without a terminal no script asks anything: give every answer as a flag, never drive a wizard (`docs/standards/quality-gates.md` §2).
+
+---
+
 ## MANDATORY: Environment File Protection Policy
 
 This section is the single source of the policy (the `env-protection` skill points here). It is also enforced mechanically for Claude Code by `.claude/settings.json` (`permissions.deny`) and `.claude/hooks/protect-env.mjs`.

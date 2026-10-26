@@ -43,7 +43,20 @@ const main = async (): Promise<void> => {
     send: cli.flags.has('--send'),
   };
 
-  const secret = (await readPipedLine()) ?? (await askSecret(terminalPrompter, 'Partner secret'));
+  const piped = await readPipedLine();
+  let secret: string;
+  if (piped === null) {
+    // A terminal: the secret masked, in the same frame as every other question (plan D40).
+    terminalPrompter.intro('bun run partner:sign');
+    secret = await askSecret(terminalPrompter, 'Partner secret');
+    terminalPrompter.outro(
+      args.send
+        ? 'Signed: sending the request'
+        : 'Signed: the headers and a curl follow (single use)',
+    );
+  } else {
+    secret = piped;
+  }
   if (secret === '') fail('The secret is empty');
 
   const headers = partnerSignatureHeaders({

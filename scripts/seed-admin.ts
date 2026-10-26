@@ -40,9 +40,11 @@ const fromPipe = async (): Promise<AdminAnswers> => {
 };
 
 const main = async (): Promise<void> => {
+  const terminal = process.stdin.isTTY;
   let answers: AdminAnswers;
   try {
-    answers = process.stdin.isTTY ? await askAdmin(flags, terminalPrompter) : await fromPipe();
+    if (terminal) terminalPrompter.intro('bun run seed:admin');
+    answers = terminal ? await askAdmin(flags, terminalPrompter) : await fromPipe();
   } catch (error) {
     if (!(error instanceof CancelledError)) throw error;
     console.error(error.message);
@@ -65,7 +67,9 @@ const main = async (): Promise<void> => {
       promoted: 'Promoted to active admin',
       unchanged: 'Already an active admin, nothing changed:',
     };
-    console.log(`${messages[result.action]} ${result.user.email} (id ${result.user.id})`);
+    const done = `${messages[result.action]} ${result.user.email} (id ${result.user.id})`;
+    if (terminal) terminalPrompter.outro(done);
+    else console.log(done);
   } catch (error) {
     if (!(error instanceof seeds.SeedAdminError)) throw error;
     console.error(error.message);

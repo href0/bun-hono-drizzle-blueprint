@@ -78,7 +78,7 @@ The runner's steps, in order, per combination (`scripts/lib/acceptance.ts`; `tes
 
 1. **Clone the commit under test into the work folder** — on the branch `test/acceptance`, a name the project's own gates accept.
 2. **bun install**
-3. **bun run setup: the wizard (combinations 1, 3) or flags (combination 2)** — the wizard answered by the runner (name, title, Enter on the description, No to the examples, Yes to partners — or No and Yes to removing the gateway (3) — Yes to apply), or `--title … --keep-examples`; the README carries the title, the examples (incl. `user-posts`) are removed (1, 3) or kept (2), the partner gateway is kept (1, 2) or removed (3).
+3. **bun run setup: the wizard (combinations 1, 3) or flags (combination 2)** — the wizard answered by the runner (name, title, Enter on the description, No to the examples, Yes to partners — or No and Yes to removing the gateway (3) — Yes to apply), or `--title … --keep-examples`; the README carries the title, the examples (incl. `user-posts`) are removed (1, 3) or kept (2), the partner gateway is kept (1, 2) or removed (3), and `bun run help` lists `partner:sign` only with it.
 4. **Gates of the new project: validate:full + build**
 
 **B — generators**

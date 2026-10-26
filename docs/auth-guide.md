@@ -272,7 +272,7 @@ Subdomain lain di domain yang sama tidak bisa membaca cookie kita (`HttpOnly`, h
 User dibuat oleh admin (`POST /api/v1/users`, role `admin`). Admin pertama dibuat developer di server:
 
 ```bash
-bun run seed:admin --email admin@example.com --name "Admin"   # password ditanyakan (tidak terlihat)
+bun run seed:admin --email admin@example.com --name "Admin"   # password ditanyakan (disamarkan, dua kali)
 bun run seed:admin --email someone@example.com --promote      # user yang sudah ada → admin aktif
 ```
 

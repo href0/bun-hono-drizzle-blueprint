@@ -23,6 +23,8 @@ describe('parseCli', () => {
     [['extra'], {}, 'unexpected argument extra'],
     [['a', 'b'], { positionals: 1 }, 'unexpected argument b'],
     [['--days'], { values: ['--days'] }, '--days needs a value'],
+    [['--days='], { values: ['--days'] }, '--days needs a value'],
+    [['--email', ''], { values: ['--email'] }, '--email needs a value'],
     [['--days', '--dry-run'], { values: ['--days'], flags: ['--dry-run'] }, '--days needs a value'],
   ])('refuses %j', (argv, spec, message) => {
     expect(() => parseCli(argv, spec)).toThrow(new CliArgsError(message));

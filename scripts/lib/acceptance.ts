@@ -302,6 +302,13 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         `partner gateway ${ctx.combo.partner ? 'kept' : 'removed'}`,
         ctx.exists('src/modules/partner-gateway') ? 'exists' : 'is gone',
       );
+      // bun run help lists only the scripts the project has (D40): no partner command without it.
+      const help = (await ctx.run(['bun', 'run', 'help'])).output;
+      check(
+        help.includes('partner:sign') === ctx.combo.partner,
+        `bun run help ${ctx.combo.partner ? 'lists' : 'does not list'} partner:sign`,
+        help.includes('partner:sign') ? 'listed' : 'not listed',
+      );
       for (const example of ['src/modules/orders', 'src/modules/user-posts']) {
         check(
           ctx.exists(example) === ctx.combo.keepExamples,
