@@ -1,6 +1,9 @@
 # Weekly dependency updates as pull requests; every one passes the full CI before a person merges it.
-# Bun itself is upgraded on purpose, in one commit (R84, docs/standards/quality-gates.md §2): the
-# oven/bun images and @types/bun are therefore not updated here.
+# Only minor and patch releases arrive here. A major release changes behaviour on purpose, so it is
+# a planned upgrade (release notes, tests, code changes), not a weekly pull request — and for a
+# 0.x package a "minor" bump is such a release too (drizzle 0.40 → 0.45). Bun itself is upgraded on
+# purpose, in one commit (R84, docs/standards/quality-gates.md §2): the oven/bun images and
+# @types/bun are therefore not updated here.
 version: 2
 updates:
   - package-ecosystem: bun
@@ -17,6 +20,10 @@ updates:
           - patch
     ignore:
       - dependency-name: '@types/bun'
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'drizzle-*'
+        update-types: ['version-update:semver-minor']
 
   - package-ecosystem: github-actions
     directory: /
