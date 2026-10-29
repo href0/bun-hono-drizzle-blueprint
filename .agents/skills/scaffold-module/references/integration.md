@@ -17,10 +17,10 @@ The vendor endpoints below (`/oauth/token`, `/items/:id`) and the body encoding 
 
 ### Step 1: Register the vendor (`src/integrations/registry.ts`)
 
-Add one entry to `INTEGRATION_REGISTRY` — the key is the code sent as `error.origin`, `institution` the readable name sent as `error.institution`:
+Add one entry to `INTEGRATION_REGISTRY` — the key is the code sent as `error.origin`, `vendorName` the readable name sent as `error.vendor_name`:
 
 ```typescript
-  <UPPER_SINGULAR>: { code: '<UPPER_SINGULAR>', institution: '<Vendor display name>' },
+  <UPPER_SINGULAR>: { code: '<UPPER_SINGULAR>', vendorName: '<Vendor display name>' },
 ```
 
 ### Step 2: Create the vendor config (`src/config/<name>.config.ts`)

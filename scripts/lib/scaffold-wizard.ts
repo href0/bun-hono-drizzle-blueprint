@@ -185,12 +185,12 @@ const askSingular = async (
   return askSingular(prompter, suggestion, what, taken);
 };
 
-/** The institution named in error messages; `undefined` when it is the default (`Acme Pay`). */
-const askInstitution = async (prompter: Prompter, vendor: string): Promise<string | undefined> => {
+/** The vendor name shown in error messages; `undefined` when it is the default (`Acme Pay`). */
+const askVendorName = async (prompter: Prompter, vendor: string): Promise<string | undefined> => {
   const answer = await prompter.text({
-    message: 'Institution named in vendor errors (error.institution)',
+    message: 'Vendor name shown in errors (error.vendor_name)',
     initial: titleOf(vendor),
-    validate: (value) => (value === '' ? 'the institution is required' : undefined),
+    validate: (value) => (value === '' ? 'the vendor name is required' : undefined),
   });
   return answer === titleOf(vendor) ? undefined : answer;
 };
@@ -228,8 +228,8 @@ export const completeRequest = async (
               ? `"${value}" is a module: a vendor adapter cannot share its name`
               : undefined),
       }));
-    const institution = draft.institution ?? (await askInstitution(prompter, name));
-    return { kind: 'integration', name, institution };
+    const vendorName = draft.vendorName ?? (await askVendorName(prompter, name));
+    return { kind: 'integration', name, vendorName };
   }
 
   if (shape === 'dependent' || shape === 'dependent-one') {
@@ -279,7 +279,7 @@ export const completeRequest = async (
             ? `"${value}" is a module: a vendor cannot share its name`
             : undefined),
       }));
-    request.institution = draft.institution ?? (await askInstitution(prompter, request.vendor));
+    request.vendorName = draft.vendorName ?? (await askVendorName(prompter, request.vendor));
   }
   return request;
 };
@@ -371,11 +371,11 @@ export const toArgv = (request: ScaffoldRequest): string[] => {
     ...flag('parent-singular', request.parentSingular),
     ...(request.one ? ['--one'] : []),
     ...flag('vendor', request.vendor),
-    ...flag('institution', request.institution),
+    ...flag('vendor-name', request.vendorName),
   ];
 };
 
-/** The same request as one command to copy (`--institution="Acme Payments"` quoted). */
+/** The same request as one command to copy (`--vendor-name="Acme Payments"` quoted). */
 export const commandOf = (request: ScaffoldRequest): string =>
   [
     'bun run scaffold',

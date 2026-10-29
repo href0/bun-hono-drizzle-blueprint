@@ -42,7 +42,7 @@ export const buildErrorBody = (
       type: error.errorType,
       code: error.errorCode,
       origin: error.origin,
-      ...(error instanceof ExternalServiceError ? { institution: error.institution } : {}),
+      ...(error instanceof ExternalServiceError ? { vendor_name: error.vendorName } : {}),
       ...(!isInternal && error.details.length > 0
         ? { details: error.details.map((detail) => toWireDetail(detail, locale)) }
         : {}),

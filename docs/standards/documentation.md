@@ -16,6 +16,9 @@ Read this file when: changing a standard, adding a rule, or editing any document
 | `.agents/skills/scaffold-module/` | Template **code** for new modules and adapters (verified by `bun run verify:scaffold`) | English |
 | `.claude/skills/*/SKILL.md` | Pointer wrappers to `.agents/skills/` (`test/agent-skills.test.ts`) | English |
 | `README.md` | Quickstart (at most 150 lines) and links | Indonesian |
+| `SECURITY.md` | How to report a vulnerability privately, supported versions, scope | English |
+| `LICENSE` | MIT license of the boilerplate — a project created from it keeps this notice and may license its own code as it chooses | English |
+| `.github/pull_request_template.md` | The checklist of every pull request (the definition of done, [quality-gates.md](quality-gates.md) §4) | English |
 | `docs/auth-guide.md` | Guide for readers outside this codebase (frontend developers) | Indonesian |
 | `docs/partner-integration-guide.md` | Guide for partners, guarded by `test/partner-guide.test.ts` | Indonesian | <!-- partner -->
 | `docs/deployment.md` | Deployment guide (images, production configuration, migrations, health checks, scheduled jobs); its path is proven by the CI job `docker` (R79) | Indonesian |

@@ -74,7 +74,7 @@ src/
 │       └── reference/           # Reference views owned by other systems (read only, never migrated)
 │
 ├── integrations/                # Vendor adapters — no routes, no controllers
-│   ├── registry.ts              # INTEGRATION_REGISTRY: code → institution (error.origin / error.institution)
+│   ├── registry.ts              # INTEGRATION_REGISTRY: code → vendor name (error.origin / error.vendor_name)
 │   ├── demo-pay/                # Example webhook vendor: demo-pay.webhook.ts (verifier) + demo-pay.webhook.dto.ts
 │   └── jsonplaceholder/         # Example keyless outbound adapter: dto, service on HttpClientService, test against a fake vendor, index.ts (removed by `bun run setup` unless --keep-examples)
 │
@@ -121,6 +121,7 @@ test/
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
 ├── cli-help.test.ts             # Every scripts/*.ts answers --help with its usage and exit 0 without side effects, and refuses an unknown option (R83)
 ├── ci-gates.test.ts             # Every gate of validate:full is its own step of the CI job verify
+├── toolchain.test.ts            # One Bun version: packageManager = Docker base images = @types/bun; CI reads package.json (R84)
 ├── api-contract.test.ts         # openapi:check runs in validate and CI; no hook, CI workflow or the scaffold CLI runs openapi:update
 ├── commit-scopes.test.ts        # Fixed commit scopes in commitlint.config.ts = the table in git-workflow.md; scopes derived from src/
 └── migrations.test.ts           # Guards the generated migration SQL

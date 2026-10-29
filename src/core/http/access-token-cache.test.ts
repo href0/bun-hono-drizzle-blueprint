@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { AccessTokenCache, type IssuedAccessToken } from './access-token-cache';
 import { ExternalServiceError } from '../errors/external.error';
 
-const VENDOR = { code: 'TEST_VENDOR', institution: 'Test Vendor Ltd.' };
+const VENDOR = { code: 'TEST_VENDOR', vendorName: 'Test Vendor Ltd.' };
 
 /** A vendor login that issues `token-1`, `token-2`, … and counts how often it ran. */
 const fakeLogin = (expiresInSeconds = 3600, delayMs = 10) => {

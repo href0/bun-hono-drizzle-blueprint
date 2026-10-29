@@ -37,7 +37,7 @@ export const errorEnvelopeSchema = z
       type: enumOf(ERROR_TYPES),
       code: enumOf(APP_ERROR_CODES),
       origin: z.string().openapi({ description: '`APP`, or the code of the failing integration' }),
-      institution: z.string().optional().openapi({
+      vendorName: z.string().optional().openapi({
         description: 'Name of the failing external system (EXTERNAL_SERVICE_ERROR only)',
       }),
       details: z.array(z.object({ field: z.string().optional(), message: z.string() })).optional(),

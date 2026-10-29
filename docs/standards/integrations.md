@@ -8,7 +8,7 @@ How this project calls external systems. Template for a new vendor: `.agents/ski
 
 | Piece | Where | Notes |
 |---|---|---|
-| Vendor identity | `src/integrations/registry.ts` → `INTEGRATION_REGISTRY` | Key = code (`error.origin`), `institution` = readable name (`error.institution`) |
+| Vendor identity | `src/integrations/registry.ts` → `INTEGRATION_REGISTRY` | Key = code (`error.origin`), `vendorName` = readable name (`error.vendor_name`) |
 | Config | `src/config/<vendor>.config.ts` (one group per vendor) | `<VENDOR>_BASE_URL`, `<VENDOR>_TIMEOUT_MS`, credentials; exported from `src/config/index.ts`; listed in `.env.example` |
 | Payload schemas | `src/integrations/<vendor>/<vendor>.dto.ts` | Zod, camelCase; only the fields the application uses |
 | Adapter | `src/integrations/<vendor>/<vendor>.service.ts` | `HttpClientService` instance + adapter class + singleton |
@@ -32,7 +32,7 @@ new HttpClientService({ integration: INTEGRATION_REGISTRY.ACME_PAY, baseURL, tim
 | No response (DNS, refused, reset) | 502 | `ERR_EXT_UNREACHABLE` |
 | Vendor 4xx/5xx, or a body that fails `parse()` | 502 | `ERR_EXT_ERROR` |
 
-  The envelope carries `error.origin` (code), `error.institution` (name) and one generic, localized detail — never the vendor's body. `ExternalServiceError.vendorStatus` keeps the vendor's status for decisions inside the adapter (e.g. re-login on 401); it is never serialized.
+  The envelope carries `error.origin` (code), `error.vendor_name` (name) and one generic, localized detail — never the vendor's body. `ExternalServiceError.vendorStatus` keeps the vendor's status for decisions inside the adapter (e.g. re-login on 401); it is never serialized.
 - **Logs**: `Outbound HTTP request failed` with `integration`, `kind`, `method`, `url` (path only — query strings carry keys), `vendorStatus`, `vendorBody` (`summarizeVendorBody()`: secret-looking keys redacted at any depth, ≤ 2048 characters, binary reduced to its size), `err`. Request headers and bodies (credentials) are never logged.
 - **Correlation**: the inbound request ID is sent as `X-Request-ID` unless the call sets its own; outside a request (jobs) no header. Quote it when reporting an incident to the vendor.
 - **`parse(schema, body)`**: converts keys to camelCase and validates with the adapter's Zod schema. A mismatch is the vendor's failure (502 `ERR_EXT_ERROR`); the log lists only issue paths and codes, never values. Parse every body before it leaves the adapter.

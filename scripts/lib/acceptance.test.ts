@@ -18,6 +18,7 @@ import {
   StepFailure,
   type AcceptanceContext,
   type AcceptanceStep,
+  interruptRun,
   WIZARD_ENV,
   type Combo,
   type HttpResult,
@@ -96,6 +97,46 @@ describe('menu and plan', () => {
     expect(plan).toContain(`  [ 1/${String(total)}] A  Clone the commit under test`);
     expect(plan).toContain('Combination 2 — setup --keep-examples');
     expect(plan).toMatch(/Estimated total: ~\d+m$/);
+  });
+});
+
+describe('Ctrl+C during a run', () => {
+  const interrupt = async (release: (() => Promise<void>) | undefined) => {
+    const lines: string[] = [];
+    const codes: number[] = [];
+    await interruptRun({
+      release,
+      say: (text) => lines.push(text),
+      exit: (code) => codes.push(code),
+    });
+    return { lines, codes };
+  };
+
+  it('releases the running combination, keeps the work folder and exits 130', async () => {
+    let released = 0;
+    const { lines, codes } = await interrupt(async () => {
+      released += 1;
+    });
+    expect(released).toBe(1);
+    expect(lines.at(0)).toContain('Interrupted');
+    expect(lines.at(-1)).toContain('Work folder kept');
+    expect(lines.some((line) => line.includes('Cleanup failed'))).toBe(false);
+    expect(codes).toEqual([130]);
+  });
+
+  it('says when the cleanup fails and still exits 130', async () => {
+    const { lines, codes } = await interrupt(() => Promise.reject(new Error('database busy')));
+    expect(lines).toContain(
+      'Cleanup failed (Error: database busy); run bun run acceptance --clean.',
+    );
+    expect(lines.at(-1)).toContain('Work folder kept');
+    expect(codes).toEqual([130]);
+  });
+
+  it('exits 130 when no combination is running', async () => {
+    const { lines, codes } = await interrupt(undefined);
+    expect(lines).toHaveLength(2);
+    expect(codes).toEqual([130]);
   });
 });
 

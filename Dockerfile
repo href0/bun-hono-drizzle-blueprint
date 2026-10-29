@@ -8,7 +8,7 @@
 # -------------------------------------------------------------------
 # Stage 1: Base Image
 # -------------------------------------------------------------------
-FROM oven/bun:1.3-alpine AS base
+FROM oven/bun:1.3.0-alpine AS base
 WORKDIR /app
 
 # -------------------------------------------------------------------
@@ -54,9 +54,10 @@ COPY --chown=bun:bun drizzle ./drizzle
 # Expose HTTP port
 EXPOSE 3000
 
-# Health check using Bun fetch against liveness probe
+# Health check using Bun fetch against the liveness probe; PORT and API_BASE_PATH are read at run
+# time, so a container started with other values stays healthy without editing this file.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD bun -e "fetch('http://localhost:3000/api/health/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+  CMD bun -e "fetch('http://localhost:' + (process.env.PORT || '3000') + (process.env.API_BASE_PATH || '/api') + '/health/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Start application server
 CMD ["bun", "run", "start"]

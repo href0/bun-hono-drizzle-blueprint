@@ -410,7 +410,7 @@ describe('planScaffold (against the real templates)', () => {
     );
     expect(edits.get(CONFIG_BARREL)).toContain("export * from './acme-pay.config';");
     expect(edits.get(REGISTRY_PATH)).toContain(
-      "  ACME_PAY: { code: 'ACME_PAY', institution: 'Acme Pay' },",
+      "  ACME_PAY: { code: 'ACME_PAY', vendorName: 'Acme Pay' },",
     );
     expect(edits.get(STRUCTURE_PATH)).toContain(
       '│   ├── payment-receipts/        # Vendor webhook receiver (POST /api/webhooks/acme-pay, idempotent)\n',
@@ -436,9 +436,9 @@ describe('planScaffold (against the real templates)', () => {
     ).toContain('D26');
   });
 
-  it('integration: adapter files, registry entry (custom institution, quotes escaped), config barrel', () => {
+  it('integration: adapter files, registry entry (custom vendor name, quotes escaped), config barrel', () => {
     const plan = planScaffold(
-      { kind: 'integration', name: 'acme-pay', institution: "Acme's Pay" },
+      { kind: 'integration', name: 'acme-pay', vendorName: "Acme's Pay" },
       ROOT,
     );
     expect(plan.files.map((file) => file.path)).toEqual([
@@ -450,7 +450,7 @@ describe('planScaffold (against the real templates)', () => {
     ]);
     const edits = applied(plan);
     expect(edits.get(REGISTRY_PATH)).toContain(
-      "  ACME_PAY: { code: 'ACME_PAY', institution: 'Acme\\'s Pay' },",
+      "  ACME_PAY: { code: 'ACME_PAY', vendorName: 'Acme\\'s Pay' },",
     );
     expect(edits.get(CONFIG_BARREL)).toBe(
       "export * from './app.config';\nexport * from './acme-pay.config';\n",
@@ -690,17 +690,17 @@ describe('parseScaffoldArgs', () => {
         variant: 'record',
         singular: 'product',
         vendor: undefined,
-        institution: undefined,
+        vendorName: undefined,
       },
       dryRun: true,
     });
     expect(
-      parseScaffoldArgs(['webhook', 'receipts', '--vendor=acme-pay', '--institution=Acme Pay'])
+      parseScaffoldArgs(['webhook', 'receipts', '--vendor=acme-pay', '--vendor-name=Acme Pay'])
         .request,
     ).toMatchObject({
       kind: 'webhook',
       vendor: 'acme-pay',
-      institution: 'Acme Pay',
+      vendorName: 'Acme Pay',
     });
   });
 

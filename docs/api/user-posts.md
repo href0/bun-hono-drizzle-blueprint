@@ -182,7 +182,7 @@ Pesan: `Postingan eksternal pengguna berhasil diambil` (en: `User external posts
     "type": "EXTERNAL_SERVICE_ERROR",
     "code": "ERR_EXT_ERROR",
     "origin": "<KODE_INTEGRASI>",
-    "institution": "<nama vendor>"
+    "vendor_name": "<nama vendor>"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
   "timestamp": "2026-01-01T00:00:00.000Z"
@@ -202,7 +202,7 @@ Pesan: `Postingan eksternal pengguna berhasil diambil` (en: `User external posts
     "type": "EXTERNAL_SERVICE_ERROR",
     "code": "ERR_EXT_TIMEOUT",
     "origin": "<KODE_INTEGRASI>",
-    "institution": "<nama vendor>"
+    "vendor_name": "<nama vendor>"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
   "timestamp": "2026-01-01T00:00:00.000Z"

@@ -148,14 +148,14 @@ describe('scaffold wizard: one path per shape', () => {
         singular: undefined,
         variant: undefined,
         vendor: 'globex',
-        institution: 'Globex Payments',
+        vendorName: 'Globex Payments',
       },
-      'bun run scaffold webhook refund-notifications --vendor=globex --institution="Globex Payments"',
+      'bun run scaffold webhook refund-notifications --vendor=globex --vendor-name="Globex Payments"',
     ],
     [
       'integration',
       ['integration', 'globex', ENTER],
-      { kind: 'integration', name: 'globex', institution: undefined },
+      { kind: 'integration', name: 'globex', vendorName: undefined },
       'bun run scaffold integration globex',
     ],
   ];
@@ -196,7 +196,7 @@ describe('scaffold wizard: only what is missing', () => {
     expect(webhook.request.vendor).toBe('globex');
   });
 
-  it('a webhook with its name asks only for the vendor and the institution', async () => {
+  it('a webhook with its name asks only for the vendor and its name', async () => {
     const { request, asked } = await complete(
       { kind: 'webhook', name: 'payouts', singular: 'payout' },
       'globex',
@@ -204,7 +204,7 @@ describe('scaffold wizard: only what is missing', () => {
     );
     expect(asked).toHaveLength(2);
     expect(request).toMatchObject({ name: 'payouts', singular: 'payout', vendor: 'globex' });
-    expect(request.institution).toBeUndefined();
+    expect(request.vendorName).toBeUndefined();
   });
 
   it('a parent given on the command line is not asked again', async () => {
@@ -291,9 +291,9 @@ describe('scaffold wizard: answers are checked before anything is planned', () =
     ]);
   });
 
-  it('rejects an empty institution and a detail named like its header', async () => {
-    const institution = await complete({}, 'integration', 'globex', '', 'Globex');
-    expect(institution.rejected).toEqual(['the institution is required']);
+  it('rejects an empty vendor name and a detail named like its header', async () => {
+    const vendorName = await complete({}, 'integration', 'globex', '', 'Globex');
+    expect(vendorName.rejected).toEqual(['the vendor name is required']);
     const detail = await complete({}, 'header-detail', 'invoices', ENTER, 'invoices', ENTER, ENTER);
     expect(detail.rejected).toEqual(['the detail must differ from the header']);
   });
@@ -391,11 +391,11 @@ describe('commandOf', () => {
     const request: ScaffoldRequest = {
       kind: 'integration',
       name: 'globex',
-      institution: 'Globex "GX" $Corp',
+      vendorName: 'Globex "GX" $Corp',
     };
     expect(commandOf(request)).toBe(
-      'bun run scaffold integration globex --institution="Globex \\"GX\\" \\$Corp"',
+      'bun run scaffold integration globex --vendor-name="Globex \\"GX\\" \\$Corp"',
     );
-    expect(shellWords(commandOf(request)).at(-1)).toBe('--institution=Globex "GX" $Corp');
+    expect(shellWords(commandOf(request)).at(-1)).toBe('--vendor-name=Globex "GX" $Corp');
   });
 });

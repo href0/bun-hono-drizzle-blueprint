@@ -418,7 +418,7 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
           { question: 'Webhook module name', text: 'refund-notifications' },
           { question: 'Singular of "refund-notifications"', enter: true },
           { question: 'Vendor that sends the webhook', text: 'globex' },
-          { question: 'Institution named in vendor errors', enter: true },
+          { question: 'Vendor name shown in errors', enter: true },
           { question: 'Write these files?', confirm: true },
         ],
       );
@@ -963,6 +963,29 @@ export const runCombo = async (
     await ctx.releaseDatabase();
   }
   return result;
+};
+
+/**
+ * Ctrl+C during a run: release what the running combination holds (its server, database and Redis
+ * keys), say so — also when that cleanup fails — keep the work folder, and exit 130.
+ */
+export const interruptRun = async ({
+  release,
+  say,
+  exit,
+}: {
+  release: (() => Promise<void>) | undefined;
+  say: (text: string) => void;
+  exit: (code: number) => void;
+}): Promise<void> => {
+  say('\nInterrupted: stopping the server and dropping the database of the running combination...');
+  try {
+    await release?.();
+  } catch (error) {
+    say(`Cleanup failed (${String(error)}); run bun run acceptance --clean.`);
+  }
+  say('Work folder kept (bun run acceptance --clean removes it).');
+  exit(130);
 };
 
 // --- the wizard driver ----------------------------------------------------------------------------

@@ -44,6 +44,7 @@ import {
   type RunOptions,
   type StageReadiness,
   type Turn,
+  interruptRun,
   WIZARD_ENV,
 } from './lib/acceptance';
 import { ProgressReporter, summaryTable, type ComboResult } from './lib/acceptance-progress';
@@ -712,15 +713,7 @@ const main = async (): Promise<void> => {
 };
 
 process.once('SIGINT', () => {
-  say('\nInterrupted: stopping the server and dropping the database of the running combination...');
-  void (releaseCurrent?.() ?? Promise.resolve())
-    .catch((error: unknown) => {
-      say(`Cleanup failed (${String(error)}); run bun run acceptance --clean.`);
-    })
-    .finally(() => {
-      say('Work folder kept (bun run acceptance --clean removes it).');
-      process.exit(130);
-    });
+  void interruptRun({ release: releaseCurrent, say, exit: (code) => process.exit(code) });
 });
 
 try {

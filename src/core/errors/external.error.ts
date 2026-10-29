@@ -9,8 +9,8 @@ export type ExternalFailureKind = 'TIMEOUT' | 'UNREACHABLE' | 'ERROR';
 export interface IntegrationIdentity {
   /** Stable code sent as `error.origin` (e.g. `ACME_PAY`). */
   readonly code: string;
-  /** Human-readable name sent as `error.institution` (e.g. `Acme Pay`). */
-  readonly institution: string;
+  /** Human-readable name sent as `error.vendor_name` (e.g. `Acme Pay`). */
+  readonly vendorName: string;
 }
 
 const FAILURES: Record<ExternalFailureKind, { statusCode: number; code: AppErrorCode }> = {
@@ -20,7 +20,7 @@ const FAILURES: Record<ExternalFailureKind, { statusCode: number; code: AppError
 };
 
 export interface ExternalServiceErrorOptions extends Omit<ApiErrorOptions, 'code' | 'origin'> {
-  /** The external system that failed: its code becomes `error.origin`, its name `error.institution`. */
+  /** The external system that failed: its code becomes `error.origin`, its name `error.vendor_name`. */
   integration: IntegrationIdentity;
   /** The vendor's HTTP status, for decisions in the adapter (e.g. log in again on 401). Never sent. */
   vendorStatus?: number;
@@ -31,7 +31,7 @@ export class ExternalServiceError extends ApiError {
   readonly errorType = ERROR_TYPES.EXTERNAL_SERVICE_ERROR;
   protected readonly defaultCode: AppErrorCode;
   readonly kind: ExternalFailureKind;
-  readonly institution: string;
+  readonly vendorName: string;
   readonly vendorStatus?: number;
 
   constructor(
@@ -41,7 +41,7 @@ export class ExternalServiceError extends ApiError {
   ) {
     super(message, { ...options, origin: integration.code });
     this.kind = kind;
-    this.institution = integration.institution;
+    this.vendorName = integration.vendorName;
     this.vendorStatus = vendorStatus;
     this.statusCode = FAILURES[kind].statusCode;
     this.defaultCode = FAILURES[kind].code;

@@ -14,8 +14,8 @@ describe('INTEGRATION_REGISTRY', () => {
     }
   });
 
-  it('should name every institution, each one only once', () => {
-    const names = entries.map(([, integration]) => integration.institution);
+  it('should name every vendor, each one only once', () => {
+    const names = entries.map(([, integration]) => integration.vendorName);
 
     expect(names.every((name) => name.trim().length > 0)).toBe(true);
     expect(new Set(names).size).toBe(names.length);

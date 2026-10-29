@@ -357,7 +357,7 @@ class ContractMarkdown {
           type: entry.type,
           code,
           origin: external ? '<KODE_INTEGRASI>' : 'APP',
-          ...(external ? { institution: '<nama vendor>' } : {}),
+          ...(external ? { vendorName: '<nama vendor>' } : {}),
           ...(details ? { details } : {}),
         },
         requestId: EXAMPLE_ID,

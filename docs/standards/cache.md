@@ -26,7 +26,7 @@ src/core/cache/
    } as const;
    ```
    Do not add the project/environment prefix yourself — the client adds it (§4).
-3. **Fail-open guarantee.** When Redis is down, slow (> `REDIS_COMMAND_TIMEOUT_MS`), not yet ready, or returns a corrupt entry, every `CacheService` method behaves as if the cache were empty and logs a `warn`. A request **never fails because of Redis**.
+3. **Fail-open guarantee.** When Redis is down, slow (> `REDIS_COMMAND_TIMEOUT_MS`), not yet ready, or returns a corrupt entry, every `CacheService` method behaves as if the cache were empty and logs a `warn`. A request **never fails because of Redis** — what is lost while it is away is listed in §6.
 4. **Inject, don't import, in services.** Take `cache: CacheService = cacheService` as a constructor default so unit tests pass `new CacheService(fakeClient)` (see `cache.service.test.ts`) instead of mocking modules.
 
 ---
@@ -92,3 +92,20 @@ export class UsersService {
 ```
 
 Invalidate on writes with `await this.cache.del(CACHE_KEYS.userDetail(id))` once the write has succeeded.
+
+---
+
+## 6. With and Without Redis
+
+Redis is **recommended, not required**: PostgreSQL is the only service the API needs to start. With Redis running, the features below are on; without it (not installed, down or slow) the API keeps serving, `GET <API_BASE_PATH>/health` reports `DEGRADED` (readiness stays 200) and each skipped protection logs a `warn`. Run Redis wherever these protections matter — in production, always.
+
+| Feature | With Redis | Without Redis |
+|---|---|---|
+| Cache (`getOrSet`, e.g. user detail, partner lookup) | served from Redis | every read goes to the database |
+| Global rate limit per IP (`RATE_LIMIT_*`) | enforced, `429` + `Retry-After` | not enforced |
+| Login lock per (email, client IP) (`AUTH_LOGIN_MAX_ATTEMPTS`, `AUTH_LOGIN_LOCK_SECONDS`) | enforced, `429 ERR_AUTH_LOGIN_LOCKED` | not enforced — only the argon2id cost of each attempt slows guessing |
+| Refused attempts on webhook / signed prefixes (`rejectionLimit()`) | counted per IP | not counted |
+| Partner nonce (replay protection) | a reused nonce is refused | a signed request can be replayed inside `PARTNER_HMAC_TOLERANCE_MS` | <!-- partner -->
+| Per-partner rate limit (`rate_limit_rpm`) | enforced | not enforced | <!-- partner -->
+
+What never depends on Redis: authentication itself (JWT, refresh-token rotation and reuse detection live in PostgreSQL — [auth-and-inbound.md](auth-and-inbound.md)), the audit trail, transactions and webhook idempotency (`webhook_events`).

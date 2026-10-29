@@ -23,7 +23,7 @@ Arsitektur & alasannya (indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARC
 
 ### Prasyarat
 - [Bun](https://bun.sh/) >= 1.3
-- PostgreSQL 16+ dan Redis (≥ 2.6, disarankan 7) — terpasang langsung di mesin **atau** lewat Docker Compose (opsional)
+- PostgreSQL 16+ (wajib) dan Redis ≥ 2.6, disarankan 7 (direkomendasikan: tanpa Redis API tetap jalan, tetapi cache, rate limit, dan kunci login mati — [cache.md](docs/standards/cache.md) §6) — terpasang langsung di mesin **atau** lewat Docker Compose (opsional)
 
 ### Setup & Jalankan
 ```bash
@@ -84,3 +84,6 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Aturan untuk AI agent | [.agents/AGENTS.md](.agents/AGENTS.md) |
 | Mengambil update boilerplate ke proyek turunan (remote `upstream`) | [docs/standards/git-workflow.md](docs/standards/git-workflow.md) §1.2 |
 | Rencana kerja & riwayat keputusan (`D13`, "plan step 2.5" di komentar) | [docs/plans/](docs/plans/) (aktif), [docs/archive/](docs/archive/) (selesai) |
+| Melaporkan celah keamanan (secara privat) | [SECURITY.md](SECURITY.md) |
+
+Lisensi: [MIT](LICENSE).

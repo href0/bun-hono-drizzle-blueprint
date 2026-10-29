@@ -7,7 +7,7 @@ import { ExternalServiceError } from '../errors/external.error';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { logger } from '../logger/logger';
 
-const VENDOR = { code: 'TEST_VENDOR', institution: 'Test Vendor Ltd.' };
+const VENDOR = { code: 'TEST_VENDOR', vendorName: 'Test Vendor Ltd.' };
 
 type Server = ReturnType<typeof Bun.serve>;
 const servers: Server[] = [];
@@ -63,7 +63,7 @@ describe('HttpClientService (Unit)', () => {
       502,
       'ERR_EXT_UNREACHABLE',
     ]);
-    expect([error.origin, error.institution]).toEqual(['TEST_VENDOR', 'Test Vendor Ltd.']);
+    expect([error.origin, error.vendorName]).toEqual(['TEST_VENDOR', 'Test Vendor Ltd.']);
     expect(error.details).toEqual([{ message: I18N_MESSAGES.EXTERNAL_UNREACHABLE_DETAIL }]);
   });
 

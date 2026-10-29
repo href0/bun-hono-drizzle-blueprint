@@ -219,7 +219,7 @@ export const deriveDetailNames = (
   };
 };
 
-/** `acme-pay` → `Acme Pay` (the default `institution` of a registry entry). */
+/** `acme-pay` → `Acme Pay` (the default `vendorName` of a registry entry). */
 export const titleOf = (kebab: string): string =>
   kebab
     .split('-')
@@ -343,7 +343,7 @@ export interface ScaffoldRequest {
   variant?: ModuleVariant;
   singular?: string;
   vendor?: string;
-  institution?: string;
+  vendorName?: string;
   /** Header-detail only: the detail's plural name (default `items`) and its singular. */
   detail?: string;
   detailSingular?: string;
@@ -417,7 +417,7 @@ const appendExport = (path: string, label: string, from: string): PlannedEdit =>
     `${content.endsWith('\n') || content === '' ? content : `${content}\n`}export * from '${from}';\n`,
 });
 
-const registryEntry = (code: string, institution: string): PlannedEdit => ({
+const registryEntry = (code: string, vendorName: string): PlannedEdit => ({
   path: REGISTRY_PATH,
   label: `INTEGRATION_REGISTRY entry ${code}`,
   apply: (content) =>
@@ -426,7 +426,7 @@ const registryEntry = (code: string, institution: string): PlannedEdit => ({
       // The permanent marker: the registry of a new project holds nothing else.
       /( {2}\/\/ scaffold:registry[^\n]*\n)/,
       (_match, head = '') =>
-        `${head}  ${code}: { code: '${code}', institution: '${institution.split("'").join("\\'")}' },\n`,
+        `${head}  ${code}: { code: '${code}', vendorName: '${vendorName.split("'").join("\\'")}' },\n`,
     ),
 });
 
@@ -484,7 +484,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
       template,
       files,
       edits: [
-        registryEntry(names.upperSingular, request.institution ?? titleOf(names.name)),
+        registryEntry(names.upperSingular, request.vendorName ?? titleOf(names.name)),
         appendExport(CONFIG_BARREL, `export ./${names.name}.config`, `./${names.name}.config`),
       ],
       nextSteps: [
@@ -550,7 +550,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
           names.name,
           `Vendor webhook receiver (POST /api/webhooks/${vendor.kebab}, idempotent)`,
         ),
-        registryEntry(vendor.upper, request.institution ?? titleOf(vendor.kebab)),
+        registryEntry(vendor.upper, request.vendorName ?? titleOf(vendor.kebab)),
       ],
       nextSteps: [
         `Add ${envVarsOf(files).join(', ')} to .env.example, under a section of their own; empty secret = every webhook 401.`,
@@ -754,8 +754,8 @@ export const USAGE = [
   // partner:start
   '  partner <plural-name> [--singular=<name>]',
   // partner:end
-  '  webhook <plural-name> --vendor=<vendor> [--singular=<name>] [--institution="<name>"]',
-  '  integration <vendor> [--institution="<name>"]',
+  '  webhook <plural-name> --vendor=<vendor> [--singular=<name>] [--vendor-name="<name>"]',
+  '  integration <vendor> [--vendor-name="<name>"]',
   '  --dry-run   print the plan, write nothing',
 ].join('\n');
 
@@ -771,7 +771,7 @@ const OPTIONS = [
   'variant',
   'singular',
   'vendor',
-  'institution',
+  'vendor-name',
   'detail',
   'detail-singular',
   'parent',
@@ -856,7 +856,7 @@ export const readScaffoldArgs = (argv: readonly string[]): ScaffoldDraft => {
       variant: variant as ModuleVariant | undefined,
       singular: options.get('singular'),
       vendor,
-      institution: options.get('institution'),
+      vendorName: options.get('vendor-name'),
       detail,
       detailSingular: options.get('detail-singular'),
       parent,

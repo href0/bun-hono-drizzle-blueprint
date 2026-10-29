@@ -123,10 +123,6 @@
                 },
                 "type": "array"
               },
-              "institution": {
-                "description": "Name of the failing external system (EXTERNAL_SERVICE_ERROR only)",
-                "type": "string"
-              },
               "origin": {
                 "description": "`APP`, or the code of the failing integration",
                 "type": "string"
@@ -145,6 +141,10 @@
                   "EXTERNAL_SERVICE_ERROR",
                   "INTERNAL_SERVER_ERROR"
                 ],
+                "type": "string"
+              },
+              "vendor_name": {
+                "description": "Name of the failing external system (EXTERNAL_SERVICE_ERROR only)",
                 "type": "string"
               }
             },

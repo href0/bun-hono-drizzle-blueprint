@@ -72,7 +72,7 @@ describe('Outbound integration contract (E2E)', () => {
         type: 'EXTERNAL_SERVICE_ERROR',
         code: 'ERR_EXT_ERROR',
         origin: 'JSONPLACEHOLDER',
-        institution: 'JSONPlaceholder',
+        vendor_name: 'JSONPlaceholder',
         details: [{ message: 'The external service rejected or failed to process the request' }],
       },
       request_id: 'req-outbound-e2e',

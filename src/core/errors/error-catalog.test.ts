@@ -36,7 +36,7 @@ const CLASS_OF: Record<
   INTERNAL_SERVER_ERROR: (code) => new InternalServerError(undefined, { code }),
 };
 
-const integration = { code: 'VENDOR', institution: 'Vendor' };
+const integration = { code: 'VENDOR', vendorName: 'Vendor' };
 const EXTERNAL: Partial<Record<AppErrorCode, ExternalServiceError>> = {
   [APP_ERROR_CODES.EXT_ERROR]: new ExternalServiceError('ERROR', 'vendor failed', { integration }),
   [APP_ERROR_CODES.EXT_UNREACHABLE]: new ExternalServiceError('UNREACHABLE', 'vendor failed', {

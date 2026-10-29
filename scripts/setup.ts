@@ -295,7 +295,7 @@ const EXAMPLE_MODULES: ExampleModule[] = [
         file: 'src/integrations/registry.ts',
         line: [
           '  /** Example webhook vendor (inbound only): `src/integrations/demo-pay/`. */',
-          "  DEMO_PAY: { code: 'DEMO_PAY', institution: 'Demo Pay (example)' },",
+          "  DEMO_PAY: { code: 'DEMO_PAY', vendorName: 'Demo Pay (example)' },",
         ].join('\n'),
       },
       {
@@ -367,7 +367,7 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       },
       {
         file: 'src/integrations/registry.ts',
-        line: "  JSONPLACEHOLDER: { code: 'JSONPLACEHOLDER', institution: 'JSONPlaceholder' },",
+        line: "  JSONPLACEHOLDER: { code: 'JSONPLACEHOLDER', vendorName: 'JSONPlaceholder' },",
       },
       {
         file: '.env.example',

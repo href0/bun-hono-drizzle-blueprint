@@ -83,7 +83,7 @@ Built in one place (`buildErrorBody()` in `src/core/response/error-response.ts`,
 
 - No `data` field on errors.
 - `error.code` only from `APP_ERROR_CODES` (`src/core/errors/error-codes.ts`): an `'ERR_*'` literal or a dynamically built code anywhere else in `src/` is rejected by ESLint `ERROR_CODE_SYNTAX_RULES`.
-- `error.origin` is `APP`, or the integration code for an external failure; `EXTERNAL_SERVICE_ERROR` also carries `error.institution` (from `INTEGRATION_REGISTRY`).
+- `error.origin` is `APP`, or the integration code for an external failure; `EXTERNAL_SERVICE_ERROR` also carries `error.vendor_name` (from `INTEGRATION_REGISTRY`).
 - `details[].field` is always snake_case (`address.postal_code`); Zod field messages are not translated (known limitation).
 - A 500 (`InternalServerError` or an unknown error) never exposes its message or details — they are logged only.
 - A 429 with `retryAfterSeconds` sends `Retry-After`.

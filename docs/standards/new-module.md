@@ -36,7 +36,7 @@ There are two ways to run the same generator: the **wizard**, which asks, and **
 | `bun run scaffold:module` | the menu of the five module shapes |
 | `bun run scaffold:webhook` · `bun run scaffold:integration` (and the other kinds) | the first question of that kind (no menu) |
 
-Arguments already on the command line are not asked again: `bun run scaffold:module --parent=orders` asks only for the child's name, `bun run scaffold webhook payment-receipts` only for the vendor and the institution.
+Arguments already on the command line are not asked again: `bun run scaffold:module --parent=orders` asks only for the child's name, `bun run scaffold webhook payment-receipts` only for the vendor and its name.
 
 | Shape (menu label) | Questions, in order |
 |---|---|
@@ -44,8 +44,8 @@ Arguments already on the command line are not asked again: `bun run scaffold:mod
 | Module — header + detail | name → singular → detail name (`items` pre-filled) → detail singular |
 | Module — dependent 1:N / 1:1 of an existing module | parent (a list of the modules that can be one) → the parent's singular, only when it cannot be derived (`people`) → child name, created as `<parent singular>-<name>` → singular |
 | Partner endpoint | name → singular | <!-- partner -->
-| Vendor webhook receiver | name → singular → vendor → institution (the vendor's title pre-filled) |
-| Outbound vendor integration | vendor → institution |
+| Vendor webhook receiver | name → singular → vendor → vendor name (the vendor's title pre-filled) |
+| Outbound vendor integration | vendor → vendor name |
 
 Then the plan in a note (every file it creates and edits), **Write these files?** (default No), a spinner while it writes, registers and formats, and notes with the next steps and the equivalent command. A session:
 
@@ -76,7 +76,7 @@ Then the plan in a note (every file it creates and edits), **Write these files?*
 
 Without a terminal (flags, an agent, CI, `--dry-run` in a pipe) the output is plain lines, as before: `Scaffolding …`, `  create …`, `Next steps:`.
 
-- **Keys**: ↑ / ↓ and Enter choose an option; Enter on a pre-filled answer (a suggested singular, `items`, the institution) keeps it, or edit it first.
+- **Keys**: ↑ / ↓ and Enter choose an option; Enter on a pre-filled answer (a suggested singular, `items`, the vendor name) keeps it, or edit it first.
 - **Grey `e.g. …` text is only an example**, never the answer: type your own value.
 - **A wrong answer is rejected on the spot** with the reason — not kebab-case, a name already used by a module or a vendor, a dependent's prefixed name already taken. A name that does not look plural (`product`) offers its plural or keeps it as an irregular plural with a typed singular.
 - **Cancel**: answer No, or press Ctrl+C / Esc at any question — nothing is written (`cancelled: nothing was written`, exit 1).
@@ -99,7 +99,7 @@ bun run scaffold partner submissions                       # → /api/v1/partner
 bun run scaffold webhook payment-receipts --vendor=acme-pay   # → POST /api/webhooks/acme-pay
 bun run scaffold integration acme-pay                      # outbound adapter for a login-based vendor
 bun run scaffold module people --singular=person           # irregular plural
-bun run scaffold integration acme-pay --institution="Acme Payments"   # registry display name
+bun run scaffold integration acme-pay --vendor-name="Acme Payments"   # registry display name
 ```
 
 | Option | For | Meaning |
@@ -112,7 +112,7 @@ bun run scaffold integration acme-pay --institution="Acme Payments"   # registry
 | `--parent=<parent-module>` | `module` (no `--variant`) | A dependent module of an existing standalone / header module (§2.7) |
 | `--one` | with `--parent` | At most one live row per parent (1:1 section) |
 | `--parent-singular=<name>` | with `--parent` | The parent's singular, when the derived one is wrong (`--parent=people --parent-singular=person`) |
-| `--institution="<name>"` | `webhook`, `integration` | `error.institution` in the registry (default: the vendor name in title case, `acme-pay` → `Acme Pay`) |
+| `--vendor-name="<name>"` | `webhook`, `integration` | `error.vendor_name` in the registry (default: the vendor name in title case, `acme-pay` → `Acme Pay`) |
 | `--dry-run` | all | Print what would be created and edited, and the next steps; write nothing |
 
 Always run `--dry-run` first: it shows the singular the CLI derived and every file it would touch.

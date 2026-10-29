@@ -2,7 +2,7 @@
 
 > **Document type**: Technical Architecture Document
 > **Readers**: architects, tech leads, backend engineers, AI coding agents
-> **Scope**: this boilerplate and every project created from it (`bun run setup <name>`). Generic — no project, institution or real vendor names.
+> **Scope**: this boilerplate and every project created from it (`bun run setup <name>`). Generic — no project, organization or real vendor names.
 
 This document explains **what and why** for every architectural decision. **How** — rules in detail, code patterns, commands — lives in one place per topic, [`docs/standards/`](docs/standards/), and is never restated here ([documentation.md](docs/standards/documentation.md)):
 
@@ -113,7 +113,7 @@ Responses are snake_case; request body and query must be snake_case — any othe
 
 ### 3.4 Envelopes & errors
 
-One success envelope and one error envelope (`type`, `code`, `origin`, `institution?`, `details?`, `request_id`, `timestamp`) for every endpoint. Domain failures are typed `ApiError`s (R14); `error.code` comes only from `APP_ERROR_CODES` because codes are a contract with the frontend — one list, no scattered literals (R15). A 500 never leaks internals (R18); a vendor failure never forwards the vendor's status or body (R52). 409 is `CONFLICT` (D12). Detail: [http-contract.md](docs/standards/http-contract.md).
+One success envelope and one error envelope (`type`, `code`, `origin`, `vendor_name?`, `details?`, `request_id`, `timestamp`) for every endpoint. Domain failures are typed `ApiError`s (R14); `error.code` comes only from `APP_ERROR_CODES` because codes are a contract with the frontend — one list, no scattered literals (R15). A 500 never leaks internals (R18); a vendor failure never forwards the vendor's status or body (R52). 409 is `CONFLICT` (D12). Detail: [http-contract.md](docs/standards/http-contract.md).
 
 ### 3.5 Bilingual messages
 
@@ -178,7 +178,7 @@ Redis only through `CacheService` (R54), keys from `CACHE_KEYS` (R56). **Fail-op
 
 ## 8. Outbound Integrations
 
-Vendor adapters live only in `src/integrations/<vendor>/` — no routes, no controllers, no dependency on modules, the database or other vendors (R51); domain services use them, controllers do not (R49). Every call goes through `HttpClientService`: keep-alive pool, **required timeout**, `X-Request-ID` forwarded, vendor bodies validated; raw `fetch` / `axios` is rejected (R49, R50, R52). A vendor failure becomes 504 / 502 with `error.origin` + `error.institution` from `INTEGRATION_REGISTRY` and never the vendor's status or body (R52, R53). Why: the client must not depend on a vendor's error format, and vendor bodies may carry secrets. Login-based vendors share one token per process (`AccessTokenCache`, single-flight). Backlog: retry + circuit breaker, a token shared across instances. Detail: [integrations.md](docs/standards/integrations.md).
+Vendor adapters live only in `src/integrations/<vendor>/` — no routes, no controllers, no dependency on modules, the database or other vendors (R51); domain services use them, controllers do not (R49). Every call goes through `HttpClientService`: keep-alive pool, **required timeout**, `X-Request-ID` forwarded, vendor bodies validated; raw `fetch` / `axios` is rejected (R49, R50, R52). A vendor failure becomes 504 / 502 with `error.origin` + `error.vendor_name` from `INTEGRATION_REGISTRY` and never the vendor's status or body (R52, R53). Why: the client must not depend on a vendor's error format, and vendor bodies may carry secrets. Login-based vendors share one token per process (`AccessTokenCache`, single-flight). Backlog: retry + circuit breaker, a token shared across instances. Detail: [integrations.md](docs/standards/integrations.md).
 
 ---
 
@@ -317,7 +317,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R50 | `fetch(`, `axios`, `node:http(s)` and other HTTP clients banned in `src/` except `src/core/http/` | [eslint:OUTBOUND_HTTP_SYNTAX_RULES] [eslint:OUTBOUND_HTTP_IMPORT_PATTERN] |
 | R51 | Integrations have no routes / controllers and depend on no module, database or other vendor | [depcruise:strict-integrations-isolation] [depcruise:no-cross-integration-deps] [depcruise:integrations-no-presentation] |
 | R52 | Required timeout; vendor failures masked (`ExternalServiceError`), vendor status & body never forwarded, body only in redacted logs | [tsc] [test:http-client.service] [test:vendor-body] |
-| R53 | One `INTEGRATION_REGISTRY` entry per vendor (`error.origin` / `error.institution`) | [test:registry] |
+| R53 | One `INTEGRATION_REGISTRY` entry per vendor (`error.origin` / `error.vendor_name`) | [test:registry] |
 
 ### Cache
 
@@ -363,6 +363,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R81 | A release passes the acceptance run (`bun run acceptance --combo a`: per setup combination a fresh clone → setup → every scaffold variant, the wizard answered by the runner → gates → database → server → HTTP → images); its document lists exactly the runner's steps | [test:docs-sync] [review-only] — it needs real services and minutes, so CI does not run it |
 | R82 | In the boilerplate the partner gateway stays removable (`bun run setup --no-partner`, D39): partner code of shared files sits in balanced, unnested marked regions, partner-only files are in `PARTNER_ONLY`, and the pruned `src/`, `test/`, `.env.example` mention no partner. Setup drops every marker, so a project has none and `lint:setup` no longer checks them (`package.json` → `boilerplate`) | [script:lint:setup] [test:partner-prune] |
 | R83 | Every `package.json` script is in the `bun run help` registry (`scripts/lib/commands.ts`) and the registry names nothing else; every `scripts/*.ts` a script runs answers `--help` / `-h` with its usage and exit 0 before anything is read, written or contacted, and refuses an unknown option with exit 1; CLI questions only through the `Prompter` (`scripts/lib/prompter.ts`, D40) | [test:commands] [test:cli-help] [eslint:CLI_PROMPT_IMPORT_PATTERNS] |
+| R84 | One Bun version: `packageManager` in `package.json` is its single source — CI reads it, and the Docker base images and the `@types/bun` pin repeat it exactly | [test:toolchain] |
 
 ---
 

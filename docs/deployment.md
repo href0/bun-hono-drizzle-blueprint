@@ -38,7 +38,7 @@ Semua konfigurasi lewat environment variable. Daftar lengkap dan defaultnya ada 
 3. **Admin pertama** (sekali, saat database masih kosong), interaktif:
    `docker run --rm -it --env-file <file-env-production> <app>-tools:<versi> bun run seed:admin --email <email>`
    Password ditanyakan di terminal, tidak pernah lewat argumen ([quality-gates.md](standards/quality-gates.md), tabel perintah).
-4. **Jalankan** image runner (port `3000`, atau `PORT`). Saat start, aplikasi memeriksa PostgreSQL dan berhenti bila database tidak terjangkau. Redis boleh mati: aplikasi tetap jalan dalam mode *degraded*.
+4. **Jalankan** image runner (port `3000`, atau `PORT`). Saat start, aplikasi memeriksa PostgreSQL dan berhenti bila database tidak terjangkau. Redis direkomendasikan, bukan wajib: tanpa Redis aplikasi tetap jalan dalam mode *degraded*, tetapi cache, rate limit, dan kunci login tidak aktif ([cache.md](standards/cache.md) §6) — di production, jalankan Redis.
 5. **Alihkan trafik** setelah readiness merespons 200 (§4), lalu hentikan versi lama dengan `SIGTERM`. Aplikasi menyelesaikan request yang sedang berjalan, lalu menutup koneksi database dan Redis.
 
 ## 4. Health check
@@ -49,7 +49,7 @@ Semua konfigurasi lewat environment variable. Daftar lengkap dan defaultnya ada 
 | `<API_BASE_PATH>/health/readiness` | load balancer, readiness probe | 503 hanya bila PostgreSQL tidak terjangkau |
 | `<API_BASE_PATH>/health` | monitoring, manusia | selalu 200; `status` = `UP` / `DEGRADED` (Redis mati) / `DOWN` |
 
-`HEALTHCHECK` di `Dockerfile` memakai `/api/health/liveness`. Bila `API_BASE_PATH` diubah, ubah juga path itu.
+`HEALTHCHECK` di `Dockerfile` membaca `PORT` dan `API_BASE_PATH` dari env container saat berjalan (bawaan `3000` dan `/api`), jadi mengubah keduanya tidak perlu mengedit `Dockerfile`.
 
 ## 5. Job terjadwal
 

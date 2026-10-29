@@ -1,0 +1,26 @@
+# Weekly dependency updates as pull requests; every one passes the full CI before a person merges it.
+# Bun itself is upgraded on purpose, in one commit (R84, docs/standards/quality-gates.md §2): the
+# oven/bun images and @types/bun are therefore not updated here.
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '@types/bun'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(ci)

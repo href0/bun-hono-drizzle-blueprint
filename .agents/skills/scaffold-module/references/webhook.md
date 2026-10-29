@@ -43,7 +43,7 @@ export const <vendorCamel>Config = build<VendorPascal>Config(envSource);
 Export it from `src/config/index.ts` (`export * from './<vendor>.config';`), add both variables to `.env.example` (and plan L1), and register the vendor in `src/integrations/registry.ts`:
 
 ```text
-<VENDOR>: { code: '<VENDOR>', institution: '<Vendor display name>' },
+<VENDOR>: { code: '<VENDOR>', vendorName: '<Vendor display name>' },
 ```
 
 ---
