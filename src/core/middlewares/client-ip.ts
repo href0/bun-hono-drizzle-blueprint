@@ -1,5 +1,5 @@
+import { getConnInfo } from '@hono/bun';
 import type { Context } from 'hono';
-import { getConnInfo } from 'hono/bun';
 import { isIP } from 'node:net';
 import { normalizeIp } from '../../utils/ip-match.util';
 
