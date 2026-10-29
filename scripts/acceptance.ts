@@ -44,6 +44,7 @@ import {
   type RunOptions,
   type StageReadiness,
   type Turn,
+  WIZARD_ENV,
 } from './lib/acceptance';
 import { ProgressReporter, summaryTable, type ComboResult } from './lib/acceptance-progress';
 import { exitOnHelp } from './lib/cli-args';
@@ -316,8 +317,7 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
     options: Pick<RunOptions, 'expect'> = {},
   ): Promise<CommandResult> => {
     write(`$ ${command.join(' ')}   (the wizard, answered by the runner)\n`);
-    // The two switches that let a program answer the wizards of scaffold and setup.
-    const child = spawn(command, { SCAFFOLD_WIZARD_STDIN: '1', SETUP_WIZARD_STDIN: '1' });
+    const child = spawn(command, WIZARD_ENV);
     let screen = '';
     const reading = Promise.all([
       drain(child.stdout, (text) => (screen += text)),

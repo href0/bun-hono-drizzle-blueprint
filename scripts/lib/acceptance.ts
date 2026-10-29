@@ -973,6 +973,18 @@ const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 /** The screen text without colours and cursor moves. */
 export const plainText = (text: string): string => text.replace(ANSI, '');
 
+/**
+ * The environment of a wizard the runner answers: the two switches that let a program answer
+ * scaffold and setup through a pipe, and a `TERM` that makes clack draw its Unicode symbols on
+ * every platform — on Windows it decides from the parent terminal (Windows Terminal, VS Code,
+ * Git Bash) and falls back to ASCII (`>` for `●`) in a plain PowerShell or cmd window.
+ */
+export const WIZARD_ENV = {
+  SCAFFOLD_WIZARD_STDIN: '1',
+  SETUP_WIZARD_STDIN: '1',
+  TERM: 'xterm-256color',
+} as const;
+
 /** The label of the option the cursor is on in the last frame of a select prompt (`● label`). */
 export const activeOption = (screen: string): string | undefined => {
   const lines = plainText(screen).split(/\r?\n|\r/);

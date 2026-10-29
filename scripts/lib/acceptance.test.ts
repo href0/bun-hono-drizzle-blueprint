@@ -18,6 +18,7 @@ import {
   StepFailure,
   type AcceptanceContext,
   type AcceptanceStep,
+  WIZARD_ENV,
   type Combo,
   type HttpResult,
   type Turn,
@@ -107,6 +108,38 @@ describe('the wizard driver', () => {
     expect(activeOption(screen)).toBe('Module — header + detail (a document)');
     expect(activeOption('nothing selectable')).toBeUndefined();
   });
+
+  it('finds the cursor in the real wizard, whatever terminal started the run', async () => {
+    // The variables clack reads on Windows to choose Unicode over its ASCII fallback (`>`).
+    const terminal = ['CI', 'WT_SESSION', 'TERMINUS_SUBLIME', 'ConEmuTask', 'TERM_PROGRAM'];
+    const inherited = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !terminal.includes(name) && name !== 'TERM'),
+    );
+    const child = Bun.spawn(['bun', 'scripts/scaffold.ts'], {
+      env: { ...inherited, ...WIZARD_ENV },
+      stdin: 'pipe',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    // No cursor found within 10 s: stop the wizard, so the stream ends and the screen is shown.
+    const deadline = setTimeout(() => {
+      child.kill();
+    }, 10_000);
+    let screen = '';
+    try {
+      const decoder = new TextDecoder();
+      for await (const chunk of child.stdout) {
+        screen += decoder.decode(chunk);
+        if (activeOption(screen) !== undefined) break;
+      }
+    } finally {
+      clearTimeout(deadline);
+      child.kill();
+    }
+    expect({ active: activeOption(screen), screen: plainText(screen) }).toMatchObject({
+      active: expect.stringMatching(/^Module — standalone/),
+    });
+  }, 20_000);
 
   it('turns an answer into keys', () => {
     const keys = (turn: Turn): string => keysOf(turn);
