@@ -1,10 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import {
-  paginationQuerySchema,
-  uuidChildParamSchema,
-  uuidParamSchema,
-} from '../../core/dto/common.dto';
+import { uuidChildParamSchema, uuidParamSchema } from '../../core/dto/common.dto';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { ordersController } from './orders.controller';
@@ -13,6 +9,7 @@ import {
   createOrderItemSchema,
   createOrderSchema,
   orderItemResponseSchema,
+  orderListQuerySchema,
   orderResponseSchema,
   syncOrderItemsSchema,
   updateOrderItemSchema,
@@ -41,7 +38,7 @@ router.get(
   '/',
   describeEndpoint({
     tags,
-    summary: 'List orders (paginated)',
+    summary: 'List orders (paginated, sortable, searchable)',
     response: {
       status: 200,
       description: 'A page',
@@ -49,7 +46,7 @@ router.get(
       paginatedItem: orderResponseSchema,
     },
   }),
-  validate({ query: paginationQuerySchema }),
+  validate({ query: orderListQuerySchema }),
   ordersController.list,
 );
 router.get(

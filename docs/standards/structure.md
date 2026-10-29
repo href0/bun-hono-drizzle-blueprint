@@ -40,7 +40,7 @@ src/
 ├── core/                        # Cross-cutting, domain-agnostic building blocks
 │   ├── cache/                   # Redis client (SafeRedis), CacheService, CACHE_KEYS / CACHE_TTL
 │   ├── context/                 # RequestContext (AsyncLocalStorage): requestId, actor, locale, clientIp
-│   ├── dto/                     # Shared request schemas: common.dto.ts (uuidParamSchema, paginationQuerySchema, emailField), datetime.dto.ts
+│   ├── dto/                     # Shared request schemas: common.dto.ts (uuidParamSchema, paginationQuerySchema, emailField), datetime.dto.ts, list-query.dto.ts (sort, q, filters of a list — http-contract.md §8)
 │   ├── errors/                  # ApiError hierarchy + APP_ERROR_CODES (error-codes.ts) + ERROR_CATALOG (status, type, meaning per code)
 │   ├── http/                    # HttpClientService (keep-alive pool, required timeout, X-Request-ID, vendor masking), vendor-body.ts (vendor body redaction for logs), access-token-cache.ts (single-flight vendor token)
 │   ├── i18n/                    # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting messages)
@@ -113,7 +113,7 @@ test/
 │   └── partner-signing-vectors.ts # published signing vectors of the partner gateway <!-- partner -->
 ├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, … (*.int.ts)
 │   └── partner.int.ts           # the partner gateway against a real database and Redis <!-- partner -->
-├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, outbound, …
+├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, outbound, list-query (every paginated list follows http-contract.md §8), …
 ├── hermetic-env.test.ts         # Guards the hermetic preload
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes) <!-- partner -->
 ├── structure.test.ts            # File names, module / integration patterns, dependent subfolders named after their parent, unique module names, module ≠ vendor, channel routers, *.int.ts placement

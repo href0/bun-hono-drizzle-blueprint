@@ -7,8 +7,8 @@ import {
 import { ApiResponse } from '../../core/response';
 import { usersService, UsersService } from './users.service';
 import { toUserResponse, toUserListResponse } from './users.transformer';
-import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
-import type { CreateUserDto, SetPasswordDto, UpdateUserDto } from './users.dto';
+import type { UuidParamDto } from '../../core/dto/common.dto';
+import type { CreateUserDto, SetPasswordDto, UpdateUserDto, UserListQueryDto } from './users.dto';
 import { USER_MESSAGES } from './users.messages';
 
 export class UsersController {
@@ -31,7 +31,7 @@ export class UsersController {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<PaginationQueryDto>(c);
+    const query = getValidatedQuery<UserListQueryDto>(c);
     const { users, total } = await this.service.listUsers(query);
     const responseData = toUserListResponse(users);
 

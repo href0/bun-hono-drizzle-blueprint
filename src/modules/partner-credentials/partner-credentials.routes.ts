@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
+import { uuidParamSchema } from '../../core/dto/common.dto';
 import { requireRole, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { partnerCredentialsController } from './partner-credentials.controller';
@@ -8,6 +8,7 @@ import { PARTNER_CREDENTIAL_MESSAGES } from './partner-credentials.messages';
 import {
   createPartnerCredentialSchema,
   issuedPartnerCredentialSchema,
+  partnerCredentialListQuerySchema,
   partnerCredentialResponseSchema,
   rotatedApiKeySchema,
   rotatedSecretSchema,
@@ -42,7 +43,7 @@ partnerCredentialRoutes.get(
   '/',
   describeEndpoint({
     tags,
-    summary: 'List partner credentials (paginated)',
+    summary: 'List partner credentials (paginated, sortable, searchable)',
     response: {
       status: 200,
       description: 'A page of credentials',
@@ -51,7 +52,7 @@ partnerCredentialRoutes.get(
     },
   }),
   adminOnly,
-  validate({ query: paginationQuerySchema }),
+  validate({ query: partnerCredentialListQuerySchema }),
   partnerCredentialsController.list,
 );
 partnerCredentialRoutes.get(

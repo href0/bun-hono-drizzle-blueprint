@@ -1,7 +1,10 @@
 import { projectTasksRepository, ProjectTasksRepository } from './project-tasks.repository';
 import { NotFoundError } from '../../../core/errors';
-import type { PaginationQueryDto } from '../../../core/dto/common.dto';
-import type { CreateProjectTaskDto, UpdateProjectTaskDto } from './project-tasks.dto';
+import type {
+  CreateProjectTaskDto,
+  ProjectTaskListQueryDto,
+  UpdateProjectTaskDto,
+} from './project-tasks.dto';
 import { projectTaskNotFoundMessage } from './project-tasks.messages';
 import type { ProjectTask } from '../../../database/schema';
 
@@ -14,13 +17,10 @@ export class ProjectTasksService {
 
   async listProjectTasks(
     projectId: string,
-    query: PaginationQueryDto,
+    query: ProjectTaskListQueryDto,
   ): Promise<{ records: ProjectTask[]; total: number }> {
-    const [records, total] = await Promise.all([
-      this.repository.findPageForParent(projectId, { page: query.page, perPage: query.perPage }),
-      this.repository.countForParent(projectId),
-    ]);
-    return { records, total };
+    const { rows, total } = await this.repository.findProjectTaskList(projectId, query);
+    return { records: rows, total };
   }
 
   async getProjectTaskById(id: string): Promise<ProjectTask> {

@@ -8,11 +8,11 @@ import {
   partnerSecretCipher,
 } from '../../core/security/partner-credentials';
 import { isUniqueViolation } from '../../database/unique-violation';
-import type { PaginationQueryDto } from '../../core/dto/common.dto';
 import type { PartnerCredential } from '../../database/schema';
 import type { SecretCipher } from '../../utils/secret-cipher.util';
 import type {
   CreatePartnerCredentialDto,
+  PartnerCredentialListQueryDto,
   UpdatePartnerCredentialDto,
 } from './partner-credentials.dto';
 import {
@@ -112,15 +112,12 @@ export class PartnerCredentialsService {
     return credential;
   }
 
-  /** Live credentials, newest first (stable order: created_at DESC, id DESC). */
+  /** Live credentials matching the query; newest first unless `sort` says otherwise (D41). */
   async listCredentials(
-    query: PaginationQueryDto,
+    query: PartnerCredentialListQueryDto,
   ): Promise<{ credentials: PartnerCredential[]; total: number }> {
-    const [credentials, total] = await Promise.all([
-      this.repo.findPage({ page: query.page, perPage: query.perPage }),
-      this.repo.count(),
-    ]);
-    return { credentials, total };
+    const { rows, total } = await this.repo.findCredentialList(query);
+    return { credentials: rows, total };
   }
 
   async updateCredential(id: string, dto: UpdatePartnerCredentialDto): Promise<PartnerCredential> {

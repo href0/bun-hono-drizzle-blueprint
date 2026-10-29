@@ -133,6 +133,27 @@ describe('Orders (example header + detail) — E2E contract', () => {
     expect((await call('POST', `/${ORDER.id}/restore`)).status).toBe(200);
   });
 
+  it('header list: sort and q reach the service parsed; outside the allowlist is a 400 (D41)', async () => {
+    const list = spies.find((spy) => spy.getMockName() === 'listOrders');
+    list?.mockClear();
+    expect((await call('GET', '?sort=-code,created_at&q=ord')).status).toBe(200);
+    expect(list?.mock.calls[0]?.[0]).toEqual({
+      page: 1,
+      perPage: 10,
+      sort: [
+        { field: 'code', direction: 'desc' },
+        { field: 'createdAt', direction: 'asc' },
+      ],
+      q: 'ord',
+    });
+
+    for (const query of ['?sort=note', '?status=open']) {
+      const refused = await call('GET', query);
+      expect(refused.status).toBe(400);
+      expect(refused.body.error?.code).toBe('ERR_INVALID_INPUT');
+    }
+  });
+
   it('items: list, add, update, delete — all through the header', async () => {
     expect((await call('GET', `/${ORDER.id}/items`)).body.data).toHaveLength(1);
     const added = await call('POST', `/${ORDER.id}/items`, { description: 'Gadget', quantity: 3 });

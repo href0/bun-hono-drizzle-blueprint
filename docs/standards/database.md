@@ -196,7 +196,7 @@ export class OrderLinesRepository extends ChildRepository<typeof orderLines, typ
 }
 ```
 
-**`BaseRepository`** — `findById`, `findPage({ page, perPage, orderBy? })` (default `created_at DESC, id DESC`), `count`, `create`, `updateById`, `softDeleteById`, `restoreById`:
+**`BaseRepository`** — `findById`, `findPage({ page, perPage, orderBy?, where? })` (default `created_at DESC, id DESC`), `count(where?)`, `findList(query, columns, where?)`, `create`, `updateById`, `softDeleteById`, `restoreById`:
 - Reads see live rows only (`scoped()` = `deleted_at IS NULL` + your conditions); there is no hard delete.
 - `create` stamps `created_by` / `updated_by` with the request actor. Managed columns (`createdAt`, `createdBy`, `updatedAt`, `updatedBy`, `deletedAt`; `id` on update) are dropped from caller input, even when a DTO spread smuggles them in.
 - `updateById` locks the row, diffs, and writes only when something changed: `updated_at = now()` (database clock, set explicitly — drizzle binds `$onUpdate` results as parameters), `updated_by = actor`, plus the `record_changes` row. `null` = missing or soft-deleted; the unchanged row = nothing to write.
@@ -209,18 +209,20 @@ export class OrderLinesRepository extends ChildRepository<typeof orderLines, typ
 - `syncForParent(headerId, items)` saves a form's complete list in one transaction: items with `id` are updated (when changed), items without are inserted, details missing from the list are deleted. An unknown `id` is `NotFoundError`, a repeated one `BadRequestError`.
 - `protected assertParentWritable(header)` is called with the locked header before every write (default: always writable); override it to refuse changes by the header's state (e.g. a submitted order → `ConflictError`).
 
-**`DependentRepository`** — a row with its own page and soft delete that always belongs to one parent: `findById`, `findPageForParent`, `countForParent`, `createForParent`, `updateById`, `softDeleteById`, `restoreById`, and for 1:1 tables `findOneForParent`, `upsertForParent`, `softDeleteForParent`:
+**`DependentRepository`** — a row with its own page and soft delete that always belongs to one parent: `findById`, `findPageForParent`, `countForParent`, `findListForParent`, `createForParent`, `updateById`, `softDeleteById`, `restoreById`, and for 1:1 tables `findOneForParent`, `upsertForParent`, `softDeleteForParent`:
 - Reads see a row only while it is live **and** its parent is live and inside `parentScope()` (an `EXISTS` on the parent). Deleting the parent hides its rows without touching them (no cascade); restoring the parent brings back the rows that were live — a row deleted on its own stays deleted. Restoring a row while its parent is deleted is `null` (404).
 - Writes lock the visible parent first (`FOR SHARE`; `FOR UPDATE` for `upsertForParent`, so concurrent saves of one parent queue), then the row (`FOR UPDATE`), and call `assertParentWritable(parent)`. The parent reference never changes through input. Updates, soft deletes and restores are audited with the parent in `parent_table` / `parent_id`; creating is not (the row is the record).
 - **Ownership**: override `protected parentScope(): SQL | undefined` (e.g. `eq(projects.ownerId, …)`) and every read and write of the rows is limited to parents in scope. A parent that is missing, deleted or out of scope is `NotFoundError` for parent-scoped calls and `null` for calls by id — a 404 either way, so another owner's data is never confirmed to exist. The parent module's own list and detail still need their own owner filter.
 - 1:1: the `activeUniqueIndex` on the parent column counts live rows only — after a soft delete a new row may be created; restoring the old one while a live one exists is a unique violation (the service maps it to `ConflictError`).
 - At most two levels: the parent is a standalone or header table, never a dependent one (`bun run scaffold` refuses it).
 
-**`AppendOnlyRepository`** — `append`, `findPage({ page, perPage, where?, orderBy? })` (default `id DESC`), `count(where?)`. No update, no delete, nothing audited: the table is the record. Retention is an operational job (partitions), not application code.
+**`AppendOnlyRepository`** — `append`, `findPage({ page, perPage, where?, orderBy? })` (default `id DESC`), `count(where?)`, `findList(query, columns, where?)`. No update, no delete, nothing audited: the table is the record. Retention is an operational job (partitions), not application code.
 
 **`ReadOnlyRepository`** — `findPage({ page, perPage, where?, orderBy })` (order required: a view has no key) and `count(where?)` over a `.existing()` view. Writes are impossible twice over: no write method, and Drizzle rejects `insert` / `update` / `delete` on a view at compile time.
 
 Every module repository extends one of these five and module code never writes around them — rules in §7.
+
+**List queries** (`http-contract.md` §8): a module repository declares its allowlist once — `const <NAME>_LIST_COLUMNS: ListColumns<<Name>SortField> = { sort: { createdAt: table.createdAt, … }, search: [table.name] }` (a sortable DTO field without a column does not compile) — and one method, e.g. `findUserList(query)`, that passes the module's typed filters as `where` to `findList` / `findListForParent`. `findList` reads the page and the total side by side under the same conditions (live-row and parent scope always included), orders by the sort keys and then `id` (`orderFromSort`), and adds `q` as an OR of `ILIKE` over the search columns (`searchCondition`, `escapeLike`); helpers in `src/database/list-query.ts`, e.g. `instantRange(column, from, to)`. SQL stays in the repository: services pass the DTO through.
 
 Reference implementations: `src/modules/orders/` (header + detail, generated from the scaffold header-detail template), `src/modules/projects/` with its dependents `project-tasks/` (1:N) and `project-budgets/` (1:1) (generated with `--parent`; both examples removed by `bun run setup <name>` unless `--keep-examples`) and `src/modules/users/` — `UsersRepository extends BaseRepository` (redacts `passwordHash`), the service maps `null` to `NotFoundError` and a unique violation (`isUniqueViolation()` from `src/database`, SQLSTATE 23505) to `ConflictError` on create, update and restore, and evicts the cached detail after every write.
 

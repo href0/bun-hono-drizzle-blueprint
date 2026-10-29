@@ -104,6 +104,24 @@ describe('DependentRepository', () => {
       });
     });
 
+    it('findListForParent sorts, searches and counts the parent rows under the same conditions', async () => {
+      recorder.respondWith(parentIdRow, parentIdRow, note(), [[1]]);
+
+      const result = await notes.findListForParent(
+        ORDER_ID,
+        { page: 1, perPage: 10, sort: [{ field: 'body', direction: 'asc' }], q: 'late' },
+        { sort: { body: testOrderNotes.body }, search: [testOrderNotes.body] },
+      );
+
+      expect(result).toEqual({ rows: [aNote()], total: 1 });
+      const rowQueries = sqls().filter((sql) => !sql.startsWith('select "id" from "test_orders"'));
+      const where = `where ("test_order_notes"."deleted_at" is null and ${LIVE_PARENT_EXISTS} and "test_order_notes"."order_id" = $1 and "test_order_notes"."body" ilike $2)`;
+      expect(rowQueries).toEqual([
+        `select ${NOTE_COLUMNS} from "test_order_notes" ${where} order by "test_order_notes"."body" asc, "test_order_notes"."id" asc limit $3`,
+        `select count(*) from "test_order_notes" ${where}`,
+      ]);
+    });
+
     it('countForParent counts the live rows of the parent', async () => {
       recorder.respondWith(parentIdRow, [[3]]);
 

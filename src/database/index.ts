@@ -3,6 +3,7 @@ export * from './base.repository';
 export * from './child.repository';
 export * from './dependent.repository';
 export * from './health-probe';
+export * from './list-query';
 export * from './read-only.repository';
 export * from './transaction-host';
 export * from './transactional.decorator';

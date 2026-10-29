@@ -2,8 +2,10 @@ import { and, count, desc, eq, exists, getTableColumns, isNotNull, isNull, sql }
 import type { SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { getActor } from '../core/context/request-context';
+import type { ListQuery } from '../core/dto/list-query.dto';
 import { InternalServerError, NotFoundError } from '../core/errors';
 import { AuditedRepository, type AuditOptions, type AuditParent } from './audited.repository';
+import { listPage, type ListColumns } from './list-query';
 import {
   MANAGED_COLUMNS,
   withoutManagedColumns,
@@ -115,27 +117,50 @@ export abstract class DependentRepository<
   /** A page of the parent's live rows (default newest first). The parent must be visible. */
   async findPageForParent(
     parentId: string,
-    { page, perPage, orderBy }: PageQuery,
+    { page, perPage, orderBy, where }: PageQuery,
   ): Promise<Row<TTable>[]> {
     await this.requireVisibleParent(parentId);
     const table: PgTable = this.table;
     return this.txHost.tx
       .select()
       .from(table)
-      .where(this.scoped(eq(this.parentColumn, parentId)))
+      .where(this.scoped(eq(this.parentColumn, parentId), where))
       .orderBy(...(orderBy ?? [desc(this.table.createdAt), desc(this.table.id)]))
       .limit(perPage)
       .offset((page - 1) * perPage);
   }
 
-  async countForParent(parentId: string): Promise<number> {
+  async countForParent(parentId: string, where?: SQL): Promise<number> {
     await this.requireVisibleParent(parentId);
     const table: PgTable = this.table;
     const rows = await this.txHost.tx
       .select({ total: count() })
       .from(table)
-      .where(this.scoped(eq(this.parentColumn, parentId)));
+      .where(this.scoped(eq(this.parentColumn, parentId), where));
     return rows.at(0)?.total ?? 0;
+  }
+
+  /** A list query (D41) over the parent's live rows: its page and total, same conditions. */
+  async findListForParent<TField extends string>(
+    parentId: string,
+    query: ListQuery<TField>,
+    columns: ListColumns<TField>,
+    where?: SQL,
+  ): Promise<{ rows: Row<TTable>[]; total: number }> {
+    return listPage({
+      query,
+      columns,
+      id: this.table.id,
+      where,
+      page: (orderBy, condition) =>
+        this.findPageForParent(parentId, {
+          page: query.page,
+          perPage: query.perPage,
+          orderBy,
+          where: condition,
+        }),
+      count: (condition) => this.countForParent(parentId, condition),
+    });
   }
 
   /** 1:1 tables: the parent's live row, `null` when it has none. The parent must be visible. */

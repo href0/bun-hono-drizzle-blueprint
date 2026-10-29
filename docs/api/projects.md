@@ -6,7 +6,7 @@
 
 | Endpoint | Ringkasan |
 |---|---|
-| `GET /api/v1/projects` | List projects (paginated) |
+| `GET /api/v1/projects` | List projects (paginated, sortable, searchable) |
 | `POST /api/v1/projects` | Create a project |
 | `GET /api/v1/projects/{id}` | Get a project by id |
 | `PATCH /api/v1/projects/{id}` | Update a project (only the given fields) |
@@ -20,7 +20,7 @@
 
 ## `GET /api/v1/projects`
 
-**List projects (paginated)**
+**List projects (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
 
@@ -30,6 +30,11 @@
 |---|---|---|---|
 | `page` | integer | tidak | > 0; default `1` |
 | `per_page` | integer | tidak | ≤ 100; > 0; default `10` |
+| `sort` | string | tidak | Comma-separated, `-` = descending, at most 3; allowed: created_at, updated_at, name. Default: newest first |
+| `q` | string | tidak | panjang ≥ 1; panjang ≤ 100; Text searched in the listed columns (case-insensitive, substring) |
+| `is_active` | boolean | tidak |  |
+| `created_from` | string (date-time) | tidak |  |
+| `created_to` | string (date-time) | tidak |  |
 
 **Header**
 

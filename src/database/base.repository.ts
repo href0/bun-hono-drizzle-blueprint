@@ -1,8 +1,10 @@
 import { and, count, desc, eq, isNotNull, isNull, type SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { getActor } from '../core/context/request-context';
+import type { ListQuery } from '../core/dto/list-query.dto';
 import { InternalServerError } from '../core/errors';
 import { AuditedRepository, type AuditedTable, type AuditOptions } from './audited.repository';
+import { listPage, type ListColumns } from './list-query';
 import { NOW } from './schema/columns';
 import { defaultTxHost, type TransactionHost } from './transaction-host';
 
@@ -45,6 +47,8 @@ export interface PageQuery {
   perPage: number;
   /** Default `created_at DESC, id DESC` — always ends with a unique column, so pages are stable. */
   orderBy?: SQL[];
+  /** Extra conditions on top of the repository's own scope (live rows, live parent). */
+  where?: SQL;
 }
 
 /** Drops managed columns and `undefined` members ("not set") from caller input. */
@@ -90,21 +94,44 @@ export abstract class BaseRepository<TTable extends BaseTable> extends AuditedRe
     return rows.at(0) ?? null;
   }
 
-  async findPage({ page, perPage, orderBy }: PageQuery): Promise<TTable['$inferSelect'][]> {
+  async findPage({ page, perPage, orderBy, where }: PageQuery): Promise<TTable['$inferSelect'][]> {
     const table: PgTable = this.table;
     return this.txHost.tx
       .select()
       .from(table)
-      .where(this.scoped())
+      .where(this.scoped(where))
       .orderBy(...(orderBy ?? [desc(this.table.createdAt), desc(this.table.id)]))
       .limit(perPage)
       .offset((page - 1) * perPage);
   }
 
-  async count(): Promise<number> {
+  async count(where?: SQL): Promise<number> {
     const table: PgTable = this.table;
-    const rows = await this.txHost.tx.select({ total: count() }).from(table).where(this.scoped());
+    const rows = await this.txHost.tx
+      .select({ total: count() })
+      .from(table)
+      .where(this.scoped(where));
     return rows.at(0)?.total ?? 0;
+  }
+
+  /**
+   * A list query (D41): its page and its total under the same conditions — `q` over
+   * `columns.search`, `where` (the module's typed filters) and the live-row scope.
+   */
+  async findList<TField extends string>(
+    query: ListQuery<TField>,
+    columns: ListColumns<TField>,
+    where?: SQL,
+  ): Promise<{ rows: TTable['$inferSelect'][]; total: number }> {
+    return listPage({
+      query,
+      columns,
+      id: this.table.id,
+      where,
+      page: (orderBy, condition) =>
+        this.findPage({ page: query.page, perPage: query.perPage, orderBy, where: condition }),
+      count: (condition) => this.count(condition),
+    });
   }
 
   /** Inserts a row stamped with the current actor. Not audited: the row itself is the record. */

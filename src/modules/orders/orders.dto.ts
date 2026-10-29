@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
 
 export const createOrderSchema = z.object({
@@ -17,6 +23,22 @@ export const updateOrderSchema = z
   .refine((dto) => Object.keys(dto).length > 0, { message: 'At least one field must be provided' });
 
 export type UpdateOrderDto = z.infer<typeof updateOrderSchema>;
+
+/** Fields the header list may sort by (D41); the repository maps each one to its column. */
+export const ORDER_SORTABLE = ['createdAt', 'updatedAt', 'code'] as const;
+
+export type OrderSortField = (typeof ORDER_SORTABLE)[number];
+
+/** `?sort=&q=&created_from=&created_to=`; `q` searches the code and the note. */
+export const orderListQuerySchema = strictListQuery(
+  listQuerySchema(ORDER_SORTABLE).extend({
+    q: searchQueryField,
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
+
+export type OrderListQueryDto = z.infer<typeof orderListQuerySchema>;
 
 const orderItemFields = z.object({
   description: z.string().min(1, 'Description is required').max(255),

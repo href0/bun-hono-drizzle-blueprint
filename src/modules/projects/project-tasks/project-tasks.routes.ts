@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { paginationQuerySchema, uuidParamSchema } from '../../../core/dto/common.dto';
+import { uuidParamSchema } from '../../../core/dto/common.dto';
 import { validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { projectTasksController } from './project-tasks.controller';
 import { PROJECT_TASK_MESSAGES } from './project-tasks.messages';
 import {
   createProjectTaskSchema,
+  projectTaskListQuerySchema,
   projectTaskParentParamSchema,
   projectTaskResponseSchema,
   updateProjectTaskSchema,
@@ -37,7 +38,7 @@ parentRouter.get(
   '/',
   describeEndpoint({
     tags,
-    summary: "List a project's projectTasks (paginated)",
+    summary: "List a project's projectTasks (paginated, sortable, searchable)",
     response: {
       status: 200,
       description: 'A page',
@@ -46,7 +47,7 @@ parentRouter.get(
     },
     errors: [404],
   }),
-  validate({ params: projectTaskParentParamSchema, query: paginationQuerySchema }),
+  validate({ params: projectTaskParentParamSchema, query: projectTaskListQuerySchema }),
   projectTasksController.list,
 );
 

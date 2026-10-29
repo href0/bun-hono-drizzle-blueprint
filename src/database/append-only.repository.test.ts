@@ -60,10 +60,26 @@ describe('AppendOnlyRepository', () => {
     ]);
   });
 
+  it('findList (D41) sorts by the allowlist, ends with id, and counts under the same filter', async () => {
+    recorder.respondWith([], [[0]]);
+
+    await events.findList(
+      { page: 1, perPage: 20, sort: [{ field: 'kind', direction: 'asc' }], q: 'log' },
+      { sort: { kind: testEvents.kind }, search: [testEvents.kind] },
+      eq(testEvents.kind, 'login'),
+    );
+
+    const where = 'where ("test_events"."kind" ilike $1 and "test_events"."kind" = $2)';
+    expect(recorder.statements.map((statement) => statement.sql)).toEqual([
+      `select "id", "kind", "created_at", "updated_at" from "test_events" ${where} order by "test_events"."kind" asc, "test_events"."id" asc limit $3`,
+      `select count(*) from "test_events" ${where}`,
+    ]);
+  });
+
   it('offers no way to change or remove a record', () => {
     const methods = Object.getOwnPropertyNames(
       Object.getPrototypeOf(Object.getPrototypeOf(events)),
     );
-    expect(methods.sort()).toEqual(['append', 'constructor', 'count', 'findPage']);
+    expect(methods.sort()).toEqual(['append', 'constructor', 'count', 'findList', 'findPage']);
   });
 });

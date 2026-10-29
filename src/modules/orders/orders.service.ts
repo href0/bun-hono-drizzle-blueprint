@@ -5,10 +5,10 @@ import {
   OrderItemsRepository,
 } from './orders.repository';
 import { NotFoundError } from '../../core/errors';
-import type { PaginationQueryDto } from '../../core/dto/common.dto';
 import type {
   CreateOrderDto,
   CreateOrderItemDto,
+  OrderListQueryDto,
   SyncOrderItemsDto,
   UpdateOrderDto,
   UpdateOrderItemDto,
@@ -32,12 +32,9 @@ export class OrdersService {
     return record;
   }
 
-  async listOrders(query: PaginationQueryDto): Promise<{ records: Order[]; total: number }> {
-    const [records, total] = await Promise.all([
-      this.headers.findPage({ page: query.page, perPage: query.perPage }),
-      this.headers.count(),
-    ]);
-    return { records, total };
+  async listOrders(query: OrderListQueryDto): Promise<{ records: Order[]; total: number }> {
+    const { rows, total } = await this.headers.findOrderList(query);
+    return { records: rows, total };
   }
 
   async updateOrder(id: string, dto: UpdateOrderDto): Promise<Order> {

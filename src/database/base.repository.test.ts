@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { Temporal } from 'temporal-polyfill';
 import { runWithRequestContext } from '../core/context/request-context';
 import { InternalServerError } from '../core/errors';
@@ -80,6 +80,55 @@ describe('BaseRepository', () => {
 
     it('count returns 0 when the query yields no row', async () => {
       expect(await orders.count()).toBe(0);
+    });
+  });
+
+  describe('findList (D41)', () => {
+    const columns = {
+      sort: { code: testOrders.code, createdAt: testOrders.createdAt },
+      search: [testOrders.code, testOrders.note],
+    };
+
+    it('sorts by the allowlist, ends with id, and pages and counts under the same conditions', async () => {
+      recorder.respondWith([rowOf(testOrders, anOrder())], [[7]]);
+
+      const result = await orders.findList(
+        {
+          page: 2,
+          perPage: 5,
+          sort: [{ field: 'code', direction: 'desc' }],
+          q: '50%_off\\',
+        },
+        columns,
+        eq(testOrders.secret, 'x'),
+      );
+
+      expect(result).toEqual({ rows: [anOrder()], total: 7 });
+      const where = `where ("test_orders"."deleted_at" is null and (("test_orders"."code" ilike $1 or "test_orders"."note" ilike $2) and "test_orders"."secret" = $3))`;
+      expect(recorder.statements).toEqual([
+        {
+          sql: `select ${COLUMNS} from "test_orders" ${where} order by "test_orders"."code" desc, "test_orders"."id" desc limit $4 offset $5`,
+          params: ['%50\\%\\_off\\\\%', '%50\\%\\_off\\\\%', 'x', 5, 5],
+        },
+        {
+          sql: `select count(*) from "test_orders" ${where}`,
+          params: ['%50\\%\\_off\\\\%', '%50\\%\\_off\\\\%', 'x'],
+        },
+      ]);
+    });
+
+    it('without sort, q or filters it is the default page and the live count', async () => {
+      recorder.respondWith([], [[0]]);
+
+      expect(await orders.findList({ page: 1, perPage: 10 }, columns)).toEqual({
+        rows: [],
+        total: 0,
+      });
+      expect(sqls()).toEqual([
+        // Page 1: drizzle (0.45) leaves out `offset 0`.
+        `select ${COLUMNS} from "test_orders" where "test_orders"."deleted_at" is null order by "test_orders"."created_at" desc, "test_orders"."id" desc limit $1`,
+        'select count(*) from "test_orders" where "test_orders"."deleted_at" is null',
+      ]);
     });
   });
 

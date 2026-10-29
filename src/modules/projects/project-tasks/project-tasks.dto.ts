@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../../core/dto/list-query.dto';
 import { isoInstant } from '../../../core/openapi';
 
 /** The parent in the path: `/projects/:projectId/tasks`. */
@@ -20,6 +26,22 @@ export const updateProjectTaskSchema = createProjectTaskSchema
   .refine((dto) => Object.keys(dto).length > 0, { message: 'At least one field must be provided' });
 
 export type UpdateProjectTaskDto = z.infer<typeof updateProjectTaskSchema>;
+
+/** Fields the parent's list may sort by (D41); the repository maps each one to its column. */
+export const PROJECT_TASK_SORTABLE = ['createdAt', 'updatedAt', 'name'] as const;
+
+export type ProjectTaskSortField = (typeof PROJECT_TASK_SORTABLE)[number];
+
+/** `?sort=&q=&created_from=&created_to=` on the parent's collection; `q` searches the name. */
+export const projectTaskListQuerySchema = strictListQuery(
+  listQuerySchema(PROJECT_TASK_SORTABLE).extend({
+    q: searchQueryField,
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
+
+export type ProjectTaskListQueryDto = z.infer<typeof projectTaskListQuerySchema>;
 
 export const projectTaskResponseSchema = z.object({
   id: z.string().uuid(),

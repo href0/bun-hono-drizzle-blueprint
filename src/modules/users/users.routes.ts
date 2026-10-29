@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
+import { uuidParamSchema } from '../../core/dto/common.dto';
 import { APP_ERROR_CODES } from '../../core/errors';
 import { requireRole, requireSelfOrRole, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
@@ -9,6 +9,7 @@ import {
   createUserSchema,
   setPasswordSchema,
   updateUserSchema,
+  userListQuerySchema,
   userResponseSchema,
 } from './users.dto';
 import { USER_MESSAGES } from './users.messages';
@@ -42,7 +43,7 @@ userRoutes.get(
   '/',
   describeEndpoint({
     tags,
-    summary: 'List users (paginated)',
+    summary: 'List users (paginated, sortable, searchable)',
     response: {
       status: 200,
       description: 'A page of users',
@@ -51,7 +52,7 @@ userRoutes.get(
     },
   }),
   adminOnly,
-  validate({ query: paginationQuerySchema }),
+  validate({ query: userListQuerySchema }),
   usersController.list,
 );
 userRoutes.get(

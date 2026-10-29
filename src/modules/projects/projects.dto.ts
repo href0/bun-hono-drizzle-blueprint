@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+  booleanQueryField,
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
 
 export const createProjectSchema = z.object({
@@ -17,6 +24,23 @@ export const updateProjectSchema = z
   .refine((dto) => Object.keys(dto).length > 0, { message: 'At least one field must be provided' });
 
 export type UpdateProjectDto = z.infer<typeof updateProjectSchema>;
+
+/** Fields the list may sort by (D41); the repository maps each one to its column. */
+export const PROJECT_SORTABLE = ['createdAt', 'updatedAt', 'name'] as const;
+
+export type ProjectSortField = (typeof PROJECT_SORTABLE)[number];
+
+/** `?sort=&q=&is_active=&created_from=&created_to=`; `q` searches the name. */
+export const projectListQuerySchema = strictListQuery(
+  listQuerySchema(PROJECT_SORTABLE).extend({
+    q: searchQueryField,
+    isActive: booleanQueryField,
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
+
+export type ProjectListQueryDto = z.infer<typeof projectListQuerySchema>;
 
 export const projectResponseSchema = z.object({
   id: z.string().uuid(),

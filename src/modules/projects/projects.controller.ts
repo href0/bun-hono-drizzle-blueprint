@@ -7,8 +7,8 @@ import {
 import { ApiResponse } from '../../core/response';
 import { projectsService, ProjectsService } from './projects.service';
 import { toProjectResponse, toProjectListResponse } from './projects.transformer';
-import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
-import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
+import type { UuidParamDto } from '../../core/dto/common.dto';
+import type { CreateProjectDto, ProjectListQueryDto, UpdateProjectDto } from './projects.dto';
 import { PROJECT_MESSAGES } from './projects.messages';
 
 export class ProjectsController {
@@ -29,7 +29,7 @@ export class ProjectsController {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<PaginationQueryDto>(c);
+    const query = getValidatedQuery<ProjectListQueryDto>(c);
     const { records, total } = await this.service.listProjects(query);
     const totalPages = Math.ceil(total / query.perPage) || 1;
 

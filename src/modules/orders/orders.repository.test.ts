@@ -19,6 +19,24 @@ describe('OrdersRepository / OrderItemsRepository (Unit)', () => {
     expect(recorder.statements.at(0)?.sql).toContain('"orders"."deleted_at" is null');
   });
 
+  it('headers: listed by the allowlist — sort and q on the page and the total', async () => {
+    recorder.respondWith([], [[0]]);
+
+    expect(
+      await headers.findOrderList({
+        page: 1,
+        perPage: 10,
+        sort: [{ field: 'code', direction: 'desc' }],
+        q: 'ord',
+      }),
+    ).toEqual({ rows: [], total: 0 });
+    const [page, total] = recorder.statements.map((statement) => statement.sql);
+    expect(page).toContain(
+      '("orders"."code" ilike $1 or "orders"."note" ilike $2)) order by "orders"."code" desc, "orders"."id" desc limit $3',
+    );
+    expect(total).toStartWith('select count(*) from "orders"');
+  });
+
   it('items: reached only through their live header', async () => {
     recorder.respondWith([[HEADER_ID]]);
 

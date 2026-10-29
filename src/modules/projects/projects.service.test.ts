@@ -36,11 +36,10 @@ const fakeRepository = (calls: unknown[][]): ProjectsRepository =>
       return record;
     },
     findById: async (id: string) => (id === ID ? record : null),
-    findPage: async (options: unknown) => {
-      calls.push(['findPage', options]);
-      return [record];
+    findProjectList: async (query: unknown) => {
+      calls.push(['findProjectList', query]);
+      return { rows: [record], total: 1 };
     },
-    count: async () => 1,
     updateById: async (id: string, values: Partial<Project>) => {
       calls.push(['updateById', id, values]);
       return id === ID ? { ...record, ...values } : null;
@@ -69,11 +68,9 @@ describe('ProjectsService (Unit)', () => {
     const calls: unknown[][] = [];
     const service = new ProjectsService(fakeRepository(calls));
 
-    expect(await service.listProjects({ page: 2, perPage: 10 })).toEqual({
-      records: [record],
-      total: 1,
-    });
-    expect(calls).toEqual([['findPage', { page: 2, perPage: 10 }]]);
+    const query = { page: 2, perPage: 10, q: 'sam' };
+    expect(await service.listProjects(query)).toEqual({ records: [record], total: 1 });
+    expect(calls).toEqual([['findProjectList', query]]);
   });
 
   it('updates, deletes and restores; each is a NotFoundError for a missing row', async () => {

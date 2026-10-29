@@ -1,6 +1,27 @@
-import { eq } from 'drizzle-orm';
-import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
+import { and, eq } from 'drizzle-orm';
+import {
+  BaseRepository,
+  defaultTxHost,
+  instantRange,
+  type ListColumns,
+  type TransactionHost,
+} from '../../database';
 import { partnerCredentials, type PartnerCredential } from '../../database/schema';
+import type {
+  PartnerCredentialListQueryDto,
+  PartnerCredentialSortField,
+} from './partner-credentials.dto';
+
+/** The list's allowlist (D41): sortable fields → columns, and the columns `q` searches. */
+const PARTNER_CREDENTIAL_LIST_COLUMNS: ListColumns<PartnerCredentialSortField> = {
+  sort: {
+    createdAt: partnerCredentials.createdAt,
+    updatedAt: partnerCredentials.updatedAt,
+    partnerCode: partnerCredentials.partnerCode,
+    partnerName: partnerCredentials.partnerName,
+  },
+  search: [partnerCredentials.partnerCode, partnerCredentials.partnerName],
+};
 
 /**
  * Partner credentials: a standalone table. Reads, paging, create, audited update / soft delete /
@@ -20,6 +41,20 @@ export class PartnerCredentialsRepository extends BaseRepository<typeof partnerC
       .where(this.scoped(eq(partnerCredentials.apiKeyHash, apiKeyHash)))
       .limit(1);
     return rows.at(0) ?? null;
+  }
+
+  /** A page of live credentials for the admin list, and the total under the same filters. */
+  async findCredentialList(
+    query: PartnerCredentialListQueryDto,
+  ): Promise<{ rows: PartnerCredential[]; total: number }> {
+    return this.findList(
+      query,
+      PARTNER_CREDENTIAL_LIST_COLUMNS,
+      and(
+        query.isActive === undefined ? undefined : eq(partnerCredentials.isActive, query.isActive),
+        instantRange(partnerCredentials.createdAt, query.createdFrom, query.createdTo),
+      ),
+    );
   }
 }
 

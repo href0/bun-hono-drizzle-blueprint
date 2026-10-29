@@ -1,6 +1,8 @@
 import { count, desc, type SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
+import type { ListQuery } from '../core/dto/list-query.dto';
 import { InternalServerError } from '../core/errors';
+import { listPage, type ListColumns } from './list-query';
 import { defaultTxHost, type TransactionHost } from './transaction-host';
 
 /** A record table (log / history): `sequentialPrimaryKey()` + `timestamps()`, in `APPEND_ONLY_TABLES`. */
@@ -62,5 +64,22 @@ export abstract class AppendOnlyRepository<TTable extends AppendOnlyTable> {
     const table: PgTable = this.table;
     const rows = await this.txHost.tx.select({ total: count() }).from(table).where(where);
     return rows.at(0)?.total ?? 0;
+  }
+
+  /** A list query (D41): its page and its total under the same conditions. */
+  async findList<TField extends string>(
+    query: ListQuery<TField>,
+    columns: ListColumns<TField>,
+    where?: SQL,
+  ): Promise<{ rows: TTable['$inferSelect'][]; total: number }> {
+    return listPage({
+      query,
+      columns,
+      id: this.table.id,
+      where,
+      page: (orderBy, condition) =>
+        this.findPage({ page: query.page, perPage: query.perPage, orderBy, where: condition }),
+      count: (condition) => this.count(condition),
+    });
   }
 }

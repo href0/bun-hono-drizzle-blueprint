@@ -3,7 +3,7 @@
 Use this variant for high-volume rows that are only ever written once and read back: activity logs, status history, delivery attempts. Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. This file replaces Steps 2–11 of `SKILL.md`.
 
 - `sequentialPrimaryKey()` (`bigint` identity): cheap inserts in order. It is **never** a public resource id — records are listed and filtered, not fetched by `/:id`.
-- `AppendOnlyRepository`: `append`, `findPage`, `count`; no update, no delete, nothing audited (the table is the record).
+- `AppendOnlyRepository`: `append`, `findPage`, `count`, `findList` (the list query, D41); no update, no delete, nothing audited (the table is the record).
 - The table **must** be listed in `APPEND_ONLY_TABLES` (`src/database/schema/append-only-tables.ts`) with its reason — the schema convention test fails otherwise.
 
 ---
@@ -45,6 +45,13 @@ The sequential id is exposed as a number only for ordering and paging; it is not
 
 ```typescript
 import { z } from 'zod';
+import {
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../core/dto/list-query.dto';
+import { MAX_PER_PAGE } from '../../core/dto/common.dto';
 import { isoInstant } from '../../core/openapi';
 
 export const append<PascalSingular>Schema = z.object({
@@ -54,11 +61,21 @@ export const append<PascalSingular>Schema = z.object({
 
 export type Append<PascalSingular>Dto = z.infer<typeof append<PascalSingular>Schema>;
 
-export const list<PascalPlural>QuerySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  perPage: z.coerce.number().int().positive().max(100).default(20),
-  kind: z.string().max(50).optional(),
-});
+/** Fields the list may sort by (D41); the repository maps each one to its column. */
+export const <UPPER_SINGULAR>_SORTABLE = ['createdAt', 'kind'] as const;
+
+export type <PascalSingular>SortField = (typeof <UPPER_SINGULAR>_SORTABLE)[number];
+
+/** `?sort=&q=&kind=&created_from=&created_to=` (20 a page); `q` searches kind and detail. */
+export const list<PascalPlural>QuerySchema = strictListQuery(
+  listQuerySchema(<UPPER_SINGULAR>_SORTABLE).extend({
+    perPage: z.coerce.number().int().positive().max(MAX_PER_PAGE).default(20),
+    q: searchQueryField,
+    kind: z.string().max(50).optional(),
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
 
 export type List<PascalPlural>QueryDto = z.infer<typeof list<PascalPlural>QuerySchema>;
 
@@ -90,12 +107,40 @@ export const <UPPER_SINGULAR>_MESSAGES = {
 ### Step 4: Create Repository (`src/modules/<name>/<name>.repository.ts`)
 
 ```typescript
-import { AppendOnlyRepository, defaultTxHost, type TransactionHost } from '../../database';
-import { <camelPlural> } from '../../database/schema';
+import { and, eq } from 'drizzle-orm';
+import {
+  AppendOnlyRepository,
+  defaultTxHost,
+  instantRange,
+  type ListColumns,
+  type TransactionHost,
+} from '../../database';
+import { <camelPlural>, type <PascalSingular> } from '../../database/schema';
+import type { List<PascalPlural>QueryDto, <PascalSingular>SortField } from './<name>.dto';
+
+/** The list's allowlist (D41): sortable fields → columns, and the columns `q` searches. */
+const <UPPER_SINGULAR>_LIST_COLUMNS: ListColumns<<PascalSingular>SortField> = {
+  sort: { createdAt: <camelPlural>.createdAt, kind: <camelPlural>.kind },
+  search: [<camelPlural>.kind, <camelPlural>.detail],
+};
 
 export class <PascalPlural>Repository extends AppendOnlyRepository<typeof <camelPlural>> {
   constructor(txHost: TransactionHost = defaultTxHost) {
     super(<camelPlural>, txHost);
+  }
+
+  /** Newest first unless sorted; the same filters for the page and the total. */
+  async find<PascalSingular>List(
+    query: List<PascalPlural>QueryDto,
+  ): Promise<{ rows: <PascalSingular>[]; total: number }> {
+    return this.findList(
+      query,
+      <UPPER_SINGULAR>_LIST_COLUMNS,
+      and(
+        query.kind === undefined ? undefined : eq(<camelPlural>.kind, query.kind),
+        instantRange(<camelPlural>.createdAt, query.createdFrom, query.createdTo),
+      ),
+    );
   }
 }
 
@@ -126,9 +171,8 @@ export const to<PascalSingular>ListResponse = (records: <PascalSingular>[]): <Pa
 ### Step 6: Create Service (`src/modules/<name>/<name>.service.ts`)
 
 ```typescript
-import { eq } from 'drizzle-orm';
 import { <camelPlural>Repository, <PascalPlural>Repository } from './<name>.repository';
-import { <camelPlural>, type <PascalSingular> } from '../../database/schema';
+import type { <PascalSingular> } from '../../database/schema';
 import type { Append<PascalSingular>Dto, List<PascalPlural>QueryDto } from './<name>.dto';
 
 export class <PascalPlural>Service {
@@ -138,14 +182,10 @@ export class <PascalPlural>Service {
     return this.repository.append({ ...dto });
   }
 
-  /** Newest first, optionally of one kind. */
+  /** Newest first unless sorted; filtered by the list query. */
   async list<PascalPlural>(query: List<PascalPlural>QueryDto): Promise<{ records: <PascalSingular>[]; total: number }> {
-    const where = query.kind === undefined ? undefined : eq(<camelPlural>.kind, query.kind);
-    const [records, total] = await Promise.all([
-      this.repository.findPage({ page: query.page, perPage: query.perPage, where }),
-      this.repository.count(where),
-    ]);
-    return { records, total };
+    const { rows, total } = await this.repository.find<PascalSingular>List(query);
+    return { records: rows, total };
   }
 }
 
@@ -214,7 +254,7 @@ router.post(
 );
 router.get(
   '/',
-  describeEndpoint({ tags, summary: 'List records, newest first (paginated, optional kind)', response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema } }),
+  describeEndpoint({ tags, summary: 'List records, newest first (paginated, sortable, searchable, optional kind)', response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema } }),
   validate({ query: list<PascalPlural>QuerySchema }),
   <camelPlural>Controller.list,
 );
@@ -257,6 +297,25 @@ describe('<PascalPlural>Repository (Unit)', () => {
       'from "<snake_plural>" order by "<snake_plural>"."id" desc limit $1',
     );
   });
+
+  it('lists by the allowlist: sort, q and kind on the page and the total', async () => {
+    recorder.respondWith([], [[0]]);
+
+    expect(
+      await repository.find<PascalSingular>List({
+        page: 1,
+        perPage: 20,
+        sort: [{ field: 'kind', direction: 'asc' }],
+        q: 'log',
+        kind: 'login',
+      }),
+    ).toEqual({ rows: [], total: 0 });
+    const where = 'where (("<snake_plural>"."kind" ilike $1 or "<snake_plural>"."detail" ilike $2) and "<snake_plural>"."kind" = $3)';
+    expect(recorder.statements.map((statement) => statement.sql.slice(statement.sql.indexOf(' from ')))).toEqual([
+      ` from "<snake_plural>" ${where} order by "<snake_plural>"."kind" asc, "<snake_plural>"."id" asc limit $4`,
+      ` from "<snake_plural>" ${where}`,
+    ]);
+  });
 });
 ```
 
@@ -280,13 +339,9 @@ const fakeRepository = (calls: unknown[][]): <PascalPlural>Repository =>
       calls.push(['append', values]);
       return record;
     },
-    findPage: async (options: { where?: unknown }) => {
-      calls.push(['findPage', options.where === undefined ? 'all' : 'filtered']);
-      return [record];
-    },
-    count: async (where?: unknown) => {
-      calls.push(['count', where === undefined ? 'all' : 'filtered']);
-      return 1;
+    find<PascalSingular>List: async (query: unknown) => {
+      calls.push(['find<PascalSingular>List', query]);
+      return { rows: [record], total: 1 };
     },
   }) as unknown as <PascalPlural>Repository;
 
@@ -299,17 +354,14 @@ describe('<PascalPlural>Service (Unit)', () => {
     expect(calls).toEqual([['append', { kind: 'login' }]]);
   });
 
-  it('lists every record, or only one kind (the same filter for the page and the total)', async () => {
-    const all: unknown[][] = [];
-    expect(await new <PascalPlural>Service(fakeRepository(all)).list<PascalPlural>({ page: 1, perPage: 20 })).toEqual({
+  it('lists through the list query (page and total under the same filters)', async () => {
+    const calls: unknown[][] = [];
+    const query = { page: 1, perPage: 20, kind: 'login' };
+    expect(await new <PascalPlural>Service(fakeRepository(calls)).list<PascalPlural>(query)).toEqual({
       records: [record],
       total: 1,
     });
-    expect(all).toEqual([['findPage', 'all'], ['count', 'all']]);
-
-    const filtered: unknown[][] = [];
-    await new <PascalPlural>Service(fakeRepository(filtered)).list<PascalPlural>({ page: 1, perPage: 20, kind: 'login' });
-    expect(filtered).toEqual([['findPage', 'filtered'], ['count', 'filtered']]);
+    expect(calls).toEqual([['find<PascalSingular>List', query]]);
   });
 });
 ```
@@ -362,11 +414,13 @@ app.onError(globalErrorHandler);
 
 describe('<PascalPlural>Controller (through its routes)', () => {
   const spies: { mockRestore: () => void }[] = [];
+  let list: ReturnType<typeof spyOn>;
 
   beforeAll(() => {
+    list = spyOn(<camelPlural>Service, 'list<PascalPlural>').mockImplementation(async () => ({ records: [record], total: 1 }));
     spies.push(
+      list,
       spyOn(<camelPlural>Service, 'append<PascalSingular>').mockImplementation(async () => record),
-      spyOn(<camelPlural>Service, 'list<PascalPlural>').mockImplementation(async () => ({ records: [record], total: 1 })),
     );
   });
 
@@ -392,6 +446,22 @@ describe('<PascalPlural>Controller (through its routes)', () => {
     expect(res.status).toBe(200);
     expect(((await res.json()) as { meta: unknown }).meta).toEqual({ current_page: 1, per_page: 20, total_items: 1, total_pages: 1 });
     expect((await app.request('/?per_page=1000')).status).toBe(400);
+  });
+
+  it('passes sort, q and kind parsed; a column outside the allowlist or an unknown parameter is a 400', async () => {
+    list.mockClear();
+    expect((await app.request('/?sort=-created_at&q=log&kind=login')).status).toBe(200);
+    expect(list.mock.calls[0]?.[0]).toEqual({
+      page: 1,
+      perPage: 20,
+      sort: [{ field: 'createdAt', direction: 'desc' }],
+      q: 'log',
+      kind: 'login',
+    });
+
+    for (const query of ['sort=detail', 'unknown=1']) {
+      expect((await app.request(`/?${query}`)).status).toBe(400);
+    }
   });
 });
 ```

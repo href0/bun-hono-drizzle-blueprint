@@ -55,6 +55,7 @@ describe('Partner credentials — E2E contract', () => {
   const createdWith: unknown[] = [];
   let admin: Hono;
   let user: Hono;
+  let listSpy: ReturnType<typeof spyOn>;
 
   beforeAll(async () => {
     const service = partnerCredentialsService;
@@ -66,10 +67,10 @@ describe('Partner credentials — E2E contract', () => {
         }
         return { credential, apiKey: 'pk_issued', secret: 'issued-secret' };
       }),
-      spyOn(service, 'listCredentials').mockImplementation(async () => ({
+      (listSpy = spyOn(service, 'listCredentials').mockImplementation(async () => ({
         credentials: [credential],
         total: 1,
-      })),
+      }))),
       spyOn(service, 'getCredentialById').mockImplementation(async () => credential),
       spyOn(service, 'updateCredential').mockImplementation(async () => credential),
       spyOn(service, 'setActive').mockImplementation(async () => credential),
@@ -103,6 +104,23 @@ describe('Partner credentials — E2E contract', () => {
 
   const codeOf = async (res: Response): Promise<string> =>
     `${String(res.status)} ${((await res.json()) as { error?: { code: string } }).error?.code ?? 'ok'}`;
+
+  it('list: sort, q and is_active reach the service parsed; a key column is never sortable (D41)', async () => {
+    listSpy.mockClear();
+    const res = await send(admin, 'GET', '?sort=partner_code&q=acme&is_active=true');
+    expect(res.status).toBe(200);
+    expect(listSpy.mock.calls[0]?.[0]).toEqual({
+      page: 1,
+      perPage: 10,
+      sort: [{ field: 'partnerCode', direction: 'asc' }],
+      q: 'acme',
+      isActive: true,
+    });
+
+    for (const query of ['?sort=api_key_hash', '?sort=api_key_prefix', '?ip=1.2.3.4']) {
+      expect(await codeOf(await send(admin, 'GET', query))).toBe('400 ERR_INVALID_INPUT');
+    }
+  });
 
   it('refuses every route to a non-admin (403 ERR_ROLE_FORBIDDEN)', async () => {
     for (const [method, path, body] of ROUTES) {

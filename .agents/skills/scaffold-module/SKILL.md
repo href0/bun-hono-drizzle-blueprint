@@ -86,12 +86,19 @@ Then generate the migration: `bun run db:generate`.
 
 ### Step 3: Create DTOs with Zod (`src/modules/<name>/<name>.dto.ts`)
 
-Fields are camelCase in TypeScript, snake_case on the wire; reuse `uuidParamSchema` / `paginationQuerySchema` (`src/core/dto/common.dto.ts`); dictionaries: `preserveKeys` — `docs/standards/http-contract.md` §2–3.
+Fields are camelCase in TypeScript, snake_case on the wire; reuse `uuidParamSchema` (`src/core/dto/common.dto.ts`); dictionaries: `preserveKeys` — `docs/standards/http-contract.md` §2–3. The list query (`sort` over `<UPPER_SINGULAR>_SORTABLE`, `q`, typed filters, unknown parameters refused) is built from `src/core/dto/list-query.dto.ts` — `docs/standards/http-contract.md` §8; add a filter for each column a page of this list is filtered by.
 
 The response schema documents the endpoint and types the transformer (`isoInstant()` / `isoCalendarDate()` for time) — `docs/standards/openapi.md` §3.
 
 ```typescript
 import { z } from 'zod';
+import {
+  booleanQueryField,
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
 
 export const create<PascalSingular>Schema = z.object({
@@ -110,6 +117,23 @@ export const update<PascalSingular>Schema = z
   .refine((dto) => Object.keys(dto).length > 0, { message: 'At least one field must be provided' });
 
 export type Update<PascalSingular>Dto = z.infer<typeof update<PascalSingular>Schema>;
+
+/** Fields the list may sort by (D41); the repository maps each one to its column. */
+export const <UPPER_SINGULAR>_SORTABLE = ['createdAt', 'updatedAt', 'name'] as const;
+
+export type <PascalSingular>SortField = (typeof <UPPER_SINGULAR>_SORTABLE)[number];
+
+/** `?sort=&q=&is_active=&created_from=&created_to=`; `q` searches the name. */
+export const <camelSingular>ListQuerySchema = strictListQuery(
+  listQuerySchema(<UPPER_SINGULAR>_SORTABLE).extend({
+    q: searchQueryField,
+    isActive: booleanQueryField,
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
+
+export type <PascalSingular>ListQueryDto = z.infer<typeof <camelSingular>ListQuerySchema>;
 
 export const <camelSingular>ResponseSchema = z.object({
   id: z.string().uuid(),
@@ -155,15 +179,47 @@ export const <camelSingular>NotFoundMessage = (id: string): LocalizedMessage => 
 
 > Rules for module repositories (which base, no writes around it): `docs/standards/database.md` §6–7.
 
-`BaseRepository` already provides `findById`, `findPage`, `count`, `create`, `updateById`, `softDeleteById` and `restoreById`; add only domain lookups, built on `this.scoped(...)`.
+`BaseRepository` already provides `findById`, `findPage`, `count`, `findList`, `create`, `updateById`, `softDeleteById` and `restoreById`; add only domain lookups, built on `this.scoped(...)`. The list's allowlist (`ListColumns`: sortable fields → columns, the columns `q` searches) and its typed filters live here — `docs/standards/database.md` §6.
 
 ```typescript
-import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
-import { <camelPlural> } from '../../database/schema';
+import { and, eq } from 'drizzle-orm';
+import {
+  BaseRepository,
+  defaultTxHost,
+  instantRange,
+  type ListColumns,
+  type TransactionHost,
+} from '../../database';
+import { <camelPlural>, type <PascalSingular> } from '../../database/schema';
+import type { <PascalSingular>ListQueryDto, <PascalSingular>SortField } from './<name>.dto';
+
+/** The list's allowlist (D41): sortable fields → columns, and the columns `q` searches. */
+const <UPPER_SINGULAR>_LIST_COLUMNS: ListColumns<<PascalSingular>SortField> = {
+  sort: {
+    createdAt: <camelPlural>.createdAt,
+    updatedAt: <camelPlural>.updatedAt,
+    name: <camelPlural>.name,
+  },
+  search: [<camelPlural>.name],
+};
 
 export class <PascalPlural>Repository extends BaseRepository<typeof <camelPlural>> {
   constructor(txHost: TransactionHost = defaultTxHost) {
     super(<camelPlural>, txHost);
+  }
+
+  /** A page of live rows matching the list query, and the total under the same filters. */
+  async find<PascalSingular>List(
+    query: <PascalSingular>ListQueryDto,
+  ): Promise<{ rows: <PascalSingular>[]; total: number }> {
+    return this.findList(
+      query,
+      <UPPER_SINGULAR>_LIST_COLUMNS,
+      and(
+        query.isActive === undefined ? undefined : eq(<camelPlural>.isActive, query.isActive),
+        instantRange(<camelPlural>.createdAt, query.createdFrom, query.createdTo),
+      ),
+    );
   }
 }
 
@@ -199,8 +255,11 @@ Missing rows (`null`) become a localized `NotFoundError`; a unique collision (`i
 ```typescript
 import { <camelPlural>Repository, <PascalPlural>Repository } from './<name>.repository';
 import { NotFoundError } from '../../core/errors';
-import type { PaginationQueryDto } from '../../core/dto/common.dto';
-import type { Create<PascalSingular>Dto, Update<PascalSingular>Dto } from './<name>.dto';
+import type {
+  Create<PascalSingular>Dto,
+  <PascalSingular>ListQueryDto,
+  Update<PascalSingular>Dto,
+} from './<name>.dto';
 import { <camelSingular>NotFoundMessage } from './<name>.messages';
 import type { <PascalSingular> } from '../../database/schema';
 
@@ -217,12 +276,9 @@ export class <PascalPlural>Service {
     return record;
   }
 
-  async list<PascalPlural>(query: PaginationQueryDto): Promise<{ records: <PascalSingular>[]; total: number }> {
-    const [records, total] = await Promise.all([
-      this.repository.findPage({ page: query.page, perPage: query.perPage }),
-      this.repository.count(),
-    ]);
-    return { records, total };
+  async list<PascalPlural>(query: <PascalSingular>ListQueryDto): Promise<{ records: <PascalSingular>[]; total: number }> {
+    const { rows, total } = await this.repository.find<PascalSingular>List(query);
+    return { records: rows, total };
   }
 
   async update<PascalSingular>(id: string, dto: Update<PascalSingular>Dto): Promise<<PascalSingular>> {
@@ -262,8 +318,12 @@ import {
 import { ApiResponse } from '../../core/response';
 import { <camelPlural>Service, <PascalPlural>Service } from './<name>.service';
 import { to<PascalSingular>Response, to<PascalSingular>ListResponse } from './<name>.transformer';
-import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
-import type { Create<PascalSingular>Dto, Update<PascalSingular>Dto } from './<name>.dto';
+import type { UuidParamDto } from '../../core/dto/common.dto';
+import type {
+  Create<PascalSingular>Dto,
+  <PascalSingular>ListQueryDto,
+  Update<PascalSingular>Dto,
+} from './<name>.dto';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 
 export class <PascalPlural>Controller {
@@ -284,7 +344,7 @@ export class <PascalPlural>Controller {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<PaginationQueryDto>(c);
+    const query = getValidatedQuery<<PascalSingular>ListQueryDto>(c);
     const { records, total } = await this.service.list<PascalPlural>(query);
     const totalPages = Math.ceil(total / query.perPage) || 1;
 
@@ -333,7 +393,7 @@ Routes are protected by default; role checks with `requireRole(...)` after `desc
 ```typescript
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
+import { uuidParamSchema } from '../../core/dto/common.dto';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
@@ -341,6 +401,7 @@ import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
 import {
   create<PascalSingular>Schema,
   update<PascalSingular>Schema,
+  <camelSingular>ListQuerySchema,
   <camelSingular>ResponseSchema,
 } from './<name>.dto';
 
@@ -361,10 +422,10 @@ router.get(
   '/',
   describeEndpoint({
     tags,
-    summary: 'List <camelPlural> (paginated)',
+    summary: 'List <camelPlural> (paginated, sortable, searchable)',
     response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema },
   }),
-  validate({ query: paginationQuerySchema }),
+  validate({ query: <camelSingular>ListQuerySchema }),
   <camelPlural>Controller.list,
 );
 router.get(
@@ -480,6 +541,26 @@ describe('<PascalPlural>Repository (Unit)', () => {
     expect(recorder.statements.at(0)?.sql).toStartWith('insert into "<snake_plural>"');
     expect(recorder.statements.at(0)?.params).toContain('system');
   });
+
+  it('lists by the allowlist: sort, q and filters on the page and the total', async () => {
+    recorder.respondWith([rowOf(<camelPlural>, sample)], [[1]]);
+
+    const result = await repository.find<PascalSingular>List({
+      page: 1,
+      perPage: 10,
+      sort: [{ field: 'name', direction: 'asc' }],
+      q: 'sam',
+      isActive: true,
+    });
+
+    expect(result).toEqual({ rows: [sample], total: 1 });
+    const where = `where ("<snake_plural>"."deleted_at" is null and ("<snake_plural>"."name" ilike $1 and "<snake_plural>"."is_active" = $2))`;
+    expect(recorder.statements.map((statement) => statement.sql)).toEqual([
+      `select ${COLUMNS} from "<snake_plural>" ${where} order by "<snake_plural>"."name" asc, "<snake_plural>"."id" asc limit $3`,
+      `select count(*) from "<snake_plural>" ${where}`,
+    ]);
+    expect(recorder.statements.at(0)?.params).toEqual(['%sam%', true, 10]);
+  });
 });
 ```
 
@@ -528,11 +609,10 @@ const fakeRepository = (calls: unknown[][]): <PascalPlural>Repository =>
       return record;
     },
     findById: async (id: string) => (id === ID ? record : null),
-    findPage: async (options: unknown) => {
-      calls.push(['findPage', options]);
-      return [record];
+    find<PascalSingular>List: async (query: unknown) => {
+      calls.push(['find<PascalSingular>List', query]);
+      return { rows: [record], total: 1 };
     },
-    count: async () => 1,
     updateById: async (id: string, values: Partial<<PascalSingular>>) => {
       calls.push(['updateById', id, values]);
       return id === ID ? { ...record, ...values } : null;
@@ -561,8 +641,9 @@ describe('<PascalPlural>Service (Unit)', () => {
     const calls: unknown[][] = [];
     const service = new <PascalPlural>Service(fakeRepository(calls));
 
-    expect(await service.list<PascalPlural>({ page: 2, perPage: 10 })).toEqual({ records: [record], total: 1 });
-    expect(calls).toEqual([['findPage', { page: 2, perPage: 10 }]]);
+    const query = { page: 2, perPage: 10, q: 'sam' };
+    expect(await service.list<PascalPlural>(query)).toEqual({ records: [record], total: 1 });
+    expect(calls).toEqual([['find<PascalSingular>List', query]]);
   });
 
   it('updates, deletes and restores; each is a NotFoundError for a missing row', async () => {
@@ -664,15 +745,20 @@ const send = (method: string, body: unknown): RequestInit => ({
 
 describe('<PascalPlural>Controller (through its routes)', () => {
   const spies: { mockRestore: () => void }[] = [];
+  let list: ReturnType<typeof spyOn>;
 
   beforeAll(() => {
+    list = spyOn(<camelPlural>Service, 'list<PascalPlural>').mockImplementation(async () => ({
+      records: [record],
+      total: 1,
+    }));
     spies.push(
+      list,
       spyOn(<camelPlural>Service, 'create<PascalSingular>').mockImplementation(async () => record),
       spyOn(<camelPlural>Service, 'get<PascalSingular>ById').mockImplementation(async (id) => {
         if (id !== ID) throw new NotFoundError(<camelSingular>NotFoundMessage(id));
         return record;
       }),
-      spyOn(<camelPlural>Service, 'list<PascalPlural>').mockImplementation(async () => ({ records: [record], total: 1 })),
       spyOn(<camelPlural>Service, 'update<PascalSingular>').mockImplementation(async () => record),
       spyOn(<camelPlural>Service, 'delete<PascalSingular>').mockImplementation(async () => undefined),
       spyOn(<camelPlural>Service, 'restore<PascalSingular>').mockImplementation(async () => record),
@@ -701,6 +787,22 @@ describe('<PascalPlural>Controller (through its routes)', () => {
 
     expect(res.status).toBe(200);
     expect(body.meta).toEqual({ current_page: 1, per_page: 10, total_items: 1, total_pages: 1 });
+  });
+
+  it('passes sort, q and filters parsed; a column outside the allowlist or an unknown parameter is a 400', async () => {
+    list.mockClear();
+    expect((await app.request('/?sort=-name&q=sam&is_active=false')).status).toBe(200);
+    expect(list.mock.calls[0]?.[0]).toEqual({
+      page: 1,
+      perPage: 10,
+      sort: [{ field: 'name', direction: 'desc' }],
+      q: 'sam',
+      isActive: false,
+    });
+
+    for (const query of ['sort=created_by', 'unknown=1', 'is_active=yes']) {
+      expect((await app.request(`/?${query}`)).status).toBe(400);
+    }
   });
 
   it('gets by id, and a missing id is a 404', async () => {

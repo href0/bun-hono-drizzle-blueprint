@@ -7,9 +7,10 @@ import {
 import { ApiResponse } from '../../../core/response';
 import { projectTasksService, ProjectTasksService } from './project-tasks.service';
 import { toProjectTaskResponse, toProjectTaskListResponse } from './project-tasks.transformer';
-import type { PaginationQueryDto, UuidParamDto } from '../../../core/dto/common.dto';
+import type { UuidParamDto } from '../../../core/dto/common.dto';
 import type {
   CreateProjectTaskDto,
+  ProjectTaskListQueryDto,
   ProjectTaskParentParamDto,
   UpdateProjectTaskDto,
 } from './project-tasks.dto';
@@ -28,7 +29,7 @@ export class ProjectTasksController {
 
   list = asyncHandler(async (c) => {
     const { projectId } = getValidatedParams<ProjectTaskParentParamDto>(c);
-    const query = getValidatedQuery<PaginationQueryDto>(c);
+    const query = getValidatedQuery<ProjectTaskListQueryDto>(c);
     const { records, total } = await this.service.listProjectTasks(projectId, query);
     const totalPages = Math.ceil(total / query.perPage) || 1;
 

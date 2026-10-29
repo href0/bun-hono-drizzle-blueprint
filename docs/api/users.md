@@ -6,7 +6,7 @@
 
 | Endpoint | Ringkasan |
 |---|---|
-| `GET /api/v1/users` | List users (paginated) |
+| `GET /api/v1/users` | List users (paginated, sortable, searchable) |
 | `POST /api/v1/users` | Create a user |
 | `GET /api/v1/users/{id}` | Get a user by id |
 | `PATCH /api/v1/users/{id}` | Update a user (only the given fields) |
@@ -16,7 +16,7 @@
 
 ## `GET /api/v1/users`
 
-**List users (paginated)**
+**List users (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
 - Hanya: role `admin`
@@ -27,6 +27,12 @@
 |---|---|---|---|
 | `page` | integer | tidak | > 0; default `1` |
 | `per_page` | integer | tidak | ≤ 100; > 0; default `10` |
+| `sort` | string | tidak | Comma-separated, `-` = descending, at most 3; allowed: created_at, updated_at, email, full_name. Default: newest first |
+| `q` | string | tidak | panjang ≥ 1; panjang ≤ 100; Text searched in the listed columns (case-insensitive, substring) |
+| `role` | string | tidak | salah satu: `admin`, `user` |
+| `is_active` | boolean | tidak |  |
+| `created_from` | string (date-time) | tidak |  |
+| `created_to` | string (date-time) | tidak |  |
 
 **Header**
 

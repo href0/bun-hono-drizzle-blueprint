@@ -34,24 +34,21 @@ const serviceWith = (
 
 describe('OrdersService (Unit)', () => {
   it('creates, gets and lists headers', async () => {
-    let pageQuery: unknown;
+    let listQuery: unknown;
     const service = serviceWith({
       create: async () => ORDER,
       findById: async () => ORDER,
-      findPage: async (query) => {
-        pageQuery = query;
-        return [ORDER];
+      findOrderList: async (query) => {
+        listQuery = query;
+        return { rows: [ORDER], total: 1 };
       },
-      count: async () => 1,
     });
 
     expect(await service.createOrder({ code: 'ORD-1' })).toEqual(ORDER);
     expect(await service.getOrderById(ORDER.id)).toEqual(ORDER);
-    expect(await service.listOrders({ page: 2, perPage: 5 })).toEqual({
-      records: [ORDER],
-      total: 1,
-    });
-    expect(pageQuery).toEqual({ page: 2, perPage: 5 });
+    const query = { page: 2, perPage: 5, q: 'ord' };
+    expect(await service.listOrders(query)).toEqual({ records: [ORDER], total: 1 });
+    expect(listQuery).toEqual(query);
   });
 
   it('updates, soft-deletes and restores headers', async () => {

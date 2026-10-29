@@ -7,8 +7,13 @@ import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '.
 import { hashPassword } from '../../core/security/password';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { Transactional } from '../../database/transactional.decorator';
-import type { PaginationQueryDto } from '../../core/dto/common.dto';
-import type { CreateUserDto, PublicUser, SetPasswordDto, UpdateUserDto } from './users.dto';
+import type {
+  CreateUserDto,
+  PublicUser,
+  SetPasswordDto,
+  UpdateUserDto,
+  UserListQueryDto,
+} from './users.dto';
 import { nowInstant } from '../../utils/datetime.util';
 import { USER_MESSAGES, userNotFoundMessage } from './users.messages';
 import type { User } from '../../database/schema';
@@ -100,14 +105,10 @@ export class UsersService {
     );
   }
 
-  /** Live users, newest first (stable order: created_at DESC, id DESC). */
-  async listUsers(query: PaginationQueryDto): Promise<{ users: User[]; total: number }> {
-    const [users, total] = await Promise.all([
-      this.repo.findPage({ page: query.page, perPage: query.perPage }),
-      this.repo.count(),
-    ]);
-
-    return { users, total };
+  /** Live users matching the query; newest first unless `sort` says otherwise (D41). */
+  async listUsers(query: UserListQueryDto): Promise<{ users: User[]; total: number }> {
+    const { rows, total } = await this.repo.findUserList(query);
+    return { users: rows, total };
   }
 
   @Transactional()

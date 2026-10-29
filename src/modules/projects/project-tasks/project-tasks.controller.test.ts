@@ -40,17 +40,19 @@ const send = (method: string, body: unknown): RequestInit => ({
 describe('ProjectTasksController (through its routes)', () => {
   const spies: { mockRestore: () => void }[] = [];
   const parents: string[] = [];
+  let list: ReturnType<typeof spyOn>;
 
   beforeAll(() => {
+    list = spyOn(projectTasksService, 'listProjectTasks').mockImplementation(async () => ({
+      records: [record],
+      total: 1,
+    }));
     spies.push(
+      list,
       spyOn(projectTasksService, 'createProjectTask').mockImplementation(async (parentId) => {
         parents.push(parentId);
         return record;
       }),
-      spyOn(projectTasksService, 'listProjectTasks').mockImplementation(async () => ({
-        records: [record],
-        total: 1,
-      })),
       spyOn(projectTasksService, 'getProjectTaskById').mockImplementation(async (id) => {
         if (id !== ID) throw new NotFoundError(projectTaskNotFoundMessage(id));
         return record;
@@ -87,6 +89,21 @@ describe('ProjectTasksController (through its routes)', () => {
 
     expect(res.status).toBe(200);
     expect(body.meta).toEqual({ current_page: 1, per_page: 10, total_items: 1, total_pages: 1 });
+  });
+
+  it('passes sort and q parsed; a column outside the allowlist or an unknown parameter is a 400', async () => {
+    list.mockClear();
+    expect((await app.request(`${collection}?sort=-name&q=sam`)).status).toBe(200);
+    expect(list.mock.calls[0]?.[1]).toEqual({
+      page: 1,
+      perPage: 10,
+      sort: [{ field: 'name', direction: 'desc' }],
+      q: 'sam',
+    });
+
+    for (const query of ['sort=created_by', 'project_id=x']) {
+      expect((await app.request(`${collection}?${query}`)).status).toBe(400);
+    }
   });
 
   it('gets by its own id, and a missing id is a 404', async () => {

@@ -147,22 +147,22 @@ describe('UsersService (Unit)', () => {
     expect((await service.getUserById(mockUser.id)).email).toBe(mockUser.email);
   });
 
-  it('should list users with pagination count', async () => {
-    let pageQuery: unknown;
+  it('should list users with the total under the same query', async () => {
+    let listQuery: unknown;
     const mockRepo: Partial<UsersRepository> = {
-      findPage: async (query) => {
-        pageQuery = query;
-        return [mockUser];
+      findUserList: async (query) => {
+        listQuery = query;
+        return { rows: [mockUser], total: 1 };
       },
-      count: async () => 1,
     };
     const mockCache: Partial<CacheService> = {};
 
     const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
-    const result = await service.listUsers({ page: 2, perPage: 10 });
+    const query = { page: 2, perPage: 10, q: 'ada', role: 'admin' as const };
+    const result = await service.listUsers(query);
     expect(result.users).toEqual([mockUser]);
     expect(result.total).toBe(1);
-    expect(pageQuery).toEqual({ page: 2, perPage: 10 });
+    expect(listQuery).toEqual(query);
   });
 
   const uniqueViolation = Object.assign(new Error('duplicate key'), { code: '23505' });

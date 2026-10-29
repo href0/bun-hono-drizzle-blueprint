@@ -5,9 +5,10 @@ import {
   getValidatedQuery,
 } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
-import type { PaginationQueryDto, UuidParamDto } from '../../core/dto/common.dto';
+import type { UuidParamDto } from '../../core/dto/common.dto';
 import type {
   CreatePartnerCredentialDto,
+  PartnerCredentialListQueryDto,
   UpdatePartnerCredentialDto,
 } from './partner-credentials.dto';
 import { PARTNER_CREDENTIAL_MESSAGES } from './partner-credentials.messages';
@@ -38,7 +39,7 @@ export class PartnerCredentialsController {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<PaginationQueryDto>(c);
+    const query = getValidatedQuery<PartnerCredentialListQueryDto>(c);
     const { credentials, total } = await this.service.listCredentials(query);
     const totalPages = Math.ceil(total / query.perPage) || 1;
 

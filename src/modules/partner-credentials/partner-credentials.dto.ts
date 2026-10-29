@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+  booleanQueryField,
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
 import { isValidIpRule } from '../../utils/ip-match.util';
 
@@ -64,6 +71,28 @@ export const updatePartnerCredentialSchema = z
   });
 
 export type UpdatePartnerCredentialDto = z.infer<typeof updatePartnerCredentialSchema>;
+
+/** Fields the list may sort by (D41); the repository maps each one to its column. */
+export const PARTNER_CREDENTIAL_SORTABLE = [
+  'createdAt',
+  'updatedAt',
+  'partnerCode',
+  'partnerName',
+] as const;
+
+export type PartnerCredentialSortField = (typeof PARTNER_CREDENTIAL_SORTABLE)[number];
+
+/** `?sort=&q=&is_active=&created_from=&created_to=`; `q` searches the partner code and name. */
+export const partnerCredentialListQuerySchema = strictListQuery(
+  listQuerySchema(PARTNER_CREDENTIAL_SORTABLE).extend({
+    q: searchQueryField,
+    isActive: booleanQueryField,
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
+
+export type PartnerCredentialListQueryDto = z.infer<typeof partnerCredentialListQuerySchema>;
 
 /** Response shape: never the API key hash or the encrypted secret. */
 export const partnerCredentialResponseSchema = z.object({

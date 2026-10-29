@@ -364,6 +364,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R82 | In the boilerplate the partner gateway stays removable (`bun run setup --no-partner`, D39): partner code of shared files sits in balanced, unnested marked regions, partner-only files are in `PARTNER_ONLY`, and the pruned `src/`, `test/`, `.env.example` mention no partner. Setup drops every marker, so a project has none and `lint:setup` no longer checks them (`package.json` → `boilerplate`) | [script:lint:setup] [test:partner-prune] |
 | R83 | Every `package.json` script is in the `bun run help` registry (`scripts/lib/commands.ts`) and the registry names nothing else; every `scripts/*.ts` a script runs answers `--help` / `-h` with its usage and exit 0 before anything is read, written or contacted, and refuses an unknown option with exit 1; CLI questions only through the `Prompter` (`scripts/lib/prompter.ts`, D40) | [test:commands] [test:cli-help] [eslint:CLI_PROMPT_IMPORT_PATTERNS] |
 | R84 | One Bun version: `packageManager` in `package.json` is its single source — CI reads it, and the Docker base images and the `@types/bun` pin repeat it exactly | [test:toolchain] |
+| R85 | Every paginated list takes the list query (D41, `http-contract.md` §8): `sort` only over the module's allowlist, always ended by `id`; `q` and filters only as declared typed fields; any other parameter a 400 naming it — never ignored; the total counts the same filters | [test:list-query.e2e] [test:list-query.dto] [test:list-query] [script:verify:scaffold] |
 
 ---
 

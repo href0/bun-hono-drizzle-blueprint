@@ -60,4 +60,42 @@ describe('UsersRepository (Unit)', () => {
     );
     expect(JSON.stringify(audit)).not.toContain('new-hash');
   });
+
+  it('lists by the allowlist with every typed filter on the page and the total (D41)', async () => {
+    recorder.respondWith([rowOf(users, sampleUser)], [[1]]);
+
+    const result = await repo.findUserList({
+      page: 1,
+      perPage: 10,
+      sort: [{ field: 'fullName', direction: 'asc' }],
+      q: 'ada',
+      role: 'admin',
+      isActive: true,
+      createdFrom: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+      createdTo: Temporal.Instant.from('2026-10-31T00:00:00Z'),
+    });
+
+    expect(result).toEqual({ rows: [sampleUser], total: 1 });
+    const where =
+      'where ("users"."deleted_at" is null and (("users"."email" ilike $1 or "users"."full_name" ilike $2) and ("users"."role" = $3 and "users"."is_active" = $4 and ("users"."created_at" >= $5 and "users"."created_at" <= $6))))';
+    expect(recorder.statements.map((statement) => statement.sql)).toEqual([
+      `select ${COLUMNS} from "users" ${where} order by "users"."full_name" asc, "users"."id" asc limit $7`,
+      `select count(*) from "users" ${where}`,
+    ]);
+    expect(recorder.statements.at(1)?.params.slice(0, 4)).toEqual([
+      '%ada%',
+      '%ada%',
+      'admin',
+      true,
+    ]);
+  });
+
+  it('lists without filters: only the live-row scope', async () => {
+    recorder.respondWith([], [[0]]);
+
+    expect(await repo.findUserList({ page: 1, perPage: 10 })).toEqual({ rows: [], total: 0 });
+    expect(recorder.statements.at(1)?.sql).toBe(
+      'select count(*) from "users" where "users"."deleted_at" is null',
+    );
+  });
 });

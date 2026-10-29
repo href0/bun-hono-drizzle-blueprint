@@ -10,7 +10,7 @@
 | `PATCH /api/v1/project-tasks/{id}` | Update a projectTask (only the given fields) |
 | `DELETE /api/v1/project-tasks/{id}` | Delete a projectTask (soft delete; restorable) |
 | `POST /api/v1/project-tasks/{id}/restore` | Restore a soft-deleted projectTask |
-| `GET /api/v1/projects/{projectId}/tasks` | List a project's projectTasks (paginated) |
+| `GET /api/v1/projects/{projectId}/tasks` | List a project's projectTasks (paginated, sortable, searchable) |
 | `POST /api/v1/projects/{projectId}/tasks` | Add a projectTask to a project |
 
 ## `GET /api/v1/project-tasks/{id}`
@@ -674,7 +674,7 @@ Pesan: `Tugas berhasil dipulihkan` (en: `Task restored successfully`)
 
 ## `GET /api/v1/projects/{projectId}/tasks`
 
-**List a project's projectTasks (paginated)**
+**List a project's projectTasks (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
 
@@ -690,6 +690,10 @@ Pesan: `Tugas berhasil dipulihkan` (en: `Task restored successfully`)
 |---|---|---|---|
 | `page` | integer | tidak | > 0; default `1` |
 | `per_page` | integer | tidak | ≤ 100; > 0; default `10` |
+| `sort` | string | tidak | Comma-separated, `-` = descending, at most 3; allowed: created_at, updated_at, name. Default: newest first |
+| `q` | string | tidak | panjang ≥ 1; panjang ≤ 100; Text searched in the listed columns (case-insensitive, substring) |
+| `created_from` | string (date-time) | tidak |  |
+| `created_to` | string (date-time) | tidak |  |
 
 **Header**
 

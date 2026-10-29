@@ -40,8 +40,7 @@ const fakeRepo = (overrides: Partial<PartnerCredentialsRepository> = {}) => {
       return { ...stored, ...values };
     },
     findById: async (id: string) => (id === ID ? stored : null),
-    findPage: async () => [stored],
-    count: async () => 1,
+    findCredentialList: async () => ({ rows: [stored], total: 1 }),
     updateById: async (id: string, patch: Patch) => {
       writes.updated.push(patch);
       return id === ID ? { ...stored, ...patch } : null;

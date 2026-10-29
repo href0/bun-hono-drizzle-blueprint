@@ -1,7 +1,6 @@
 import { projectsRepository, ProjectsRepository } from './projects.repository';
 import { NotFoundError } from '../../core/errors';
-import type { PaginationQueryDto } from '../../core/dto/common.dto';
-import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
+import type { CreateProjectDto, ProjectListQueryDto, UpdateProjectDto } from './projects.dto';
 import { projectNotFoundMessage } from './projects.messages';
 import type { Project } from '../../database/schema';
 
@@ -18,12 +17,9 @@ export class ProjectsService {
     return record;
   }
 
-  async listProjects(query: PaginationQueryDto): Promise<{ records: Project[]; total: number }> {
-    const [records, total] = await Promise.all([
-      this.repository.findPage({ page: query.page, perPage: query.perPage }),
-      this.repository.count(),
-    ]);
-    return { records, total };
+  async listProjects(query: ProjectListQueryDto): Promise<{ records: Project[]; total: number }> {
+    const { rows, total } = await this.repository.findProjectList(query);
+    return { records: rows, total };
   }
 
   async updateProject(id: string, dto: UpdateProjectDto): Promise<Project> {

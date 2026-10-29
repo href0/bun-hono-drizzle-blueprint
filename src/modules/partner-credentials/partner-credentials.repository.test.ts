@@ -86,4 +86,34 @@ describe('PartnerCredentialsRepository (Unit)', () => {
     expect(serialized).not.toContain('new-ciphertext');
     expect(serialized).not.toContain(sample.encryptedSecret);
   });
+
+  it('lists by the allowlist with is_active and the created range on the page and the total (D41)', async () => {
+    recorder.respondWith([rowOf(partnerCredentials, sample)], [[1]]);
+
+    const result = await repo.findCredentialList({
+      page: 1,
+      perPage: 10,
+      sort: [{ field: 'partnerCode', direction: 'desc' }],
+      q: 'acme',
+      isActive: false,
+      createdFrom: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+    });
+
+    expect(result).toEqual({ rows: [sample], total: 1 });
+    const where =
+      'where ("partner_credentials"."deleted_at" is null and (("partner_credentials"."partner_code" ilike $1 or "partner_credentials"."partner_name" ilike $2) and ("partner_credentials"."is_active" = $3 and "partner_credentials"."created_at" >= $4)))';
+    expect(recorder.statements.map((statement) => statement.sql)).toEqual([
+      `select ${COLUMNS} from "partner_credentials" ${where} order by "partner_credentials"."partner_code" desc, "partner_credentials"."id" desc limit $5`,
+      `select count(*) from "partner_credentials" ${where}`,
+    ]);
+  });
+
+  it('lists without filters: only the live-row scope', async () => {
+    recorder.respondWith([], [[0]]);
+
+    expect(await repo.findCredentialList({ page: 1, perPage: 10 })).toEqual({ rows: [], total: 0 });
+    expect(recorder.statements.at(1)?.sql).toBe(
+      'select count(*) from "partner_credentials" where "partner_credentials"."deleted_at" is null',
+    );
+  });
 });

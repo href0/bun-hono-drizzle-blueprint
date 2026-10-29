@@ -35,7 +35,7 @@ userRoutes.post('/', describeEndpoint({ … }), validate({ body: createUserSchem
 userRoutes.get('/:id', describeEndpoint({ … }), validate({ params: uuidParamSchema }), usersController.getById);
 ```
 
-- **Shared schemas** (`src/core/dto/common.dto.ts`) — reuse, never redefine per module: `emailField` (trimmed, lower-cased before validation; every email), `newPasswordField` (8–1024 characters), `uuidParamSchema` (`:id`; a malformed UUID is 400, not a database error), `paginationQuerySchema` (`?page=&per_page=`, at most `MAX_PER_PAGE` = 100). Time fields: [datetime.md](datetime.md).
+- **Shared schemas** (`src/core/dto/common.dto.ts`) — reuse, never redefine per module: `emailField` (trimmed, lower-cased before validation; every email), `newPasswordField` (8–1024 characters), `uuidParamSchema` (`:id`; a malformed UUID is 400, not a database error), `paginationQuerySchema` (`?page=&per_page=`, at most `MAX_PER_PAGE` = 100). A list's query: §8 (`src/core/dto/list-query.dto.ts`). Time fields: [datetime.md](datetime.md).
 - Error details drop the internal prefix (`body.`, `query.`) and name the field in snake_case, so a frontend maps them straight onto form fields.
 - **Free-form dictionaries**: `validate({ body, preserveKeys: ['metadata'] })` — the listed top-level fields are neither checked for casing nor converted. In public contracts prefer `{ key, value }` arrays.
 - **Vendor payloads**: `validate({ body, bodyKeys: 'verbatim' })` keeps the vendor's casing — only in `*.webhook.*` files ([auth-and-inbound.md](auth-and-inbound.md) §5).
@@ -126,3 +126,23 @@ export const USER_MESSAGES = {
 
 - Plural kebab-case nouns, no verbs; at most two levels, the second only for details owned by a header (`/<headers>/:id/<details>[/:childId]`) — anything deeper is a new top-level resource.
 - The version is code, not configuration: modules register on the `v1` router in `createApp()` (`v1.route('/<module>', router)` → `<API_BASE_PATH>/v1/<module>`); a breaking change on a live endpoint is a new router (`v2`). `[review-only]`.
+
+## 8. List queries (sort, search, filters)
+
+Every paginated list takes one query shape (plan D41, R85), built from `src/core/dto/list-query.dto.ts` in the module's DTO and turned into SQL by its repository:
+
+```
+GET /api/v1/users?page=2&per_page=20&sort=-created_at,full_name&q=ada&role=admin&created_from=2026-10-01T00:00:00Z
+```
+
+| Part | Wire | Rules |
+|---|---|---|
+| Pagination | `page`, `per_page` | as `paginationQuerySchema` (§2); `meta.total_items` counts the rows matching **the same** filters |
+| `sort` | comma-separated wire names, `-` = descending | only fields in the module's `<NAME>_SORTABLE`; at most `MAX_SORT_KEYS` (3), each once; the repository always adds `id` last, so rows that tie never repeat or vanish between pages; absent = the repository default (newest first) |
+| `q` | free text | only on lists that declare it; trimmed, 1–`MAX_SEARCH_LENGTH` (100) characters; a case-insensitive **substring** (`ILIKE`) over the module's search columns, `%` `_` `\` matched literally |
+| Filters | one typed field each, snake_case | declared in the DTO with Zod (an enum, `booleanQueryField` for `true`/`false`, `instantRangeQuery('<prefix>')` for `<prefix>_from` / `<prefix>_to`, inclusive, `from` ≤ `to`) — never a generic operator syntax (`filter[x][gte]`) |
+| Anything else | — | **400** naming the parameter (`Unknown query parameter`): `strictListQuery()` refuses what it does not know, so a typo or a filter the list lacks cannot return unfiltered rows silently |
+
+The allowlist has two halves, kept apart by the layers: the DTO names the sortable fields (`<NAME>_SORTABLE`, the contract), the repository maps each one to a column and names the search columns (`ListColumns`, a missing column does not compile) — `database.md` §6. Column names never come from input. Sort or filter a column only when it is indexed or the table stays small; `q` scans its columns (a `pg_trgm` index helps large tables).
+
+Every list mounted in `createApp()` is checked by `test/list-query.e2e.test.ts` (it documents `sort`, refuses an unknown parameter and a column outside its allowlist), modules of `bun run scaffold` included. Validation messages are English, like every Zod message (§4).

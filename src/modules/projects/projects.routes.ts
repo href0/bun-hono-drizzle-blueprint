@@ -1,11 +1,16 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { paginationQuerySchema, uuidParamSchema } from '../../core/dto/common.dto';
+import { uuidParamSchema } from '../../core/dto/common.dto';
 import { validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { projectsController } from './projects.controller';
 import { PROJECT_MESSAGES } from './projects.messages';
-import { createProjectSchema, updateProjectSchema, projectResponseSchema } from './projects.dto';
+import {
+  createProjectSchema,
+  updateProjectSchema,
+  projectListQuerySchema,
+  projectResponseSchema,
+} from './projects.dto';
 
 const router = new Hono();
 const tags = ['Projects'];
@@ -29,7 +34,7 @@ router.get(
   '/',
   describeEndpoint({
     tags,
-    summary: 'List projects (paginated)',
+    summary: 'List projects (paginated, sortable, searchable)',
     response: {
       status: 200,
       description: 'A page',
@@ -37,7 +42,7 @@ router.get(
       paginatedItem: projectResponseSchema,
     },
   }),
-  validate({ query: paginationQuerySchema }),
+  validate({ query: projectListQuerySchema }),
   projectsController.list,
 );
 router.get(

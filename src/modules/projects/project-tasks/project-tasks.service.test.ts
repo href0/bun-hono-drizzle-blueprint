@@ -36,11 +36,10 @@ const fakeRepository = (calls: unknown[][]): ProjectTasksRepository =>
       calls.push(['createForParent', parentId, values]);
       return record;
     },
-    findPageForParent: async (parentId: string, options: unknown) => {
-      calls.push(['findPageForParent', parentId, options]);
-      return [record];
+    findProjectTaskList: async (parentId: string, query: unknown) => {
+      calls.push(['findProjectTaskList', parentId, query]);
+      return { rows: [record], total: 1 };
     },
-    countForParent: async () => 1,
     findById: async (id: string) => (id === ID ? record : null),
     updateById: async (id: string, values: Partial<ProjectTask>) => {
       calls.push(['updateById', id, values]);
@@ -63,11 +62,12 @@ describe('ProjectTasksService (Unit)', () => {
     const calls: unknown[][] = [];
     const service = new ProjectTasksService(fakeRepository(calls));
 
-    expect(await service.listProjectTasks(PARENT_ID, { page: 2, perPage: 10 })).toEqual({
+    const query = { page: 2, perPage: 10, q: 'sam' };
+    expect(await service.listProjectTasks(PARENT_ID, query)).toEqual({
       records: [record],
       total: 1,
     });
-    expect(calls).toEqual([['findPageForParent', PARENT_ID, { page: 2, perPage: 10 }]]);
+    expect(calls).toEqual([['findProjectTaskList', PARENT_ID, query]]);
   });
 
   it('finds, updates, deletes and restores by id; each is a NotFoundError for a missing row', async () => {

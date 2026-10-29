@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { emailField, newPasswordField } from '../../core/dto/common.dto';
+import {
+  booleanQueryField,
+  instantRangeQuery,
+  listQuerySchema,
+  searchQueryField,
+  strictListQuery,
+} from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
 import { ROLES } from '../../core/security/roles';
 import type { User } from '../../database/schema';
@@ -31,6 +38,24 @@ export const updateUserSchema = z
   });
 
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
+
+/** Fields `GET /users` may sort by (D41); the repository maps each one to its column. */
+export const USER_SORTABLE = ['createdAt', 'updatedAt', 'email', 'fullName'] as const;
+
+export type UserSortField = (typeof USER_SORTABLE)[number];
+
+/** `GET /users?sort=&q=&role=&is_active=&created_from=&created_to=`; `q` searches email and name. */
+export const userListQuerySchema = strictListQuery(
+  listQuerySchema(USER_SORTABLE).extend({
+    q: searchQueryField,
+    role: z.enum(ROLES).optional(),
+    isActive: booleanQueryField,
+    ...instantRangeQuery('created'),
+  }),
+  { ranges: ['created'] },
+);
+
+export type UserListQueryDto = z.infer<typeof userListQuerySchema>;
 
 /** Admin reset: the user's sessions end (refresh is refused for older token families). */
 export const setPasswordSchema = z.object({ password: newPasswordField });

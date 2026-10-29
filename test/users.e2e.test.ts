@@ -229,6 +229,60 @@ describe('Users Module — E2E Contract Tests', () => {
       const body = (await res.json()) as { error: { type: string } };
       expect(body.error.type).toBe('VALIDATION_ERROR');
     });
+
+    it('passes sort, q and the typed filters to the service, parsed (D41)', async () => {
+      listUsersSpy.mockClear();
+      const res = await app.request(
+        '/api/v1/users?page=2&per_page=5&sort=-email,full_name&q=%20ada%20&role=admin&is_active=false&created_from=2026-10-01T00:00:00Z&created_to=2026-10-31T00:00:00Z',
+      );
+      expect(res.status).toBe(200);
+      expect(listUsersSpy.mock.calls[0]?.[0]).toEqual({
+        page: 2,
+        perPage: 5,
+        sort: [
+          { field: 'email', direction: 'desc' },
+          { field: 'fullName', direction: 'asc' },
+        ],
+        q: 'ada',
+        role: 'admin',
+        isActive: false,
+        createdFrom: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+        createdTo: Temporal.Instant.from('2026-10-31T00:00:00Z'),
+      });
+    });
+
+    it('refuses each malformed list parameter with 400 naming the snake_case field (D41)', async () => {
+      const refused = async (query: string): Promise<{ field: string; message: string }[]> => {
+        const res = await app.request(`/api/v1/users?${query}`);
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as {
+          error: { code: string; details: { field: string; message: string }[] };
+        };
+        expect(body.error.code).toBe(APP_ERROR_CODES.INVALID_INPUT);
+        return body.error.details;
+      };
+
+      expect(await refused('sort=password_hash')).toEqual([
+        {
+          field: 'sort',
+          message:
+            'Unknown sort field "password_hash"; allowed: created_at, updated_at, email, full_name',
+        },
+      ]);
+      expect((await refused('sort=email,full_name,created_at,updated_at'))[0]?.message).toBe(
+        'At most 3 sort keys',
+      );
+      expect((await refused('q=%20%20'))[0]?.field).toBe('q');
+      expect((await refused(`q=${'x'.repeat(101)}`))[0]?.field).toBe('q');
+      expect((await refused('role=root'))[0]?.field).toBe('role');
+      expect(
+        await refused('created_from=2026-10-02T00:00:00Z&created_to=2026-10-01T00:00:00Z'),
+      ).toEqual([{ field: 'created_to', message: 'Must not be before created_from' }]);
+      expect(await refused('sotr=email&owner_id=1')).toEqual([
+        { field: 'sotr', message: 'Unknown query parameter' },
+        { field: 'owner_id', message: 'Unknown query parameter' },
+      ]);
+    });
   });
 
   // ---- GET /api/v1/users/:id ----

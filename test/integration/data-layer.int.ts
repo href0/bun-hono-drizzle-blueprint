@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, asc, eq, ilike, isNull, type SQL } from 'drizzle-orm';
 import { ConflictError, NotFoundError } from '../../src/core/errors';
 import { db } from '../../src/database/connection';
 import { recordChanges, users } from '../../src/database/schema';
@@ -333,6 +333,89 @@ describe('activeUniqueIndex on PostgreSQL (users.email among live users)', () =>
     expect(second.id).not.toBe(first.id);
     const live = await db.select().from(users).where(eq(users.email, email));
     expect(live.filter((row) => row.deletedAt === null)).toHaveLength(1);
+  });
+});
+
+describe('list queries on PostgreSQL (D41)', () => {
+  const columns = {
+    sort: { code: testOrders.code, createdAt: testOrders.createdAt },
+    search: [testOrders.note],
+  };
+
+  it('pages a sort with ties without repeating or skipping a row; total matches the filter', async () => {
+    const tag = unique('tie');
+    const created = [];
+    for (let index = 0; index < 5; index += 1) {
+      created.push(await asActor(() => orders.create({ code: tag, note: 'same' })));
+    }
+    const inTag = ilike(testOrders.code, tag);
+    const seen: string[] = [];
+    for (const page of [1, 2, 3]) {
+      const { rows, total } = await orders.findList(
+        { page, perPage: 2, sort: [{ field: 'code', direction: 'asc' }] },
+        columns,
+        inTag,
+      );
+      expect(total).toBe(5);
+      seen.push(...rows.map((row) => row.id));
+    }
+    expect(seen).toHaveLength(5);
+    expect(new Set(seen)).toEqual(new Set(created.map((order) => order.id)));
+    // Ties are broken by id in the direction of the last key.
+    expect(seen).toEqual([...seen].sort());
+  });
+
+  it('matches %, _ and \\ in q literally', async () => {
+    const tag = unique('esc');
+    const literal = await asActor(() => orders.create({ code: tag, note: 'save 50%_off\\now' }));
+    await asActor(() => orders.create({ code: tag, note: 'save 50xxoff now' }));
+    await asActor(() => orders.create({ code: tag, note: 'save 50% only' }));
+
+    const { rows, total } = await orders.findList(
+      { page: 1, perPage: 10, q: '50%_off\\' },
+      columns,
+      ilike(testOrders.code, tag),
+    );
+    expect(rows.map((row) => row.id)).toEqual([literal.id]);
+    expect(total).toBe(1);
+  });
+
+  it('users: q, role and the created range narrow the page and the total together', async () => {
+    const tag = unique('list');
+    const admin = await asActor(() =>
+      usersRepository.create({
+        email: `${tag}-admin@example.com`,
+        fullName: `Admin ${tag}`,
+        passwordHash: 'not-a-real-hash',
+        role: 'admin',
+      }),
+    );
+    await asActor(() =>
+      usersRepository.create({
+        email: `${tag}-user@example.com`,
+        fullName: `User ${tag}`,
+        passwordHash: 'not-a-real-hash',
+      }),
+    );
+
+    const base = { page: 1, perPage: 10, q: tag };
+    expect((await usersRepository.findUserList(base)).total).toBe(2);
+    const admins = await usersRepository.findUserList({ ...base, role: 'admin' });
+    expect(admins.rows.map((row) => row.id)).toEqual([admin.id]);
+    expect(admins.total).toBe(1);
+    const later = await usersRepository.findUserList({
+      ...base,
+      createdFrom: admin.createdAt.add({ hours: 1 }),
+    });
+    expect(later.total).toBe(0);
+    const sorted = await usersRepository.findUserList({
+      ...base,
+      sort: [{ field: 'email', direction: 'desc' }],
+    });
+    expect(sorted.rows.map((row) => row.email)).toEqual([
+      `${tag}-user@example.com`,
+      `${tag}-admin@example.com`,
+    ]);
   });
 });
 

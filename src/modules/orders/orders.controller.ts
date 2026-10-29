@@ -12,14 +12,11 @@ import {
   toOrderListResponse,
   toOrderResponse,
 } from './orders.transformer';
-import type {
-  PaginationQueryDto,
-  UuidChildParamDto,
-  UuidParamDto,
-} from '../../core/dto/common.dto';
+import type { UuidChildParamDto, UuidParamDto } from '../../core/dto/common.dto';
 import type {
   CreateOrderDto,
   CreateOrderItemDto,
+  OrderListQueryDto,
   SyncOrderItemsDto,
   UpdateOrderDto,
   UpdateOrderItemDto,
@@ -41,7 +38,7 @@ export class OrdersController {
   });
 
   list = asyncHandler(async (c) => {
-    const query = getValidatedQuery<PaginationQueryDto>(c);
+    const query = getValidatedQuery<OrderListQueryDto>(c);
     const { records, total } = await this.service.listOrders(query);
     return new ApiResponse(toOrderListResponse(records), ORDER_MESSAGES.LIST_RETRIEVED, 200, {
       currentPage: query.page,

@@ -37,4 +37,24 @@ describe('ProjectTasksRepository (Unit)', () => {
     ]);
     expect(recorder.statements.at(1)?.params).toEqual([PARENT_ID]);
   });
+
+  it("lists the project's rows by the allowlist: sort and q on the page and the total", async () => {
+    recorder.respondWith([[PARENT_ID]], [[PARENT_ID]], [], [[0]]);
+
+    expect(
+      await repository.findProjectTaskList(PARENT_ID, {
+        page: 1,
+        perPage: 10,
+        sort: [{ field: 'name', direction: 'asc' }],
+        q: 'sam',
+      }),
+    ).toEqual({ rows: [], total: 0 });
+    const rowQueries = recorder.statements
+      .map((statement) => statement.sql)
+      .filter((sql) => !sql.startsWith('select "id" from "projects"'));
+    expect(rowQueries.at(0)).toContain(
+      '"project_tasks"."project_id" = $1 and "project_tasks"."name" ilike $2) order by "project_tasks"."name" asc, "project_tasks"."id" asc limit $3',
+    );
+    expect(rowQueries.at(1)).toStartWith('select count(*) from "project_tasks"');
+  });
 });
