@@ -27,9 +27,11 @@ Arsitektur & alasannya (indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARC
 
 ### Setup & Jalankan
 ```bash
-# 1. Clone repository & inisialisasi project
-git clone <repo_url> my-backend
+# 1. Clone tag rilis terbaru & inisialisasi project (alasannya: docs/standards/project-setup.md §1)
+#    daftar tag: halaman Releases, CHANGELOG.md, atau git ls-remote --tags <repo_url>
+git clone --branch <tag> <repo_url> my-backend   # mis. --branch v1.0.0; tanpa --branch = main (belum dirilis)
 cd my-backend
+git switch -c main                               # clone dari tag = detached HEAD
 bun install
 bun run setup          # wizard: nama, judul, deskripsi, pertahankan contoh? → rencana → konfirmasi
 # atau dengan flag:
