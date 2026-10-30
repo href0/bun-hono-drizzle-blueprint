@@ -16,6 +16,7 @@ Read this file when: creating a branch, writing a commit message, or preparing a
 2. The skill `update-version` sets `package.json` from the branch name and writes the `CHANGELOG.md` entry — what changed **for a derived project**, per area, with the steps a MAJOR release needs.
 3. `bun run acceptance --combo a` on the release commit ([manual-acceptance.md](manual-acceptance.md)), then pull request → CI green → merge into `main` (§3.3).
 4. Tag only the merge commit on `main`, after CI on `main` is green: `git tag -a vX.Y.Z -m "vX.Y.Z"`, then `git push origin vX.Y.Z`. A tag is never moved; a fix is the next PATCH.
+5. Publish a GitHub Release from the tag (title `vX.Y.Z`, set as the latest release): its notes are the version's `CHANGELOG.md` entry without the `<!-- partner -->` markers, ending with how to start from the tag ([project-setup.md](project-setup.md) §1). New projects find the tags there (README quickstart).
 
 ### 1.2 Taking boilerplate updates in a derived project
 
