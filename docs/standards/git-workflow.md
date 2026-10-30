@@ -1,6 +1,6 @@
 # Git Workflow & Commits
 
-Read this file when: creating a branch, writing a commit message, or preparing a pull request. Agents generate messages with the skill `generate-commit-text` (it follows this file).
+Read this file when: creating a branch, writing a commit message, or preparing a pull request. Agents generate the texts with the skills `generate-commit-text` and `generate-pr-text` (both follow this file).
 
 ---
 
@@ -14,7 +14,7 @@ Read this file when: creating a branch, writing a commit message, or preparing a
 
 1. Branch `chore/release-vX.Y.Z` from `main`. Version: **MAJOR** when a derived project must change its own code to take the release (a repository base, an envelope, an environment variable renamed or removed), **MINOR** for a new capability, **PATCH** for a fix.
 2. The skill `update-version` sets `package.json` from the branch name and writes the `CHANGELOG.md` entry — what changed **for a derived project**, per area, with the steps a MAJOR release needs.
-3. `bun run acceptance --combo a` on the release commit ([manual-acceptance.md](manual-acceptance.md)), then pull request → CI green → merge into `main`.
+3. `bun run acceptance --combo a` on the release commit ([manual-acceptance.md](manual-acceptance.md)), then pull request → CI green → merge into `main` (§3.3).
 4. Tag only the merge commit on `main`, after CI on `main` is green: `git tag -a vX.Y.Z -m "vX.Y.Z"`, then `git push origin vX.Y.Z`. A tag is never moved; a fix is the next PATCH.
 
 ### 1.2 Taking boilerplate updates in a derived project
@@ -68,6 +68,21 @@ A commit spanning several areas takes the scope of its main purpose (`feat(datab
 
 Examples: `feat(users): add user registration endpoint with password hashing` · `fix(core/cache): resolve fail-open bypass on redis timeout` · `docs(standards): move coding standards into docs/standards`.
 
-## 3. Before opening a pull request
+## 3. Pull requests
 
-`bun run validate:full` and `bun run build`, plus `bun run test:int` / `bun run verify:scaffold` when [quality-gates.md](quality-gates.md) §1 says so.
+### 3.1 Before opening one
+
+`bun run validate:full` and `bun run build`, plus `bun run test:int` / `bun run verify:scaffold` / `bun run acceptance --combo a` when [quality-gates.md](quality-gates.md) §1 says so.
+
+### 3.2 Title and description
+
+- **Title**: the header of the change's main commit, `<type>(<scope>): <subject>` (§2) — one type, one scope, imperative, ≤ 72 characters. With several commits, the one that names the purpose of the whole branch.
+- **Description**: the sections of `.github/pull_request_template.md`, in English:
+  - **What and why** — two to four sentences on the problem and the outcome, then one bullet per change a reviewer should know (behaviour, contract, rules, docs). Say "No API contract change" when `openapi:check` is unchanged; otherwise list the contract changes and whether any is `BREAKING`.
+  - **Checklist** — tick only what was actually run on this branch, with its result (tests, coverage); an item that does not apply says so. Chaos tests for a new rule: the rule that was broken and the gate that caught it.
+  - **Not verified** — what could not be checked and why, or "None".
+- Agents produce both with the skill `generate-pr-text` and never open, approve or merge a pull request themselves.
+
+### 3.3 Merging into `main` (this boilerplate)
+
+`main` is protected by a repository ruleset: a pull request is required, the CI checks `verify`, `integration`, `docker` and `docs` must pass on an up-to-date branch, the history stays linear, force pushes and deletion are blocked. Merge with **Rebase and merge** — each commit lands on `main` as reviewed, with a new hash — then update the local branch with `git pull --ff-only` and delete the merged branch (`git branch -d`, and on GitHub). A derived project sets up its own protection.

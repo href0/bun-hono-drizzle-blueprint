@@ -18,7 +18,7 @@ Before reporting a change as finished, follow the `finish-change` skill: the gat
 
 Larger work follows a plan in `docs/plans/`. While one is active, execute exactly one step at a time, meet its definition of done, report with its review template, then STOP for review. Record progress, findings and any deviation in its log and progress table. When a plan is finished, its decisions go into `docs/decisions.md` (one row each — an ID such as `D13` in a comment points there; a project's own are `PD1`…) and the plan is deleted. Structure and skeleton of a plan: `docs/plans/README.md`.
 
-**Never commit or merge until the user explicitly asks.** The user reviews every change first: finish a step with the changes left in the working tree plus a suggested commit message (skill `generate-commit-text`). Creating a branch is fine; committing and merging are not.
+**Never commit or merge until the user explicitly asks.** The user reviews every change first: finish a step with the changes left in the working tree plus a suggested commit message (skill `generate-commit-text`). Creating a branch is fine; committing and merging are not. When the user asks to push, push the **branch**: changes reach `main` through a pull request the user opens and merges (text: skill `generate-pr-text`; `docs/standards/git-workflow.md` §3.3) — never push `main` itself unless the user asks for that specific case.
 
 ---
 
