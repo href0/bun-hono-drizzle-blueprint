@@ -82,7 +82,7 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Men-deploy ke server (image Docker, konfigurasi production, migrasi) | [docs/deployment.md](docs/deployment.md) |
 | Memahami keputusan arsitektur | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Aturan untuk AI agent | [.agents/AGENTS.md](.agents/AGENTS.md) |
-| Mengambil update boilerplate ke proyek turunan (remote `upstream`) | [docs/standards/git-workflow.md](docs/standards/git-workflow.md) §1.2 |
+| Mengambil update boilerplate ke proyek turunan (remote `upstream`) | [docs/standards/git-workflow.md](docs/standards/git-workflow.md) §1.2; perubahan per versi: [CHANGELOG.md](CHANGELOG.md) |
 | Keputusan desain & alasannya (`D13` di komentar), backlog | [docs/decisions.md](docs/decisions.md); rencana kerja yang sedang berjalan: [docs/plans/](docs/plans/) |
 | Melaporkan celah keamanan (secara privat) | [SECURITY.md](SECURITY.md) |
 
