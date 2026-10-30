@@ -36,6 +36,7 @@ import { SNAPSHOT_PATH } from './lib/api-contract/document';
 import { exitOnHelp } from './lib/cli-args';
 import { gitHooksAdvice, readGitState } from './lib/git-hooks';
 import { PARTNER_SCRIPTS, planPartner } from './lib/partner-prune';
+import { projectChangelog } from './lib/project-changelog';
 import { CancelledError, terminalPrompter } from './lib/prompter';
 import {
   completeSetup,
@@ -555,19 +556,36 @@ function applyPartner(rootDir: string, keepPartner: boolean, dryRun: boolean): b
 /**
  * Notes in package.json which boilerplate version and commit the project started from, and whether
  * it kept the partner gateway — what a future `partner:enable` needs to fetch the same code.
+ * Returns that version on the first setup, `undefined` when the origin was already recorded.
  */
-function recordBoilerplateOrigin(rootDir: string, keepPartner: boolean, dryRun: boolean): void {
+function recordBoilerplateOrigin(
+  rootDir: string,
+  keepPartner: boolean,
+  dryRun: boolean,
+): string | undefined {
   const packagePath = resolve(rootDir, 'package.json');
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as Record<string, unknown>;
-  if (packageJson.boilerplate !== undefined) return;
+  if (packageJson.boilerplate !== undefined) return undefined;
+  const version = String(packageJson.version);
   const head = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: rootDir, stderr: 'pipe' });
   const commit = head.exitCode === 0 ? head.stdout.toString().trim() : undefined;
   say(
     `[Setup] ${dryRun ? 'Would record' : 'Record'} the boilerplate origin in package.json (version, commit, partner)`,
   );
-  if (dryRun) return;
-  packageJson.boilerplate = { version: packageJson.version, commit, partner: keepPartner };
+  if (dryRun) return version;
+  packageJson.boilerplate = { version, commit, partner: keepPartner };
   writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf-8');
+  return version;
+}
+
+/** The boilerplate's release history is not the project's: CHANGELOG.md starts empty (first setup only). */
+function startProjectChangelog(rootDir: string, boilerplateVersion: string, dryRun: boolean): void {
+  say(
+    `[Setup] ${dryRun ? 'Would start' : 'Start'} the project's own CHANGELOG.md (the boilerplate's entries stay in its tags)`,
+  );
+  if (!dryRun) {
+    writeFileSync(resolve(rootDir, 'CHANGELOG.md'), projectChangelog(boilerplateVersion), 'utf-8');
+  }
 }
 
 /**
@@ -769,7 +787,10 @@ function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: 
     }
     newBaseline = applyPartner(rootDir, request.partner, dryRun) || newBaseline;
     if (dryRun) template = partnerPlan.edits.get('.env.example');
-    recordBoilerplateOrigin(rootDir, request.partner, dryRun);
+    const boilerplateVersion = recordBoilerplateOrigin(rootDir, request.partner, dryRun);
+    if (boilerplateVersion !== undefined) {
+      startProjectChangelog(rootDir, boilerplateVersion, dryRun);
+    }
     if (newBaseline) regenerateBaseline(rootDir, dryRun);
   }
   ensureEnvFile(rootDir, identity, dryRun, template);

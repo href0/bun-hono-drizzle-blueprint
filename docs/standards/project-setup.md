@@ -40,7 +40,7 @@ The full setup:
 
 3. **Keeps or removes the partner gateway** (§4): kept, only its markers are dropped; `--no-partner` removes it (then the migrations and the contract baseline are regenerated as in step 2).
 
-4. **Records the origin** in `package.json` → `boilerplate`: the boilerplate version, the commit it was cloned at (when the clone has git history) and `partner: true | false`. It marks the project as initialized and is what a future `partner:enable` needs (§4.3).
+4. **Records the origin** in `package.json` → `boilerplate`: the boilerplate version, the commit it was cloned at (when the clone has git history) and `partner: true | false`. It marks the project as initialized and is what a future `partner:enable` needs (§4.3). On that first setup only, `CHANGELOG.md` starts over (`scripts/lib/project-changelog.ts`): the boilerplate's entries describe its releases, not yours, so the file keeps one line naming the release you started from and an empty `[Unreleased]`; the boilerplate's history stays readable from its tags (`git show vX.Y.Z:CHANGELOG.md`, [git-workflow.md](git-workflow.md) §1.2).
 
 5. **Prepares the env file** as in "Env only"; an existing one gets the new `APP_NAME` only — check `DATABASE_URL` / `POSTGRES_DB` in it yourself.
 

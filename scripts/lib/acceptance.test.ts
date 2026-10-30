@@ -25,6 +25,7 @@ import {
   type Turn,
 } from './acceptance';
 import type { ComboResult, StepLabel } from './acceptance-progress';
+import { projectChangelog } from './project-changelog';
 import { ENTER, scriptedPrompter } from './scripted-prompter';
 
 const [NEW_PROJECT, KEEP_EXAMPLES, NO_PARTNER] = COMBOS as [Combo, Combo, Combo];
@@ -334,7 +335,9 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
       env.set(name, value);
     },
     exists: (path) => files.has(path),
-    readFile: (path) => (path === 'README.md' ? `# ${PROJECT_TITLE}\n` : ''),
+    readFile: (path) =>
+      ({ 'README.md': `# ${PROJECT_TITLE}\n`, 'CHANGELOG.md': projectChangelog('1.0.0') })[path] ??
+      '',
     fingerprint: () => Promise.resolve('unchanged'),
     dockerUnavailable: () => Promise.resolve(undefined),
     dockerBuild: (target) => {
@@ -452,6 +455,20 @@ describe('the steps against a well-behaved machine', () => {
     expect(result.failedStep).toBe(
       'bun run setup: the wizard (combinations 1, 3) or flags (combination 2)',
     );
+  });
+
+  it("setup that keeps the boilerplate's CHANGELOG.md fails the step", async () => {
+    const machine = fakeMachine(NEW_PROJECT, {
+      readFile: (path) =>
+        path === 'CHANGELOG.md'
+          ? '# Changelog\n\n## [1.0.0] - 2026-10-30\n'
+          : `# ${PROJECT_TITLE}\n`,
+    });
+    const { result, lines } = await runAll(machine);
+    expect(result.failedStep).toBe(
+      'bun run setup: the wizard (combinations 1, 3) or flags (combination 2)',
+    );
+    expect(lines.join('\n')).toContain('## [1.0.0] - 2026-10-30');
   });
 
   it('skips stage C and D with the reason, and still releases the database', async () => {
