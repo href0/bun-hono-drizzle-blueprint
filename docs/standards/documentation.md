@@ -17,7 +17,7 @@ Read this file when: changing a standard, adding a rule, or editing any document
 | `.claude/skills/*/SKILL.md` | Pointer wrappers to `.agents/skills/` (`test/agent-skills.test.ts`) | English |
 | `README.md` | Quickstart (at most 150 lines) and links | Indonesian |
 | `SECURITY.md` | How to report a vulnerability privately, supported versions, scope | English |
-| `CHANGELOG.md` | What each release of the boilerplate changes for a project created from it, per area (skill `update-version`, [git-workflow.md](git-workflow.md) §1.1) | English |
+| `CHANGELOG.md` | What each release of the boilerplate changes for a project created from it, per area (skill `update-version`, [git-workflow.md](git-workflow.md) §1.1); a project created from it starts its own on setup ([project-setup.md](project-setup.md) §1) | English |
 | `LICENSE` | MIT license of the boilerplate — a project created from it keeps this notice and may license its own code as it chooses | English |
 | `.github/pull_request_template.md` | The checklist of every pull request (the definition of done, [quality-gates.md](quality-gates.md) §4) | English |
 | `docs/auth-guide.md` | Guide for readers outside this codebase (frontend developers) | Indonesian |

@@ -297,6 +297,12 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         `README.md titled "${PROJECT_TITLE}"`,
         ctx.readFile('README.md').split('\n', 1)[0] ?? '',
       );
+      const changelog = ctx.readFile('CHANGELOG.md');
+      check(
+        changelog.includes('Created from the boilerplate v') && !/^## \[\d/m.test(changelog),
+        "CHANGELOG.md is the project's own (no boilerplate release entries)",
+        changelog.match(/^## \[.*$/m)?.[0] ?? 'no version heading',
+      );
       check(
         ctx.exists('src/modules/partner-gateway') === ctx.combo.partner,
         `partner gateway ${ctx.combo.partner ? 'kept' : 'removed'}`,
