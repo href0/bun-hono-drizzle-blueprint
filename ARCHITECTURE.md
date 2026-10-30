@@ -211,7 +211,7 @@ Rules for AI agents are part of the architecture: an agent produces code faster 
 | skill `project-standards` | Router: which `docs/standards/` file to read before touching what |
 | skill `scaffold-module` | Template code for new modules / adapters, generated with `bun run scaffold` (verified) |
 | skill `finish-change` | Router: gates, definition of done and report before a change is called finished (`docs/standards/quality-gates.md` §4) |
-| skills `init-project`, `generate-commit-text`, `update-version`, `generate-logbook`, `env-protection` | Project workflows |
+| skills `init-project`, `generate-commit-text`, `generate-pr-text`, `update-version`, `generate-logbook`, `env-protection` | Project workflows |
 | `.claude/` | Claude Code wrappers (`test/agent-skills.test.ts`); `permissions.deny` + a hook blocking active `.env` files |
 
 Agents run database commands only against the developer's **local** database with explicit permission — never a shared or production one.
