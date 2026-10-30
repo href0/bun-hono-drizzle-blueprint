@@ -121,7 +121,7 @@ test/
 ├── agent-skills.test.ts         # Every .agents skill has a .claude wrapper with the same name + description
 ├── cli-help.test.ts             # Every scripts/*.ts answers --help with its usage and exit 0 without side effects, and refuses an unknown option (R83)
 ├── ci-gates.test.ts             # Every gate of validate:full is its own step of the CI job verify
-├── docs-portal.test.ts          # The portal keeps its layout and identity: custom.css loaded, content wider than Starlight's 45rem on large screens, table code wraps, self-hosted fonts, version badge + logo (R86)
+├── docs-portal.test.ts          # The portal keeps its layout and identity: custom.css loaded, content wider than Starlight's 45rem on large screens, table code wraps, self-hosted fonts, version badge + logo, page dates and "Edit page" links from the sources (R86)
 ├── toolchain.test.ts            # One Bun version: packageManager = Docker base images = @types/bun; CI reads package.json (R84)
 ├── api-contract.test.ts         # openapi:check runs in validate and CI; no hook, CI workflow or the scaffold CLI runs openapi:update
 ├── commit-scopes.test.ts        # Fixed commit scopes in commitlint.config.ts = the table in git-workflow.md; scopes derived from src/

@@ -5,30 +5,46 @@ template: splash
 hero:
   title: Bun Hono Drizzle Blueprint
   tagline: Blueprint backend dengan batas lapisan yang ditegakkan mesin, kontrak HTTP seragam, dan audit trail otomatis.
+  image:
+    file: ../../assets/logo.svg
   actions:
-    - text: Arsitektur & Rule Index
-      link: overview/architecture/
+    - text: Mulai
+      link: overview/quickstart/
       icon: right-arrow
       variant: primary
-    - text: Quick Start
-      link: overview/quickstart/
-      icon: rocket
-      variant: secondary
-    - text: Standar Koding
-      link: standards/structure/
+    - text: Arsitektur & Rule Index
+      link: overview/architecture/
       icon: document
+      variant: secondary
+    - text: Kontrak API
+      link: api/
+      icon: open-book
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
 
-{/* Ringkasan saja: angka dan aturan rinci hanya di halaman standar (satu sumber per topik). */}
+{/* Ringkasan dan tautan saja: perintah lengkap dan aturan rinci hanya di halaman standar (satu sumber per topik). */}
+
+## Mulai dalam empat langkah
+
+<Steps>
+
+1. **Clone tag rilis terbaru**, bukan `main` — alasannya dan perintahnya di [Project Setup](standards/project-setup/).
+
+2. **Beri nama proyek** dengan `bun run setup`: identitas diganti, modul contoh dihapus, migrasi dibuat ulang. Pilihannya: [Project Setup](standards/project-setup/).
+
+3. **Siapkan database**: PostgreSQL wajib, Redis disarankan; lalu migrasi, admin pertama, dan server dev — [Quick Start](overview/quickstart/).
+
+4. **Buat modul pertama** dengan `bun run scaffold` (wizard atau flag) — varian dan urutan kerjanya di [New Modules](standards/new-module/).
+
+</Steps>
 
 ## Pilar arsitektur
 
 <CardGrid stagger>
   <Card title="Kontrak HTTP seragam" icon="document">
-    Envelope respons dan kode error tunggal, wire contract `snake_case` dua arah, pesan dwibahasa. Lihat [HTTP Contract](standards/http-contract/).
+    Envelope respons dan kode error tunggal, wire contract `snake_case` dua arah, pesan dwibahasa, dan konvensi list (sort, pencarian, filter). Lihat [HTTP Contract](standards/http-contract/).
   </Card>
   <Card title="Data layer teraudit" icon="setting">
     Repository dasar per jenis tabel; setiap perubahan tercatat atomik. Lihat [Database](standards/database/).
@@ -39,4 +55,21 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
   <Card title="Quality gate berlapis" icon="approve-check-circle">
     Setiap aturan punya penegak mesin (ESLint, dependency-cruiser, test, script). Lihat [Quality Gates](standards/quality-gates/).
   </Card>
+  <Card title="Generator & setup" icon="puzzle">
+    `bun run setup` menyiapkan proyek baru, `bun run scaffold` membuat modul, webhook, dan adapter vendor dari template yang diverifikasi. Lihat [New Modules](standards/new-module/).
+  </Card>
+  <Card title="Kontrak API terjaga" icon="open-book">
+    OpenAPI dari kode route, snapshot yang di-review, dan dokumen per modul yang di-generate — perubahan kontrak selalu terlihat. Lihat [OpenAPI](standards/openapi/).
+  </Card>
+</CardGrid>
+
+## Jelajahi dokumentasi
+
+<CardGrid>
+  <LinkCard title="Struktur proyek" description="Di mana setiap file berada dan batas antar lapisan." href="standards/structure/" />
+  <LinkCard title="Kontrak API" description="Setiap endpoint: request, response, dan kode error." href="api/" />
+  <LinkCard title="Panduan frontend" description="Login, refresh cookie, dan CSRF untuk aplikasi klien." href="guides/auth-guide/" />
+  <LinkCard title="Panduan deploy" description="Image Docker, konfigurasi production, migrasi, health check." href="guides/deployment/" />
+  <LinkCard title="Keputusan & backlog" description="Alasan setiap keputusan desain dan yang sengaja ditunda." href="overview/decisions/" />
+  <LinkCard title="Quality gates & perintah" description="Semua gate, kapan dijalankan, dan definisi selesai." href="standards/quality-gates/" />
 </CardGrid>
