@@ -1,5 +1,5 @@
 /**
- * The arguments of `bun run setup` and its wizard (plan D38). In a terminal, `bun run setup` without
+ * The arguments of `bun run setup` and its wizard (D38). In a terminal, `bun run setup` without
  * a project name asks for it — and for the title, the description, whether to keep the examples and
  * the partner gateway — then runs exactly what the printed equivalent command runs (`setupArgv` →
  * `parseSetupArgs`).
@@ -16,7 +16,7 @@ export interface SetupRequest {
   title?: string;
   description?: string;
   keepExamples: boolean;
-  /** Keep the partner gateway; false = `--no-partner` removes it (plan D39). */
+  /** Keep the partner gateway; false = `--no-partner` removes it (D39). */
   partner: boolean;
 }
 

@@ -11,7 +11,7 @@ export interface ReferencePageQuery {
 }
 
 /**
- * Repository base for reference data owned by another system (plan step 2.5): a view declared
+ * Repository base for reference data owned by another system: a view declared
  * with `.existing()` — reads only. Writing is impossible twice over: the class has no write
  * method, and Drizzle refuses `insert` / `update` / `delete` on a view at compile time.
  */

@@ -1,5 +1,5 @@
 /**
- * API contract snapshot (plan D34, D35): docs/api/openapi.json is the reviewed contract of the HTTP
+ * API contract snapshot (D34, D35): docs/api/openapi.json is the reviewed contract of the HTTP
  * API, and docs/api/*.md the same contract rendered for integrators (Indonesian).
  *
  * Usage:
@@ -106,7 +106,7 @@ const pruneEmptyFolders = (): void => {
   }
 };
 
-/** A person at a terminal: `update` shows the changes and asks (plan D40); otherwise it never asks. */
+/** A person at a terminal: `update` shows the changes and asks (D40); otherwise it never asks. */
 const terminal = process.stdin.isTTY && process.stdout.isTTY;
 
 const update = async (

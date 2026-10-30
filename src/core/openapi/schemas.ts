@@ -9,7 +9,7 @@ import { APP_ERROR_CODES, ERROR_TYPES } from '../errors/error-codes';
  */
 
 /**
- * A `Temporal.Instant` (instant columns, plan step 2.2), documented as an ISO 8601 UTC string —
+ * A `Temporal.Instant` (instant columns), documented as an ISO 8601 UTC string —
  * always with milliseconds on the wire (`toWireTime()` in `ApiResponse`).
  */
 export const isoInstant = (): z.ZodType<Temporal.Instant> =>

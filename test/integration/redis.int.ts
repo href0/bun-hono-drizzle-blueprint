@@ -9,7 +9,7 @@ import {
 import { unique } from '../helpers/integration';
 
 /**
- * CacheService on a real Redis (plan step 6.1): the Lua script, atomicity under concurrency and
+ * CacheService on a real Redis: the Lua script, atomicity under concurrency and
  * fail-open on a dropped connection — server behaviour that the unit tests' fakes cannot show.
  * Keys live under the run's prefix (REDIS_KEY_PREFIX) and are deleted by the runner.
  */

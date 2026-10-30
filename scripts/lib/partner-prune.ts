@@ -1,5 +1,5 @@
 /**
- * The partner switch of `bun run setup` (plan D39). The partner gateway lives in files of its own
+ * The partner switch of `bun run setup` (D39). The partner gateway lives in files of its own
  * (PARTNER_ONLY) and in marked regions of shared files. With the gateway, setup drops only the
  * marker lines; with `--no-partner` it drops the regions and the files too. The boilerplate's
  * `lint:setup` plans both and fails when a marker is unbalanced or when the pruned `src/`, `test/`

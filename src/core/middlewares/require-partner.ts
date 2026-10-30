@@ -5,7 +5,7 @@ import { currentPartner } from './partner-auth';
 import { documentsForbidden } from './require-role';
 
 /**
- * Allows a partner route only to the given partner codes (plan D27), on top of the credential's
+ * Allows a partner route only to the given partner codes (D27), on top of the credential's
  * `allowed_routes`: an admin who grants the pattern to another partner by mistake still does not
  * open the route. Another partner → 403 `ERR_PARTNER_ROUTE_FORBIDDEN` (documented in OpenAPI).
  * Runs after `partnerAuth()`; without a verified partner it answers 401.

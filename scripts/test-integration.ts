@@ -1,5 +1,5 @@
 /**
- * Integration tests against a real PostgreSQL and Redis (plan step 6.1).
+ * Integration tests against a real PostgreSQL and Redis.
  *
  *   bun run test:int              # every test/integration/*.int.ts
  *   bun run test:int auth         # only files whose name contains "auth"

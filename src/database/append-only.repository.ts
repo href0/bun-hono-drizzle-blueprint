@@ -23,7 +23,7 @@ export interface RecordPageQuery {
 }
 
 /**
- * Repository base for record tables (plan step 2.5): rows are only ever appended and read —
+ * Repository base for record tables: rows are only ever appended and read —
  * there is no update or delete, and nothing to audit (the table is the record). Retention, if
  * any, is an operational job (partitions), not application code.
  */

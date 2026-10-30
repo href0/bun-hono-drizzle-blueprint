@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-/** The committed contract snapshot (plan D34). */
+/** The committed contract snapshot (D34). */
 export const SNAPSHOT_PATH = 'docs/api/openapi.json';
 
 /**

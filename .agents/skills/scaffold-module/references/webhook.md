@@ -1,20 +1,20 @@
 # Scaffold Variant — Vendor Webhook (Inbound, Vendor-Owned Contract)
 
-Use this variant when a **vendor** (payment gateway, messaging gateway, …) calls this API to notify events. The vendor owns the contract — URL is ours, but payload, signature scheme and retries are theirs (plan D23). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. Working example in this repository, until `bun run setup <name>` removes it (unless `--keep-examples`): `src/integrations/demo-pay/` + `src/modules/payment-notifications/`.
+Use this variant when a **vendor** (payment gateway, messaging gateway, …) calls this API to notify events. The vendor owns the contract — URL is ours, but payload, signature scheme and retries are theirs (D23). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. Working example in this repository, until `bun run setup <name>` removes it (unless `--keep-examples`): `src/integrations/demo-pay/` + `src/modules/payment-notifications/`.
 
 Two parts, two places:
 
 | Part | Where | Why |
 |---|---|---|
 | Vendor knowledge: signature verifier, payload schema, secret | `src/integrations/<vendor>/<vendor>.webhook.ts`, `<vendor>.webhook.dto.ts`, `src/config/<vendor>.config.ts` | Changing vendors = a new adapter; modules never see the scheme |
-| Domain handling: store the event (idempotent), process it | `src/modules/<name>/<name>.webhook.routes.ts`, `.webhook.controller.ts`, service, repository | Named after the **domain** (`payment-notifications`), never the vendor (plan D26) |
+| Domain handling: store the event (idempotent), process it | `src/modules/<name>/<name>.webhook.routes.ts`, `.webhook.controller.ts`, service, repository | Named after the **domain** (`payment-notifications`), never the vendor (D26) |
 
 Placeholders added to `SKILL.md`'s: `<vendor>` (kebab-case URL segment, e.g. `acme-pay`), `<VENDOR>` (`ACME_PAY`), `<vendorCamel>` (`acmePay`), `<VendorPascal>` (`AcmePay`).
 
 - **URL**: `<API_BASE_PATH>/webhooks/<vendor>` — outside `/v1` (the vendor's contract has its own version). Everything under `<API_BASE_PATH>/webhooks/*` is fail-closed: a route whose vendor has no verifier in `WEBHOOK_VENDORS` answers 401.
 - **Verify exactly what the vendor documents** (usually an HMAC of the raw body plus a timestamp, compared in constant time). The scheme below is a placeholder — replace it with the vendor's, never invent one. `webhookAuth()` hands the verifier the raw bytes as received.
 - **Payload casing is the vendor's**: `validate({ body, bodyKeys: 'verbatim' })` (allowed only in `*.webhook.*` files) — no snake_case check, no conversion.
-- **Idempotent** (plan D28): vendors resend the same event when they do not get a 2xx in time. The service inserts into `webhook_events` (`ON CONFLICT (vendor, event_id) DO NOTHING`) and processes in **one transaction**: a failure leaves no row (the retry is processed), a duplicate is acknowledged with 200 and skipped.
+- **Idempotent** (D28): vendors resend the same event when they do not get a 2xx in time. The service inserts into `webhook_events` (`ON CONFLICT (vendor, event_id) DO NOTHING`) and processes in **one transaction**: a failure leaves no row (the retry is processed), a duplicate is acknowledged with 200 and skipped.
 - **Answer fast**: 200 as soon as the event is stored and handled. Long work belongs in a job queue (backlog).
 
 ---
@@ -40,7 +40,7 @@ export const build<VendorPascal>Config = (source: EnvSource): <VendorPascal>Conf
 export const <vendorCamel>Config = build<VendorPascal>Config(envSource);
 ```
 
-Export it from `src/config/index.ts` (`export * from './<vendor>.config';`), add both variables to `.env.example` (and plan L1), and register the vendor in `src/integrations/registry.ts`:
+Export it from `src/config/index.ts` (`export * from './<vendor>.config';`), add both variables to `.env.example`, and register the vendor in `src/integrations/registry.ts`:
 
 ```text
 <VENDOR>: { code: '<VENDOR>', vendorName: '<Vendor display name>' },

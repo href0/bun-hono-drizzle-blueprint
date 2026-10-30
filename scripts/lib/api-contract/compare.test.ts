@@ -36,7 +36,7 @@ const severities = (side: SideName, before: Json, after: Json): Severity[] =>
     (change) => change.severity,
   );
 
-/** The classification table of plan Step 7.4b, one row per case, request and response side. */
+/** The classification table of D34 (docs/standards/openapi.md §6), one row per case, request and response side. */
 const TABLE: {
   change: string;
   before: Json;

@@ -59,7 +59,7 @@ export const createRedisClient = (config: RedisConfig): SafeRedis => {
  * Shutdown-safe close: `QUIT` (flushes pending replies) only when connected. Otherwise
  * `quit()` is rejected — the offline queue is off — so the socket and reconnect loop are dropped.
  * Right after a dropped connection `status` can still read `ready` while the socket is gone (found
- * in the integration suite, plan step 6.1): a rejected `QUIT` then also falls back to dropping it,
+ * in the integration suite): a rejected `QUIT` then also falls back to dropping it,
  * so shutdown never fails on Redis.
  */
 export const closeRedisClient = async (

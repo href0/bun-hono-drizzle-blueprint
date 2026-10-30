@@ -28,9 +28,9 @@ export interface AuditOptions<TRow> {
 const NOT_DIFFED = ['updatedAt', 'updatedBy'];
 
 /**
- * Base for repositories whose changes are audited in `record_changes` (plan D16). Provides the
+ * Base for repositories whose changes are audited in `record_changes` (D16). Provides the
  * primitives — `inTransaction`, `lockById`, `diff` / `snapshot`, `writeChange` — that
- * `BaseRepository` (plan step 2.5) composes into update / soft delete / restore / delete.
+ * `BaseRepository` composes into update / soft delete / restore / delete.
  *
  * Every primitive runs through `this.txHost.tx`. `lockById` and `writeChange` refuse to run
  * outside a transaction: the audit row must commit or roll back together with the change.

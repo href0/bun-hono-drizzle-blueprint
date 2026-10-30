@@ -4,7 +4,7 @@ import type { Temporal } from 'temporal-polyfill';
 import type { ListQuery, SortKey } from '../core/dto/list-query.dto';
 
 /**
- * A list query (plan D41, R85) as SQL. The allowlist is a module's `ListColumns`: `sort` maps every
+ * A list query (D41, R85) as SQL. The allowlist is a module's `ListColumns`: `sort` maps every
  * sortable DTO field to its column (a field without a column does not compile), `search` names the
  * text columns `q` looks in. Nothing here builds SQL from text: column names never come from input.
  */

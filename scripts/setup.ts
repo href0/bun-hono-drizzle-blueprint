@@ -5,7 +5,7 @@
  *   bun run setup                                  # only create .env from .env.example
  *   bun run setup <project-name> [--title "..."] [--description "..."] [--keep-examples] [--no-partner] [--dry-run]
  *
- * In a terminal, `bun run setup` without a name opens a wizard (plan D38): it asks for the name, the
+ * In a terminal, `bun run setup` without a name opens a wizard (D38): it asks for the name, the
  * title, the description, whether to keep the examples and the partner gateway, shows the plan (a
  * dry run), asks before
  * changing anything, and prints the equivalent command (scripts/lib/setup-wizard.ts). Without a
@@ -20,7 +20,7 @@
  * no database yet, so its history starts clean. `--keep-examples` keeps them. Same drift guard.
  *
  * The partner gateway is kept (only its markers go) or removed with `--no-partner`: marked regions
- * and PARTNER_ONLY files (scripts/lib/partner-prune.ts, plan D39).
+ * and PARTNER_ONLY files (scripts/lib/partner-prune.ts, D39).
  */
 import {
   copyFileSync,
@@ -70,7 +70,7 @@ interface IdentityRule {
 /** Lines collected for a note of the wizard; undefined = straight to the console. */
 let collecting: string[] | undefined;
 
-/** A progress line of setup: printed as is, or collected while the wizard shows a note (plan D40). */
+/** A progress line of setup: printed as is, or collected while the wizard shows a note (D40). */
 const say = (text: string): void => {
   if (collecting === undefined) console.log(text);
   else collecting.push(text);
@@ -514,7 +514,7 @@ const printPartnerProblems = (problems: readonly string[]): never => {
 };
 
 /**
- * Keeps the partner gateway (only its markers go) or removes it (`--no-partner`, plan D39). True
+ * Keeps the partner gateway (only its markers go) or removes it (`--no-partner`, D39). True
  * when the gateway was removed, so the migrations and the contract need a new baseline.
  */
 function applyPartner(rootDir: string, keepPartner: boolean, dryRun: boolean): boolean {
@@ -814,7 +814,7 @@ async function runSetup(): Promise<void> {
     return;
   }
 
-  // The wizard (plan D40): the answers become the same arguments as a typed command, parsed like one.
+  // The wizard (D40): the answers become the same arguments as a typed command, parsed like one.
   const prompter = terminalPrompter;
   prompter.intro('bun run setup');
   const answers = await completeSetup(args, prompter, (text) => {

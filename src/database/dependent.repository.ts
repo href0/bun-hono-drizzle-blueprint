@@ -31,7 +31,7 @@ export interface UpsertResult<TRow> {
 type ParentLock = 'share' | 'update';
 
 /**
- * Repository base for dependent tables (plan D33): rows with their own pages and soft delete that
+ * Repository base for dependent tables (D33): rows with their own pages and soft delete that
  * always belong to one parent (a standalone / header table) through `parentReference()`.
  *
  * - **Reads** see a row only when it is live and its parent is live and inside `parentScope()`

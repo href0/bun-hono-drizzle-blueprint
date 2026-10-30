@@ -129,7 +129,7 @@ export const USER_MESSAGES = {
 
 ## 8. List queries (sort, search, filters)
 
-Every paginated list takes one query shape (plan D41, R85), built from `src/core/dto/list-query.dto.ts` in the module's DTO and turned into SQL by its repository:
+Every paginated list takes one query shape (D41, R85), built from `src/core/dto/list-query.dto.ts` in the module's DTO and turned into SQL by its repository:
 
 ```
 GET /api/v1/users?page=2&per_page=20&sort=-created_at,full_name&q=ada&role=admin&created_from=2026-10-01T00:00:00Z

@@ -18,8 +18,8 @@ This document explains **what and why** for every architectural decision. **How*
 | Naming, new modules, git | [naming.md](docs/standards/naming.md), [new-module.md](docs/standards/new-module.md), [git-workflow.md](docs/standards/git-workflow.md) |
 | Frontend and deployment guides | [docs/auth-guide.md](docs/auth-guide.md), [docs/deployment.md](docs/deployment.md) |
 | Partner guide | [docs/partner-integration-guide.md](docs/partner-integration-guide.md) | <!-- partner -->
-| Adoption plan and decision log — `D13`, `L3`, "plan step 2.5" in comments and documents refer to it | [docs/plans/2026-10-04-blueprint-adoption-plan.md](docs/plans/2026-10-04-blueprint-adoption-plan.md) |
-| Finished plans and the original NestJS blueprint (history, not maintained) | [docs/archive/](docs/archive/) |
+| Decisions and their reasons — `D13` in comments and documents refers to them — exceptions and backlog | [docs/decisions.md](docs/decisions.md) |
+| Active work plans | [docs/plans/](docs/plans/) |
 
 Every rule is referenced by its ID in [§12 Rule Index & Enforcers](#12-rule-index--enforcers) (`R01`, `R02`, …), which names **the machine that rejects a violation**.
 
@@ -85,7 +85,7 @@ File names are **markers read by machines**: ESLint and dependency-cruiser choos
 
 ### 3.1 The `createApp()` pipeline
 
-One factory serves `src/index.ts` and every e2e test, so tests run the production pipeline. Order (detail: [bootstrap.md](docs/standards/bootstrap.md) §3, plan L10):
+One factory serves `src/index.ts` and every e2e test, so tests run the production pipeline. Order (detail: [bootstrap.md](docs/standards/bootstrap.md) §3):
 
 ```
  1. requestContext()      request ID, locale, trusted client IP, actor = anonymous (AsyncLocalStorage)
@@ -300,14 +300,14 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R40 | Refresh token only in an HttpOnly cookie, rotated; reuse revokes the whole family | [test:auth.service] [test:auth.e2e] [test:auth] |
 | R41 | Cookie endpoints use `csrfProtection()` | [test:csrf] [test:auth.e2e] |
 | R42 | Partner routes only through `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), also with a bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] | <!-- partner -->
-<!-- no-partner: | R42 | Partner gateway: removed by `bun run setup --no-partner` (plan D39) — no partner routes | [review-only] | -->
+<!-- no-partner: | R42 | Partner gateway: removed by `bun run setup --no-partner` (D39) — no partner routes | [review-only] | -->
 | R43 | Helpers per channel: a channel's helpers only in its files (`*.<channel>.*`), `requireRole` / `requireSelfOrRole` / `currentUser` never there (`*.webhook.*`, …) | [eslint:local/inbound-channel] |
 | R44 | Channel routers only under their prefix (`*.webhook.routes.ts` under `/webhooks`, …) | [test:structure] |
 | R45 | Webhook verifiers imported only by `app.ts`; the webhook prefix is fail-closed (no valid signature → 401) | [depcruise:webhook-verifier-only-in-app] [test:webhook-auth] [test:default-deny.e2e] |
 | R46 | `bodyKeys: 'verbatim'` (vendor casing) only in `*.webhook.*` files | [eslint:local/inbound-channel] [test:validate] |
 | R47 | Idempotent inbound: `webhook_events` unique `(vendor, event_id)`, a channel's own writes unique per caller reference — the channel templates (`webhook.md`, …) carry it, hand-written modules are not checked | [script:verify:scaffold] [review-only] |
 | R48 | The partner guide (signing vectors, headers, error codes) matches the code | [test:partner-guide] | <!-- partner -->
-<!-- no-partner: | R48 | Partner guide: removed with the partner gateway (`--no-partner`, plan D39) | [review-only] | -->
+<!-- no-partner: | R48 | Partner guide: removed with the partner gateway (`--no-partner`, D39) | [review-only] | -->
 
 ### Outbound integrations
 

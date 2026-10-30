@@ -61,7 +61,7 @@ export const withoutManagedColumns = (input: object): Record<string, unknown> =>
   );
 
 /**
- * Repository base for standalone and header tables (plan step 2.5).
+ * Repository base for standalone and header tables.
  *
  * - Soft-deleted rows are invisible: every read goes through `scoped()` (`deleted_at IS NULL`).
  * - `created_by` / `updated_by` come from the request actor; callers cannot set them.

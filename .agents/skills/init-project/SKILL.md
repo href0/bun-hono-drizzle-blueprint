@@ -69,9 +69,9 @@ The script also creates `.env` from `.env.example` when missing. Do NOT read or 
 
 1. No leftover boilerplate identity (expect no output):
    ```bash
-   git grep -nE "bun-hono-drizzle-blueprint|bun_hono_drizzle_blueprint_db" -- ':!.agents/skills/init-project/' ':!docs/plans/' ':!docs/archive/'
+   git grep -nE "bun-hono-drizzle-blueprint|bun_hono_drizzle_blueprint_db" -- ':!.agents/skills/init-project/' ':!docs/plans/'
    ```
-   (This skill names the defaults on purpose; `docs/plans/` and `docs/archive/` hold the boilerplate's plans and decision history, which quote them as history.)
+   (This skill names the defaults on purpose; a work plan in `docs/plans/` may quote them.)
    A hit means a hardcoded identity that is missing from `IDENTITY_RULES` — fix the file now and tell the user so the rule can be added to the boilerplate.
 2. `bun install` (sync lockfile / install dependencies if `node_modules` is missing).
 3. `bun run typecheck && bun run lint && bun run test`.

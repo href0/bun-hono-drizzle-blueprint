@@ -1,5 +1,5 @@
 /**
- * `bun run help` — every command of this project, grouped, one line each (plan D40); only prints,
+ * `bun run help` — every command of this project, grouped, one line each (D40); only prints,
  * never runs anything. `bun run help <command>` explains one. The list is the registry of
  * scripts/lib/commands.ts filtered to the scripts `package.json` has, so a project without the
  * partner gateway never sees its commands. Colours only in a terminal without NO_COLOR.

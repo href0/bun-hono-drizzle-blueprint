@@ -1,10 +1,10 @@
 /**
  * Generates a module, an inbound channel endpoint, a vendor webhook receiver or an outbound adapter
- * from the scaffold-module skill's templates (plan D31) — no AI agent needed, same code as the
+ * from the scaffold-module skill's templates (D31) — no AI agent needed, same code as the
  * skill, verified in CI because `bun run verify:scaffold` runs this very command.
  *
  * Usage: bun run scaffold <kind> <name> [options] — the kinds are in USAGE. In a
- * terminal, a missing <kind> / <name> (or a webhook's vendor) opens the wizard (plan D36): it asks,
+ * terminal, a missing <kind> / <name> (or a webhook's vendor) opens the wizard (D36): it asks,
  * shows the plan, asks before writing, and prints the equivalent command. Without a terminal (CI, an
  * AI agent, verify:scaffold) nothing is ever asked: a missing argument is the usage error — unless
  * SCAFFOLD_WIZARD_STDIN=1, set only by `bun run acceptance`, which answers the wizard itself.
@@ -44,13 +44,13 @@ const folders = (dir: string): string[] =>
         .map((entry) => entry.name)
     : [];
 
-/** Dependent modules: one subfolder of their parent (`src/modules/<parent>/<child>/`, plan D33). */
+/** Dependent modules: one subfolder of their parent (`src/modules/<parent>/<child>/`, D33). */
 const nestedModules = (): { parent: string; name: string }[] =>
   folders('src/modules').flatMap((parent) =>
     folders(`src/modules/${parent}`).map((name) => ({ parent, name })),
   );
 
-/** Names that would break the conventions (plan D26) or overwrite existing work. */
+/** Names that would break the conventions (D26) or overwrite existing work. */
 const refusals = (plan: ScaffoldPlan, request: ScaffoldRequest): string[] => {
   const vendors = folders('src/integrations');
   const nested = nestedModules();
@@ -60,20 +60,18 @@ const refusals = (plan: ScaffoldPlan, request: ScaffoldRequest): string[] => {
   const moduleName = plan.moduleName ?? request.name;
   if (request.kind !== 'integration' && vendors.includes(moduleName)) {
     problems.push(
-      `"${moduleName}" is a vendor in src/integrations/: name the module after its domain (plan D26)`,
+      `"${moduleName}" is a vendor in src/integrations/: name the module after its domain (D26)`,
     );
   }
   if (request.kind === 'integration' && modules.includes(request.name)) {
-    problems.push(
-      `"${request.name}" is a module: a vendor adapter cannot share its name (plan D26)`,
-    );
+    problems.push(`"${request.name}" is a module: a vendor adapter cannot share its name (D26)`);
   }
   if (
     request.kind === 'webhook' &&
     request.vendor !== undefined &&
     modules.includes(request.vendor)
   ) {
-    problems.push(`"${request.vendor}" is a module: a vendor cannot share its name (plan D26)`);
+    problems.push(`"${request.vendor}" is a module: a vendor cannot share its name (D26)`);
   }
   // Details belong to the design of a resource: header-detail is chosen when the module is created.
   if (request.variant === 'header-detail' && modules.includes(request.name)) {
@@ -110,7 +108,7 @@ const wizardContext = (): WizardContext => {
 
 /**
  * A dependent module needs a parent that exists, exports its table, is soft-deletable (its children
- * are hidden through `deleted_at`) and is not a dependent itself (two levels at most, plan D33). The
+ * are hidden through `deleted_at`) and is not a dependent itself (two levels at most, D33). The
  * wizard offers only the modules that pass, so a parent it lists is never refused afterwards.
  */
 const parentModuleProblems = (
@@ -121,7 +119,7 @@ const parentModuleProblems = (
   const nestedParent = nested.find((module) => module.name === name);
   if (nestedParent) {
     return [
-      `parent "${name}" is itself a dependent module (src/modules/${nestedParent.parent}/${name}/): two levels at most (plan D33) — attach to "${nestedParent.parent}" instead`,
+      `parent "${name}" is itself a dependent module (src/modules/${nestedParent.parent}/${name}/): two levels at most (D33) — attach to "${nestedParent.parent}" instead`,
     ];
   }
   const schemaPath = `src/database/schema/domain/${name}.schema.ts`;
@@ -143,7 +141,7 @@ const parentModuleProblems = (
   }
   if (textOf(`src/modules/${name}/${name}.repository.ts`).includes('DependentRepository')) {
     problems.push(
-      `parent "${name}" is itself a dependent module: two levels at most (plan D33) — attach to its parent instead`,
+      `parent "${name}" is itself a dependent module: two levels at most (D33) — attach to its parent instead`,
     );
   }
   return problems;
@@ -261,7 +259,7 @@ const runPlain = async (
   printNextSteps('Next steps:');
 };
 
-/** The wizard in a terminal (plan D40): the plan in a note, a Yes, a spinner, the next steps. */
+/** The wizard in a terminal (D40): the plan in a note, a Yes, a spinner, the next steps. */
 const runWizard = async (
   plan: ScaffoldPlan,
   edited: ReadonlyMap<string, string>,

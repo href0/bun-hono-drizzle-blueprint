@@ -47,7 +47,7 @@ export const sequentialPrimaryKey = () => sequentialId().primaryKey();
 export const sequentialId = () => bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity();
 
 // ---------------------------------------------------------------------------------------------
-// Time (plan D13 — see docs/standards/datetime.md)
+// Time (D13 — see docs/standards/datetime.md)
 // ---------------------------------------------------------------------------------------------
 
 /**
@@ -87,7 +87,7 @@ export const NOW: SQL = sql`now()`;
 /**
  * `created_at` / `updated_at`: set by the database on insert. `$onUpdate` is only the fallback
  * for an update that does not set `updated_at` (application clock): drizzle-orm 0.40 binds an
- * `$onUpdate` result as a parameter, so it cannot be `NOW`. `BaseRepository` (plan step 2.5) — the
+ * `$onUpdate` result as a parameter, so it cannot be `NOW`. `BaseRepository` — the
  * only writer of updates — sets `updatedAt: NOW` explicitly, keeping updates on the database clock.
  */
 export const timestamps = () => ({
@@ -101,14 +101,14 @@ export const timestamps = () => ({
 
 /**
  * Who created / last changed the row: the request actor (`user:<id>`, `webhook:<vendor>`, `system`, …).
- * Filled by the base repository (plan step 2.5), never by callers.
+ * Filled by the base repository, never by callers.
  */
 export const auditColumns = () => ({
   createdBy: varchar('created_by', { length: 150 }).notNull(),
   updatedBy: varchar('updated_by', { length: 150 }).notNull(),
 });
 
-/** Soft delete: rows with `deleted_at` set are invisible to the base repository (plan step 2.5). */
+/** Soft delete: rows with `deleted_at` set are invisible to the base repository. */
 export const softDelete = () => ({
   deletedAt: instant('deleted_at'),
 });

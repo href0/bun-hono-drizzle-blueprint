@@ -8,6 +8,7 @@ export const SIDEBAR = [
     label: 'Overview',
     items: [
       { label: 'Architecture & Rule Index', slug: 'overview/architecture' },
+      { label: 'Decisions & Backlog', slug: 'overview/decisions' },
       { label: 'Quick Start', slug: 'overview/quickstart' },
     ],
   },

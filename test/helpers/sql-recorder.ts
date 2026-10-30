@@ -1,5 +1,5 @@
 /**
- * SQL recorder for data-layer unit tests (plan step 2.3).
+ * SQL recorder for data-layer unit tests.
  *
  * A real Drizzle instance (the production `postgres-js` driver and schema) on top of a fake
  * postgres.js client: every statement is recorded with its parameters, and rows queued with
@@ -7,7 +7,7 @@
  * sent — conditions, ordering, limits, BEGIN/COMMIT/ROLLBACK — instead of the shape of a call chain.
  *
  * Proves what is sent, not how PostgreSQL behaves (constraints, partial indexes, locks): that is
- * the integration suite (step 6.1).
+ * the integration suite.
  */
 import { getTableColumns, type Table } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';

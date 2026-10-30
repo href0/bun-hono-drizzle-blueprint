@@ -138,7 +138,7 @@ describe('Health E2E Probe', () => {
 
 ## 7. Integration Suite on Real Services (`bun run test:int`)
 
-What the SQL recorder and the fakes cannot prove — row locks, rollbacks, partial unique indexes, the audit trail as stored, refresh-token races, the Lua script, nonce claims, fail-open on a dropped Redis connection — is tested against a real PostgreSQL and Redis (plan step 6.1).
+What the SQL recorder and the fakes cannot prove — row locks, rollbacks, partial unique indexes, the audit trail as stored, refresh-token races, the Lua script, nonce claims, fail-open on a dropped Redis connection — is tested against a real PostgreSQL and Redis.
 
 - **Run**: `bun run test:int` (all files), `bun run test:int auth` (file names containing `auth`), `--keep-db` to inspect the database afterwards, `--dry-run` to print the targets a run would use (passwords never printed). CI job `integration` runs it with PostgreSQL 16 + Redis 7 service containers; locally native services are fine (the oldest Redis in use so far is 3.0 — the scripts need ≥ 2.6).
 - **Services**: `TEST_DATABASE_URL` (an existing database on the test server — the runner only creates and drops databases from it) and `TEST_REDIS_HOST` / `TEST_REDIS_PORT` / `TEST_REDIS_PASSWORD` / `TEST_REDIS_DB`. Each service comes whole from one side — Redis from `TEST_REDIS_*` as soon as `TEST_REDIS_HOST` is set, never a mix with `REDIS_*` (a local password never travels to another server). Unset, they fall back to `DATABASE_URL` / `REDIS_*` **only on a developer machine** (`NODE_ENV` `development` or `test`) **and only when those point at this machine**; `NODE_ENV=production` is refused. A server (staging, production VPS) never runs this suite — CI does, against its own service containers.

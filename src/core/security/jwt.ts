@@ -52,7 +52,7 @@ const invalidToken = (): UnauthorizedError =>
     code: APP_ERROR_CODES.AUTH_TOKEN_INVALID,
   });
 
-/** Issues a short-lived access token (claims: plan L3). */
+/** Issues a short-lived access token (claims: D2). */
 export const signAccessToken = async (
   subject: AccessTokenSubject,
   settings: JwtSettings = authConfig,

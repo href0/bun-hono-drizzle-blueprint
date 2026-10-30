@@ -9,7 +9,7 @@ export class PaymentNotificationsRepository extends AppendOnlyRepository<typeof 
 
   /**
    * Stores the event unless `(vendor, event_id)` is already there: the stored row, or `null` for a
-   * vendor retry of an event already received (plan D28). No error, so the transaction stays usable.
+   * vendor retry of an event already received (D28). No error, so the transaction stays usable.
    */
   async appendIfNew(event: NewWebhookEvent): Promise<WebhookEvent | null> {
     const rows = await this.txHost.tx

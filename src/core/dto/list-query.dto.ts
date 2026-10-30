@@ -6,7 +6,7 @@ import { paginationQuerySchema, type PaginationQueryDto } from './common.dto';
 import { instantField } from './datetime.dto';
 
 /**
- * The query of every list endpoint (plan D41, R85): `?page=&per_page=&sort=-created_at,full_name&q=…`
+ * The query of every list endpoint (D41, R85): `?page=&per_page=&sort=-created_at,full_name&q=…`
  * plus the module's typed filters. Sort and search accept only the columns a module lists; the
  * repository turns them into SQL (`src/database/list-query.ts`).
  */

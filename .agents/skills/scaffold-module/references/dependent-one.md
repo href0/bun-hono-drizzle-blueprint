@@ -1,6 +1,6 @@
 # Scaffold Variant — Dependent Section (1:1)
 
-Use this variant for **at most one** row per parent, added any time after the parent exists — typically one step of a multi-step form: an application's contact person, a user's profile, an order's shipping details (plan D33). It is `dependent.md` (read it first) with a unique live row per parent. This file replaces Steps 2–14 of `SKILL.md`.
+Use this variant for **at most one** row per parent, added any time after the parent exists — typically one step of a multi-step form: an application's contact person, a user's profile, an order's shipping details (D33). It is `dependent.md` (read it first) with a unique live row per parent. This file replaces Steps 2–14 of `SKILL.md`.
 
 Generate it with `bun run scaffold module <plural> --parent=<parent-name> --one`: the parent is an existing standalone or header module and is **not edited** — the module lives in a subfolder of it, `src/modules/<parent-name>/<name>/` (one level, files named after the subfolder; `test/structure.test.ts`). `<name>` is the module's own name, the parent's singular + the plural you typed (`project-budgets` for `budgets` under `projects`, see `dependent.md`); only the route under the parent keeps the short singular `<segment>` (`budget`).
 

@@ -31,7 +31,7 @@ export const documentsForbidden = (
   });
 
 /**
- * Allows the route only to the given roles (plan D6): another role → 403 `ERR_ROLE_FORBIDDEN`.
+ * Allows the route only to the given roles (D6): another role → 403 `ERR_ROLE_FORBIDDEN`.
  * Runs after `authenticate()`; on a public route (no user) it answers 401.
  */
 export const requireRole = (...roles: [Role, ...Role[]]): MiddlewareHandler =>

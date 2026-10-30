@@ -1,5 +1,5 @@
 /**
- * `bun run acceptance` — the pre-release run of this boilerplate (plan D37,
+ * `bun run acceptance` — the pre-release run of this boilerplate (D37,
  * docs/standards/manual-acceptance.md): for each chosen setup combination, the commit under test
  * becomes a new project in a work folder next to this repository and goes through stages A–D (see
  * scripts/lib/acceptance.ts). The runner answers the wizard itself: nobody types anything.
@@ -692,7 +692,7 @@ const main = async (): Promise<void> => {
   const stages = [...new Set(ACCEPTANCE_STEPS.map((step) => step.stage))];
   say(`\n${summaryTable(results, stages)}`);
   const failed = results.filter((result) => result.failedStep !== undefined);
-  // The session that started with the menu ends like every other one (plan D40).
+  // The session that started with the menu ends like every other one (D40).
   const end = (text: string): void => {
     if (asking) terminalPrompter.outro(text);
   };

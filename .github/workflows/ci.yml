@@ -77,7 +77,7 @@ jobs:
       - name: Scaffold template verification
         run: bun run verify:scaffold
 
-  # Integration suite (plan step 6.1): real PostgreSQL and Redis as service containers. Locally the
+  # Integration suite: real PostgreSQL and Redis as service containers. Locally the
   # same suite runs against native services (`bun run test:int`, see scripts/test-integration.ts).
   integration:
     runs-on: ubuntu-latest

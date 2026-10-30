@@ -142,7 +142,7 @@ export class UsersService {
 
   /**
    * Admin reset of a user's password. `password_changed_at` makes the refresh endpoint refuse every
-   * token family started before now, so all of the user's sessions end (plan Review 8).
+   * token family started before now, so all of the user's sessions end.
    */
   async setPassword(id: string, dto: SetPasswordDto): Promise<void> {
     const passwordHash = await hashPassword(dto.password);

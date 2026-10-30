@@ -6,7 +6,7 @@ import { I18N_MESSAGES } from '../i18n/messages';
 import { documentsForbidden } from './require-role';
 
 /**
- * CSRF protection for cookie-authenticated endpoints (plan D4), on top of `SameSite` cookies:
+ * CSRF protection for cookie-authenticated endpoints (D4), on top of `SameSite` cookies:
  * `hono/csrf` rejects a state-changing request that a browser could send cross-site — a
  * form-like or body-less POST — unless `Sec-Fetch-Site` is `same-origin` or `Origin` is allowed.
  *

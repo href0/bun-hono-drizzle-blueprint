@@ -18,7 +18,7 @@ import { asActor, unique } from '../helpers/integration';
 
 /**
  * Login, refresh-token rotation and reuse detection through createApp() on a real PostgreSQL and
- * Redis (plan step 6.1): the row locks of the token family and the failed-login counter, which
+ * Redis: the row locks of the token family and the failed-login counter, which
  * the e2e suite replaces with in-memory fakes.
  */
 

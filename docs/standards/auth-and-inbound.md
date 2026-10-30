@@ -18,7 +18,7 @@ Partner-facing guide: [docs/partner-integration-guide.md](../partner-integration
 
 Outside a request (jobs, seeders) the actor is `system`. A webhook contract is the vendor's: each vendor gets its own verifier, never a shared one loosened for it.
 <!-- partner:start -->
-The partner contract is ours (signing v1); a webhook contract is the vendor's — loosening `partnerAuth()` for one vendor would weaken every partner (plan D23).
+The partner contract is ours (signing v1); a webhook contract is the vendor's — loosening `partnerAuth()` for one vendor would weaken every partner (D23).
 <!-- partner:end -->
 
 Enforced: ESLint `local/inbound-channel` (the helpers per channel, read from the file name; `bodyKeys: 'verbatim'` only in `*.webhook.*` files) and `test/structure.test.ts` (each channel's routers only under its prefix and nothing else there, e.g. `*.webhook.routes.ts` only under `/webhooks`). File naming: [naming.md](naming.md).
@@ -38,8 +38,10 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 | Change password | Own: `POST /auth/change-password`; admin: `PUT /users/:id/password`. Both set `users.password_changed_at` → refresh refuses token families started before it |
 | Expired refresh tokens | `bun run auth:purge-tokens [--days 7]`, scheduled daily (no terminal: no question); run by hand in a terminal it shows how many would go and asks first (default No) |
 
-- Login returns a JWT HS256 access token (TTL `ACCESS_TOKEN_TTL_SECONDS`, default 15 min) in the body; the refresh token is **opaque**, only in the `refresh_token` cookie (`HttpOnly; Secure; SameSite=Strict; Path=<base>/v1/auth`), stored as a SHA-256 hash in `auth_refresh_tokens` (plan D1–D3).
+- Login returns a JWT HS256 access token (TTL `ACCESS_TOKEN_TTL_SECONDS`, default 15 min) in the body; the refresh token is **opaque**, only in the `refresh_token` cookie (`HttpOnly; Secure; SameSite=Strict; Path=<base>/v1/auth`), stored as a SHA-256 hash in `auth_refresh_tokens` (D1–D3).
 - Every refresh rotates the token; reusing an old one revokes its whole family (theft detection, 401 `ERR_AUTH_REFRESH_REUSED`).
+- **Access token claims** (D2): `sub` (user id), `role`, `jti` (UUID v7), `iat`, `exp`, `iss` = `JWT_ISSUER`, `aud` = `JWT_AUDIENCE`; verified with `alg` pinned to HS256 (`src/core/security/jwt.ts`).
+- **Refresh, step by step** (`auth.service.ts`, one transaction): read the cookie (missing → 401 `ERR_AUTH_REFRESH_INVALID`) → find its row by `sha256(token)` `FOR UPDATE` (unknown → invalid, cookie cleared) → a revoked row that has a `replaced_by_id` is **reuse**: revoke every live token of the family, log `warn`, 401 `ERR_AUTH_REFRESH_REUSED`; revoked without a replacement (logout, logout-all, password change) or expired → invalid → the user must still be active and the family must have started after `password_changed_at` (otherwise the family is revoked) → insert the new token in the same family with `expires_at = min(now + REFRESH_TOKEN_TTL_SECONDS, family_started_at + REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS)`, mark the old one revoked and `replaced_by_id` = the new one → new access token + new cookie.
 - Cookie endpoints (`/auth/login`, `/auth/refresh`, `/auth/logout`) use `csrfProtection()` (`Origin` ∈ `CORS_ORIGINS`, `Sec-Fetch-Site`); why, and the effect of domains / subdomains: [auth-guide.md](../auth-guide.md) §7.
 - Login attempts are limited per (email, IP) (`AUTH_LOGIN_MAX_ATTEMPTS`, Redis counter) → 429 `ERR_AUTH_LOGIN_LOCKED`. The counter fails open: without Redis the lock is off and only the argon2id cost slows guessing ([cache.md](cache.md) §6) — run Redis in production.
 - Access tokens are not re-checked against the database: role changes, deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); the next refresh already refuses / re-reads the role.
@@ -68,13 +70,13 @@ Enforced: `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 
 - Handlers read `currentPartner()` (`{ code }`, actor `partner:<code>`) and can still read the body (`validate()`). One audit log line `audit: partner` per request (allowed / rejected + reason), never the key, nonce or signature.
 - The credential lookup (`findForGateway`, cached by API key hash) is injected from the `partner-credentials` module in `src/app.ts`; every change to a credential drops its cache entry.
 - Credentials (`/api/v1/partner-credentials`, admin only): the API key (`pk_…`) is stored as a SHA-256 hash + display prefix; the HMAC secret is encrypted with AES-256-GCM under the keyring `PARTNER_SECRET_KEYS` / `PARTNER_SECRET_ACTIVE_KEY_ID` (old keys still decrypt — rotation without downtime); both are shown once (create / rotate). `partner_code` is permanent (a `PERMANENT_UNIQUE_INDEXES` entry: the actor `partner:<code>` must never be reused).
-- Partner and webhook prefixes are outside the global per-IP rate limit; per IP only their refused attempts (401 / 403) count (`rejectionLimit()`, plan D29).
+- Partner and webhook prefixes are outside the global per-IP rate limit; per IP only their refused attempts (401 / 403) count (`rejectionLimit()`, D29).
 - Signing spec, samples in TypeScript / Python / curl, test vectors, errors, rotation: [partner-integration-guide.md](../partner-integration-guide.md), guarded by `test/partner-guide.test.ts`. Manual test: `bun run partner:sign`.
 
 ## 4. Partner endpoints
 
 - Generate them from the scaffold variant `.agents/skills/scaffold-module/references/partner.md` (`<module>.partner.routes.ts`), mount under `/api/v1/partner/...`, then add the route pattern to the credential's `allowed_routes`.
-- An endpoint for one partner only adds `requirePartner('<code>')` after `describeEndpoint()` (403 `ERR_PARTNER_ROUTE_FORBIDDEN`, documented) — on top of `allowed_routes`, so an admin's mistake cannot open it to another partner (plan D27).
+- An endpoint for one partner only adds `requirePartner('<code>')` after `describeEndpoint()` (403 `ERR_PARTNER_ROUTE_FORBIDDEN`, documented) — on top of `allowed_routes`, so an admin's mistake cannot open it to another partner (D27).
 - **Idempotent writes**: the partner sends its own reference; `(partner_code, partner_reference)` is unique (`activeUniqueIndex`) and a retry is a 409. The partner code always comes from `currentPartner()`, never from the body; reads are scoped to the calling partner. `[review-only]` for hand-written modules (the template carries it).
 <!-- partner:end -->
 
@@ -88,7 +90,7 @@ A vendor that **calls us** (payment status, delivery receipts, incoming messages
 | Payload schema (the vendor's casing, `.passthrough()` so `webhook_events.payload` keeps the whole event) | `src/integrations/<vendor>/<vendor>.webhook.dto.ts`, exported from `index.ts` |
 | Secret (`<VENDOR>_WEBHOOK_SECRET`; empty = disabled, every call 401) | `src/config/<vendor>.config.ts` |
 | Registration: `WEBHOOK_VENDORS` + `app.route(\`${webhooksPath}/<vendor>\`, …)` | `src/app.ts` only (dependency-cruiser `webhook-verifier-only-in-app`) |
-| Receiver: `<module>.webhook.routes.ts` / `.webhook.controller.ts`, `validate({ body, bodyKeys: 'verbatim' })`, `currentWebhook()` | the **domain** module (plan D26) |
+| Receiver: `<module>.webhook.routes.ts` / `.webhook.controller.ts`, `validate({ body, bodyKeys: 'verbatim' })`, `currentWebhook()` | the **domain** module (D26) |
 | Idempotency: `appendIfNew` into `webhook_events` (`ON CONFLICT (vendor, event_id) DO NOTHING`) + processing in one `@Transactional()` | the module's repository and service |
 
 - `<API_BASE_PATH>/webhooks/*` is **fail-closed**: `webhookAuth(vendor)` per vendor, then `requireVerifiedWebhook()` for the whole prefix — a request no verifier accepted answers 401 `ERR_WEBHOOK_SIGNATURE_INVALID`, never 200. `test/default-deny.e2e.test.ts` checks every webhook route of a registered vendor.

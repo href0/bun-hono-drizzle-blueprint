@@ -6,7 +6,7 @@ import { RENAMED_ENV_VARS } from '../../src/config/parse-env';
  * development database and Redis. Every service address is forced to a closed local port: a
  * connection attempt fails in milliseconds and nothing outside the process is ever touched.
  *
- * Integration tests against real services (plan step 6.1) run only through `bun run test:int`,
+ * Integration tests against real services run only through `bun run test:int`,
  * whose preload (test/integration/setup.ts) points them at a disposable database afterwards.
  */
 export const HERMETIC_ENV = {

@@ -425,7 +425,7 @@ describe('planScaffold (against the real templates)', () => {
     expect(withExisting.get(APP_PATH)).toContain('= [demoPayWebhook, acmePayWebhook];');
   });
 
-  it('webhook: needs a vendor, and the module is never named after it (plan D26)', () => {
+  it('webhook: needs a vendor, and the module is never named after it (D26)', () => {
     expect(errorOf(() => planScaffold({ kind: 'webhook', name: 'payments' }, ROOT))).toContain(
       '--vendor',
     );
@@ -485,7 +485,7 @@ describe('planScaffold (against the real templates)', () => {
   });
 });
 
-describe('planScaffold — dependent modules (--parent, plan D33)', () => {
+describe('planScaffold — dependent modules (--parent, D33)', () => {
   const content = (plan: ScaffoldPlan, suffix: string): string =>
     plan.files.find((file) => file.path.endsWith(suffix))?.content ?? '';
 

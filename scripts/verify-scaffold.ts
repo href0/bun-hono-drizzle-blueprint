@@ -13,7 +13,7 @@
  * edited is restored afterwards — also on failure or Ctrl+C.
  *
  * Why: the templates are documentation, so no other gate compiles them. The standalone template
- * drifted from the code three times before this check existed (see the adoption plan log).
+ * drifted from the code three times before this check existed.
  */
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';

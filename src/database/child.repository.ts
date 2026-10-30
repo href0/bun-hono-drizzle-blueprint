@@ -33,7 +33,7 @@ export type ChildInput<TChild extends PgTable> = Partial<Omit<Row<TChild>, 'id'>
 export type SyncItem<TChild extends PgTable> = ChildInput<TChild> & { id?: string };
 
 /**
- * Repository base for detail rows (plan step 2.5). Every method takes the header id: a detail is
+ * Repository base for detail rows. Every method takes the header id: a detail is
  * only reachable through its own header, so an id belonging to another header is "not found"
  * (no IDOR). Writes lock the live header first, then its details (one lock order for every
  * writer), touch the header's `updated_at`, and record each detail change in `record_changes`

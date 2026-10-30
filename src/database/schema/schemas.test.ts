@@ -5,7 +5,7 @@ import { users } from './domain/users.schema';
 import { refRoles } from './reference/ref-roles.schema';
 import { referenceSchema } from './schemas';
 
-describe('table layout (plan D14)', () => {
+describe('table layout (D14)', () => {
   it('keeps project tables in the default public schema (a project owns its database)', () => {
     expect(getTableConfig(users).schema).toBeUndefined();
   });

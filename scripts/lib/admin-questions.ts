@@ -1,5 +1,5 @@
 /**
- * What `bun run seed:admin` asks in a terminal (plan D40): the email and the name when `--email` is
+ * What `bun run seed:admin` asks in a terminal (D40): the email and the name when `--email` is
  * missing, and the password (masked, twice) unless `--promote` keeps the existing one. Without a
  * terminal nothing is asked: scripts/seed-admin.ts requires `--email` and reads the password from
  * stdin.

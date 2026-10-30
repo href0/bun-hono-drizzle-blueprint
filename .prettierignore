@@ -1,4 +1,4 @@
 # Markdown is hand-formatted. Prettier pads every table cell to the widest cell in its column,
-# which turns long tables (e.g. the plan log) into mostly whitespace in the editor.
+# which turns long tables (e.g. docs/decisions.md) into mostly whitespace in the editor.
 # Write compact tables (| a | b |, separator |---|---|) and tight lists by hand.
 *.md

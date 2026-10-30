@@ -83,7 +83,7 @@ Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 | Memahami keputusan arsitektur | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Aturan untuk AI agent | [.agents/AGENTS.md](.agents/AGENTS.md) |
 | Mengambil update boilerplate ke proyek turunan (remote `upstream`) | [docs/standards/git-workflow.md](docs/standards/git-workflow.md) §1.2 |
-| Rencana kerja & riwayat keputusan (`D13`, "plan step 2.5" di komentar) | [docs/plans/](docs/plans/) (aktif), [docs/archive/](docs/archive/) (selesai) |
+| Keputusan desain & alasannya (`D13` di komentar), backlog | [docs/decisions.md](docs/decisions.md); rencana kerja yang sedang berjalan: [docs/plans/](docs/plans/) |
 | Melaporkan celah keamanan (secara privat) | [SECURITY.md](SECURITY.md) |
 
 Lisensi: [MIT](LICENSE).

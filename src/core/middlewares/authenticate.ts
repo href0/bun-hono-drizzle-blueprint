@@ -26,7 +26,7 @@ export interface AuthenticateOptions {
 }
 
 /**
- * Default-deny authentication (plan D7), mounted once for the whole versioned API. Routes listed
+ * Default-deny authentication (D7), mounted once for the whole versioned API. Routes listed
  * in `PUBLIC_ROUTES` pass through; every other request needs `Authorization: Bearer <access
  * token>`, which is verified (`verifyAccessToken`) and recorded in the request context — actor
  * `user:<id>` and role. Missing or malformed header → 401 `ERR_UNAUTHORIZED`; a rejected token →

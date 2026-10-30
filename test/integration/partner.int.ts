@@ -6,7 +6,7 @@ import { partnerSignatureHeaders } from '../../src/utils/partner-signature.util'
 import { asActor } from '../helpers/integration';
 
 /**
- * The partner gateway through createApp() on a real PostgreSQL and Redis (plan step 6.1): the
+ * The partner gateway through createApp() on a real PostgreSQL and Redis: the
  * credential lookup and its cache, nonce replay protection and the per-partner rate limit — the
  * parts the e2e suite fakes.
  */

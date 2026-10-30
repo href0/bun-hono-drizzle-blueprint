@@ -52,7 +52,7 @@ const body = await this.tokens.withToken((token) =>
 - The token is reused until `expires_in − 60 s` (`refreshMarginSeconds`); a token living less than twice the margin is reused for half its lifetime. `expires_in` of 0, negative or not a number: used once.
 - **Single-flight**: concurrent callers share one login — 10 parallel requests with an empty cache cause 1 login. A failed login is not cached: every waiter gets the error, the next call tries again.
 - `withToken()` retries once after a vendor 401 (token revoked or expired early) with a fresh login; a second 401, or any other failure, is thrown as is. `invalidate(token)` never drops a newer token.
-- **Per process**: N app instances log in N times and hold N tokens. That is fine for vendors that allow several live tokens per client. A vendor that allows only one (a new login revokes the old token) needs a token shared across instances — store it with `CacheService` under a `CACHE_KEYS` entry and serialize logins with a Redis lock; not provided yet (adoption plan backlog).
+- **Per process**: N app instances log in N times and hold N tokens. That is fine for vendors that allow several live tokens per client. A vendor that allows only one (a new login revokes the old token) needs a token shared across instances — store it with `CacheService` under a `CACHE_KEYS` entry and serialize logins with a Redis lock; not provided yet ([decisions.md](../decisions.md) §3).
 
 ## 4. Testing
 

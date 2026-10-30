@@ -10,7 +10,7 @@ import {
 import { authorize } from './helpers/authorized-app';
 
 /**
- * Default-deny (plan D7, L4): enumerates every route of createApp() and proves that each one is
+ * Default-deny (D7; docs/standards/auth-and-inbound.md §2): enumerates every route of createApp() and proves that each one is
  * either an explicitly public route or answers 401 without a token. A new route needs no test of
  * its own to be protected — forgetting to register it as public can only make it too strict.
  */

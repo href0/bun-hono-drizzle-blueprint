@@ -46,7 +46,7 @@ const main = async (): Promise<void> => {
   const piped = await readPipedLine();
   let secret: string;
   if (piped === null) {
-    // A terminal: the secret masked, in the same frame as every other question (plan D40).
+    // A terminal: the secret masked, in the same frame as every other question (D40).
     terminalPrompter.intro('bun run partner:sign');
     secret = await askSecret(terminalPrompter, 'Partner secret');
     terminalPrompter.outro(

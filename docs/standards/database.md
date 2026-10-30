@@ -29,7 +29,7 @@ export const db = drizzle(sqlClient, { schema });
 
 ## 2. Tables (`src/database/schema/schemas.ts`)
 
-A project owns its database (`<project>_db`, created by `init-project`), so its tables live in PostgreSQL's default `public` schema — nothing to configure or migrate per environment. Schema-per-tenant SaaS is a separate, optional feature (plan backlog L12).
+A project owns its database (`<project>_db`, created by `init-project`), so its tables live in PostgreSQL's default `public` schema — nothing to configure or migrate per environment. Schema-per-tenant SaaS is a separate, optional feature ([decisions.md](../decisions.md) §3).
 
 | Declared with | Contains | Migrated by drizzle-kit |
 |---|---|---|
@@ -83,7 +83,7 @@ Selecting works; `db.insert(refRoles)` does not compile (guarded by a `@ts-expec
 | `instant(name)` | `timestamptz` | `Temporal.Instant` |
 | `calendarDate(name)` | `date` | `Temporal.PlainDate` |
 | `timeZoneColumn(name)` | `varchar(64)` IANA zone | `string` |
-| `auditColumns()` | `created_by`, `updated_by varchar(150) NOT NULL` — filled by the base repository (step 2.5) | `string` |
+| `auditColumns()` | `created_by`, `updated_by varchar(150) NOT NULL` — filled by the base repository | `string` |
 | `softDelete()` | `deleted_at timestamptz` | `Temporal.Instant \| null` |
 | `parentReference(name, () => parent.id)` | `uuid NOT NULL` FK, `ON DELETE restrict` — add an index starting with it | `string` |
 | `activeUniqueIndex(name, [cols], t.deletedAt)` | `UNIQUE INDEX … WHERE "deleted_at" is null` — use instead of `.unique()` on soft-deleted tables | — |
@@ -135,7 +135,7 @@ Every UPDATE, soft delete, restore and hard delete of an audited table appends o
 | `action` | `UPDATE` · `SOFT_DELETE` · `RESTORE` · `DELETE` (CHECK) |
 | `changes` | `jsonb` keyed by **column name**: `{ "full_name": { "from": "A", "to": "B" } }` for changed columns only; for `DELETE` the whole row. Redacted columns: `"[REDACTED]"` |
 | `actor`, `request_id` | From the request context (`user:<id>`, `webhook:<vendor>`, `anonymous`, …; `system` outside a request) |
-| `parent_table`, `parent_id` | The header of a detail row (`ChildRepository`, step 2.5) — both set or both null (CHECK). A header's full history, including its hard-deleted details: `where (table_name = 'orders' and record_id = $1) or (parent_table = 'orders' and parent_id = $1) order by changed_at` (partial index `record_changes_parent_idx`) |
+| `parent_table`, `parent_id` | The header of a detail row (`ChildRepository`) — both set or both null (CHECK). A header's full history, including its hard-deleted details: `where (table_name = 'orders' and record_id = $1) or (parent_table = 'orders' and parent_id = $1) order by changed_at` (partial index `record_changes_parent_idx`) |
 
 No foreign keys and no other unique constraints: the audited row may be deleted, and a partitioned table needs the partition key in every unique index.
 
@@ -176,7 +176,7 @@ class OrdersRepository extends AuditedRepository<typeof orders> {
 | Standalone | Stands on its own | `uuidPrimaryKey` + `timestamps` + `auditColumns` + `softDelete` | `BaseRepository` |
 | Header | Standalone with details | same | `BaseRepository` + a `ChildRepository` for its details (same module) |
 | Detail | Only meaningful inside one header | `uuidPrimaryKey` + `parentReference` (indexed) + `timestamps` + `auditColumns`, **no** `softDelete` | `ChildRepository` |
-| Dependent | Own page, always under one parent (standalone / header), added any time after it (plan D33); 1:N, or 1:1 with an `activeUniqueIndex` on the parent column | standalone shape + `parentReference` (indexed) | `DependentRepository` (own module, in a subfolder of the parent's) |
+| Dependent | Own page, always under one parent (standalone / header), added any time after it (D33); 1:N, or 1:1 with an `activeUniqueIndex` on the parent column | standalone shape + `parentReference` (indexed) | `DependentRepository` (own module, in a subfolder of the parent's) |
 | Record | Log / history, append-only | `sequentialPrimaryKey` + `timestamps` (listed in `APPEND_ONLY_TABLES`) | `AppendOnlyRepository` |
 | Reference | Owned by another system | view `.existing()` | `ReadOnlyRepository` |
 | Refresh token (exception) | `auth_refresh_tokens` only | `uuidPrimaryKey` + `parentReference(user_id)` + own `created_at` / `revoked_at` | plain class in `auth.repository.ts` (see below); expired rows deleted by `src/database/maintenance/purge-refresh-tokens.ts` (`bun run auth:purge-tokens`) |
@@ -248,7 +248,7 @@ Every change of a domain row goes through a base repository (row lock, soft-dele
 | `recordChanges` not imported outside `src/database/` (also through the barrel) | all of `src/` | [eslint:MODULE_IMPORT_PATTERNS] [depcruise:record-changes-only-in-database] |
 | No `sql.raw(` (use `sql.identifier()`; a static fragment = `eslint-disable` + reason) | all of `src/` | [eslint:SQL_RAW_RULES] |
 
-- **The one approved exception** (plan log 4.1, 2026-10-04): the refresh-token repository `src/modules/auth/auth.repository.ts` (table `auth_refresh_tokens`: high-volume security state without audit columns or soft delete — `revoked_at` + `replaced_by_id` are its trail). A one-file override in `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) lets it skip the base and `tx.update(authRefreshTokens)` only; updating any other table and `tx.delete` stay rejected.
+- **The one approved exception** ([decisions.md](../decisions.md) §2): the refresh-token repository `src/modules/auth/auth.repository.ts` (table `auth_refresh_tokens`: high-volume security state without audit columns or soft delete — `revoked_at` + `replaced_by_id` are its trail). A one-file override in `eslint.config.mjs` (`AUTH_TOKEN_REPOSITORY_RULES`) lets it skip the base and `tx.update(authRefreshTokens)` only; updating any other table and `tx.delete` stay rejected.
 - **Seeders** (`src/database/seeds/**`) belong to the database layer, not to a module: the module rules do not apply, but they still write through the base repositories (actor `system`, audited). Example: `seed-admin.ts` (password from a masked prompt / stdin, never argv or env).
 - `users.role` is matched against `ROLES` (`src/core/security/roles.ts`) by `src/database/roles-column.test.ts`.
 - `[review-only]`: custom reads inside a `BaseRepository` subclass start from `this.scoped(...)` so deleted rows stay hidden.

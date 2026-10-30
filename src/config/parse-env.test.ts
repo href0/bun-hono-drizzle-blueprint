@@ -73,7 +73,7 @@ describe('assertNoRenamedVariables (Unit)', () => {
     expect(message).not.toContain('900000');
   });
 
-  it('should cover the variables renamed or removed in plan steps 1.7, 1.8 and 2.2', () => {
+  it('should cover every variable renamed or removed so far', () => {
     expect(Object.keys(RENAMED_ENV_VARS).sort()).toEqual([
       'API_PREFIX',
       'CORS_ORIGIN',

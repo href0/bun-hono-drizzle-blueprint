@@ -1,5 +1,5 @@
 /**
- * The acceptance run of `bun run acceptance` (plan D37): for each chosen setup combination, a fresh
+ * The acceptance run of `bun run acceptance` (D37): for each chosen setup combination, a fresh
  * clone becomes a project (stage A), every scaffold variant is generated — three of them through
  * the real wizard, answered by the runner with keystrokes — and the gates pass (B), the project
  * runs against a real database and every new endpoint answers over HTTP (C), and the Docker images

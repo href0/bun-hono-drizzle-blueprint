@@ -42,7 +42,7 @@ const expectInvalid = (token: string, verifySettings: JwtSettings = settings) =>
   );
 
 describe('signAccessToken', () => {
-  it('issues an HS256 token with the claims of plan L3', async () => {
+  it('issues an HS256 token with the claims of D2', async () => {
     const { token, expiresIn } = await signAccessToken(subject, settings, issuedAt);
     const [header, payload] = token
       .split('.')

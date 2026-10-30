@@ -3,7 +3,7 @@ import { sequentialPrimaryKey, timestamps } from '../columns';
 import { appTable } from '../schemas';
 
 /**
- * Inbox of vendor webhook events (plan D23, D28): one row per `(vendor, event_id)`. Vendors send
+ * Inbox of vendor webhook events (D23, D28): one row per `(vendor, event_id)`. Vendors send
  * the same event again when they do not get a 2xx in time; the unique index turns that retry into
  * a no-op. The receiving service inserts the event and processes it in one transaction, so a
  * failed processing leaves no row and the vendor's retry is processed again.

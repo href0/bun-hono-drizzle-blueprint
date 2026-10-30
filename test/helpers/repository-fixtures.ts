@@ -1,7 +1,7 @@
 /**
- * Test-only tables and repositories for the generic data-layer behaviour (plan step 2.5): a header
+ * Test-only tables and repositories for the generic data-layer behaviour: a header
  * (`test_orders`, standalone shape with soft delete), its detail (`test_order_lines`), two dependent
- * tables of it (plan D33: `test_order_notes` 1:N, `test_order_shipments` 1:1) and a record table
+ * tables of it (D33: `test_order_notes` 1:N, `test_order_shipments` 1:1) and a record table
  * (`test_events`). Not exported from the schema barrel, so drizzle-kit never migrates them.
  */
 import { index, integer, text, varchar } from 'drizzle-orm/pg-core';

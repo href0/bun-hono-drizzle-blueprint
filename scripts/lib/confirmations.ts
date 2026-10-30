@@ -1,5 +1,5 @@
 /**
- * The terminal questions of the two commands that change data (plan D40, step 7.4j): each shows
+ * The terminal questions of the two commands that change data (D40): each shows
  * the effect first, then asks. Without a terminal neither asks — `openapi:update` refuses BREAKING
  * without `--allow-breaking`, `auth:purge-tokens` deletes (cron, CI job) — so these run only when
  * stdin and stdout are a terminal.

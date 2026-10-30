@@ -62,6 +62,12 @@ const PAGES: Page[] = [
     description: 'Architecture, invariants and the rule index with each rule’s enforcer',
   },
   {
+    source: 'docs/decisions.md',
+    slug: 'overview/decisions',
+    description:
+      'Every design decision (D0…) with its reason, the approved exceptions and the backlog',
+  },
+  {
     source: 'README.md',
     slug: 'overview/quickstart',
     description: 'Prasyarat, quickstart dan perintah utama',

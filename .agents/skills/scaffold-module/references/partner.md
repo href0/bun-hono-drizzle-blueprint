@@ -2,10 +2,10 @@
 
 Use this variant for endpoints that **partner systems** call server-to-server with signed requests (`partnerAuth()`, signing v1 — `docs/partner-integration-guide.md`), not users with access tokens. Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. This file replaces Steps 2–11 of `SKILL.md`.
 
-- **Channel files** (plan D24): routes and controller are `<name>.partner.routes.ts` / `<name>.partner.controller.ts`. ESLint (`local/inbound-channel`) allows `currentPartner()` / `requirePartner()` only in `*.partner.*` files and forbids `requireRole()` / `currentUser()` there; `test/structure.test.ts` fails when a `*.partner.routes.ts` router is mounted anywhere but `<API_BASE_PATH>/v1/partner`, or when anything else is mounted there.
+- **Channel files** (D24): routes and controller are `<name>.partner.routes.ts` / `<name>.partner.controller.ts`. ESLint (`local/inbound-channel`) allows `currentPartner()` / `requirePartner()` only in `*.partner.*` files and forbids `requireRole()` / `currentUser()` there; `test/structure.test.ts` fails when a `*.partner.routes.ts` router is mounted anywhere but `<API_BASE_PATH>/v1/partner`, or when anything else is mounted there.
 - **Who is calling** comes from the verified signature (`currentPartner().code`), never from the body — a partner cannot act as another. Every read is scoped to the calling partner (no cross-partner access).
-- **Idempotency** (plan D28): the partner sends its own reference (transaction number); `(partner_code, partner_reference)` is unique, so a retry of the same request is a 409, never a duplicate row.
-- **Access**: the partner credential's `allowed_routes` must list `/<name>` and `/<name>/*` (relative to `/partner`). For an endpoint meant for one partner only, add `requirePartner('<code>')` after `describeEndpoint()` (plan D27).
+- **Idempotency** (D28): the partner sends its own reference (transaction number); `(partner_code, partner_reference)` is unique, so a retry of the same request is a 409, never a duplicate row.
+- **Access**: the partner credential's `allowed_routes` must list `/<name>` and `/<name>/*` (relative to `/partner`). For an endpoint meant for one partner only, add `requirePartner('<code>')` after `describeEndpoint()` (D27).
 - A module may also have `<name>.routes.ts` for admins/users (bearer); keep each channel in its own files.
 
 ---

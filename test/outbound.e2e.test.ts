@@ -10,7 +10,7 @@ import { INTEGRATION_REGISTRY } from '../src/integrations/registry';
 import { authorize } from './helpers/authorized-app';
 
 /**
- * Outbound contract (plan step 4.1), end to end: a real HTTP call from the example module
+ * Outbound contract, end to end: a real HTTP call from the example module
  * user-posts through the JSONPlaceholder adapter to a local fake vendor; only the vendor's address
  * is swapped. Removed with the examples by `bun run setup <name>` (the adapter goes with them);
  * HttpClientService keeps its own tests in src/core/http.

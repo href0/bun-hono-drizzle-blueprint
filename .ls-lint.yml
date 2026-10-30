@@ -2,7 +2,7 @@
 # also applies to every directory below it). A name with more dots (users.controller.ts has
 # extension `.controller.ts`) is not matched by `.ts` rules: every file name, the module /
 # integration naming patterns and channel mounting are checked by test/structure.test.ts
-# (adoption plan D24).
+# (D24).
 ls:
   src:
     .dir: kebab-case

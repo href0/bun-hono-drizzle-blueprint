@@ -59,7 +59,7 @@ import {
 // scaffold:imports — `bun run scaffold` adds module and vendor imports above this line; keep it.
 
 /**
- * Vendors whose webhooks this API accepts (plan D23): each gets its verifier on
+ * Vendors whose webhooks this API accepts (D23): each gets its verifier on
  * `<API_BASE_PATH>/webhooks/<vendor>/*`. A webhook route of an unlisted vendor answers 401.
  */
 export const WEBHOOK_VENDORS: readonly WebhookVendor[] = [demoPayWebhook];
@@ -70,7 +70,7 @@ const serviceInfoSchema = z.object({
   version: z.string(),
 });
 
-/** Pipeline order: plan appendix L10. */
+/** Pipeline order: docs/standards/bootstrap.md §3. */
 export const createApp = (): Hono => {
   const app = new Hono();
   const basePath = appConfig.API_BASE_PATH;

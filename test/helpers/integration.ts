@@ -23,7 +23,7 @@ export const asActor = <T>(fn: () => Promise<T>): Promise<T> =>
  * The error a promise rejects with (or `undefined` when it resolves). Use it instead of
  * `expect(promise).rejects` / `.resolves`: in Bun 1.3.0 those wait on the promise in a way that
  * can stall real socket I/O — a transaction then stays `idle in transaction` and the test times
- * out (found in plan step 6.1). Await first, assert after.
+ * out (found while building the integration suite). Await first, assert after.
  */
 export const rejectionOf = async (promise: Promise<unknown>): Promise<unknown> =>
   promise.then(

@@ -223,7 +223,7 @@ describe('ARCHITECTURE.md rule index (R01…) and enforcer labels', () => {
  * documents keeps working when a file or section moves.
  */
 
-/** Maintained documents (plans and the archive are history: their links are not maintained). */
+/** Maintained documents (work plans are temporary: their links are not maintained). */
 const markdownBelow = (dir: string): string[] =>
   readdirSync(resolve(ROOT, dir), { recursive: true, encoding: 'utf8' })
     .filter((path) => path.endsWith('.md'))

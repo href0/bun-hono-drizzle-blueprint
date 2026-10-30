@@ -6,13 +6,13 @@ import { createApp, WEBHOOK_VENDORS } from '../src/app';
 import { appConfig } from '../src/config';
 
 /**
- * File layout and inbound channels (adoption plan D23–D26), checked on the real tree:
+ * File layout and inbound channels (D23–D26), checked on the real tree:
  * - every file name is kebab-case per dot segment (ls-lint only checks names whose extension is
  *   exactly `.ts`, so `Users.Controller.ts` would pass it);
  * - module files are `<module>[-<qualifier>][.<channel>].<role>[.test].ts` — ESLint and
  *   dependency-cruiser find controllers, services, … by that suffix, so a near miss such as
  *   `payments.webhook-routes.ts` would silently escape every architecture rule;
- * - a dependent module (plan D33) lives in one subfolder of its parent,
+ * - a dependent module (D33) lives in one subfolder of its parent,
  *   `src/modules/<parent>/<child>/<child>.<role>.ts`: one level only, a subfolder holds a
  *   `DependentRepository` module, and a child name is used once across `src/modules/` (it names
  *   a table and the flat routes `/<child>/:id`);
@@ -141,7 +141,7 @@ export const moduleTreeViolations = (modules: readonly ModuleFolder[]): string[]
     seen.set(module.name, where);
     if (module.parent !== undefined && !/extends DependentRepository\b/.test(module.repository)) {
       problems.push(
-        `${where}: a module subfolder holds a dependent module only (its repository extends DependentRepository, plan D33)`,
+        `${where}: a module subfolder holds a dependent module only (its repository extends DependentRepository, D33)`,
       );
     }
     // A dependent is named after its parent (`order-documents`): its table and flat routes then never
@@ -152,7 +152,7 @@ export const moduleTreeViolations = (modules: readonly ModuleFolder[]): string[]
       const prefix = `${parentColumn.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-`;
       if (!module.name.startsWith(prefix)) {
         problems.push(
-          `${where}: a dependent module is named after its parent: "${prefix}…" (its table and flat routes then never collide with another parent's, plan D33)`,
+          `${where}: a dependent module is named after its parent: "${prefix}…" (its table and flat routes then never collide with another parent's, D33)`,
         );
       }
     }
@@ -339,7 +339,7 @@ describe('the checks themselves (deliberately broken examples)', () => {
         { name: 'tasks', repository: 'class T extends BaseRepository {}' },
       ]),
     ).toEqual([
-      'src/modules/projects/notes/: a module subfolder holds a dependent module only (its repository extends DependentRepository, plan D33)',
+      'src/modules/projects/notes/: a module subfolder holds a dependent module only (its repository extends DependentRepository, D33)',
       'src/modules/tasks/: the module name "tasks" is already used by src/modules/projects/tasks/ (it names a table and routes)',
     ]);
   });
@@ -369,8 +369,8 @@ describe('the checks themselves (deliberately broken examples)', () => {
         { name: 'notes', parent: 'projects', repository: 'class N extends DependentRepository {}' },
       ]),
     ).toEqual([
-      'src/modules/projects/budgets/: a dependent module is named after its parent: "project-…" (its table and flat routes then never collide with another parent\'s, plan D33)',
-      'src/modules/purchase-orders/order-lines/: a dependent module is named after its parent: "purchase-order-…" (its table and flat routes then never collide with another parent\'s, plan D33)',
+      'src/modules/projects/budgets/: a dependent module is named after its parent: "project-…" (its table and flat routes then never collide with another parent\'s, D33)',
+      'src/modules/purchase-orders/order-lines/: a dependent module is named after its parent: "purchase-order-…" (its table and flat routes then never collide with another parent\'s, D33)',
     ]);
   });
 

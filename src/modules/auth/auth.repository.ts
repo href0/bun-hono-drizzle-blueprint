@@ -10,7 +10,7 @@ import {
 
 /**
  * Refresh tokens (`auth_refresh_tokens`) — the approved exception to the audited data layer
- * (adoption plan §4.1 decision log, eslint.config.mjs `AUTH_TOKEN_REPOSITORY_RULES`): no
+ * (docs/decisions.md §2, eslint.config.mjs `AUTH_TOKEN_REPOSITORY_RULES`): no
  * repository base and direct UPDATEs, because the table's own `revoked_at` / `replaced_by_id` are the trail. Tokens are never
  * deleted here; revocation sets `revoked_at` (database clock).
  */

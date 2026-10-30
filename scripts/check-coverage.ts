@@ -7,8 +7,8 @@
  *   3. Every source file appears in the report. Bun only instruments files that tests import,
  *      so an untested file would otherwise be invisible. Pure re-export barrels are exempt.
  *
- * COVERAGE_EXCLUSIONS is the only escape hatch: every entry needs a reason and the plan step
- * that removes it. Exclusions are printed on every run so they stay visible.
+ * COVERAGE_EXCLUSIONS is the only escape hatch: every entry needs a reason and when it goes
+ * (`until`). Exclusions are printed on every run so they stay visible.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

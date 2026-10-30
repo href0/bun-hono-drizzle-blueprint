@@ -4,7 +4,7 @@ import { appConfig, httpConfig } from '../src/config';
 import { cacheService } from '../src/core/cache';
 
 /**
- * createApp() pipeline (plan appendix L10) with the test configuration: CORS disabled,
+ * createApp() pipeline (docs/standards/bootstrap.md §3) with the test configuration: CORS disabled,
  * no trusted proxy, Redis never connected (the rate limit fails open).
  */
 describe('Platform hardening — createApp() pipeline', () => {

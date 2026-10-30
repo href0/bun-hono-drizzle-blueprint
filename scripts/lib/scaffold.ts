@@ -1,7 +1,7 @@
 /**
  * Shared engine of `bun run scaffold` (scripts/scaffold.ts) and `bun run verify:scaffold`.
  *
- * The scaffold-module skill's Markdown is the only copy of template code (plan D31): this module
+ * The scaffold-module skill's Markdown is the only copy of template code (D31): this module
  * reads its `### Step N: … (\`src/…\`)` code blocks, fills the placeholders and computes the
  * registrations in shared files. Everything here is pure — it returns a plan (files to create,
  * edits to apply, next steps) and never writes, so the CLI can apply it all-or-nothing or print it
@@ -347,7 +347,7 @@ export interface ScaffoldRequest {
   /** Header-detail only: the detail's plural name (default `items`) and its singular. */
   detail?: string;
   detailSingular?: string;
-  /** Dependent module only (plan D33): the existing parent module, its singular, 1:1 or 1:N. */
+  /** Dependent module only (D33): the existing parent module, its singular, 1:1 or 1:N. */
   parent?: string;
   parentSingular?: string;
   one?: boolean;
@@ -515,9 +515,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
     if (request.vendor === undefined) throw new ScaffoldError('webhook needs --vendor=<vendor>');
     const vendor = deriveVendorNames(request.vendor);
     if (vendor.kebab === names.name) {
-      throw new ScaffoldError(
-        'the module is named after its domain, never after the vendor (plan D26)',
-      );
+      throw new ScaffoldError('the module is named after its domain, never after the vendor (D26)');
     }
     const files = materialize(text, names, [APP_PATH], vendor);
     const routes = `${names.camelPlural}WebhookRoutes`;
@@ -652,7 +650,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
 };
 
 /**
- * A dependent module (plan D33): its own module next to an existing parent module, which is never
+ * A dependent module (D33): its own module next to an existing parent module, which is never
  * edited. Routes in shallow nesting — the collection under the parent, rows by their own id.
  */
 const planDependent = (
@@ -737,7 +735,7 @@ export interface ParsedArgs {
   dryRun: boolean;
 }
 
-/** What the command line gave before `<kind>` / `<name>` are required: the wizard asks for the rest (plan D36). */
+/** What the command line gave before `<kind>` / `<name>` are required: the wizard asks for the rest (D36). */
 export interface ScaffoldDraft {
   request: Partial<ScaffoldRequest>;
   dryRun: boolean;

@@ -27,7 +27,7 @@ describe('hermetic test environment (bunfig.toml preload)', () => {
   });
   // partner:end
 
-  it('runs in UTC whatever the host zone (plan D13)', () => {
+  it('runs in UTC whatever the host zone (D13)', () => {
     expect(process.env.TZ).toBe('UTC');
     expect(new Date(0).getTimezoneOffset()).toBe(0);
     expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe('UTC');

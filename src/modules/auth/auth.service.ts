@@ -102,7 +102,7 @@ const toAuthUser = (user: User): AuthUser => {
 };
 
 /**
- * Login, refresh-token rotation with reuse detection, logout (plan D1, L3).
+ * Login, refresh-token rotation with reuse detection, logout (D1; docs/standards/auth-and-inbound.md §2).
  *
  * A login starts a token family (one session). Every refresh revokes the presented token and
  * issues its successor in the same family; presenting an already revoked token means it was
@@ -264,7 +264,7 @@ export class AuthService {
     return (await this.issue(updated ?? user, family, now, client)).session;
   }
 
-  /** One rotation, in one transaction with the presented token locked (plan L3). */
+  /** One rotation, in one transaction with the presented token locked (docs/standards/auth-and-inbound.md §2). */
   @Transactional()
   private async rotate(refreshToken: string, client: ClientInfo): Promise<RotationOutcome> {
     const presented = await this.tokens.findByHashForUpdate(sha256Hex(refreshToken));

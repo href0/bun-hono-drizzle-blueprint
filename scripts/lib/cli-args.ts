@@ -1,5 +1,5 @@
 /**
- * The command line of every `scripts/*.ts` (plan D40, R83): `--help` / `-h` prints the usage on
+ * The command line of every `scripts/*.ts` (D40, R83): `--help` / `-h` prints the usage on
  * stdout and exits 0 before anything is read, written or contacted; a wrong command line prints the
  * problem and the usage on stderr and exits 1. Usages live in one place: `SCRIPT_USAGE`
  * (commands.ts), which `bun run help <command>` prints too.

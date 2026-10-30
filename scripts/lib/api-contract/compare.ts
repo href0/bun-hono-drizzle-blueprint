@@ -1,6 +1,6 @@
 /**
  * Compares two flattened contracts (flatten.ts) and classifies every difference. The table is
- * asymmetric (plan D34, Step 7.4b): a client *sends* the request side and *reads* the response
+ * asymmetric (D34): a client *sends* the request side and *reads* the response
  * side, so the same change can break one side and be harmless on the other.
  */
 import type { Fact } from './flatten';

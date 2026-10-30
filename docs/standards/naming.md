@@ -10,7 +10,7 @@ Read this file when: naming a file, a folder, a module, an identifier or a table
 |---|---|---|
 | Folders and every dot segment of a file name | `kebab-case` | `user-profile.service.ts`, `auth/` |
 | Module file | `<module>[-<qualifier>][.<channel>].<role>[.test].ts` | `payments.webhook.routes.ts`, `auth-users.repository.ts` |
-| Dependent module (plan D33) | one subfolder of its parent, named after it — `<parent singular>-<name>`, as a header-detail table is `order_items`: `src/modules/<parent>/<child>/<child>.<role>[.test].ts` | `src/modules/projects/project-tasks/project-tasks.service.ts` |
+| Dependent module (D33) | one subfolder of its parent, named after it — `<parent singular>-<name>`, as a header-detail table is `order_items`: `src/modules/<parent>/<child>/<child>.<role>[.test].ts` | `src/modules/projects/project-tasks/project-tasks.service.ts` |
 | Integration file | `src/integrations/<vendor>/<vendor>.<role>[.test].ts` (`service`, `dto`, `webhook`, `webhook.dto`) or `index.ts` | `acme-pay.webhook.ts` |
 | Unit test | next to the file: `<file>.test.ts` | `users.service.test.ts` |
 | E2E / guard test | `test/<area>.e2e.test.ts` / `test/<name>.test.ts` | `test/users.e2e.test.ts` |
@@ -20,7 +20,7 @@ Read this file when: naming a file, a folder, a module, an identifier or a table
 - The channel segment (`.webhook`, …) says which caller the file serves: [auth-and-inbound.md](auth-and-inbound.md) §1.
 - No `integration-*` prefix for vendor files: the folder is the marker.
 - A **dependent module** lives in a subfolder of its parent, one level only; its files are named after the subfolder, the subfolder holds a `DependentRepository` module, and a module name is used once across `src/modules/` (it also names a table and the flat routes `/<child>/:id`) — [new-module.md](new-module.md) §2.7.
-- **Modules are named after their domain** (`messaging`, `payments`), never after a vendor; the vendor lives only in `src/integrations/<vendor>/`, so changing vendors means a new adapter, not a new module (plan D26).
+- **Modules are named after their domain** (`messaging`, `payments`), never after a vendor; the vendor lives only in `src/integrations/<vendor>/`, so changing vendors means a new adapter, not a new module (D26).
 
 Enforced by ls-lint (folders and single-dot names) and `test/structure.test.ts` (every file name per dot segment, both patterns, dependent subfolders, unique module names, no module named like a vendor, `*.int.ts` placement). ls-lint applies its `.ts` rules only to names whose whole extension is `.ts` — `users.controller.ts` has the extension `.controller.ts` — which is why the names are checked by the test.
 

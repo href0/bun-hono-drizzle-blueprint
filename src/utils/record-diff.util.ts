@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the audit trail (plan D16): what changed between two versions of a row, and a
+ * Pure helpers for the audit trail (D16): what changed between two versions of a row, and a
  * full snapshot of a row. Values are normalized to their JSON form (`Temporal` → ISO string, via
  * `toJSON`), so comparison and storage in `jsonb` agree.
  */

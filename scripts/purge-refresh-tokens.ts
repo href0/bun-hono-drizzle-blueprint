@@ -27,7 +27,7 @@ const maintenance = await import('../src/database/maintenance/purge-refresh-toke
 const retention = days ?? maintenance.DEFAULT_RETENTION_DAYS;
 try {
   if (process.stdin.isTTY && process.stdout.isTTY) {
-    // A person at a terminal: the count first, then a Yes (plan D40). Cron and CI never ask.
+    // A person at a terminal: the count first, then a Yes (D40). Cron and CI never ask.
     terminalPrompter.intro('bun run auth:purge-tokens');
     await purgeAfterConfirmation(terminalPrompter, retention, {
       count: (retentionDays) => maintenance.countPurgeableRefreshTokens(retentionDays),

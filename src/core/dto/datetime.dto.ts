@@ -9,7 +9,7 @@ import {
 } from '../../utils/datetime.util';
 
 /**
- * Request fields for the three kinds of time (plan D13). Validation messages describe the expected
+ * Request fields for the three kinds of time (D13). Validation messages describe the expected
  * format and never echo the submitted value.
  */
 

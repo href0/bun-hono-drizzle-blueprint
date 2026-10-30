@@ -7,7 +7,7 @@ export interface PublicRoute {
 }
 
 /**
- * The only versioned routes reachable without an access token (plan D7: default-deny). Every
+ * The only versioned routes reachable without an access token (D7: default-deny). Every
  * other route under `<API_BASE_PATH>/v1` requires `Authorization: Bearer <token>` — a route added
  * without an entry here is protected, never accidentally open (test/default-deny.e2e.test.ts).
  *

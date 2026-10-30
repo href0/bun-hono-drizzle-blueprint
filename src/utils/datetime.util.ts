@@ -5,7 +5,7 @@ import { isPlainObject } from './case-converter.util';
  * The only place that creates or converts time values (ESLint bans `new Date(...)` — even for
  * "now" — `Date.parse` and local-time getters/formatters everywhere else in `src/`).
  *
- * Three kinds of time, never mixed (plan D13):
+ * Three kinds of time, never mixed (D13):
  * - **instant** (`*_at`): an exact moment — `Temporal.Instant`, `timestamptz`, ISO 8601 UTC on the wire;
  * - **calendar date** (`*_date`): a day with no time zone — `Temporal.PlainDate`, `date`, `YYYY-MM-DD`;
  * - **local schedule**: an instant plus the IANA zone it was planned in (`*_timezone`).

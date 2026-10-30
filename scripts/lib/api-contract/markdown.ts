@@ -1,6 +1,6 @@
 /**
  * Renders the API contract (the same OpenAPI document as the snapshot) as Indonesian Markdown for
- * integrators (plan D35): `docs/api/README.md` (index, envelopes, every error code, the Platform
+ * integrators (D35): `docs/api/README.md` (index, envelopes, every error code, the Platform
  * routes) and one file per module named after its folder — dependent modules in their parent's
  * subfolder (`docs/api/projects/project-tasks.md`). Pure and deterministic: the same document gives the
  * same bytes, which `openapi:check` compares.

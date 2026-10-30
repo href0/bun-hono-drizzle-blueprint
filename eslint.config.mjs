@@ -42,7 +42,7 @@ const ERROR_CODE_SYNTAX_RULES = [
 ];
 
 /**
- * Time is parsed, converted and read in local time only in src/utils/datetime.util.ts (plan D13):
+ * Time is parsed, converted and read in local time only in src/utils/datetime.util.ts (D13):
  * `new Date(<value>)` and `Date.parse` guess the zone of strings without an offset, local
  * getters/formatters depend on the host's TZ, and even `new Date()` for "now" is routed through
  * the module so there is exactly one way to obtain a time value.
@@ -110,7 +110,7 @@ const SQL_RAW_RULES = [
 ];
 
 /*
- * Outbound HTTP goes only through HttpClientService (src/core/http, plan step 4.1): mandatory
+ * Outbound HTTP goes only through HttpClientService (src/core/http): mandatory
  * timeout, keep-alive pool, X-Request-ID, vendor failures masked as ExternalServiceError with the
  * vendor body only in the log. A raw fetch()/axios call silently skips all of that.
  */
@@ -143,7 +143,7 @@ const SOURCE_SYNTAX_RULES = [
 ];
 
 /*
- * Data layer (plan step 2.6): every change of a domain row goes through the repository bases, which
+ * Data layer: every change of a domain row goes through the repository bases, which
  * lock, scope soft-deleted rows, stamp the actor and write record_changes in the same transaction.
  */
 const TX_OBJECT = ':matches([callee.object.property.name="tx"], [callee.object.name="tx"])';
@@ -200,7 +200,7 @@ const REPOSITORY_SYNTAX_RULES = [
 ];
 
 /**
- * The one approved exception (adoption plan §4.1 decision log, 2026-10-04): the refresh-token
+ * The one approved exception (docs/decisions.md §2): the refresh-token
  * repository needs no base and may revoke tokens with UPDATE — rotation is high-volume security state whose own columns
  * (`revoked_at`, `replaced_by_id`) are the trail. Only `auth_refresh_tokens` may be updated;
  * DELETE stays banned.
@@ -209,12 +209,12 @@ const AUTH_TOKEN_REPOSITORY_RULES = [
   {
     selector: `CallExpression[callee.property.name="update"]${TX_OBJECT}:not([arguments.0.name="authRefreshTokens"])`,
     message:
-      'The auth repository may only update authRefreshTokens (approved exception, adoption plan §4.1 decision log); other tables go through their own repository base.',
+      'The auth repository may only update authRefreshTokens (approved exception, docs/decisions.md §2); other tables go through their own repository base.',
   },
   {
     selector: `CallExpression[callee.property.name="delete"]${TX_OBJECT}`,
     message:
-      'DELETE is not part of the refresh-token exception (adoption plan §4.1 decision log); revoke tokens instead.',
+      'DELETE is not part of the refresh-token exception (docs/decisions.md §2); revoke tokens instead.',
   },
 ];
 
@@ -303,7 +303,7 @@ const CACHE_CLIENT_IMPORT_PATTERN = {
 
 /**
  * Bun's mock.module() replaces a module for every later test file in the process — it leaked a fake
- * Redis client (step 1.6) and a fake database connection (review of phase 1) into unrelated tests.
+ * Redis client and a fake database connection (review of phase 1) into unrelated tests.
  * Inject dependencies instead (constructor defaults, function parameters).
  */
 const TEST_SYNTAX_RULES = [
@@ -315,7 +315,7 @@ const TEST_SYNTAX_RULES = [
 ];
 
 /*
- * Integration suite (test/integration/**, `bun run test:int`, plan step 6.1): real PostgreSQL and
+ * Integration suite (test/integration/**, `bun run test:int`): real PostgreSQL and
  * Redis, through the real code path. In Bun 1.3.0 `expect(promise).rejects` / `.resolves` wait on
  * the promise in a way that can stall real socket I/O (a transaction stuck "idle in transaction");
  * spies and mocks would replace exactly what the suite exists to exercise.
@@ -363,7 +363,7 @@ const TX_HOST_IMPORT_PATTERN = {
 };
 
 /**
- * CLI questions only through scripts/lib/prompter.ts (plan D40): one look and one cancel for every
+ * CLI questions only through scripts/lib/prompter.ts (D40): one look and one cancel for every
  * script, and the tests answer them with a scripted Prompter.
  */
 const CLI_PROMPT_IMPORT_PATTERNS = [
@@ -380,7 +380,7 @@ const CLI_PROMPT_IMPORT_PATTERNS = [
 ];
 
 /*
- * Inbound channels (adoption plan D23–D27). A module file name says which caller it serves —
+ * Inbound channels (D23–D27). A module file name says which caller it serves —
  * `<module>[.<channel>].<role>.ts`, a channel of CHANNEL_CALLERS (no channel = users with access
  * tokens) — and only that caller's helpers may appear in it. A dedicated rule (not
  * `no-restricted-syntax`) so it never collides with the role-based groups above.
@@ -422,9 +422,9 @@ const inboundChannelRule = {
     schema: [],
     messages: {
       forbidden:
-        '"{{name}}" is a {{kind}}-channel helper, but this file serves the {{channel}} channel. Name the files of a channel <module>.<channel>.<role>.ts (webhook: <module>.webhook.<role>.ts); keep each channel in its own files (plan D24).',
+        '"{{name}}" is a {{kind}}-channel helper, but this file serves the {{channel}} channel. Name the files of a channel <module>.<channel>.<role>.ts (webhook: <module>.webhook.<role>.ts); keep each channel in its own files (D24).',
       verbatimBody:
-        "bodyKeys: 'verbatim' (vendor-owned payload casing) is only for vendor webhooks, in <module>.webhook.<role>.ts files; our own contracts are snake_case (plan D10, D23).",
+        "bodyKeys: 'verbatim' (vendor-owned payload casing) is only for vendor webhooks, in <module>.webhook.<role>.ts files; our own contracts are snake_case (D10, D23).",
     },
   },
   create(context) {

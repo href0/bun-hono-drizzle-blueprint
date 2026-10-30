@@ -4,11 +4,11 @@ import { appTable } from '../schemas';
 import { users } from './users.schema';
 
 /**
- * Refresh tokens (plan D1, L3): opaque values, stored only as their SHA-256. Every refresh revokes
+ * Refresh tokens (D1; docs/standards/auth-and-inbound.md §2): opaque values, stored only as their SHA-256. Every refresh revokes
  * the presented token and issues a new one in the same family (`family_id` = one login session);
  * presenting a revoked token again revokes the whole family (reuse detection).
  *
- * Approved exception to the audited data layer (adoption plan §4.1 decision log, 2026-10-04):
+ * Approved exception to the audited data layer (docs/decisions.md §2):
  * high-volume security state whose own columns are the trail (`revoked_at`, `replaced_by_id`), so it has no audit columns or
  * soft delete, and its repository may update it directly (eslint.config.mjs, auth repository).
  */

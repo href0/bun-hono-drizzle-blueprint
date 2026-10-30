@@ -3,7 +3,7 @@ import { pgSchema, pgTable } from 'drizzle-orm/pg-core';
 /**
  * Where tables live. A project owns its database, so its tables use PostgreSQL's default `public`
  * schema — no project-named schema to configure or migrate. (Schema-per-tenant SaaS is a separate,
- * optional feature: plan backlog L12.)
+ * optional feature: docs/decisions.md §3 (backlog).)
  *
  * Declare every table with `appTable(...)` — ESLint bans raw `pgTable(` and `pgSchema(` elsewhere,
  * so this file stays the single switch if the layout ever changes.

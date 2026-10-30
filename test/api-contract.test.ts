@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * Wiring of the API contract snapshot (plan D34, R76): `openapi:check` runs wherever the gates run,
+ * Wiring of the API contract snapshot (D34, R76): `openapi:check` runs wherever the gates run,
  * and `openapi:update` — accepting a contract change — is never run by a machine on its own.
  */
 const ROOT = resolve(import.meta.dir, '..');

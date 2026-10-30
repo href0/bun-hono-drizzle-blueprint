@@ -8,7 +8,7 @@ Read this file when: creating a branch, writing a commit message, or preparing a
 
 - `<type>/<slug>` with `<type>` ∈ `feat`, `fix`, `hotfix`, `chore`, `docs`, `test`, `refactor`, `ci`, `perf` (e.g. `feat/login-api`), or an environment branch: `main`, `master`, `development`, `staging`, `prod`, `boilerplate`.
 - Enforced by `.validate-branch-namerc.json` — `bun run lint:branch` (pre-push) and the CI job `verify`.
-- This boilerplate repository uses `main` + one branch per step (plan D0); derived projects may use `development → staging → prod` (skill `update-version`).
+- This boilerplate repository uses `main` + one branch per step (D0); derived projects may use `development → staging → prod` (skill `update-version`).
 
 ### 1.1 Releasing this boilerplate
 

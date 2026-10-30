@@ -20,7 +20,7 @@ export interface WebhookRequest {
 }
 
 /**
- * A vendor whose webhooks this API accepts (plan D23). Declared by the vendor's adapter in
+ * A vendor whose webhooks this API accepts (D23). Declared by the vendor's adapter in
  * `src/integrations/<vendor>/<vendor>.webhook.ts` and registered once in `createApp()`.
  */
 export interface WebhookVendor {

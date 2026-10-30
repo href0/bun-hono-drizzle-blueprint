@@ -1,5 +1,5 @@
 /**
- * Schema conventions (plan step 2.7), checked on every table exported from the schema barrel — the
+ * Schema conventions, checked on every table exported from the schema barrel — the
  * tables drizzle-kit migrates. Each rule is a pure check that returns readable violations; the
  * second half proves every check fires on a deliberately broken table.
  */
@@ -191,7 +191,7 @@ describe('schema conventions (every exported table)', () => {
   });
 });
 
-describe('auth_refresh_tokens (plan L3)', () => {
+describe('auth_refresh_tokens (docs/standards/auth-and-inbound.md §2)', () => {
   const config = getTableConfig(schema.authRefreshTokens);
   const leadingColumns = config.indexes.map((index) => columnNames(index.config.columns).at(0));
 

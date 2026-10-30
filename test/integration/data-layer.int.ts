@@ -26,7 +26,7 @@ import {
 } from '../helpers/repository-fixtures';
 
 /**
- * The data layer on a real PostgreSQL (plan step 6.1): what the SQL recorder of the unit tests
+ * The data layer on a real PostgreSQL: what the SQL recorder of the unit tests
  * cannot prove — row locks, rollbacks, partial unique indexes and the audit trail as stored.
  */
 
@@ -203,7 +203,7 @@ describe('ChildRepository on PostgreSQL', () => {
   });
 });
 
-describe('DependentRepository on PostgreSQL (plan D33)', () => {
+describe('DependentRepository on PostgreSQL (D33)', () => {
   it('hides children of a deleted parent without touching them; restore brings back only the live ones', async () => {
     const parent = await asActor(() => orders.create({ code: unique('I') }));
     const kept = await asActor(() => notes.createForParent(parent.id, { body: 'kept' }));

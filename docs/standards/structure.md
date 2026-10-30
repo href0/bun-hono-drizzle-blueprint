@@ -154,9 +154,9 @@ scripts/
 ├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup
 ├── lib/prompter.ts             # Every CLI question and what is drawn around it (text, select, multiselect, password, confirm, intro, note, spinner, outro) behind one interface; the only importer of @clack/prompts (+ lib/prompter.test.ts: the real prompts on streams)
 ├── lib/scripted-prompter.ts    # The Prompter of the tests: answers in order, records the questions and what was drawn (+ lib/scripted-prompter.test.ts)
-├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (plan D38): name, --title, description, examples, --no-partner (+ lib/setup-wizard.test.ts)
-├── lib/partner-prune.ts        # The partner switch of setup (plan D39): marked regions, PARTNER_ONLY, the no-partner simulation of lint:setup (+ lib/partner-prune.test.ts)
-├── lib/scaffold-wizard.ts       # The scaffold wizard (plan D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)
+├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (D38): name, --title, description, examples, --no-partner (+ lib/setup-wizard.test.ts)
+├── lib/partner-prune.ts        # The partner switch of setup (D39): marked regions, PARTNER_ONLY, the no-partner simulation of lint:setup (+ lib/partner-prune.test.ts)
+├── lib/scaffold-wizard.ts       # The scaffold wizard (D36): questions per shape → the same flags, @clack/prompts (+ lib/scaffold-wizard.test.ts)
 └── purge-refresh-tokens.ts      # `bun run auth:purge-tokens [--days N]`
 ```
 

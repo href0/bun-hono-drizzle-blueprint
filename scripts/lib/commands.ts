@@ -1,5 +1,5 @@
 /**
- * Every `package.json` script, grouped, with one line each (plan D40): what `bun run help` prints,
+ * Every `package.json` script, grouped, with one line each (D40): what `bun run help` prints,
  * and the usage of every `scripts/*.ts` (`--help`, `bun run help <command>`). `commands.test.ts`
  * keeps the registry and `package.json` equal (R83); the command table of quality-gates.md §3 stays
  * the documentation of the same scripts.

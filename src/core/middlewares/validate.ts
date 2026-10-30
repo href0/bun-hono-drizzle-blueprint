@@ -19,7 +19,7 @@ export interface ValidationSchemas {
   preserveKeys?: readonly string[];
   /**
    * `verbatim`: the body keeps its keys exactly as sent — no snake_case check, no camelCase
-   * conversion — for payloads whose contract belongs to someone else (vendor webhooks, plan D23).
+   * conversion — for payloads whose contract belongs to someone else (vendor webhooks, D23).
    * Allowed only in `*.webhook.*` files (ESLint `local/inbound-channel`). Default `snake_case`.
    */
   bodyKeys?: 'snake_case' | 'verbatim';

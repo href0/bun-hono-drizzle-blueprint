@@ -1,5 +1,5 @@
 /**
- * The interactive front of `bun run scaffold` (plan D36). In a terminal, a command that leaves out
+ * The interactive front of `bun run scaffold` (D36). In a terminal, a command that leaves out
  * `<kind>`, `<name>` or a webhook's vendor opens this wizard; it only completes the request. Every
  * answer becomes a flag that `parseScaffoldArgs` reads (`toArgv`), so the files are exactly those of
  * the equivalent command, which the CLI prints at the end (`commandOf`). Questions go through a

@@ -1,5 +1,5 @@
 /**
- * Every question a CLI asks and everything it draws around them (plan D40), behind one interface:
+ * Every question a CLI asks and everything it draws around them (D40), behind one interface:
  * the tests answer with a scripted `Prompter` (scripted-prompter.ts), `terminalPrompter` asks a
  * person (`@clack/prompts`). The only file allowed to import `@clack/prompts` (ESLint,
  * `CLI_PROMPT_IMPORT_PATTERNS`); without a terminal a script asks nothing and reads flags / stdin.

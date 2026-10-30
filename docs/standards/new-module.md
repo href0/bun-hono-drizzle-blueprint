@@ -1,6 +1,6 @@
 # Adding a Module or a Vendor Adapter
 
-Read this file when: creating a module, a resource, a CRUD endpoint, an inbound channel endpoint, a webhook receiver or an outbound vendor adapter. The code templates live in the skill `scaffold-module` (`.agents/skills/scaffold-module/`) — the only copy of template code. **`bun run scaffold` generates from them** (plan D31), for developers and agents alike; `bun run verify:scaffold` runs that CLI for every template in CI, so neither can fall behind the core APIs.
+Read this file when: creating a module, a resource, a CRUD endpoint, an inbound channel endpoint, a webhook receiver or an outbound vendor adapter. The code templates live in the skill `scaffold-module` (`.agents/skills/scaffold-module/`) — the only copy of template code. **`bun run scaffold` generates from them** (D31), for developers and agents alike; `bun run verify:scaffold` runs that CLI for every template in CI, so neither can fall behind the core APIs.
 
 ---
 
@@ -26,7 +26,7 @@ Table kinds and what each base does: [database.md](database.md) §6.
 
 ### 2.1 Commands
 
-There are two ways to run the same generator: the **wizard**, which asks, and **flags**, which you type. The wizard only fills in the flags, so both write exactly the same files — at the end it prints the command that does the same without it (plan D36).
+There are two ways to run the same generator: the **wizard**, which asks, and **flags**, which you type. The wizard only fills in the flags, so both write exactly the same files — at the end it prints the command that does the same without it (D36).
 
 #### The wizard
 
@@ -219,8 +219,8 @@ Every refusal exits with code 1 and writes nothing.
 | `module Products` | `name must be kebab-case (…), got "Products"` | Lowercase, single hyphens: `products`, `order-items` |
 | `module users` | `refusing to scaffold: - src/modules/users/users.dto.ts already exists …` | Pick another name — the CLI never overwrites |
 | `module orders --variant=header-detail` (orders exists) | `src/modules/orders/ already exists: the CLI does not add details to an existing module …` | Add the details by hand or with an AI agent (§2.6) |
-| `integration users` | `"users" is a module: a vendor adapter cannot share its name (plan D26)` | Name the adapter after the vendor |
-| `webhook acme-pays --vendor=acme-pays` | `the module is named after its domain, never after the vendor (plan D26)` | `webhook payment-receipts --vendor=acme-pays` |
+| `integration users` | `"users" is a module: a vendor adapter cannot share its name (D26)` | Name the adapter after the vendor |
+| `webhook acme-pays --vendor=acme-pays` | `the module is named after its domain, never after the vendor (D26)` | `webhook payment-receipts --vendor=acme-pays` |
 | `webhook payments` | `webhook needs --vendor=<vendor>` | Add `--vendor=<vendor>` |
 | `module classes --variant=header-detail --detail=member` | `"member" does not look plural … →  bun run scaffold module classes --variant=header-detail --detail=members` | Run the suggested command |
 | `module classes --detail=members` | `--detail is only for "module … --variant=header-detail"` | Add `--variant=header-detail` (details only exist under a header) |

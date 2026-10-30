@@ -44,7 +44,7 @@ Before a change is finished: `bun run validate:full` and `bun run build` (plus t
 - Counted over source files only (`*.test.ts` and `test/` are excluded): global lines & functions, per-file lines.
 - Every file in `src/` must be loaded by at least one test — Bun instruments only imported files, so an untested file shows up as a violation instead of passing silently. Pure barrel re-exports are exempt automatically.
 - Bun reports no branch coverage: give every logic branch (classification, status mapping, fallback) an explicit test.
-- Exclusions only through `COVERAGE_EXCLUSIONS`, each with a reason and the plan step that removes it; the list is printed on every run.
+- Exclusions only through `COVERAGE_EXCLUSIONS`, each with a reason and when it goes (`until`); the list is printed on every run.
 
 Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](testing.md).
 

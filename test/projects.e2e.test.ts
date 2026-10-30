@@ -1,5 +1,5 @@
 /**
- * Example dependent modules (plan D33) — HTTP contract through createApp(): the parent `projects`
+ * Example dependent modules (D33) — HTTP contract through createApp(): the parent `projects`
  * (standalone), its `project-tasks` (1:N) and its `project-budgets` (1:1), each child in a subfolder
  * of the parent, named after it and mounted in shallow nesting (`/projects/:id/tasks`, `/project-tasks/:id`). The services are stubbed with spyOn (never mock.module()); the parent
  * rules (hidden while the parent is deleted, parentScope, locks) are covered in

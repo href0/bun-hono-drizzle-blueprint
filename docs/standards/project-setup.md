@@ -108,7 +108,7 @@ While it applies the changes the spinner stands still: setup runs its tools (dri
 
 The wizard and the flags are one code path: the answers become the same arguments, parsed like a typed command (`scripts/lib/setup-wizard.ts`; R61).
 
-## 4. Partner gateway (`--no-partner`, plan D39)
+## 4. Partner gateway (`--no-partner`, D39)
 
 The partner gateway lets other systems call the API server-to-server with signed requests (signing v1). A project that never accepts partners can start without it.
 
@@ -150,6 +150,7 @@ Not a command yet (backlog: `bun run partner:enable`). By hand, from the boilerp
 2. `bun run db:migrate`, then `bun run seed:admin --email <email>` (the password is asked, masked).
 3. `bun run dev`.
 4. A fresh git history is optional: delete `.git`, `git init -b main`, then `bun run prepare` — **required**, it installs the Husky hooks (setup warns while they are missing). Or keep the history with the boilerplate as the remote `upstream` to take its updates later ([git-workflow.md](git-workflow.md) §1.2).
+5. Your own decisions go into [`docs/decisions.md`](../decisions.md) §4 as `PD1`, `PD2`, … — `D0`… stay the boilerplate's, so its later decisions arrive without colliding; larger work follows a plan in `docs/plans/` ([README](../plans/README.md)).
 
 ## 6. Changing what setup touches (boilerplate maintenance)
 

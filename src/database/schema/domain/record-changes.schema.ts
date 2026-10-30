@@ -3,7 +3,7 @@ import { check, index, jsonb, primaryKey, text } from 'drizzle-orm/pg-core';
 import { instant, NOW, sequentialId } from '../columns';
 import { appTable } from '../schemas';
 
-/** What happened to the audited row (plan D16). INSERTs are not recorded: the row itself is the record. */
+/** What happened to the audited row (D16). INSERTs are not recorded: the row itself is the record. */
 export const RECORD_CHANGE_ACTIONS = ['UPDATE', 'SOFT_DELETE', 'RESTORE', 'DELETE'] as const;
 export type RecordChangeAction = (typeof RECORD_CHANGE_ACTIONS)[number];
 
@@ -15,7 +15,7 @@ export type RecordChangeAction = (typeof RECORD_CHANGE_ACTIONS)[number];
 export type RecordChangeSet = Record<string, unknown>;
 
 /**
- * Generic audit trail (plan D16): one row per UPDATE / soft delete / restore / hard delete,
+ * Generic audit trail (D16): one row per UPDATE / soft delete / restore / hard delete,
  * written by `AuditedRepository` in the same transaction as the change itself — a rolled-back
  * change leaves no audit row, and a committed one cannot skip it.
  *
@@ -35,7 +35,7 @@ export const recordChanges = appTable(
     actor: text('actor').notNull(),
     requestId: text('request_id'),
     /**
-     * Header of a detail row (`ChildRepository`, plan step 2.5): the history of a header and all
+     * Header of a detail row (`ChildRepository`): the history of a header and all
      * its details — also hard-deleted ones — is one indexed query. Both set or both null.
      */
     parentTable: text('parent_table'),

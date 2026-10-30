@@ -1,6 +1,6 @@
 # Scaffold Variant — Dependent (1:N)
 
-Use this variant for rows that have their own page but always belong to one parent, added any time after the parent exists: an application's members, a project's tasks, a customer's addresses (plan D33). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. This file replaces Steps 2–14 of `SKILL.md`. For **at most one** row per parent (a form section) use `dependent-one.md` (`--one`).
+Use this variant for rows that have their own page but always belong to one parent, added any time after the parent exists: an application's members, a project's tasks, a customer's addresses (D33). Read `SKILL.md` first: placeholders, naming, messages, OpenAPI and test rules are the same. This file replaces Steps 2–14 of `SKILL.md`. For **at most one** row per parent (a form section) use `dependent-one.md` (`--one`).
 
 Generate it with `bun run scaffold module <segment> --parent=<parent-name>`: the parent is an existing standalone or header module and is **not edited** — the module lives in a subfolder of it, `src/modules/<parent-name>/<name>/` (one level, files named after the subfolder; `test/structure.test.ts`). `<name>` is the module's own name, **the parent's singular + `<segment>`** (`order-documents` for `documents` under `orders`; typing the full name gives the same module): its table and flat routes never collide with another parent's (`invoice-documents`), exactly as a header-detail's `order_items`. Only the route under the parent keeps the short `<segment>`.
 
