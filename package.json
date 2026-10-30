@@ -1,6 +1,6 @@
 {
   "name": "bun-hono-drizzle-blueprint",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Production-grade backend blueprint for Bun, Hono, Drizzle ORM and PostgreSQL",
   "private": true,
   "license": "MIT",

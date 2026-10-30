@@ -2,6 +2,19 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
+## [1.1.0] - 2026-10-30
+
+Nothing to port for a project that is already set up: both changes concern starting a new project.
+
+### Added
+
+- **Setup**: `bun run setup` starts the new project's own `CHANGELOG.md` on the first setup — one line names the boilerplate release it came from, then an empty `[Unreleased]`; the boilerplate's entries stay readable from its tags ([project-setup.md](docs/standards/project-setup.md) §1). `bun run acceptance` checks it.
+
+### Changed
+
+- **Starting a project**: clone a release tag (`git clone --branch vX.Y.Z`, then `git switch -c main`) instead of `main`, so `package.json` → `boilerplate.version` names the code the project really started from (README quickstart, [project-setup.md](docs/standards/project-setup.md) §1, skill `init-project`).
+- **Releasing the boilerplate**: every tag gets a GitHub Release with its changelog entry as notes ([git-workflow.md](docs/standards/git-workflow.md) §1.1).
+
 ## [1.0.0] - 2026-10-30
 
 The first release: a production-ready backend on Bun, Hono, Drizzle ORM and PostgreSQL, with Redis as a recommended addition.
