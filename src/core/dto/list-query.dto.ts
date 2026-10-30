@@ -127,26 +127,47 @@ export const instantRangeQuery = <TPrefix extends string>(
     [`${prefix}To`]: instantField.optional(),
   }) as InstantRangeShape<TPrefix>;
 
+/** The prefixes of the instant ranges a shape declares (`created` for `createdFrom` + `createdTo`). */
+export type RangePrefix<TShape extends z.ZodRawShape> = {
+  [K in keyof TShape & string]: K extends `${infer P}From`
+    ? `${P}To` extends keyof TShape
+      ? P
+      : never
+    : never;
+}[keyof TShape & string];
+
+/** A finished list query: its output is exactly the declared fields (no index signature). */
+export type StrictListQuery<TShape extends z.ZodRawShape> = z.ZodEffects<
+  z.ZodEffects<z.ZodObject<TShape>, z.output<z.ZodObject<TShape>>, unknown>
+>;
+
 /**
  * Finishes a list query: an unknown parameter is a 400 naming it (a typo such as `sotr`, or `q` on
  * a list without search, would otherwise be dropped silently and return unfiltered rows), and each
- * `<prefix>_from` must not be after its `<prefix>_to`.
+ * `<prefix>_from` must not be after its `<prefix>_to`. The unknown keys are checked on the input,
+ * before the object schema strips them, so the DTO type keeps only the declared fields — a
+ * misspelled filter in a repository does not compile.
  */
 export const strictListQuery = <TShape extends z.ZodRawShape>(
   schema: z.ZodObject<TShape>,
-  { ranges = [] }: { ranges?: readonly string[] } = {},
-): z.ZodEffects<z.ZodObject<TShape, 'passthrough'>> => {
+  { ranges = [] }: { ranges?: readonly RangePrefix<TShape>[] } = {},
+): StrictListQuery<TShape> => {
   const known = new Set(Object.keys(schema.shape));
-  return schema.passthrough().superRefine((value, ctx) => {
-    for (const key of Object.keys(value)) {
-      if (!known.has(key)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [key],
-          message: 'Unknown query parameter',
-        });
+  const refusingUnknownKeys = z.preprocess((input, ctx) => {
+    if (typeof input === 'object' && input !== null) {
+      for (const key of Object.keys(input)) {
+        if (!known.has(key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: 'Unknown query parameter',
+          });
+        }
       }
     }
+    return input;
+  }, schema);
+  return refusingUnknownKeys.superRefine((value, ctx) => {
     const fields = value as Record<string, unknown>;
     for (const prefix of ranges) {
       const from = fields[`${prefix}From`];

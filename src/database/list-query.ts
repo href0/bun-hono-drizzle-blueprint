@@ -2,6 +2,7 @@ import { and, asc, desc, gte, ilike, lte, or, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { Temporal } from 'temporal-polyfill';
 import type { ListQuery, SortKey } from '../core/dto/list-query.dto';
+import { InternalServerError } from '../core/errors';
 
 /**
  * A list query (D41, R85) as SQL. The allowlist is a module's `ListColumns`: `sort` maps every
@@ -71,6 +72,13 @@ export const listPage = async <TRow>({
   page: (orderBy: SQL[] | undefined, where: SQL | undefined) => Promise<TRow[]>;
   count: (where: SQL | undefined) => Promise<number>;
 }): Promise<{ rows: TRow[]; total: number }> => {
+  // A DTO that accepts `q` with a repository that names no search column would answer with every
+  // row, as if the text matched: a wiring mistake, refused loudly instead of filtering nothing.
+  if (query.q !== undefined && (columns.search ?? []).length === 0) {
+    throw new InternalServerError(
+      'List query has q, but the repository declares no search columns (ListColumns.search)',
+    );
+  }
   const condition = and(searchCondition(query.q, columns.search), where);
   const [rows, total] = await Promise.all([
     page(orderFromSort(query.sort, columns.sort, id), condition),
