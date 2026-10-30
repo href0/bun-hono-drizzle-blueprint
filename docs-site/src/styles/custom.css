@@ -5,6 +5,25 @@
  * Guarded by test/docs-portal.test.ts (R86): an upgrade must not bring the narrow column back.
  */
 /*
+ * Look (D44): a blueprint-blue accent and self-hosted fonts (@fontsource, no request to a third
+ * party). Every accent pair Starlight draws passes WCAG AA (≥ 4.5:1): dark — links on the page
+ * 11.7:1, on the sidebar 10.0:1, the current item 9.4:1; light — links 6.7:1 / 6.2:1, current 6.7:1.
+ */
+:root {
+  --sl-font: 'Inter Variable';
+  --sl-font-mono: 'JetBrains Mono Variable';
+  --sl-color-accent-low: #0e2a52;
+  --sl-color-accent: #2f6fdc;
+  --sl-color-accent-high: #b6d4fe;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #dbe7ff;
+  --sl-color-accent: #1d4ed8;
+  --sl-color-accent-high: #0b2a6b;
+}
+
+/*
  * A path or a command in a table cell may break anywhere (Starlight does this for list items only):
  * otherwise one long `src/modules/...` sets the column's minimum width and the table scrolls.
  */

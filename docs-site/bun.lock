@@ -5,12 +5,12 @@
       "name": "docs-site",
       "dependencies": {
         "@astrojs/starlight": "^0.42.6",
+        "@fontsource-variable/inter": "5.2.8",
+        "@fontsource-variable/jetbrains-mono": "5.2.8",
         "astro": "^7.3.8",
       },
       "devDependencies": {
         "@types/bun": "latest",
-      },
-      "peerDependencies": {
         "typescript": "^5",
       },
     },
@@ -101,6 +101,10 @@
     "@expressive-code/plugin-shiki": ["@expressive-code/plugin-shiki@0.44.2", "", { "dependencies": { "@expressive-code/core": "^0.44.2", "shiki": "^4.0.2" } }, "sha512-ebWIvCDzXvjyD8rH6T6DfytYJw1GoArLR4nusIAE4VxXrCQf3d+owytiv010KU/dUg+SRLZskDn0N+HaFXeuSg=="],
 
     "@expressive-code/plugin-text-markers": ["@expressive-code/plugin-text-markers@0.44.2", "", { "dependencies": { "@expressive-code/core": "^0.44.2" } }, "sha512-SNI7EgUSiADqbqUzzMbj1ZeC/r2pa5eg3KyFOGAd3a7EsIA4qzjXQLp+ODWQtHVDKFCdGs4J3ovSJUqvKIK96g=="],
+
+    "@fontsource-variable/inter": ["@fontsource-variable/inter@5.2.8", "", {}, "sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ=="],
+
+    "@fontsource-variable/jetbrains-mono": ["@fontsource-variable/jetbrains-mono@5.2.8", "", {}, "sha512-WBA9elru6Jdp5df2mES55wuOO0WIrn3kpXnI4+W2ek5u3ZgLS9XS4gmIlcQhiZOWEKl95meYdvK7xI+ETLCq/Q=="],
 
     "@img/colour": ["@img/colour@1.1.0", "", {}, "sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ=="],
 
