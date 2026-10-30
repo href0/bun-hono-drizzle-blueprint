@@ -3,7 +3,8 @@ import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { Temporal } from 'temporal-polyfill';
 import { testOrders } from '../../test/helpers/repository-fixtures';
-import { escapeLike, instantRange, orderFromSort, searchCondition } from './list-query';
+import { InternalServerError } from '../core/errors';
+import { escapeLike, instantRange, listPage, orderFromSort, searchCondition } from './list-query';
 
 const dialect = new PgDialect();
 const render = (sql: SQL | undefined) => (sql === undefined ? undefined : dialect.sqlToQuery(sql));
@@ -44,6 +45,29 @@ describe('list query SQL (D41)', () => {
       sql: '"test_orders"."code" ilike $1',
       params: ['%a\\_b%'],
     });
+  });
+
+  it('listPage refuses q when the repository names no search column, before any query', async () => {
+    let queried = false;
+    const run = (search?: readonly (typeof testOrders.code)[]) =>
+      listPage({
+        query: { page: 1, perPage: 10, q: 'ada' },
+        columns: { sort: columns, ...(search === undefined ? {} : { search }) },
+        id: testOrders.id,
+        page: async () => {
+          queried = true;
+          return [];
+        },
+        count: async () => 0,
+      });
+
+    for (const search of [undefined, []]) {
+      queried = false;
+      expect(run(search)).rejects.toBeInstanceOf(InternalServerError);
+      await run(search).catch(() => undefined);
+      expect(queried).toBe(false);
+    }
+    expect(await run([testOrders.code])).toEqual({ rows: [], total: 0 });
   });
 
   it('instantRange is inclusive and each bound is optional', () => {
