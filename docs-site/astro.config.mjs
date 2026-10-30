@@ -23,7 +23,13 @@ export default defineConfig({
       description: 'Production-grade backend blueprint for Bun, Hono, Drizzle and PostgreSQL',
       social: repositoryUrl ? [{ icon: 'github', label: 'GitHub', href: repositoryUrl }] : [],
       sidebar: SIDEBAR,
-      customCss: ['./src/styles/custom.css'],
+      logo: { src: './src/assets/logo.svg', alt: '' },
+      components: { SiteTitle: './src/components/SiteTitle.astro' },
+      customCss: [
+        '@fontsource-variable/inter',
+        '@fontsource-variable/jetbrains-mono',
+        './src/styles/custom.css',
+      ],
     }),
   ],
 });
