@@ -1,0 +1,31 @@
+/*
+ * Portal layout (D43). Starlight keeps the content column at 45rem on every screen, so the wide
+ * tables of the standards scroll sideways even on a 1920px screen. The column grows with the
+ * screen instead, up to a bound that keeps paragraphs readable; code blocks may still scroll.
+ * Guarded by test/docs-portal.test.ts (R86): an upgrade must not bring the narrow column back.
+ */
+/*
+ * A path or a command in a table cell may break anywhere (Starlight does this for list items only):
+ * otherwise one long `src/modules/...` sets the column's minimum width and the table scrolls.
+ */
+.sl-markdown-content :is(th, td) code:not(:where(.not-content *)) {
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 72rem) {
+  :root {
+    --sl-content-width: 56rem;
+  }
+}
+
+@media (min-width: 90rem) {
+  :root {
+    --sl-content-width: 64rem;
+  }
+}
+
+@media (min-width: 120rem) {
+  :root {
+    --sl-content-width: 72rem;
+  }
+}
