@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import packageJson from '../package.json';
 import { createApp } from '../src/app';
 import { authorize } from './helpers/authorized-app';
 import { appConfig } from '../src/config';
@@ -20,7 +21,7 @@ describe('Health Module', () => {
     expect(body.status_code).toBe(200);
     expect(body.message).toBe('Layanan aktif');
     expect(body.data.name).toBe(appConfig.APP_NAME);
-    expect(body.data.version).toBe('1.0.0');
+    expect(body.data.version).toBe(packageJson.version);
   });
 
   const health = `${appConfig.API_BASE_PATH}/health`;
