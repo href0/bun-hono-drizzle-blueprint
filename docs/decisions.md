@@ -19,7 +19,7 @@ A changed decision keeps its ID: the row says what replaced what. **Numbering**:
 | D8 | Request context (request ID, actor, locale, client IP) lives in `AsyncLocalStorage` | Services never receive the Hono `Context` |
 | D9 | `X-Request-ID` is accepted only when it matches `^[A-Za-z0-9._:-]{1,128}$`, otherwise a UUID v7 is generated | Prevents log injection |
 | D10 | The wire is snake_case in both directions and strict: another key casing in a request is a 400; opt-out `preserveKeys` | A symmetric contract; error `field`s match what the client sent |
-| D11 | Messages in `id` and `en`, chosen by `Accept-Language`, default `DEFAULT_LOCALE=id` | The audience reads Indonesian; integrators read English |
+| D11 | Messages in `id` and `en`, chosen by `Accept-Language`, default `DEFAULT_LOCALE=id` | Localized messages are one of the platform pillars kept from the blueprint, instead of shrinking to English only |
 | D12 | A unique-value collision is `ConflictError` (409, `CONFLICT`) | The standard status for a general-purpose API |
 | D13 | Time uses `temporal-polyfill`; runtime and database sessions run in UTC; three kinds of time: instants, calendar dates, local schedules with a zone ([datetime.md](standards/datetime.md)) | Prevents time-zone bugs |
 | D14 | Tables live in `public` through `appTable`; reference data owned by another system is a `.view().existing()` (replaced: one `pgSchema` named after the project) | Each project owns its database |

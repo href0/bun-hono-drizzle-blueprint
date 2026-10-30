@@ -116,4 +116,23 @@ describe('a finished list query', () => {
   it('refuses an instant without an offset', () => {
     expect(schema.safeParse({ createdFrom: '2026-10-01T00:00:00' }).success).toBe(false);
   });
+
+  it('types the DTO with exactly the declared fields, and ranges with existing prefixes only', () => {
+    type Dto = z.infer<typeof schema>;
+    // Never called: the assertions are the @ts-expect-error lines, checked by tsc.
+    const readFilters = (query: Dto): unknown[] => [
+      query.createdFrom,
+      // @ts-expect-error a misspelled filter must not compile (no index signature on the DTO)
+      query.createdFrm,
+    ];
+    const misspelledRange = (): unknown =>
+      strictListQuery(listQuerySchema(['createdAt']).extend(instantRangeQuery('created')), {
+        // @ts-expect-error a range prefix the shape does not declare must not compile
+        ranges: ['craeted'],
+      });
+    expect(typeof readFilters).toBe('function');
+    expect(typeof misspelledRange).toBe('function');
+    // The output carries no undeclared key, even when one was sent (it is refused, not kept).
+    expect(Object.keys(schema.parse({ q: 'ada' })).sort()).toEqual(['page', 'perPage', 'q']);
+  });
 });
