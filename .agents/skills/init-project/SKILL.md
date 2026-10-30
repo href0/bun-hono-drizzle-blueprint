@@ -83,7 +83,7 @@ Offer the choices and act only on an explicit answer:
 
 | Option | Commands | When |
 |---|---|---|
-| Keep history, track boilerplate upstream (recommended) | `git remote rename origin upstream` then the user adds their own `origin` | Wants to take future boilerplate improvements (`docs/standards/git-workflow.md` §1.2) |
+| Keep history, track boilerplate upstream (recommended) | on a detached HEAD (a clone of a release tag, `docs/standards/project-setup.md` §1) first `git switch -c main`; then `git remote rename origin upstream` and the user adds their own `origin` | Wants to take future boilerplate improvements (`docs/standards/git-workflow.md` §1.2) |
 | Fresh history | the steps below | Wants a clean repository |
 | Leave as is | — | Will handle git manually |
 

@@ -6,6 +6,8 @@ Read this file when: starting a new project from this boilerplate, or changing w
 
 ## 1. What it does
 
+Start from a **release tag**, not from `main`: `git clone --branch vX.Y.Z <repo_url> <name>`, then `git switch -c main` (a clone of a tag is a detached HEAD). A tag is what `bun run acceptance` proved and `CHANGELOG.md` describes, and what `package.json` → `boilerplate.version` then truly names; `main` may hold unreleased changes. Updates later come from newer tags ([git-workflow.md](git-workflow.md) §1.2).
+
 A fresh clone carries the boilerplate's identity (`bun-hono-drizzle-blueprint`) and its example modules. `bun run setup` turns it into **your** project, once, before the first migration:
 
 | Mode | Command | Does |
