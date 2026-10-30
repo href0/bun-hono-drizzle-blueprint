@@ -2,6 +2,17 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
+## [1.2.0] - 2026-10-31
+
+The documentation portal (`docs-site/`) reads like a framework's documentation. A project that is already set up takes it by porting the four portal commits (`docs-site/`, `test/docs-portal.test.ts`, `.github/workflows/deploy-docs.yml`, [git-workflow.md](docs/standards/git-workflow.md) §1.2), then `bun install` inside `docs-site/`; nothing outside the portal changes.
+
+### Added
+
+- **Portal layout**: the content column grows with the screen instead of Starlight's fixed 45rem, and long paths in table cells wrap — wide tables no longer scroll sideways on a desktop (D43).
+- **Portal look**: an accent palette that passes WCAG AA in both themes, self-hosted fonts (no request to a third party), a logo, and the version of `package.json` next to the title (D44, D45).
+- **Portal home and navigation**: a home page with a four-step start, the architecture pillars and links to every area; each page dated from its source's last commit, with "Edit page" to the source file (never for the generated API contract); the API Reference group starts folded (D45).
+- **Rule R86** (`test/docs-portal.test.ts`) keeps all of it in place.
+
 ## [1.1.0] - 2026-10-30
 
 Nothing to port for a project that is already set up: both changes concern starting a new project.
