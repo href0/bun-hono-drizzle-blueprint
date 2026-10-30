@@ -39,6 +39,21 @@ describe('docs portal layout', () => {
   });
 });
 
+describe('docs portal navigation', () => {
+  const sync = readFileSync(resolve(SITE, 'sync-docs.ts'), 'utf-8');
+
+  it('dates every page from its source and links "Edit page" to the source, never for the generated API contract (R78)', () => {
+    expect(sync).toContain("['git', 'log', '-1', '--format=%cI', '--', source]");
+    expect(sync).toMatch(/const generated = page\.source\.startsWith\('docs\/api\/'\);/);
+    expect(sync).toMatch(/editUrl: \$\{editBase && !generated \?/);
+  });
+
+  it('deploys with the full git history, so the dates are the real last changes', () => {
+    const deploy = readFileSync(resolve(SITE, '../.github/workflows/deploy-docs.yml'), 'utf-8');
+    expect(deploy).toMatch(/uses: actions\/checkout@\S+\n\s+with:\n\s+fetch-depth: 0/);
+  });
+});
+
 describe('docs portal identity', () => {
   it('serves its fonts itself: @fontsource packages, no stylesheet or font from another origin (D44)', () => {
     expect(config).toMatch(/'@fontsource-variable\/inter'/);

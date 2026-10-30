@@ -5,7 +5,10 @@
  *
  * Per page: the first `# Heading` becomes the frontmatter title (Starlight renders it), and every
  * relative link is rewritten — to the page's portal URL when the target is synced, otherwise to
- * the file on GitHub (only known in GitHub Actions) or, locally, to plain text.
+ * the file on GitHub (only known in GitHub Actions) or, locally, to plain text. The frontmatter
+ * also carries the source's last commit date (`lastUpdated`; Starlight would read the git-ignored
+ * copy) and, in GitHub Actions, an "Edit page" link to the source file (`editUrl`) — never for the
+ * generated API contract, which is not edited by hand (R78).
  * Fails (exit 1) on a missing source, or when the sidebar and the synced pages disagree.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,9 +20,24 @@ const CONTENT_DIR = resolve(import.meta.dir, 'src/content/docs');
 const GENERATED_DIRS = ['overview', 'guides', 'standards', 'api'];
 
 const repository = Bun.env.GITHUB_REPOSITORY;
-const blobBase = repository
-  ? `${Bun.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${repository}/blob/${Bun.env.GITHUB_SHA ?? 'main'}`
+const repositoryUrl = repository
+  ? `${Bun.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${repository}`
   : undefined;
+const blobBase = repositoryUrl && `${repositoryUrl}/blob/${Bun.env.GITHUB_SHA ?? 'main'}`;
+// The branch the portal was built from (a pull request: its head branch), so an edit lands there.
+const editBase =
+  repositoryUrl &&
+  `${repositoryUrl}/edit/${Bun.env.GITHUB_HEAD_REF || Bun.env.GITHUB_REF_NAME || 'main'}`;
+
+/** Last commit date of a source file (ISO 8601), or undefined outside git / for an untracked file. */
+const lastCommitDate = (source: string): string | undefined => {
+  const log = Bun.spawnSync(['git', 'log', '-1', '--format=%cI', '--', source], {
+    cwd: ROOT_DIR,
+    stderr: 'pipe',
+  });
+  const date = log.exitCode === 0 ? log.stdout.toString().trim() : '';
+  return date === '' ? undefined : date;
+};
 
 interface Page {
   /** Repository-relative source path, e.g. `docs/standards/cache.md`. */
@@ -150,10 +168,15 @@ const syncPage = (page: Page): void => {
   // Plain text: the title is also the sidebar label, where Markdown is not rendered.
   const title = (heading?.[1]?.trim() ?? '').replaceAll('`', '');
   const body = rewriteLinks(page, raw.replace(H1, ''));
+  const updated = lastCommitDate(page.source);
+  const generated = page.source.startsWith('docs/api/');
   const frontmatter = [
     '---',
     `title: ${JSON.stringify(title)}`,
     `description: ${JSON.stringify(page.description)}`,
+    // A YAML timestamp: Starlight receives a Date.
+    ...(updated ? [`lastUpdated: ${updated}`] : []),
+    `editUrl: ${editBase && !generated ? JSON.stringify(`${editBase}/${page.source}`) : 'false'}`,
     '---',
     '',
   ].join('\n');

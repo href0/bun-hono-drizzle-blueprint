@@ -59,7 +59,9 @@ export const SIDEBAR = [
   },
   {
     // Generated from docs/api/ (bun run openapi:update): one page per module, listed automatically.
+    // Folded until one of its pages is open (Starlight expands the group of the current page).
     label: 'API Reference',
+    collapsed: true,
     items: [{ autogenerate: { directory: 'api' } }],
   },
   {
