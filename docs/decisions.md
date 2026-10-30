@@ -50,6 +50,10 @@ A changed decision keeps its ID: the row says what replaced what. **Numbering**:
 | D39 | The partner gateway is pruned by marked regions (`// partner:start` … `// partner:end`) plus `PARTNER_ONLY`; re-enabling it is manual for now | Markers are visible in the files and safe for documents |
 | D40 | One `Prompter` for every CLI question; `bun run help` only prints the command registry; every script answers `--help` without side effects | Three prompt styles, and `--help` that ran the command |
 | D41 | Every paginated list takes `sort` (allowlisted fields, ≤ 3, ended by `id`), `q` (`ILIKE` over declared columns) and typed filters; any other parameter is a 400 ([http-contract.md](standards/http-contract.md) §8) | Without one convention every project builds its own; the allowlist keeps sorting and filtering on known columns |
+| D42 | The documentation portal stays on Astro Starlight, customized through `customCss` and component overrides rather than moved to VitePress or Docusaurus ([documentation.md](standards/documentation.md) §1) | `sync-docs.ts`, the sidebar check, the link check and the deploy workflow are built on it; Astro's own documentation uses it |
+| D43 | The portal's content column grows with the screen (56 / 64 / 72rem from 72 / 90 / 120rem) instead of Starlight's fixed 45rem, code in a table cell may break anywhere, code blocks may still scroll | With 45rem the wide tables of the standards scrolled sideways even on a 1920px screen; measured on all 40 pages: tables that scroll 7–12 → 0 on desktop, 183 → 19 on a phone |
+| D44 | The portal's fonts are self-hosted (`@fontsource`), its accent palette passes WCAG AA for every text pair in both themes | No request to a third party, works offline and on a closed network; readable for everyone |
+| D45 | The portal shows facts read from their source: the version from `package.json`, each page's date from its source's last commit, "Edit page" to the source file (never the generated API contract) | One source each; a project created from the boilerplate shows its own version without edits, and nobody edits a synced copy or a generated file |
 
 ## 2. Approved exceptions
 
@@ -66,6 +70,7 @@ Deliberately left out, to add when a project needs it:
 - Re-encrypting partner secrets with a new active key without rotating them; requiring an `ip_whitelist` for partners in production; the partner gateway in an external API gateway.
 - Zod 4; a header-detail with several details; dependent chains deeper than two levels; automatic document numbering.
 - Large lists: cursor / keyset pagination, full-text search or `pg_trgm` indexes for `q`, lists across parents for dependents.
+- Documentation portal: versions per release tag; Starlight's interface labels ("Last updated", "On this page") in Indonesian like the guides; the partner card on the home page (MDX has no partner markers, `project-setup.md` §4.2).
 - `bun run partner:enable` (re-enable a pruned partner gateway from `upstream`); a template sync command for projects created from the boilerplate; multi-tenancy (schema per tenant or `tenant_id` + row-level security).
 
 ## 4. Project decisions
