@@ -63,4 +63,8 @@ Log ditulis ke stdout sebagai JSON satu baris per event (pino). Setiap baris mem
 
 ## 7. Mencoba stack lengkap di lokal
 
-`docker compose --profile full up -d` menjalankan PostgreSQL, Redis dan image runner dengan file env lokal. Migrasi tetap dijalankan dulu (`bun run db:migrate` dari host, atau image tools di network compose).
+`docker compose --env-file .env.demo --profile full up -d` menjalankan PostgreSQL, Redis dan image runner dengan `.env.demo` (bukan kredensial production: file production tidak disimpan di laptop). Migrasi tetap dijalankan dulu (`bun run env demo db:migrate` dari host, atau image tools di network compose).
+
+## 8. Server tanpa container
+
+Di server yang menjalankan checkout langsung (tanpa Docker), file env berada di server itu dan setiap perintah menyebut environment-nya: `bun run env prod db:migrate`, lalu `bun run start:prod` (atau `start:stg` / `start:demo`). Launcher memuat hanya `.env.<environment>` dan menolak jalan bila ada `.env` / `.env.local` ([configuration.md](standards/configuration.md) §Environments). Container tetap memakai `bun run start` dengan variabel dari platform (§2).

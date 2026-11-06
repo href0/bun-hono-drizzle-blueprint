@@ -12,10 +12,22 @@
       "Read(./.env.staging)",
       "Read(./.env.prod)",
       "Read(./.env.production)",
+      "Read(./.env.demo)",
       "Edit(./.env)",
       "Edit(./.env.local)",
       "Edit(./.env.development)",
-      "Edit(./.env.production)"
+      "Edit(./.env.production)",
+      "Edit(./.env.dev)",
+      "Edit(./.env.test)",
+      "Edit(./.env.stg)",
+      "Edit(./.env.demo)",
+      "Edit(./.env.prod)",
+      "Bash(bun run start:stg:*)",
+      "Bash(bun run start:demo:*)",
+      "Bash(bun run start:prod:*)",
+      "Bash(bun run env stg:*)",
+      "Bash(bun run env demo:*)",
+      "Bash(bun run env prod:*)"
     ]
   },
   "hooks": {

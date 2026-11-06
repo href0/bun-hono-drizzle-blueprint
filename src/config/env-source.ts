@@ -1,10 +1,16 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { assertEnvironmentLoaded, assertNoRenamedVariables, type EnvSource } from './parse-env';
+import {
+  assertEnvironmentLoaded,
+  assertNoAutoLoadedEnvFiles,
+  assertNoRenamedVariables,
+  type EnvSource,
+} from './parse-env';
 
 /**
- * The only place that reads `process.env`. Bun loads `.env` into it automatically;
- * every `*.config.ts` validates its own group from this source.
+ * The only place that reads `process.env`: filled from the chosen `.env.<environment>`
+ * (`bun run start:<environment>`, `bun run env …`) or by the platform; every `*.config.ts`
+ * validates its own group from this source.
  */
 export const envSource: EnvSource = process.env;
 
@@ -21,5 +27,6 @@ export const hostTimeZone: string = Intl.DateTimeFormat().resolvedOptions().time
  */
 process.env.TZ = 'UTC';
 
-assertEnvironmentLoaded(envSource, existsSync(resolve(process.cwd(), '.env')));
+assertNoAutoLoadedEnvFiles(envSource, (file) => existsSync(resolve(process.cwd(), file)));
+assertEnvironmentLoaded(envSource);
 assertNoRenamedVariables(envSource);

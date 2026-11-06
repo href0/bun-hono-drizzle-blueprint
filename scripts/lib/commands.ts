@@ -25,8 +25,36 @@ export const COMMAND_GROUPS: readonly CommandGroup[] = [
   {
     title: 'Start',
     commands: [
-      { script: 'dev', summary: 'Start the API and restart it on every change: while developing' },
-      { script: 'start', summary: 'Start the API once, without watching files' },
+      {
+        script: 'start:dev',
+        summary: 'Start the API with .env.dev and restart it on every change: while developing',
+      },
+      { script: 'start:test', summary: 'Start the API with .env.test (the test database)' },
+      {
+        script: 'start:stg',
+        summary: 'Start the API with .env.stg, on a staging server without containers',
+        developer: true,
+      },
+      {
+        script: 'start:demo',
+        summary: 'Start the API with .env.demo, on a demo server without containers',
+        developer: true,
+      },
+      {
+        script: 'start:prod',
+        summary: 'Start the API with .env.prod, on a production server without containers',
+        developer: true,
+      },
+      {
+        script: 'start',
+        summary:
+          'Start the API with the variables the platform injects (container, server): no env file',
+      },
+      {
+        script: 'env',
+        summary:
+          'Run a command against one environment: bun run env <dev|test|stg|demo|prod> <command> (AI agents: dev and test only)',
+      },
       {
         script: 'build',
         summary: 'Bundle the API into dist/: proves the release bundle builds (CI runs it)',
@@ -217,6 +245,13 @@ export const SCRIPT_USAGE: Scripts = {
   Without a command: every command of this project, grouped. With one: what it does, what it runs,
   and its usage. Every scripts/*.ts command also answers --help.`,
   'setup.ts': SETUP_USAGE,
+  'with-env.ts': `Usage: bun run env <dev|test|stg|demo|prod> <command> [<argument>…]
+  Runs <command> — any package.json script — with the variables of .env.<environment> only, and
+  first prints the target database (no credentials). The API starts with bun run start:<environment>.
+  Refuses while .env, .env.local or another file Bun loads by itself exists.
+  Examples: bun run env dev db:migrate · bun run env test test:int · bun run env stg seed:admin
+  Containers and servers that inject their variables run the commands without it. AI agents use
+  dev and test only.`,
   'scaffold.ts': SCAFFOLD_USAGE,
   'verify-scaffold.ts': `Usage: bun run verify:scaffold
   Generates every scaffold template variant, then runs prettier, tsc, ESLint, ls-lint, depcruise,
@@ -226,7 +261,8 @@ export const SCRIPT_USAGE: Scripts = {
   <filter>    only test/integration/*.int.ts files whose name contains it (e.g. auth)
   --keep-db   keep the disposable database afterwards (debugging)
   --dry-run   print the database, Redis and files a run would use; touch nothing
-  Services: TEST_DATABASE_URL + TEST_REDIS_*, or the local development settings on this machine only.`,
+  Services: TEST_DATABASE_URL + TEST_REDIS_*, or the development settings on this machine only
+  (locally: bun run env test test:int, or bun run env dev test:int).`,
   'acceptance.ts': ACCEPTANCE_USAGE,
   'check-coverage.ts': `Usage: bun scripts/check-coverage.ts
   The coverage gate of bun run test:cov: reads coverage/lcov.info (written by bun test --coverage)

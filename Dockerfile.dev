@@ -8,5 +8,6 @@ RUN bun install --frozen-lockfile
 # Expose server port
 EXPOSE 3000
 
-# Default development command with watch mode
-CMD ["bun", "run", "dev"]
+# Development server with watch mode; compose injects the variables (env_file: .env.dev), so the
+# app runs directly instead of through bun run start:dev
+CMD ["bun", "--watch", "src/index.ts"]

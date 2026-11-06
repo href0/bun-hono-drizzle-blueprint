@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: Initialize a fresh clone of this boilerplate as a named project (package name, APP_NAME, database name, container names, README title, .env). Use when the user runs /init-project <project-name> or asks to set up / rename a new project from this boilerplate.
+description: Initialize a fresh clone of this boilerplate as a named project (package name, APP_NAME, database name, container names, README title, .env.dev). Use when the user runs /init-project <project-name> or asks to set up / rename a new project from this boilerplate.
 ---
 
 # Init Project
@@ -59,7 +59,7 @@ If the dry run reports `identity rules out of sync`, STOP: `IDENTITY_RULES` in `
 bun run setup <project-name> --title "<title>" --description "<description>"   # add --keep-examples to keep the example modules, --no-partner to remove the partner gateway
 ```
 
-The script also creates `.env` from `.env.example` when missing. Do NOT read or edit `.env` yourself (`env-protection` skill). If the script says an existing `.env` was kept, tell the user to review `POSTGRES_DB` / `DATABASE_URL` in it manually.
+The script also creates `.env.dev` from `.env.example` when missing (an old `.env` is renamed to it). Do NOT read or edit any env file yourself (`env-protection` skill). If the script says an existing `.env.dev` was kept, tell the user to review `POSTGRES_DB` / `DATABASE_URL` in it manually; if it warns that `.env` still exists, tell the user to move what they need into `.env.dev` and delete it.
 
 ### 5. Non-Mechanical Follow-Up
 
@@ -96,4 +96,4 @@ Offer the choices and act only on an explicit answer:
 
 ### 8. Report
 
-Summarize the changed files, the verification result, and the next steps printed by the script (`docker compose up -d` → `bun run db:migrate` → `bun run seed:admin --email <email>` → `bun run dev`).
+Summarize the changed files, the verification result, and the next steps printed by the script (`docker compose --env-file .env.dev up -d` → `bun run env dev db:migrate` → `bun run env dev seed:admin --email <email>` → `bun run start:dev`).

@@ -24,7 +24,7 @@ Larger work follows a plan in `docs/plans/`. While one is active, execute exactl
 
 ## Databases
 
-Database commands are run by the developer. An agent may run migrations and read-only checks only against the developer's **local** database, and only with explicit permission; destructive SQL or writing test rows is always asked first; never a shared or production database (`docs/standards/database.md` §4).
+Database commands are run by the developer. An agent may run migrations and read-only checks only against the developer's **local** database, and only with explicit permission; destructive SQL or writing test rows is always asked first; never a shared or production database (`docs/standards/database.md` §4). An agent runs commands against the **dev and test environments only** (`bun run start:dev`, `bun run env dev|test <command>`), never stg, demo or prod (`docs/standards/configuration.md` §Environments; the hook refuses them).
 
 ---
 

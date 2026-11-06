@@ -527,12 +527,15 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
     skipWhen: databaseStage,
     run: async (ctx) => {
       await ctx.createDatabase();
-      await ctx.run(['bun', 'run', 'db:migrate']);
+      // Like a developer (D62): the .env.dev setup created; the runner's disposable database and
+      // Redis are injected and win over the file's values.
+      await ctx.run(['bun', 'run', 'env', 'dev', 'db:migrate']);
       const password = strongPassword();
       ctx.state.set('password', password);
-      const seeded = await ctx.run(['bun', 'run', 'seed:admin', '--email', ADMIN_EMAIL], {
-        stdin: `${password}\n`,
-      });
+      const seeded = await ctx.run(
+        ['bun', 'run', 'env', 'dev', 'seed:admin', '--email', ADMIN_EMAIL],
+        { stdin: `${password}\n` },
+      );
       expectOutput(seeded, `Created admin ${ADMIN_EMAIL}`, 'seed:admin');
     },
   },

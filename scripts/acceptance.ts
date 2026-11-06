@@ -493,7 +493,9 @@ const contextFor = (run: Run, combo: Combo): ComboRuntime => {
 
     startServer: async () => {
       await stopServer();
-      const child = spawn(['bun', 'src/index.ts']);
+      // `bun run start:dev` without the watcher (and without a `bun run` parent to orphan): the
+      // .env.dev setup created, under the injected database and Redis (D62).
+      const child = spawn(['bun', '--env-file=.env.dev', 'src/index.ts']);
       void child.stdin.end();
       void drain(child.stdout, () => undefined);
       void drain(child.stderr, () => undefined);

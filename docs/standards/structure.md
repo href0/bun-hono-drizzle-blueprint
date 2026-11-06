@@ -123,6 +123,8 @@ test/
 ├── ci-gates.test.ts             # Every gate of validate:full is its own step of the CI job verify
 ├── docs-portal.test.ts          # The portal keeps its layout and identity: custom.css loaded, content wider than Starlight's 45rem on large screens, table code wraps, self-hosted fonts, version badge + logo, page dates and "Edit page" links from the sources (R86)
 ├── toolchain.test.ts            # One Bun version: packageManager = Docker base images = @types/bun; CI reads package.json (R84)
+├── protect-env-hook.test.ts     # The Claude Code hook refuses active env files and the stg / demo / prod environments (R70)
+├── drizzle-config.test.ts       # drizzle-kit migrate / studio refuse to run without DATABASE_URL; generate stays offline (R87)
 ├── api-contract.test.ts         # openapi:check runs in validate and CI; no hook, CI workflow or the scaffold CLI runs openapi:update
 ├── commit-scopes.test.ts        # Fixed commit scopes in commitlint.config.ts = the table in git-workflow.md; scopes derived from src/
 └── migrations.test.ts           # Guards the generated migration SQL
@@ -138,6 +140,7 @@ scripts/
 ├── scaffold.ts                  # `bun run scaffold <kind> <name>`: generates from the scaffold-module templates (a missing argument in a terminal → the wizard)
 ├── verify-scaffold.ts           # `bun run verify:scaffold`: runs the scaffold CLI for every template, then every gate
 ├── test-integration.ts          # `bun run test:int`: disposable database + real migrations, test/integration, cleanup
+├── with-env.ts                  # `bun run env <environment> <command>`: a script with only .env.<environment> loaded (D62)
 ├── acceptance.ts                # `bun run acceptance`: per setup combination a fresh clone through setup, every scaffold variant (the wizard answered by the runner), a database, a server, HTTP, Docker (manual-acceptance.md)
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing <!-- partner -->
@@ -153,6 +156,7 @@ scripts/
 ├── lib/commands.ts              # The bun run help registry (COMMAND_GROUPS) and the usage of every script (SCRIPT_USAGE), R83 (+ lib/commands.test.ts)
 ├── lib/scaffold.ts              # Scaffold engine (pure): template parser, names, plan of files + registrations (+ lib/scaffold.test.ts)
 ├── lib/test-services.ts         # PostgreSQL + Redis of disposable runs (test:int, acceptance): TEST_* or local only; Redis key cleanup
+├── lib/with-env.ts             # What bun run env runs: environments, the files Bun loads by itself (refused), the target shown (+ lib/with-env.test.ts)
 ├── lib/prompter.ts             # Every CLI question and what is drawn around it (text, select, multiselect, password, confirm, intro, note, spinner, outro) behind one interface; the only importer of @clack/prompts (+ lib/prompter.test.ts: the real prompts on streams)
 ├── lib/scripted-prompter.ts    # The Prompter of the tests: answers in order, records the questions and what was drawn (+ lib/scripted-prompter.test.ts)
 ├── lib/setup-wizard.ts         # Arguments of bun run setup and its wizard (D38): name, --title, description, examples, --no-partner (+ lib/setup-wizard.test.ts)

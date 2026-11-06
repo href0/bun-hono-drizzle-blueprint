@@ -63,8 +63,13 @@ Hermetic tests, `mock.module()` ban and the integration suite: [testing.md](test
 | Command | What it does | When |
 |---|---|---|
 | `bun run help [<command>]` | Prints every command of this project, grouped, one line each — only the scripts `package.json` has, so a project without the partner gateway does not see its commands; `bun run help <command>` adds what it runs and its usage. Every `scripts/*.ts` command also answers `--help` / `-h` without doing anything | Looking for a command or its options |
-| `bun run dev` | Development server with reload (`bun --watch src/index.ts`) | While developing |
-| `bun run start` | Server without watch (`bun src/index.ts`) | Running a checkout as is |
+| `bun run start:dev` | Development server with `.env.dev`, restarted on every change (`bun --env-file=.env.dev --watch src/index.ts`, output through a pipe — [configuration.md](configuration.md) §Environments) | While developing |
+| `bun run start:test` | Server with `.env.test` (the test database), no watch | Trying the API against test data |
+| `bun run start:stg` | Server with `.env.stg`, no watch — run by a developer, never an AI agent ([configuration.md](configuration.md) §Environments) | A staging server without containers |
+| `bun run start:demo` | Server with `.env.demo`, no watch — run by a developer, never an AI agent | A demo server without containers |
+| `bun run start:prod` | Server with `.env.prod`, no watch — run by a developer, never an AI agent | A production server without containers |
+| `bun run start` | Server with the variables the platform injects (`bun src/index.ts`, no env file) — the production image's command | Containers and servers |
+| `bun run env <environment> <command>` | Runs a `package.json` script with `.env.<environment>` only (the API: `start:<environment>`), after printing the target database without credentials (`scripts/with-env.ts`); refuses while `.env`, `.env.local` or another file Bun loads by itself exists. AI agents: dev and test only | Any local command that needs configuration: `bun run env dev db:migrate`, `bun run env test test:int` |
 | `bun run build` | Bundles `src/index.ts` into `dist/` (`--target bun`); run by CI | Before a release / to prove the bundle builds |
 | `bun run typecheck` | TypeScript compiler (`tsc --noEmit`) | After changing types, DTOs, interfaces |
 | `bun run lint` | ESLint 9 flat config (`strictTypeChecked` + project rules) | Before committing |

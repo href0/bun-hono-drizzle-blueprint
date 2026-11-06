@@ -2,7 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import {
   assertEnvironmentLoaded,
+  assertNoAutoLoadedEnvFiles,
   assertNoRenamedVariables,
+  AUTO_LOADED_ENV_FILES,
   isTestEnvironment,
   parseEnv,
   RENAMED_ENV_VARS,
@@ -84,22 +86,43 @@ describe('assertNoRenamedVariables (Unit)', () => {
 });
 
 describe('assertEnvironmentLoaded (Unit)', () => {
-  it('should pass in test mode, with a .env file, or with injected variables', () => {
+  it('should pass in test mode, or with variables from an env file or the platform', () => {
     expect(() => {
-      assertEnvironmentLoaded({ NODE_ENV: 'test' }, false);
+      assertEnvironmentLoaded({ NODE_ENV: 'test' });
     }).not.toThrow();
     expect(() => {
-      assertEnvironmentLoaded({}, true);
-    }).not.toThrow();
-    expect(() => {
-      assertEnvironmentLoaded({ DATABASE_URL: 'postgresql://h/db' }, false);
+      assertEnvironmentLoaded({ DATABASE_URL: 'postgresql://h/db' });
     }).not.toThrow();
   });
 
-  it('should fail fast with setup instructions when no configuration is present', () => {
+  it('should fail fast naming the local start command and the platform when nothing is loaded', () => {
     expect(() => {
-      assertEnvironmentLoaded({ NODE_ENV: 'production' }, false);
-    }).toThrow('cp .env.example .env');
+      assertEnvironmentLoaded({ NODE_ENV: 'production' });
+    }).toThrow('bun run start:dev');
+    expect(() => {
+      assertEnvironmentLoaded({});
+    }).toThrow('inject the variables');
+  });
+
+  it('refuses to start while a file Bun loads by itself exists, naming it (D62)', () => {
+    for (const file of AUTO_LOADED_ENV_FILES) {
+      expect(() => {
+        assertNoAutoLoadedEnvFiles({ NODE_ENV: 'development' }, (name) =>
+          [file, '.env.dev'].includes(name),
+        );
+      }).toThrow(`${file} found`);
+    }
+  });
+
+  it('starts with only named environment files, and never refuses the hermetic tests', () => {
+    expect(() => {
+      assertNoAutoLoadedEnvFiles({ NODE_ENV: 'production' }, (name) =>
+        ['.env.dev', '.env.prod'].includes(name),
+      );
+    }).not.toThrow();
+    expect(() => {
+      assertNoAutoLoadedEnvFiles({ NODE_ENV: 'test' }, (name) => name === '.env');
+    }).not.toThrow();
   });
 
   it('isTestEnvironment should only be true for NODE_ENV=test', () => {
