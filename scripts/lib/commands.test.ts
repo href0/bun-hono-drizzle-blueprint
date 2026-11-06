@@ -72,10 +72,10 @@ describe('bun run help', () => {
   it('prints only the scripts the project has; an empty group disappears', () => {
     const text = commandsHelp(
       'demo',
-      { dev: 'bun --watch src/index.ts', help: 'bun scripts/help.ts' },
+      { start: 'bun src/index.ts', help: 'bun scripts/help.ts' },
       PLAIN,
     );
-    expect(text).toContain('  dev ');
+    expect(text).toContain('  start ');
     expect(text).not.toContain('partner:sign');
     expect(text).not.toContain('Partner gateway');
     expect(text).not.toContain('Database');
@@ -104,6 +104,6 @@ describe('bun run help', () => {
 
   it('help <unknown>: refused with where to look', () => {
     expect(() => commandHelp('deploy', SCRIPTS)).toThrow('unknown command "deploy"');
-    expect(() => commandHelp('dev', {})).toThrow('unknown command "dev"');
+    expect(() => commandHelp('start', {})).toThrow('unknown command "start"');
   });
 });

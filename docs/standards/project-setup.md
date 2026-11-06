@@ -12,7 +12,7 @@ A fresh clone carries the boilerplate's identity (`bun-hono-drizzle-blueprint`) 
 
 | Mode | Command | Does |
 |---|---|---|
-| Env only | `bun run setup` without a terminal, or in CI | Creates the local env file from `.env.example` and fills the secrets the app refuses to start without (`JWT_SECRET`; `PARTNER_SECRET_KEYS`, `PARTNER_SECRET_ACTIVE_KEY_ID` only while `.env.example` declares them, i.e. with the partner gateway). An existing env file keeps every value; nothing is printed |
+| Env only | `bun run setup` without a terminal, or in CI | Creates `.env.dev` from `.env.example` and fills the secrets the app refuses to start without (`JWT_SECRET`; `PARTNER_SECRET_KEYS`, `PARTNER_SECRET_ACTIVE_KEY_ID` only while `.env.example` declares them, i.e. with the partner gateway). An existing `.env.dev` keeps every value; a `.env` from before D62 is renamed to `.env.dev` when there is none yet; nothing is printed |
 | Wizard | `bun run setup` in a terminal | Asks the questions of §3, shows the plan, asks before changing anything, then runs the full setup |
 | Flags | `bun run setup <name> [--title "…"] [--description "…"] [--keep-examples] [--no-partner] [--dry-run]` | The full setup without questions — what the wizard prints at the end, what an AI agent runs (skill `init-project`) |
 
@@ -148,9 +148,9 @@ Not a command yet (backlog: `bun run partner:enable`). By hand, from the boilerp
 
 ## 5. After setup
 
-1. PostgreSQL and Redis running (native, or `docker compose up -d`).
-2. `bun run db:migrate`, then `bun run seed:admin --email <email>` (the password is asked, masked).
-3. `bun run dev`.
+1. PostgreSQL and Redis running (native, or `docker compose --env-file .env.dev up -d`).
+2. `bun run env dev db:migrate`, then `bun run env dev seed:admin --email <email>` (the password is asked, masked).
+3. `bun run start:dev`.
 4. A fresh git history is optional: delete `.git`, `git init -b main`, then `bun run prepare` — **required**, it installs the Husky hooks (setup warns while they are missing). Or keep the history with the boilerplate as the remote `upstream` to take its updates later ([git-workflow.md](git-workflow.md) §1.2).
 5. Your own decisions go into [`docs/decisions.md`](../decisions.md) §4 as `PD1`, `PD2`, … — `D0`… stay the boilerplate's, so its later decisions arrive without colliding; larger work follows a plan in `docs/plans/` ([README](../plans/README.md)).
 

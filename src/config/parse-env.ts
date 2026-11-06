@@ -67,18 +67,51 @@ export const assertNoRenamedVariables = (
 export const isTestEnvironment = (source: EnvSource): boolean => source.NODE_ENV === 'test';
 
 /**
- * Fails fast with an actionable message when the process starts without any configuration:
- * no `.env` file and no injected variables (container / CI). Tests run on schema defaults.
+ * Env files Bun loads into every process by itself (always, or by NODE_ENV) — also into a child
+ * process — mixed with the file an environment names (D62). None of them is used.
  */
-export const assertEnvironmentLoaded = (source: EnvSource, envFileExists: boolean): void => {
-  if (isTestEnvironment(source) || envFileExists || source.DATABASE_URL) {
+export const AUTO_LOADED_ENV_FILES = [
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.development.local',
+  '.env.production',
+  '.env.production.local',
+  '.env.test.local',
+] as const;
+
+/**
+ * Refuses to start while one of AUTO_LOADED_ENV_FILES exists: its values would be mixed silently
+ * into the chosen environment (`bun run start:<environment>`). Tests run hermetic (their preload
+ * replaces every service address), so they are not refused.
+ */
+export const assertNoAutoLoadedEnvFiles = (
+  source: EnvSource,
+  exists: (file: string) => boolean,
+): void => {
+  if (isTestEnvironment(source)) return;
+  const found = AUTO_LOADED_ENV_FILES.filter(exists);
+  if (found.length === 0) return;
+  throw new Error(
+    `CRITICAL STARTUP ERROR: ${found.join(', ')} found — Bun loads it into every process by itself, mixed with the environment you start.\n` +
+      'Move what you need into .env.<environment> (bun run setup renames an old .env to .env.dev) and delete it.\n',
+  );
+};
+
+/**
+ * Fails fast with an actionable message when the process starts without any configuration: no
+ * env file chosen (`bun run start:<environment>` / `bun run env …`) and no variables injected by
+ * the platform (container, server, CI). Tests run on schema defaults.
+ */
+export const assertEnvironmentLoaded = (source: EnvSource): void => {
+  if (isTestEnvironment(source) || source.DATABASE_URL) {
     return;
   }
 
   throw new Error(
-    'CRITICAL STARTUP ERROR: Configuration file `.env` is missing.\n' +
-      'The application cannot start without database and service configurations.\n' +
-      'Please copy `.env.example` to `.env` and configure your credentials:\n' +
-      '  cp .env.example .env\n',
+    'CRITICAL STARTUP ERROR: no configuration loaded (DATABASE_URL is not set).\n' +
+      'Locally, start through an environment: bun run start:dev (or bun run env <environment> <command>)\n' +
+      'with .env.<environment> created from .env.example — bun run setup creates .env.dev.\n' +
+      'In a container or on a server, inject the variables (docs/deployment.md).\n',
   );
 };

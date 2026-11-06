@@ -29,7 +29,7 @@ describe('bun run setup without a terminal', () => {
     expect(run.exitCode).toBe(0);
     expect(out).toStartWith('[Setup] Starting project initialization (dry run)...\n');
     expect(out).toContain('[Setup] Project initialization preview finished — nothing was changed');
-    expect(out).toContain('  2. Apply database migrations: bun run db:migrate');
+    expect(out).toContain('  2. Apply database migrations: bun run env dev db:migrate');
     expect(out).not.toMatch(/[│◇◆┌└]/);
   });
 });

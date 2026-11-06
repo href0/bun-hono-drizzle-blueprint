@@ -31,7 +31,8 @@ services:
       timeout: 5s
       retries: 5
 
-  # Optional full containerized app service (activate via: docker compose --profile full up -d)
+  # Optional full containerized app service, a demo of the production image on this machine:
+  # docker compose --env-file .env.demo --profile full up -d
   app:
     build:
       context: .
@@ -41,7 +42,7 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     env_file:
-      - .env
+      - .env.demo
     environment:
       - NODE_ENV=production
       - TZ=UTC

@@ -44,14 +44,16 @@ bun run setup my-backend --title "My Backend API" --description "Deskripsi singk
 #    riwayat git baru (opsional): hapus .git → git init -b main → bun run prepare (wajib:
 #    memasang hook Husky; setup memberi peringatan bila hook belum aktif)
 
-# 2. Pastikan PostgreSQL & Redis berjalan, lalu sesuaikan DATABASE_URL / REDIS_* di file env
-#    (opsional, bila tidak memasang layanan secara langsung: docker compose up -d)
+# 2. Pastikan PostgreSQL & Redis berjalan, lalu sesuaikan DATABASE_URL / REDIS_* di .env.dev
+#    (opsional, bila tidak memasang layanan secara langsung: docker compose --env-file .env.dev up -d)
 
 # 3. Jalankan migrasi database, buat admin pertama & start dev server
-bun run db:migrate
-bun run seed:admin --email admin@example.com   # password ditanyakan (disamarkan, dua kali)
-bun run dev
+bun run env dev db:migrate
+bun run env dev seed:admin --email admin@example.com   # password ditanyakan (disamarkan, dua kali)
+bun run start:dev
 ```
+
+Setiap perintah lokal menyebut environment-nya: `bun run start:<dev|test|stg|demo|prod>` dan `bun run env <environment> <perintah>` memuat **hanya** `.env.<environment>`. File `.env` tidak dipakai (Bun memuatnya ke setiap proses dengan sendirinya). Di container / server, variabel disuntik platform dan perintahnya `bun run start` — [docs/deployment.md](docs/deployment.md).
 
 Server berjalan secara default di `http://localhost:3000` (URL juga dicatat di log startup):
 
@@ -63,7 +65,7 @@ Server berjalan secara default di `http://localhost:3000` (URL juga dicatat di l
 
 #### Alternatif: Full Containerized Development (Zero Host Install)
 ```bash
-docker compose -f docker-compose.dev.yml up --build
+docker compose --env-file .env.dev -f docker-compose.dev.yml up --build
 ```
 Aplikasi berjalan di dalam container dengan live hot-reload (`bun --watch`).
 

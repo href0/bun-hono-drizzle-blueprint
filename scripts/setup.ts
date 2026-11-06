@@ -2,7 +2,7 @@
  * Project initializer — turns a fresh clone of this boilerplate into a named project.
  *
  * Usage:
- *   bun run setup                                  # only create .env from .env.example
+ *   bun run setup                                  # only create .env.dev from .env.example
  *   bun run setup <project-name> [--title "..."] [--description "..."] [--keep-examples] [--no-partner] [--dry-run]
  *
  * In a terminal, `bun run setup` without a name opens a wizard (D38): it asks for the name, the
@@ -27,6 +27,7 @@ import {
   existsSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -690,7 +691,14 @@ function applyIdentity(rootDir: string, id: ProjectIdentity, dryRun: boolean): v
 }
 
 /**
- * Values the app refuses to start without, generated for a local .env: the JWT secret (32+
+ * The local development env file (`bun run start:dev`, `bun run env dev …`, scripts/with-env.ts).
+ * `.env` is no longer used: Bun would load it into every process by itself.
+ */
+const DEV_ENV_FILE = '.env.dev';
+const LEGACY_ENV_FILE = '.env';
+
+/**
+ * Values the app refuses to start without, generated for a local env file: the JWT secret (32+
  * characters) and the keyring that encrypts partner secrets (one 32-byte key, `k1`). Only those
  * `.env.example` declares: a project without the partner gateway has no keyring.
  */
@@ -701,7 +709,7 @@ const GENERATED_SECRETS: readonly { name: string; generate: () => string }[] = [
 ];
 
 /**
- * Fills each GENERATED_SECRETS variable the .env does not set (empty or missing line). An existing
+ * Fills each GENERATED_SECRETS variable the env file does not set (empty or missing line). An existing
  * value is never replaced or printed.
  */
 function ensureGeneratedSecrets(envPath: string, template: string, dryRun: boolean): void {
@@ -721,7 +729,9 @@ function ensureGeneratedSecrets(envPath: string, template: string, dryRun: boole
 
   if (generated.length === 0) return;
   if (!dryRun) writeFileSync(envPath, content, 'utf-8');
-  say(`[Setup] ${dryRun ? 'Would generate' : 'Generated'} ${generated.join(', ')} in .env`);
+  say(
+    `[Setup] ${dryRun ? 'Would generate' : 'Generated'} ${generated.join(', ')} in ${DEV_ENV_FILE}`,
+  );
 }
 
 /** `template`: the `.env.example` a dry run would leave (the file itself is not changed yet). */
@@ -731,7 +741,8 @@ function ensureEnvFile(
   dryRun: boolean,
   template?: string,
 ): void {
-  const envPath = resolve(rootDir, '.env');
+  const envPath = resolve(rootDir, DEV_ENV_FILE);
+  const legacyPath = resolve(rootDir, LEGACY_ENV_FILE);
   const envExamplePath = resolve(rootDir, '.env.example');
 
   if (!existsSync(envExamplePath)) {
@@ -739,15 +750,21 @@ function ensureEnvFile(
     process.exit(1);
   }
   template ??= readFileSync(envExamplePath, 'utf-8');
+  // A project from before the named environments: its .env becomes the development file, unread.
+  if (existsSync(legacyPath) && !existsSync(envPath)) {
+    if (!dryRun) renameSync(legacyPath, envPath);
+    say(`[Setup] ${dryRun ? 'Would rename' : 'Renamed'} ${LEGACY_ENV_FILE} to ${DEV_ENV_FILE}`);
+    if (dryRun) return;
+  }
   if (!existsSync(envPath)) {
     if (!dryRun) copyFileSync(envExamplePath, envPath);
-    say(`[Setup] ${dryRun ? 'Would create' : 'Created'} .env from .env.example`);
+    say(`[Setup] ${dryRun ? 'Would create' : 'Created'} ${DEV_ENV_FILE} from .env.example`);
     ensureGeneratedSecrets(envPath, template, dryRun);
     return;
   }
 
-  // Existing .env holds local secrets: only APP_NAME and missing GENERATED_SECRETS are touched,
-  // and no value is ever printed.
+  // An existing env file holds local secrets: only APP_NAME and missing GENERATED_SECRETS are
+  // touched, and no value is ever printed.
   ensureGeneratedSecrets(envPath, template, dryRun);
   if (id) {
     if (!dryRun) {
@@ -755,11 +772,16 @@ function ensureEnvFile(
       writeFileSync(envPath, content.replace(/^APP_NAME=.*$/m, `APP_NAME=${id.name}`), 'utf-8');
     }
     say(
-      `[Setup] Existing .env detected: ${dryRun ? 'would update' : 'updated'} APP_NAME only. ` +
+      `[Setup] Existing ${DEV_ENV_FILE} detected: ${dryRun ? 'would update' : 'updated'} APP_NAME only. ` +
         'Review POSTGRES_DB / DATABASE_URL manually.',
     );
   } else {
-    say('[Setup] Existing .env detected, leaving existing values intact');
+    say(`[Setup] Existing ${DEV_ENV_FILE} detected, leaving existing values intact`);
+  }
+  if (existsSync(legacyPath)) {
+    say(
+      `[Setup] WARNING: ${LEGACY_ENV_FILE} is no longer used and Bun loads it into every process — move what you need into ${DEV_ENV_FILE} and delete it (bun run env refuses to run while it exists)`,
+    );
   }
 }
 
@@ -776,7 +798,7 @@ function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: 
     // Checked before anything is written: the partner markers fail like a drifted identity rule.
     const partnerPlan = planPartner(rootDir, request.partner);
     if (partnerPlan.problems.length > 0) printPartnerProblems(partnerPlan.problems);
-    // Rename first so a freshly created .env inherits the new identity from .env.example.
+    // Rename first so a freshly created env file inherits the new identity from .env.example.
     applyIdentity(rootDir, identity, dryRun);
     let newBaseline = false;
     if (request.keepExamples) {
@@ -797,10 +819,10 @@ function initialize(rootDir: string, request: SetupRequest | undefined, dryRun: 
 }
 
 const NEXT_STEPS = [
-  '1. Make sure PostgreSQL and Redis are running (or: docker compose up -d)',
-  '2. Apply database migrations: bun run db:migrate',
-  '3. Create the first admin:     bun run seed:admin --email <email>',
-  '4. Start development server:  bun run dev',
+  '1. Make sure PostgreSQL and Redis are running (or: docker compose --env-file .env.dev up -d)',
+  '2. Apply database migrations: bun run env dev db:migrate',
+  '3. Create the first admin:     bun run env dev seed:admin --email <email>',
+  '4. Start development server:  bun run start:dev',
 ];
 
 const printNextSteps = (dryRun: boolean): void => {

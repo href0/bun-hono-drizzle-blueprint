@@ -307,7 +307,7 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
         output: help
           ? combo.partner
             ? 'partner:sign  Sign a partner request'
-            : 'dev'
+            : 'start:dev'
           : COMMAND_OUTPUT,
       });
     },
