@@ -1,5 +1,6 @@
 export const CACHE_PREFIX = {
   USER: 'user:',
+  RBAC: 'rbac:',
   RATE_LIMIT: 'rate-limit:',
   LOGIN_ATTEMPTS: 'login-attempts:',
   // partner:start
@@ -20,6 +21,8 @@ export const CACHE_TTL = {
 
 export const CACHE_KEYS = {
   userDetail: (id: string): string => `${CACHE_PREFIX.USER}detail:${id}`,
+  /** A user's effective permissions (D53); TTL `RBAC_PERMISSION_CACHE_TTL_SECONDS` (auth config). */
+  userPermissions: (userId: string): string => `${CACHE_PREFIX.RBAC}permissions:${userId}`,
   /** One fixed-window counter per limit (`scope`) and caller (`subject`, e.g. the client IP). */
   rateLimit: (scope: string, subject: string): string =>
     `${CACHE_PREFIX.RATE_LIMIT}${scope}:${subject}`,

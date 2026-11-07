@@ -148,6 +148,7 @@ describe('Configuration groups (Unit)', () => {
       AUTH_REGISTRATION_ENABLED: false,
       AUTH_LOGIN_MAX_ATTEMPTS: 5,
       AUTH_LOGIN_LOCK_SECONDS: 900,
+      RBAC_PERMISSION_CACHE_TTL_SECONDS: 60,
     });
     expect(
       buildAuthConfig(

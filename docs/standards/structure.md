@@ -89,6 +89,7 @@ src/
 │   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)
 │   │   ├── project-tasks/       # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/project-tasks/:id)
 │   │   ├── project-budgets/     # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/project-budgets/:id)
+│   ├── rbac/                    # Effective permissions of a user (cached per user, D52–D53), roles / role mappings / per-user grants with cache invalidation; rbac-scope.util.ts = the one filter of every RBAC query (D56)
 │   ├── user-posts/              # Example module consuming an outbound adapter (/api/v1/users/:id/external-posts) (removed by `bun run setup` unless --keep-examples)
 │   └── users/                   # Reference standalone-table module (/api/v1/users)
 │       ├── users.dto.ts         # Request & response schemas
