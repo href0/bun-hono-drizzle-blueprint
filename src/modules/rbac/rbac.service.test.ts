@@ -20,6 +20,7 @@ import type {
 } from './rbac-user-permissions.repository';
 import type { RbacUserRolesRepository } from './rbac-user-roles.repository';
 import { RbacService } from './rbac.service';
+import type { SuperAdminsRepository } from '../../database/rbac/super-admins';
 
 /** A Redis stand-in: values with their TTL, and every key deleted. */
 const memoryCache = () => {
@@ -61,6 +62,8 @@ describe('RbacService', () => {
   let userRoles: Record<string, unknown>;
   let userPermissions: Record<string, unknown>;
   let memory: ReturnType<typeof memoryCache>;
+  /** Other live, active super admins (src/database/rbac/super-admins.ts). */
+  let otherSuperAdmins: string[] = ['u2'];
   const service = () =>
     new RbacService(
       roles as unknown as RbacRolesRepository,
@@ -70,6 +73,9 @@ describe('RbacService', () => {
       userPermissions as unknown as RbacUserPermissionsRepository,
       memory.cache,
       60,
+      {
+        lockOtherActiveHolders: () => Promise.resolve(otherSuperAdmins),
+      } as unknown as SuperAdminsRepository,
     );
 
   beforeEach(() => {
@@ -372,8 +378,7 @@ describe('RbacService', () => {
 
     it('revoking super_admin: only by a super admin, never one’s own, never the last active holder', async () => {
       userRoles.findLive = () => Promise.resolve({ id: 'ur1' });
-      userRoles.lockHolderIds = () => Promise.resolve(['u1', 'u2']);
-      userRoles.findActiveUserIds = (ids: string[]) => Promise.resolve(ids);
+      otherSuperAdmins = ['u2'];
 
       expect(
         await codeOf(
@@ -388,7 +393,7 @@ describe('RbacService', () => {
       await as('u2', ROOT, () => service().revokeRole('u1', 'role-super_admin'));
 
       // u2 is the only other holder, and is inactive: u1 is the last who can sign in.
-      userRoles.findActiveUserIds = () => Promise.resolve([]);
+      otherSuperAdmins = [];
       expect(
         await codeOf(as('root', ROOT, () => service().revokeRole('u1', 'role-super_admin'))),
       ).toBe(APP_ERROR_CODES.CONFLICT);

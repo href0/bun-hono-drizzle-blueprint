@@ -19,7 +19,12 @@ export const userRoutes = new Hono();
 
 const tags = ['Users'];
 
-/** User management is for admins; a user may read their own record (`/users/:id`, own id). */
+/**
+ * User management is for admins; a user may read their own record (`/users/:id`, own id). Changing
+ * another account needs every permission it holds (`requireMayManageUser`, 403
+ * `ERR_PERMISSION_ESCALATION_FORBIDDEN`); the last active super admin is never deleted or
+ * deactivated (409).
+ */
 
 userRoutes.post(
   '/',
@@ -82,7 +87,17 @@ userRoutes.patch(
       message: USER_MESSAGES.UPDATED,
       data: userResponseSchema,
     },
-    errors: [404, 409, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
+    errors: [
+      404,
+      409,
+      {
+        status: 403,
+        codes: [
+          APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+          APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN,
+        ],
+      },
+    ],
   }),
   requirePermission(USER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: updateUserSchema }),
@@ -99,7 +114,17 @@ userRoutes.delete(
       message: USER_MESSAGES.DELETED,
       data: z.null(),
     },
-    errors: [404, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
+    errors: [
+      404,
+      409,
+      {
+        status: 403,
+        codes: [
+          APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+          APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN,
+        ],
+      },
+    ],
   }),
   requirePermission(USER_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
@@ -116,7 +141,7 @@ userRoutes.put(
       message: USER_MESSAGES.PASSWORD_SET,
       data: z.null(),
     },
-    errors: [404],
+    errors: [404, { status: 403, codes: [APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN] }],
   }),
   requirePermission(USER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: setPasswordSchema }),
@@ -133,7 +158,7 @@ userRoutes.post(
       message: USER_MESSAGES.RESTORED,
       data: userResponseSchema,
     },
-    errors: [404, 409],
+    errors: [404, 409, { status: 403, codes: [APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN] }],
   }),
   requirePermission(USER_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),

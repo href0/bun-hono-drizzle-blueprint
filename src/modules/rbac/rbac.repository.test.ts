@@ -128,26 +128,11 @@ describe('RBAC repositories (SQL shape)', () => {
     }
   });
 
-  it('user access (step 6b): roles of a user, locked holders, active users, grants with their permission', async () => {
+  it('user access (step 6b): roles of a user, grants with their permission', async () => {
     const userRolesRepo = new RbacUserRolesRepository(recorder.txHost);
     expect(await userRolesRepo.findRolesOf('u1')).toEqual([]);
     expect(lastSql()).toContain('"roles"."deleted_at" is null');
     expect(lastSql()).toContain('"user_roles"."deleted_at" is null');
-
-    const locked = await recorder.txHost.run(() => userRolesRepo.lockHolderIds('r1'));
-    expect(locked).toEqual([]);
-    const lock = recorder.statements
-      .map(({ sql }) => sql)
-      .find((sql) => sql.includes('for update'));
-    expect(lock).toContain('"user_roles"."deleted_at" is null');
-
-    recorder.reset();
-    expect(await userRolesRepo.findActiveUserIds([])).toEqual([]);
-    expect(recorder.statements).toEqual([]);
-    recorder.respondWith([['u2']]);
-    expect(await userRolesRepo.findActiveUserIds(['u1', 'u2'])).toEqual(['u2']);
-    expect(lastSql()).toContain('"users"."is_active" = ');
-    expect(lastSql()).toContain('"users"."deleted_at" is null');
 
     expect(await new RbacUserPermissionsRepository(recorder.txHost).findGrantsOf('u1')).toEqual([]);
     expect(lastSql()).toContain('"user_permissions"."deleted_at" is null');

@@ -5,8 +5,11 @@ import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../../core/ca
 import { instantField } from '../../core/dto/datetime.dto';
 import { getActor } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
+import { requireMayManageUser } from '../../core/security/account-access';
 import { hashPassword } from '../../core/security/password';
+import type { EffectivePermissions } from '../../core/security/rbac';
 import { DefaultRoleRepository, defaultRoleRepository } from '../../database/rbac/default-role';
+import { SuperAdminsRepository, superAdminsRepository } from '../../database/rbac/super-admins';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import type {
@@ -70,7 +73,20 @@ export class UsersService {
     private readonly userRoles: UsersRolesRepository = usersRolesRepository,
     /** Gives a new user the system role `user` (D59). */
     private readonly defaultRole: DefaultRoleRepository = defaultRoleRepository,
+    /** The last active super admin is never deleted or deactivated (anti-lockout, D52). */
+    private readonly superAdmins: SuperAdminsRepository = superAdminsRepository,
   ) {}
+
+  /** `target` is a super admin and no other live, active super admin would remain → 409. */
+  private async forbidLastSuperAdmin(
+    id: string,
+    target: EffectivePermissions | undefined,
+  ): Promise<void> {
+    if (!target?.superAdmin) return;
+    if ((await this.superAdmins.lockOtherActiveHolders(id)).length === 0) {
+      throw new ConflictError(USER_MESSAGES.LAST_SUPER_ADMIN);
+    }
+  }
 
   /** Adds each user's live role keys (one query for the whole list). */
   private async withRoles(list: readonly PublicUser[]): Promise<UserWithRoles[]> {
@@ -134,9 +150,17 @@ export class UsersService {
     return { users: await this.withRoles(rows), total };
   }
 
+  /**
+   * Changes another user's account only for a caller holding what that user holds (no way round
+   * RBAC, `requireMayManageUser`); deactivating the last active super admin is refused.
+   */
   @Transactional()
   async updateUser(id: string, dto: UpdateUserDto): Promise<UserWithRoles> {
-    if (dto.isActive === false) forbidSelfLockout(id);
+    const target = await requireMayManageUser(id);
+    if (dto.isActive === false) {
+      forbidSelfLockout(id);
+      await this.forbidLastSuperAdmin(id, target);
+    }
     if (dto.email !== undefined) {
       const holder = await this.repo.findByEmail(dto.email);
       if (holder && holder.id !== id) throw emailTaken();
@@ -154,8 +178,11 @@ export class UsersService {
   }
 
   /** Soft delete: the user disappears from reads; `restoreUser` brings them back. */
+  @Transactional()
   async deleteUser(id: string): Promise<void> {
+    const target = await requireMayManageUser(id);
     forbidSelfLockout(id);
+    await this.forbidLastSuperAdmin(id, target);
     const deleted = await this.repo.softDeleteById(id);
     if (!deleted) throw new NotFoundError(userNotFoundMessage(id));
     await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
@@ -166,6 +193,7 @@ export class UsersService {
    * token family started before now, so all of the user's sessions end.
    */
   async setPassword(id: string, dto: SetPasswordDto): Promise<void> {
+    await requireMayManageUser(id);
     const passwordHash = await hashPassword(dto.password);
     const updated = await this.repo.updateById(id, {
       passwordHash,
@@ -175,7 +203,9 @@ export class UsersService {
     await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
   }
 
+  /** Restoring gives the user back what they held: only for a caller holding it too. */
   async restoreUser(id: string): Promise<UserWithRoles> {
+    await requireMayManageUser(id);
     try {
       const restored = await this.repo.restoreById(id);
       if (!restored) throw new NotFoundError(userNotFoundMessage(id));

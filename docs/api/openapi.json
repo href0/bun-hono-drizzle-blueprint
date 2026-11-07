@@ -21811,6 +21811,7 @@
               }
             },
             "x-error-codes": [
+              "ERR_PERMISSION_ESCALATION_FORBIDDEN",
               "ERR_PERMISSION_FORBIDDEN",
               "ERR_SELF_LOCKOUT_FORBIDDEN"
             ]
@@ -21843,6 +21844,36 @@
             },
             "x-error-codes": [
               "ERR_NOT_FOUND"
+            ]
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflicts with the current state",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_CONFLICT"
             ]
           },
           "429": {
@@ -22466,6 +22497,7 @@
               }
             },
             "x-error-codes": [
+              "ERR_PERMISSION_ESCALATION_FORBIDDEN",
               "ERR_PERMISSION_FORBIDDEN",
               "ERR_SELF_LOCKOUT_FORBIDDEN"
             ]
@@ -23156,6 +23188,7 @@
               }
             },
             "x-error-codes": [
+              "ERR_PERMISSION_ESCALATION_FORBIDDEN",
               "ERR_PERMISSION_FORBIDDEN"
             ]
           },
@@ -24697,6 +24730,7 @@
               }
             },
             "x-error-codes": [
+              "ERR_PERMISSION_ESCALATION_FORBIDDEN",
               "ERR_PERMISSION_FORBIDDEN"
             ]
           },

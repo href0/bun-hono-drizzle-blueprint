@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import { UsersService } from './users.service';
-import { ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
+import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
 import { runWithRequestContext } from '../../core/context/request-context';
 import { verifyPassword } from '../../core/security/password';
 import { runInFakeTransaction } from '../../database/transaction-host';
 import type { UsersRepository } from './users.repository';
 import type { UsersRolesRepository } from './users-roles.repository';
 import type { DefaultRoleRepository } from '../../database/rbac/default-role';
+import type { SuperAdminsRepository } from '../../database/rbac/super-admins';
 import { CacheService, type CacheClient } from '../../core/cache';
 import type { User } from '../../database/schema';
 
@@ -292,9 +293,11 @@ describe('UsersService (Unit)', () => {
         cache,
       );
 
-      await service.deleteUser(mockUser.id);
+      await runInFakeTransaction({}, () => service.deleteUser(mockUser.id));
       expect(deleted).toEqual(['user:detail:' + mockUser.id]);
-      expect(missing.deleteUser(mockUser.id)).rejects.toThrow(NotFoundError);
+      expect(runInFakeTransaction({}, () => missing.deleteUser(mockUser.id))).rejects.toThrow(
+        NotFoundError,
+      );
     });
 
     it('restores and evicts the cached detail; NotFoundError when not deleted', async () => {
@@ -390,7 +393,9 @@ describe('UsersService password reset and self-lockout', () => {
     const service = new TestUsersService(repo as UsersRepository, cache);
     const self = `user:${user.id}` as const;
 
-    expect(asActor(self, () => service.deleteUser(user.id))).rejects.toThrow(ForbiddenError);
+    expect(
+      asActor(self, () => runInFakeTransaction({}, () => service.deleteUser(user.id))),
+    ).rejects.toThrow(ForbiddenError);
     await runInFakeTransaction({}, async () => {
       expect(asActor(self, () => service.updateUser(user.id, { isActive: false }))).rejects.toThrow(
         ForbiddenError,
@@ -403,6 +408,94 @@ describe('UsersService password reset and self-lockout', () => {
         await asActor('user:another-admin', () => service.updateUser(user.id, { isActive: false })),
       ).toEqual(viewOf(user));
     });
-    await asActor('user:another-admin', () => service.deleteUser(user.id));
+    await asActor('user:another-admin', () =>
+      runInFakeTransaction({}, () => service.deleteUser(user.id)),
+    );
+  });
+});
+
+describe('UsersService: changing another account never goes round RBAC (plan RBAC step 8b)', () => {
+  const target: User = {
+    id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
+    email: 'root@example.com',
+    fullName: 'Root',
+    passwordHash: 'hash',
+    passwordChangedAt: null,
+    createdBy: 'system',
+    updatedBy: 'system',
+    deletedAt: null,
+    isActive: true,
+    createdAt: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+    updatedAt: Temporal.Instant.from('2026-10-01T00:00:00Z'),
+  };
+  const cache = { del: async () => {} } as unknown as CacheService;
+  const repo = {
+    softDeleteById: async () => target,
+    updateById: async () => target,
+    restoreById: async () => target,
+    findByEmail: async () => null,
+  } as unknown as UsersRepository;
+  const roles = { findRoleKeys: async () => new Map([[target.id, ['super_admin']]]) };
+  let others: string[] = [];
+  const service = new UsersService(
+    repo,
+    cache,
+    roles as unknown as UsersRolesRepository,
+    undefined,
+    { lockOtherActiveHolders: async () => others } as unknown as SuperAdminsRepository,
+  );
+  /** A signed-in caller holding `own`; the target is a super admin. */
+  const as = <T>(own: { superAdmin: boolean; permissions: string[] }, fn: () => Promise<T>) =>
+    runWithRequestContext(
+      {
+        requestId: 'r',
+        locale: 'en',
+        clientIp: '127.0.0.1',
+        actor: 'user:caller',
+        user: { id: 'caller' },
+        permissions: () => Promise.resolve(own),
+        permissionsOf: () => Promise.resolve({ superAdmin: true, permissions: [] }),
+      },
+      () => runInFakeTransaction({}, fn),
+    );
+  const ADMIN = {
+    superAdmin: false,
+    permissions: ['users.update', 'users.delete', 'users.restore'],
+  };
+  const ROOT = { superAdmin: true, permissions: [] };
+  const codeOf = async (promise: Promise<unknown>) =>
+    promise.then(
+      () => undefined,
+      (error: unknown) =>
+        error instanceof ForbiddenError || error instanceof ConflictError
+          ? error.errorCode
+          : String(error),
+    );
+
+  it('an admin who is not a super admin cannot reset, change, delete or restore a super admin', async () => {
+    for (const change of <(() => Promise<unknown>)[]>[
+      () => service.setPassword(target.id, { password: 'new password 1' }),
+      () => service.updateUser(target.id, { email: 'mine@example.com' }),
+      () => service.deleteUser(target.id),
+      () => service.restoreUser(target.id),
+    ]) {
+      expect(await codeOf(as(ADMIN, change))).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+    }
+  });
+
+  it('a super admin may — but never delete or deactivate the last active super admin (409)', async () => {
+    others = ['another-root'];
+    await as(ROOT, () => service.setPassword(target.id, { password: 'new password 1' }));
+    await as(ROOT, () => service.deleteUser(target.id));
+
+    others = [];
+    expect(await codeOf(as(ROOT, () => service.deleteUser(target.id)))).toBe(
+      APP_ERROR_CODES.CONFLICT,
+    );
+    expect(await codeOf(as(ROOT, () => service.updateUser(target.id, { isActive: false })))).toBe(
+      APP_ERROR_CODES.CONFLICT,
+    );
+    // Other changes of the last super admin's account stay possible.
+    await as(ROOT, () => service.updateUser(target.id, { fullName: 'Root 2' }));
   });
 });

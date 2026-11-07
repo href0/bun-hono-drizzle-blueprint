@@ -11,6 +11,7 @@ import {
 } from '../../core/errors';
 import { SUPER_ADMIN_ROLE, type EffectivePermissions } from '../../core/security/rbac';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
+import { SuperAdminsRepository, superAdminsRepository } from '../../database/rbac/super-admins';
 import { isUniqueViolation } from '../../database/unique-violation';
 import type {
   Permission,
@@ -78,6 +79,7 @@ export class RbacService {
     private readonly userPermissionsRepo: RbacUserPermissionsRepository = rbacUserPermissionsRepository,
     private readonly cache: CacheService = cacheService,
     private readonly ttlSeconds: number = authConfig.RBAC_PERMISSION_CACHE_TTL_SECONDS,
+    private readonly superAdmins: SuperAdminsRepository = superAdminsRepository,
   ) {}
 
   async getEffectivePermissions(userId: string): Promise<EffectivePermissions> {
@@ -177,8 +179,7 @@ export class RbacService {
           code: APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
         });
       }
-      const others = (await this.userRolesRepo.lockHolderIds(roleId)).filter((id) => id !== userId);
-      if ((await this.userRolesRepo.findActiveUserIds(others)).length === 0) {
+      if ((await this.superAdmins.lockOtherActiveHolders(userId)).length === 0) {
         throw new ConflictError(RBAC_MESSAGES.LAST_SUPER_ADMIN);
       }
     }
