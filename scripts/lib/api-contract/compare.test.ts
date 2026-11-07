@@ -249,6 +249,38 @@ describe('compare: operations, statuses and security', () => {
     ]);
   });
 
+  it('a code added to the error.code enum of an error response = safe; any other response enum widened = BREAKING', () => {
+    const withCodes = (codes: string[], kinds: string[]): Json => ({
+      responses: {
+        '200': {
+          description: 'OK',
+          content: {
+            'application/json': {
+              schema: object({ kind: { type: 'string', enum: kinds } }),
+            },
+          },
+        },
+        '429': {
+          description: 'x',
+          content: {
+            'application/json': {
+              schema: object({ error: object({ code: { type: 'string', enum: codes } }) }),
+            },
+          },
+        },
+      },
+    });
+    expect(
+      changesOf(
+        api({ 'GET /a': withCodes(['ERR_A'], ['x']) }),
+        api({ 'GET /a': withCodes(['ERR_A', 'ERR_B'], ['x', 'y']) }),
+      ),
+    ).toEqual([
+      'BREAKING GET /a | response 200 body.kind enum',
+      'safe GET /a | response 429 body.error.code enum',
+    ]);
+  });
+
   it('object key order inside an attribute is not a change (the snapshot is written with sorted keys)', () => {
     const message = (value: Record<string, string>): Json => ({
       responses: { '200': { description: 'OK', 'x-success-messages': [value] } },

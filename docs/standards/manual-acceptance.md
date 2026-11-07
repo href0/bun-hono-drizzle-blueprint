@@ -100,15 +100,17 @@ The runner's steps, in order, per combination (`scripts/lib/acceptance.ts`; `tes
 
 17. **Database: create, db:migrate, seed:admin**
 18. **Server: health, login, refresh, users, partner ping (with the gateway)** — refresh with the cookie; `/users` with and without a token; combination 2 also an example route; with the gateway a partner credential, a signed and an unsigned ping.
-19. **HTTP: products, invoices with lines, audit entries** — success, a validation error (400), no token (401).
-20. **HTTP: a review and a spec under the product**
-21. **HTTP: signed partner shipments (with the gateway), signed globex webhook** — with the gateway 201, the same reference 409, unsigned 401; the signed event 2xx, again `duplicate: true`, a forged signature 401.
-22. **Stop the server, drop the database and the Redis keys**
+19. **HTTP: RBAC — a role with a permission, given to a new user, who then gets in** — the admin creates a role, finds `users.read` with its endpoints, maps it, creates a user; that user gets 403 on `/users`, then 200 with the same token once given the role, and `GET /me/permissions` lists `users.read`.
+20. **HTTP: products, invoices with lines, audit entries** — success, a validation error (400), no token (401).
+21. **HTTP: a review and a spec under the product**
+22. **HTTP: signed partner shipments (with the gateway), signed globex webhook** — with the gateway 201, the same reference 409, unsigned 401; the signed event 2xx, again `duplicate: true`, a forged signature 401.
+23. **test:int: the integration suite of the new project** — on its own disposable database, as the project's CI job `integration` runs it: no core test may depend on an example module or on the partner gateway.
+24. **Stop the server, drop the database and the Redis keys**
 
 **D — images** (skipped when Docker is not running; the running container is proven by the CI job `docker`, R79)
 
-23. **Docker: the production image**
-24. **Docker: the tools image**
+25. **Docker: the production image**
+26. **Docker: the tools image**
 
 ## 4. When a step fails
 
