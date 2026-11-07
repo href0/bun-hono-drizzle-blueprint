@@ -382,7 +382,12 @@ export interface ScaffoldPlan {
 const moduleRouterOf = (
   request: ScaffoldRequest,
   names: Names,
-): { variant: PlanVariant; router: { file: string; symbol: string; mount: string } } => {
+): {
+  variant: PlanVariant;
+  router: { file: string; symbol: string; mount: string };
+  /** A user-channel module checks permissions on every route; the partner channel has its own guard (D57). */
+  checksPermissions: boolean;
+} => {
   // partner:start
   if (request.kind === 'partner') {
     return {
@@ -392,6 +397,7 @@ const moduleRouterOf = (
         symbol: `${names.camelPlural}PartnerRoutes`,
         mount: `/partner/${names.name}`,
       },
+      checksPermissions: false,
     };
   }
   // partner:end
@@ -402,6 +408,7 @@ const moduleRouterOf = (
       symbol: `${names.camelPlural}Router`,
       mount: `/${names.name}`,
     },
+    checksPermissions: true,
   };
 };
 
@@ -611,7 +618,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
       )
     : undefined;
   const files = materialize(text, names, [APP_PATH], undefined, detail);
-  const { variant, router } = moduleRouterOf(request, names);
+  const { variant, router, checksPermissions } = moduleRouterOf(request, names);
   const edits: PlannedEdit[] = [
     appendExport(SCHEMA_BARREL, `export ./${names.name}.schema`, `./${names.name}.schema`),
     {
@@ -627,8 +634,7 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
         ),
     },
   ];
-  // A user-channel module checks permissions on every route; the partner channel has its own guard (D57).
-  if (variant !== 'partner') edits.push(permissionRegistration(names, `modules/${names.name}`));
+  if (checksPermissions) edits.push(permissionRegistration(names, `modules/${names.name}`));
   edits.push(
     structureLine(
       names.name,
