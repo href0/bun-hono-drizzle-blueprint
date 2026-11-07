@@ -27,7 +27,7 @@ Base: `<API>/api/v1/auth`. Body dan respons memakai `snake_case`.
 
 - Email tidak peka huruf besar/kecil: server menyimpan dan mencarinya dalam huruf kecil.
 - `expires_in` adalah umur access token dalam detik (default 900).
-- Hak akses berbasis **permission** (mis. `orders.read`), diberikan lewat role atau izin tambahan per pengguna dan diperiksa di setiap request — tidak tersimpan di access token, jadi perubahan hak akses berlaku di request berikutnya tanpa login ulang. Endpoint yang permission-nya tidak Anda miliki menjawab 403 `ERR_PERMISSION_FORBIDDEN`. Respons login dan `GET /auth/me` tidak lagi membawa `role`; daftar role dan permission pengguna tersedia dari endpoint khusus (lihat dokumentasi API).
+- Hak akses berbasis **permission** (mis. `orders.read`), diberikan lewat role atau izin tambahan per pengguna dan diperiksa di setiap request — tidak tersimpan di access token, jadi perubahan hak akses berlaku di request berikutnya tanpa login ulang. Endpoint yang permission-nya tidak Anda miliki menjawab 403 `ERR_PERMISSION_FORBIDDEN`. Respons login dan `GET /auth/me` tidak lagi membawa `role`; untuk menampilkan atau menyembunyikan menu dan tombol, baca `GET /api/v1/me/permissions` (`super_admin` + daftar kunci permission, termasuk permission menu `menu.…`) — panggil lagi setelah login dan saat perlu; server tetap memeriksa setiap endpoint sendiri.
 - Refresh token **tidak pernah** muncul di body respons.
 
 Cookie yang dipasang server:

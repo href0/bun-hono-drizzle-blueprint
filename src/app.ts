@@ -44,7 +44,9 @@ import type { PermissionEndpoints, PermissionLookup } from './core/security/rbac
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
 import { rbacPermissionsRouter } from './modules/rbac/rbac-permissions.routes';
+import { rbacMeRouter } from './modules/rbac/rbac-me.routes';
 import { rbacRolesRouter } from './modules/rbac/rbac-roles.routes';
+import { rbacUserAccessRouter } from './modules/rbac/rbac-user-access.routes';
 import { rbacService } from './modules/rbac/rbac.service';
 // partner:start
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
@@ -205,6 +207,8 @@ export const createApp = ({ permissionLookup = rbacLookup }: AppOptions = {}): H
   v1.route('/users', userRoutes);
   v1.route('/roles', rbacRolesRouter);
   v1.route('/permissions', rbacPermissionsRouter);
+  v1.route('/users', rbacUserAccessRouter);
+  v1.route('/me', rbacMeRouter);
   v1.route('/users', userPostRoutes);
   // partner:start
   v1.route('/partner-credentials', partnerCredentialRoutes);
