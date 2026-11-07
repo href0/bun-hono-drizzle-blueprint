@@ -11,7 +11,8 @@ Arsitektur & alasannya (indeks aturan beserta penegaknya): [ARCHITECTURE.md](ARC
 - **Kontrak HTTP seragam** — controller me-return `ApiResponse`, envelope sukses/error, wire `snake_case` dua arah, pesan `id`/`en`.
 - **Lapisan ketat** — `Routes → Controller → Service → Repository`, diverifikasi dependency-cruiser dan ESLint.
 - **Data layer teraudit** — transaksi deklaratif, lima base repository (termasuk parent-child), setiap UPDATE/DELETE tercatat di `record_changes`.
-- **Auth default-deny** — JWT + refresh token di cookie `HttpOnly` (rotasi, deteksi reuse), role per route.
+- **Auth default-deny** — JWT + refresh token di cookie `HttpOnly` (rotasi, deteksi reuse).
+- **RBAC berbasis permission** — setiap route menyebut permission-nya (R89), role dan izin tambahan per user diatur admin lewat API (`/roles`, `/permissions`, `/users/:id/roles`), tanpa eskalasi hak; frontend membaca `GET /me/permissions`.
 - **Kanal inbound** — webhook vendor fail-closed dan idempoten.
 - **Gateway partner** — request server-to-server bertanda tangan HMAC (opsional: `bun run setup --no-partner` memangkasnya). <!-- partner -->
 - **Platform** — konfigurasi Zod fail-fast, Redis fail-open, rate limit, health `UP`/`DEGRADED`/`DOWN`, OpenAPI + Scalar, waktu UTC (Temporal).

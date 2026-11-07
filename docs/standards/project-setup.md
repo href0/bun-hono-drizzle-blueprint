@@ -36,7 +36,7 @@ The full setup:
    | Vendor webhook | `src/integrations/demo-pay` + `src/modules/payment-notifications`, `DEMO_PAY_*` |
    | Outbound adapter | `src/integrations/jsonplaceholder` + `src/modules/user-posts` (`/users/:id/external-posts`), `JSONPLACEHOLDER_*` |
 
-   Each with its schema, tests, registrations (`src/app.ts`, barrels, registry) and lines in the standards. Then the migrations are **regenerated from scratch** (one clean `0000`: a new project has no database yet) and the API contract baseline (`docs/api/`) is rewritten without the examples. What stays is the platform: `users`, `auth`, `health`, the audit trail, the webhook inbox — and the partner gateway (`partner-credentials`, `partner-gateway` ping / echo) unless step 3 removes it.
+   Each with its schema, tests, registrations (`src/app.ts`, barrels, registry, its `<CONST>.all` line in the permission registry `src/permissions.ts`) and lines in the standards. Then the migrations are **regenerated from scratch** (one clean `0000`: a new project has no database yet) and the API contract baseline (`docs/api/`) is rewritten without the examples. What stays is the platform: `users`, `auth`, `health`, the audit trail, the webhook inbox — and the partner gateway (`partner-credentials`, `partner-gateway` ping / echo) unless step 3 removes it.
 
 3. **Keeps or removes the partner gateway** (§4): kept, only its markers are dropped; `--no-partner` removes it (then the migrations and the contract baseline are regenerated as in step 2).
 

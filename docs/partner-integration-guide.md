@@ -14,7 +14,7 @@ Ringkasnya:
 
 ## 1. Mendapatkan kredensial (admin)
 
-Kredensial dibuat oleh admin lewat `POST /api/v1/partner-credentials` (access token role `admin`):
+Kredensial dibuat oleh admin lewat `POST /api/v1/partner-credentials` (access token pengguna dengan permission `partner-credentials.create`):
 
 ```json
 {
