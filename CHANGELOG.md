@@ -2,6 +2,47 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
+## [Unreleased]
+
+**Breaking (MAJOR, D61).** Authorization moves from one role per user to permissions kept in the database (D46–D61): every route names the permission it checks, administrators manage roles, role permissions, menu permissions and per-user grants through an API, and no administrator can give more than they hold. The role leaves the access token and the `users` table. Every local command now names its environment (D62). A project that is already set up follows *Upgrading a project* below.
+
+### Added
+
+- **Permissions in the database** (D47–D56): tables `permissions`, `roles`, `role_permissions`, `user_roles`, `user_permissions` (own UUID v7 ids, soft delete = revocation, unique among live rows, ready for tenancy through one filter, `rbacScope()`). System roles `super_admin` (holds every permission, cannot be changed) and `user` (given to every new user, D59).
+- **Permission registry in code** (D47–D49, D60): each module declares `<module>.permissions.ts` (`crudPermissions` / `definePermissions`, a constant per action); `src/permissions.ts` collects them; `bun run db:migrate` syncs them (also `bun run db:sync-permissions`), retiring keys the code dropped (E4); the server refuses to start while a key is missing.
+- **Effective permissions per request** (D52, D53): roles ∪ unexpired grants, cached per user (`RBAC_PERMISSION_CACHE_TTL_SECONDS`, default 60) and dropped after every change commits (`afterCommit`, D63, R88): a revocation applies to the next request, no new login.
+- **Guards** `requirePermission(<CONST>.<action>)`, `requireSelfOrPermission(param, …)`, `allowAnyUser()`; 403 `ERR_PERMISSION_FORBIDDEN`; OpenAPI `x-allowed-callers`. **Rule R89** (`test/route-permissions.e2e.test.ts`): every `/v1` route is in exactly one category, a guard refuses before validating, routes and registry name the same permissions.
+- **RBAC admin API** (module `rbac`): `/roles` (CRUD, permissions of a role), `/permissions` (every permission with the endpoints it opens — read from the routes, D47 — and menu permissions `menu.…`), `/users/:id/roles`, `/users/:id/permissions` (grants with `expires_at` and `note`), `GET /me/permissions` for the frontend.
+- **Scaffold**: every user-channel template generates `<module>.permissions.ts`, checks a constant on every route and registers `.all` in `src/permissions.ts`.
+- **Acceptance** stage C: the RBAC flow over HTTP (a role, a user given it) and `test:int` of the new project.
+- **Plans** end with a closing review and carry review checkpoints (`docs/plans/README.md`).
+- `bun run start:<dev|test|stg|demo|prod>` and `bun run env <environment> <command>` (D62, R87).
+
+### Changed
+
+- **No escalation**: whoever maps a permission, gives a role or a grant, or restores a role must hold every permission involved; `super_admin` is given and taken only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) or the last active holder (409); another user's account (email, password, active flag, delete, restore) is changed only by someone holding every permission it holds — 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` (new code).
+- `users` responses carry `roles: string[]` (read-only); `role` is gone from the login response, `GET /auth/me`, the user DTOs and the list filters.
+- `bun run seed:admin` gives the `super_admin` role (`--promote` too).
+- `bun run openapi:check`: a new code in the shared `error.code` enum of error responses is a safe change, no longer hundreds of `BREAKING` ones.
+- `.env` is no longer used: commands load `.env.<environment>` only and refuse while `.env` or `.env.local` exists; `bun run setup` creates `.env.dev`.
+
+### Removed
+
+- `requireRole`, `requireSelfOrRole`, `ROLES`, `DEFAULT_ROLE`, the `role` claim of the access token (an older token that still carries it is accepted; the claim is ignored) and the column `users.role` (`0010_rbac.sql` moves it into `user_roles`, `0011_drop_users_role.sql` drops it).
+- `bun run dev` (use `bun run start:dev`).
+
+### Upgrading a project
+
+A project created from 1.x ports this release like any other ([git-workflow.md](docs/standards/git-workflow.md) §1.2) — in this order, on a branch, with a backup of every database it upgrades:
+
+1. **Environment** (D62): rename `.env` to `.env.dev` (and keep one file per environment); `bun run dev` becomes `bun run start:dev`, database commands become `bun run env dev <command>`.
+2. **Platform code**: cherry-pick the commits of this release outside the example modules and `drizzle/` (`git log v1.2.0..v2.0.0 -- src/core src/database scripts test docs/standards src/modules/rbac src/modules/users src/modules/auth src/permissions.ts src/app.ts`).
+3. **Schema and data — your own migrations**, never the boilerplate's `drizzle/`: `bun run db:generate` for the five RBAC tables, then append the hand-written data part of the boilerplate's `0010_rbac.sql` (after `-- Data (hand-written`) to that migration: it creates the system roles, one role for every other `users.role` value, and a `user_roles` row for every user — `admin` becomes `super_admin`. Deploy, check every user has their role, **then** generate the migration that drops `users.role` (two steps, [deployment.md](docs/deployment.md) §3).
+4. **Each of your modules**: add `<module>.permissions.ts` (`crudPermissions('<module>', '<words>')` or `definePermissions` for actions of its own) and register `.all` in `src/permissions.ts`; on every route replace `requireRole('admin')` with `requirePermission(<CONST>.<action>)`, `requireSelfOrRole` with `requireSelfOrPermission`, and a route for every signed-in user gets `allowAnyUser()`. `test/route-permissions.e2e.test.ts` names every route still missing one.
+5. **Code that read the role**: `currentUser().role` and the `role` claim no longer exist — ask for a permission instead; tests use `authorize(createTestApp(), [<keys>])` / `signedIn(<keys>)` instead of a role.
+6. `bun run env dev db:migrate` (migrations + permission sync), map the new permissions to your roles (`PUT /api/v1/roles/:id/permissions/:permissionId` as a super admin), then `bun run openapi:update --allow-breaking` (the contract loses `role`), `bun run validate:full`, `bun run build`, `bun run env dev test:int`.
+7. **Frontends**: stop reading `role` from the login response; show menus and buttons from `GET /api/v1/me/permissions`; handle 403 `ERR_PERMISSION_FORBIDDEN` / `ERR_PERMISSION_ESCALATION_FORBIDDEN` ([auth-guide.md](docs/auth-guide.md)).
+
 ## [1.2.0] - 2026-10-31
 
 The documentation portal (`docs-site/`) reads like a framework's documentation. A project that is already set up takes it by porting the four portal commits (`docs-site/`, `test/docs-portal.test.ts`, `.github/workflows/deploy-docs.yml`, [git-workflow.md](docs/standards/git-workflow.md) §1.2), then `bun install` inside `docs-site/`; nothing outside the portal changes.
