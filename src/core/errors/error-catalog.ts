@@ -150,6 +150,14 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
       en: 'The user lacks the permission this endpoint requires',
     },
   },
+  [CODE.PERMISSION_ESCALATION_FORBIDDEN]: {
+    status: 403,
+    type: TYPE.FORBIDDEN,
+    meaning: {
+      id: 'Pengguna mencoba memberikan permission yang tidak ia miliki sendiri',
+      en: 'The user tried to give a permission they do not hold themselves',
+    },
+  },
   [CODE.SELF_LOCKOUT_FORBIDDEN]: {
     status: 403,
     type: TYPE.FORBIDDEN,

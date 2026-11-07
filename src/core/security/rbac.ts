@@ -143,6 +143,21 @@ export interface EffectivePermissions {
 /** Resolves the effective permissions of a user (the RBAC module's, injected by `src/app.ts`). */
 export type PermissionLookup = (userId: string) => Promise<EffectivePermissions>;
 
+/** One endpoint a permission opens: what the admin screen lists under the permission (D47). */
+export interface PermissionEndpoint {
+  /** Upper case: `GET`, `POST`, … */
+  readonly method: string;
+  /** As documented: `/api/v1/orders/{id}`. */
+  readonly path: string;
+  readonly summary: string;
+}
+
+/** The endpoints of each permission key, sorted by path then method. */
+export type PermissionEndpoints = ReadonlyMap<string, readonly PermissionEndpoint[]>;
+
+/** Builds the endpoints of every permission (from the app's OpenAPI document, injected by `src/app.ts`). */
+export type PermissionEndpointsSource = () => Promise<PermissionEndpoints>;
+
 /** A role the platform needs and keeps (D52, D59): created by the migration and by every sync. */
 export interface SystemRole {
   readonly key: string;

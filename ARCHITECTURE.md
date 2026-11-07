@@ -296,7 +296,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | ID | Rule | Enforcer |
 |---|---|---|
 | R38 | Default-deny `<base>/v1/*`; public only through `PUBLIC_ROUTES` | [test:default-deny.e2e] [test:public-routes] [test:authenticate] |
-| R39 | Per-route authorization by permission (D47–D53): `requirePermission` / `requireSelfOrPermission` → 403 `ERR_PERMISSION_FORBIDDEN`, `allowAnyUser` for every signed-in user, documented in OpenAPI (`x-allowed-callers`); permissions resolved per request, never from the token | [test:require-permission] [test:openapi.e2e] [test:rbac] |
+| R39 | Per-route authorization by permission (D47–D53): `requirePermission` / `requireSelfOrPermission` → 403 `ERR_PERMISSION_FORBIDDEN`, `allowAnyUser` for every signed-in user, documented in OpenAPI (`x-allowed-callers`); permissions resolved per request, never from the token; whoever changes access gives only permissions they hold (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`, super admin excepted) | [test:require-permission] [test:openapi.e2e] [test:rbac] [test:rbac-grant-guard.util] |
 | R40 | Refresh token only in an HttpOnly cookie, rotated; reuse revokes the whole family | [test:auth.service] [test:auth.e2e] [test:auth] |
 | R41 | Cookie endpoints use `csrfProtection()` | [test:csrf] [test:auth.e2e] |
 | R42 | Partner routes only through `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), also with a bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] | <!-- partner -->

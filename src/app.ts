@@ -24,7 +24,15 @@ import {
   type WebhookVendor,
 } from './core/middlewares';
 import { I18N_MESSAGES } from './core/i18n';
-import { describeEndpoint, mountApiDocs } from './core/openapi';
+import {
+  buildOpenApiDocument,
+  describeEndpoint,
+  mountApiDocs,
+  permissionEndpointsOf,
+  type ApiDocsInfo,
+  type OpenApiDocument,
+  type SecurityRules,
+} from './core/openapi';
 import {
   // partner:start
   isPartnerRoute,
@@ -32,9 +40,11 @@ import {
   isPublicRoute,
 } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
-import type { PermissionLookup } from './core/security/rbac';
+import type { PermissionEndpoints, PermissionLookup } from './core/security/rbac';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
+import { rbacPermissionsRouter } from './modules/rbac/rbac-permissions.routes';
+import { rbacRolesRouter } from './modules/rbac/rbac-roles.routes';
 import { rbacService } from './modules/rbac/rbac.service';
 // partner:start
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
@@ -155,16 +165,46 @@ export const createApp = ({ permissionLookup = rbacLookup }: AppOptions = {}): H
   );
   // partner:end
 
+  // The OpenAPI document (same rules as the guards below), built once on first use: served at
+  // <base>/docs when enabled, and read for the endpoints each permission opens (D47) — always.
+  const docsInfo: ApiDocsInfo = {
+    title: appConfig.APP_NAME,
+    version: packageJson.version,
+    description: packageJson.description,
+  };
+  const docsSecurity: SecurityRules = {
+    requiresAuthentication: (method, path) =>
+      path.startsWith(`${v1Path}/`) &&
+      !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+    // partner:start
+    requiresPartnerSignature: (_method, path) =>
+      path.startsWith(`${v1Path}/`) &&
+      isPartnerRoute(path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
+    // partner:end
+    webhooks: { pathPrefix: webhooksPath, vendors: WEBHOOK_VENDORS },
+  };
+  let apiDocument: Promise<OpenApiDocument> | undefined;
+  const documentOf = (): Promise<OpenApiDocument> =>
+    (apiDocument ??= buildOpenApiDocument(app, docsInfo, docsSecurity));
+  let endpoints: Promise<PermissionEndpoints> | undefined;
+  const permissionEndpoints = (): Promise<PermissionEndpoints> =>
+    (endpoints ??= documentOf().then(permissionEndpointsOf));
+
   // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES and the
   //    routes an inbound guard above already verified
   app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
   //    … and the user's permissions, resolved once per request by the routes that check one (D49)
-  app.use(`${v1Path}/*`, permissionContext({ lookup: permissionLookup }));
+  app.use(
+    `${v1Path}/*`,
+    permissionContext({ lookup: permissionLookup, endpoints: permissionEndpoints }),
+  );
 
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
   const v1 = new Hono();
   v1.route('/auth', authRoutes);
   v1.route('/users', userRoutes);
+  v1.route('/roles', rbacRolesRouter);
+  v1.route('/permissions', rbacPermissionsRouter);
   v1.route('/users', userPostRoutes);
   // partner:start
   v1.route('/partner-credentials', partnerCredentialRoutes);
@@ -210,23 +250,8 @@ export const createApp = ({ permissionLookup = rbacLookup }: AppOptions = {}): H
   mountApiDocs(app, {
     basePath,
     enabled: appConfig.API_DOCS_ENABLED,
-    // Same rules as the guards above
-    security: {
-      requiresAuthentication: (method, path) =>
-        path.startsWith(`${v1Path}/`) &&
-        !isPublicRoute(method, path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
-      // partner:start
-      requiresPartnerSignature: (_method, path) =>
-        path.startsWith(`${v1Path}/`) &&
-        isPartnerRoute(path.slice(v1Path.length).replace(/\{(\w+)\}/g, ':$1')),
-      // partner:end
-      webhooks: { pathPrefix: webhooksPath, vendors: WEBHOOK_VENDORS },
-    },
-    info: {
-      title: appConfig.APP_NAME,
-      version: packageJson.version,
-      description: packageJson.description,
-    },
+    info: docsInfo,
+    document: documentOf,
   });
 
   // 11. Error and 404 handlers

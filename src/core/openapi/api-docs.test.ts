@@ -233,6 +233,25 @@ describe('mountApiDocs', () => {
     expect(SCALAR_BUNDLE_URL).toMatch(/@\d+\.\d+\.\d+$/);
   });
 
+  it('serves a document the app shares (built once by the app, e.g. also for the endpoints per permission)', async () => {
+    const app = buildApp();
+    let builds = 0;
+    const shared = { openapi: '3.1.0', info: { title: 'Shared' }, paths: {} };
+    mountApiDocs(app, {
+      basePath: '/api',
+      enabled: true,
+      info,
+      document: () => {
+        builds += 1;
+        return Promise.resolve(shared as never);
+      },
+    });
+
+    const json = await app.request('/api/docs/openapi.json');
+    expect(((await json.json()) as { info: { title: string } }).info.title).toBe('Shared');
+    expect(builds).toBe(1);
+  });
+
   it('mounts nothing when disabled (production default): both routes are 404', async () => {
     const app = buildApp();
     mountApiDocs(app, { basePath: '/api', enabled: false, info });

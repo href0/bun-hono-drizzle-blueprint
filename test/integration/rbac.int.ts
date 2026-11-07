@@ -581,3 +581,200 @@ describe('users start with the role user and show their roles (step 4b)', () => 
     expect((await usersService.getUserById(created.id)).roles).toEqual([key, 'user'].sort());
   });
 });
+
+describe('admin API: roles and permissions (step 6a)', () => {
+  const base = `${appConfig.API_BASE_PATH}/v1`;
+  const keyId = async (key: string): Promise<string> => {
+    const [row] = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.key, key), isNull(permissions.deletedAt)));
+    return row.id;
+  };
+
+  interface Answer {
+    status: number;
+    code?: string;
+    data?: unknown;
+    meta?: { total_items: number };
+  }
+
+  /** Calls the real app (database lookup, cache) as `userId`. */
+  const caller = async (userId: string) => {
+    const app = createApp();
+    const { token } = await signAccessToken({ userId });
+    return async (method: string, route: string, body?: unknown): Promise<Answer> => {
+      const res = await app.request(`${base}${route}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      const json = (await res.json()) as Omit<Answer, 'status'> & { error?: { code: string } };
+      return { status: res.status, code: json.error?.code, data: json.data, meta: json.meta };
+    };
+  };
+
+  const superAdmin = async () => {
+    const userId = await insertUser();
+    await rbacService.assignRole(userId, await roleId('super_admin'));
+    return caller(userId);
+  };
+
+  it('role lifecycle: create, list, update, map, delete and restore — holders follow at once, every change audited', async () => {
+    const call = await superAdmin();
+    const key = unique('staff').replaceAll('-', '_');
+
+    const created = await call('POST', '/roles', { key, name: 'Staff' });
+    expect(created.status).toBe(201);
+    const id = (created.data as { id: string }).id;
+    expect((await call('POST', '/roles', { key, name: 'Again' })).status).toBe(409);
+
+    const listed = await call('GET', `/roles?q=${key}&is_system=false`);
+    expect(listed.meta?.total_items).toBe(1);
+    expect((await call('PATCH', `/roles/${id}`, { name: 'Staff 2' })).data).toMatchObject({
+      name: 'Staff 2',
+      key,
+    });
+
+    const ordersRead = await keyId('orders.read');
+    expect((await call('PUT', `/roles/${id}/permissions/${ordersRead}`)).status).toBe(201);
+    expect((await call('PUT', `/roles/${id}/permissions/${ordersRead}`)).status).toBe(200);
+    const mapped = (await call('GET', `/roles/${id}/permissions`)).data as {
+      key: string;
+      endpoints: { method: string; path: string }[];
+    }[];
+    expect(mapped.map(({ key: k }) => k)).toEqual(['orders.read']);
+    expect(mapped[0]?.endpoints).toEqual(
+      expect.arrayContaining([
+        { method: 'GET', path: `${base}/orders`, summary: expect.any(String) },
+      ]),
+    );
+
+    // A holder of the role reads orders; deleting the role takes it away on the next request.
+    const holderId = await insertUser();
+    await rbacService.assignRole(holderId, id);
+    const holder = await caller(holderId);
+    expect((await holder('GET', '/orders')).status).toBe(200);
+    expect((await call('DELETE', `/roles/${id}`)).status).toBe(200);
+    expect((await holder('GET', '/orders')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+    expect((await call('POST', `/roles/${id}/restore`)).status).toBe(200);
+    expect((await holder('GET', '/orders')).status).toBe(200);
+
+    expect((await call('DELETE', `/roles/${id}/permissions/${ordersRead}`)).status).toBe(200);
+    expect((await holder('GET', '/orders')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+
+    const changes = await db
+      .select({ action: recordChanges.action })
+      .from(recordChanges)
+      .where(and(eq(recordChanges.tableName, 'roles'), eq(recordChanges.recordId, id)));
+    expect(changes.map(({ action }) => action).sort()).toEqual([
+      'RESTORE',
+      'SOFT_DELETE',
+      'UPDATE',
+    ]);
+  });
+
+  it('protects the system roles: super_admin is fixed, system roles are not deleted', async () => {
+    const call = await superAdmin();
+    const root = await roleId('super_admin');
+    const plain = await roleId('user');
+
+    expect((await call('PATCH', `/roles/${root}`, { name: 'Root' })).status).toBe(409);
+    expect((await call('DELETE', `/roles/${root}`)).status).toBe(409);
+    expect((await call('DELETE', `/roles/${plain}`)).status).toBe(409);
+    const ordersRead = await keyId('orders.read');
+    expect((await call('PUT', `/roles/${root}/permissions/${ordersRead}`)).status).toBe(409);
+    // super_admin holds every permission that counts.
+    const all = (await call('GET', `/roles/${root}/permissions`)).data as { key: string }[];
+    expect(all.map(({ key }) => key)).toEqual(
+      expect.arrayContaining(['orders.read', 'roles.update']),
+    );
+  });
+
+  it('no escalation: an administrator gives only what they hold — by mapping, or by restoring a role', async () => {
+    const admins = await insertRole();
+    for (const key of [
+      'roles.read',
+      'roles.update',
+      'roles.restore',
+      'roles.delete',
+      'orders.read',
+    ]) {
+      await rbacService.mapPermission(admins, await keyId(key));
+    }
+    const adminId = await insertUser();
+    await rbacService.assignRole(adminId, admins);
+    const call = await caller(adminId);
+    const target = await insertRole();
+
+    expect(
+      (await call('PUT', `/roles/${target}/permissions/${await keyId('orders.read')}`)).status,
+    ).toBe(201);
+    const refused = await call(
+      'PUT',
+      `/roles/${target}/permissions/${await keyId('orders.delete')}`,
+    );
+    expect(refused).toMatchObject({ status: 403, code: 'ERR_PERMISSION_ESCALATION_FORBIDDEN' });
+
+    // A role holding orders.delete (mapped by the system), deleted: restoring it would give it back.
+    const powerful = await insertRole();
+    await rbacService.mapPermission(powerful, await keyId('orders.delete'));
+    expect((await call('DELETE', `/roles/${powerful}`)).status).toBe(200);
+    expect((await call('POST', `/roles/${powerful}/restore`)).code).toBe(
+      'ERR_PERMISSION_ESCALATION_FORBIDDEN',
+    );
+  });
+
+  it('menu permissions: created, listed, changed and deleted by an admin — holders follow; API permissions stay fixed', async () => {
+    const call = await superAdmin();
+    const key = `menu.${unique('reports')}`;
+
+    const created = await call('POST', '/permissions', { key, label: 'Reports', group: 'menus' });
+    expect(created.status).toBe(201);
+    const id = (created.data as { id: string }).id;
+    expect(
+      (await call('POST', '/permissions', { key, label: 'Again', group: 'menus' })).status,
+    ).toBe(409);
+    expect((await call('GET', `/permissions?source=menu&q=${key}`)).meta?.total_items).toBe(1);
+    expect(
+      (await call('PATCH', `/permissions/${id}`, { label: 'Monthly reports' })).data,
+    ).toMatchObject({
+      label: 'Monthly reports',
+      source: 'menu',
+      endpoints: [],
+    });
+
+    const role = await insertRole();
+    await rbacService.mapPermission(role, id);
+    const holderId = await insertUser();
+    await rbacService.assignRole(holderId, role);
+    expect((await rbacService.getEffectivePermissions(holderId)).permissions).toContain(key);
+
+    expect((await call('DELETE', `/permissions/${id}`)).status).toBe(200);
+    expect((await rbacService.getEffectivePermissions(holderId)).permissions).not.toContain(key);
+    expect((await call('POST', `/permissions/${id}/restore`)).status).toBe(200);
+    expect((await rbacService.getEffectivePermissions(holderId)).permissions).toContain(key);
+
+    const ordersRead = await keyId('orders.read');
+    expect((await call('PATCH', `/permissions/${ordersRead}`, { label: 'x' })).status).toBe(409);
+    expect((await call('DELETE', `/permissions/${ordersRead}`)).status).toBe(409);
+  });
+
+  it('lists API permissions with the endpoints they open, filtered and counted in SQL', async () => {
+    const call = await superAdmin();
+    const page = await call('GET', '/permissions?source=api&retired=false&group=orders&sort=key');
+    const rows = page.data as { key: string; endpoints: unknown[] }[];
+    expect(rows.map(({ key }) => key)).toEqual([
+      'orders.create',
+      'orders.delete',
+      'orders.read',
+      'orders.restore',
+      'orders.update',
+    ]);
+    expect(page.meta?.total_items).toBe(5);
+    expect(rows.every(({ endpoints }) => endpoints.length > 0)).toBe(true);
+  });
+});

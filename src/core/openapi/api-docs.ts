@@ -234,7 +234,9 @@ export const buildOpenApiDocument = async (
 /**
  * Mounts `GET <basePath>/docs/openapi.json` and the Scalar reference UI at `GET <basePath>/docs`.
  * Mount it after every other route. Disabled (not mounted, so 404) when `enabled` is false —
- * `API_DOCS_ENABLED`, off by default in production.
+ * `API_DOCS_ENABLED`, off by default in production. `document` shares a document the app already
+ * builds (`src/app.ts`: also the source of the endpoints per permission); without it the document
+ * is built here from `info` and `security`.
  */
 export const mountApiDocs = (
   app: Hono,
@@ -243,17 +245,19 @@ export const mountApiDocs = (
     enabled: boolean;
     info: ApiDocsInfo;
     security?: SecurityRules;
+    document?: () => Promise<OpenApiDocument>;
   },
 ): void => {
   if (!options.enabled) return;
 
   const specPath = `${options.basePath}/docs/openapi.json`;
-  let document: Promise<OpenApiDocument> | undefined;
+  let built: Promise<OpenApiDocument> | undefined;
+  const documentOf =
+    options.document ??
+    ((): Promise<OpenApiDocument> =>
+      (built ??= buildOpenApiDocument(app, options.info, options.security)));
 
-  app.get(specPath, async (c) => {
-    document ??= buildOpenApiDocument(app, options.info, options.security);
-    return c.json(await document);
-  });
+  app.get(specPath, async (c) => c.json(await documentOf()));
   app.get(
     `${options.basePath}/docs`,
     Scalar({ url: specPath, pageTitle: options.info.title, cdn: SCALAR_BUNDLE_URL }),

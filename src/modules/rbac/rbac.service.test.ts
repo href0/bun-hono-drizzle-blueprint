@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { CacheService, type CacheClient } from '../../core/cache';
-import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors';
+import { runWithRequestContext } from '../../core/context/request-context';
+import {
+  APP_ERROR_CODES,
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../../core/errors';
 import type { Role } from '../../database/schema';
 import { runInFakeTransaction } from '../../database/transaction-host';
 import { nowInstant, parseInstant } from '../../utils/datetime.util';
@@ -164,6 +171,34 @@ describe('RbacService', () => {
       userRoles.findLive = () => Promise.resolve({ id: 'ur1' });
       await inTx(() => service().revokeRole('u1', 'role-user'));
       expect(memory.deleted).toEqual(['rbac:permissions:u1', 'rbac:permissions:u1']);
+    });
+
+    it('mapPermission refuses a caller who does not hold the permission (escalation) and maps nothing', async () => {
+      permissions.findGrantableById = () => Promise.resolve({ id: 'p1', key: 'orders.delete' });
+      let creates = 0;
+      rolePermissions.create = () => {
+        creates += 1;
+        return Promise.resolve({});
+      };
+      const caller = {
+        requestId: 'r1',
+        locale: 'en' as const,
+        clientIp: 'unknown',
+        actor: 'user:u9' as const,
+        user: { id: 'u9' },
+        permissions: () => Promise.resolve({ superAdmin: false, permissions: ['orders.read'] }),
+      };
+      const error = await errorOf(
+        runWithRequestContext(caller, () =>
+          inTx(() => service().mapPermission('role-staff', 'p1')),
+        ),
+      );
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as ForbiddenError).errorCode).toBe(
+        APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN,
+      );
+      expect(creates).toBe(0);
+      expect(memory.deleted).toEqual([]);
     });
 
     it('mapPermission / unmapPermission: every holder of the role', async () => {

@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { appConfig, type Locale } from '../../config';
 import type { LocalizedMessage } from '../i18n/translate';
-import type { EffectivePermissions } from '../security/rbac';
+import type { EffectivePermissions, PermissionEndpoints } from '../security/rbac';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
 export type Actor =
@@ -52,6 +52,8 @@ export interface RequestContext {
    * asks (`permissionContext()` → `requirePermission()`).
    */
   permissions?: () => Promise<EffectivePermissions>;
+  /** The endpoints each permission opens (D47), built once per app (`permissionContext()`). */
+  permissionEndpoints?: () => Promise<PermissionEndpoints>;
   // partner:start
   /** Set by `partnerAuth()` on partner routes. */
   partner?: AuthenticatedPartner;

@@ -3,3 +3,4 @@ export * from './describe-endpoint';
 export * from './request-spec';
 export * from './schemas';
 export * from './common-headers';
+export * from './permission-endpoints';

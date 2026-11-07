@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { getRequestContext } from '../context/request-context';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { buildOpenApiDocument } from '../openapi/api-docs';
 import { describeEndpoint } from '../openapi/describe-endpoint';
@@ -39,8 +40,16 @@ app.use(
       lookups.push(userId);
       return Promise.resolve(GRANTS[userId] ?? { superAdmin: false, permissions: [] });
     },
+    endpoints: () =>
+      Promise.resolve(
+        new Map([['orders.read', [{ method: 'GET', path: '/v1/orders', summary: 'Orders' }]]]),
+      ),
   }),
 );
+app.get('/v1/catalog', allowAnyUser(), async (c) => {
+  const catalog = await getRequestContext()?.permissionEndpoints?.();
+  return c.json(catalog ? Object.fromEntries(catalog) : null);
+});
 app.get('/v1/orders', requirePermission('orders.read'), (c) => c.text('orders'));
 app.get('/v1/twice', requirePermission('orders.read'), requirePermission('orders.read'), (c) =>
   c.text('twice'),
@@ -55,6 +64,15 @@ const as = async (userId: string, path: string): Promise<Response> => {
   const { token } = await signAccessToken({ userId });
   return app.request(path, { headers: { Authorization: `Bearer ${token}` } });
 };
+
+describe('permissionContext', () => {
+  it('hands the signed-in request the endpoints of each permission (D47)', async () => {
+    const res = await as(BOB, '/v1/catalog');
+    expect(await res.json()).toEqual({
+      'orders.read': [{ method: 'GET', path: '/v1/orders', summary: 'Orders' }],
+    });
+  });
+});
 
 describe('requirePermission', () => {
   it('lets a holder of the permission and a super admin through', async () => {
