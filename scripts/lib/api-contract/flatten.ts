@@ -207,7 +207,7 @@ const docAttributes = (source: Json, keywords: readonly string[]): Record<string
     keywords.filter((keyword) => keyword in source).map((k) => [k, canonical(source[k])]),
   );
 
-/** Operation keys recorded as attributes: text, and who may call it (`requireRole()` & co.). */
+/** Operation keys recorded as attributes: text, and who may call it (`requirePermission()` & co.). */
 const OPERATION_ATTRIBUTES = [
   'summary',
   'description',

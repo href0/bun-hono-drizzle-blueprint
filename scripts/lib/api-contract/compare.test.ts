@@ -272,6 +272,18 @@ describe('compare: operations, statuses and security', () => {
       ],
       [callers('admin'), callers('self:id', 'admin'), 'safe GET /a | operation x-allowed-callers'],
       [callers('admin'), ok(), 'safe GET /a | operation x-allowed-callers'],
+      // allowAnyUser(): any-user is the same as no list — stating it changes nothing for a client.
+      [ok(), callers('any-user'), 'safe GET /a | operation x-allowed-callers'],
+      [
+        callers('any-user'),
+        callers('permission:orders.read'),
+        'BREAKING GET /a | operation x-allowed-callers',
+      ],
+      [
+        callers('permission:orders.read'),
+        callers('any-user'),
+        'safe GET /a | operation x-allowed-callers',
+      ],
     ];
     for (const [before, after, expected] of cases) {
       expect(changesOf(api({ 'GET /a': before }), api({ 'GET /a': after }))).toEqual([expected]);

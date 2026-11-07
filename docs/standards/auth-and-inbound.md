@@ -29,11 +29,12 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 
 | Need | How |
 |---|---|
-| Route for one role | `requireRole('admin')` after `describeEndpoint()`, before `validate()` → 403 `ERR_ROLE_FORBIDDEN` (documented in OpenAPI automatically). `ROLES` / `Role`: `src/core/security/roles.ts` |
-| A user's own resource (`/users/:id`) | `requireSelfOrRole('id', 'admin')` — the owner or that role; otherwise the same 403 whether the resource exists or not |
+| Route for users holding a permission | `requirePermission('orders.read')` after `describeEndpoint()`, before `validate()` → 403 `ERR_PERMISSION_FORBIDDEN` (documented in OpenAPI automatically, `x-allowed-callers: permission:<key>`). The key comes from the module's `<module>.permissions.ts` (registry `src/permissions.ts`, D47–D49); a role or a per-user grant gives it, a super admin holds every permission. Permissions are never in the token: `permissionContext()` (mounted after `authenticate()`) resolves them once per request through the RBAC module's cache, so a revocation applies to the next request (D53) |
+| A user's own resource (`/users/:id`) | `requireSelfOrPermission('id', 'users.read')` — the owner or a holder of the permission; otherwise the same 403 whether the resource exists or not |
+| A route for every signed-in user (own session, profile, password) | `allowAnyUser()` — no permission checked, but stated (`x-allowed-callers: any-user`) |
 | Who is calling (controller) | `currentUser()` → `{ id, role }`; services take the id as an argument or read `getActor()` (`user:<id>`, used for audit columns) |
 | A new public route | Add it to `PUBLIC_ROUTES` (reviewed) — never a per-route "skip auth" |
-| Contract tests | `authorize(createApp(), role, userId?)` from `test/helpers/authorized-app.ts` |
+| Contract tests | `authorize(createTestApp(), grant, userId?)` from `test/helpers/authorized-app.ts` (`grant`: `'super_admin'` or a list of permission keys; the lookup is a fake, the real one is proven by `test/integration/rbac.int.ts`); a router on a bare `Hono` gets `signedIn(grant)` |
 | First admin | `bun run seed:admin --email <email>` (in a terminal the password is asked masked, twice; piped, from stdin); last-resort recovery `--promote` |
 | Change password | Own: `POST /auth/change-password`; admin: `PUT /users/:id/password`. Both set `users.password_changed_at` → refresh refuses token families started before it |
 | Expired refresh tokens | `bun run auth:purge-tokens [--days 7]`, scheduled daily (no terminal: no question); run by hand in a terminal it shows how many would go and asks first (default No) |

@@ -1,13 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { Hono } from 'hono';
-import { createApp } from '../src/app';
 import { HttpClientService } from '../src/core/http';
 import {
   JsonPlaceholderService,
   jsonPlaceholderService,
 } from '../src/integrations/jsonplaceholder';
 import { INTEGRATION_REGISTRY } from '../src/integrations/registry';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 
 /**
  * Outbound contract, end to end: a real HTTP call from the example module
@@ -49,7 +48,7 @@ describe('Outbound integration contract (E2E)', () => {
         adapter.getUserPosts(userId),
       ),
     );
-    app = await authorize(createApp(), 'admin');
+    app = await authorize(createTestApp(), 'super_admin');
   });
 
   afterAll(async () => {

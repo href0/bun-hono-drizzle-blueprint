@@ -6,8 +6,7 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
-import { createApp } from '../src/app';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 import { NotFoundError } from '../src/core/errors';
 import { ordersService } from '../src/modules/orders/orders.service';
 import type { Order, OrderItem } from '../src/database/schema';
@@ -91,7 +90,7 @@ describe('Orders (example header + detail) — E2E contract', () => {
         }));
       }),
     );
-    app = await authorize(createApp());
+    app = await authorize(createTestApp());
   });
 
   afterAll(() => {

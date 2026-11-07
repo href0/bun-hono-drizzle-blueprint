@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { redisConfig } from '../../src/config';
+import { createApp } from '../../src/app';
+import { appConfig, redisConfig } from '../../src/config';
 import { CacheService, cacheService, CACHE_KEYS } from '../../src/core/cache';
 import { closeRedisClient, createRedisClient } from '../../src/core/cache/redis.client';
+import { signAccessToken } from '../../src/core/security/jwt';
 import { permission, SYSTEM_ROLES } from '../../src/core/security/rbac';
 import { db, sqlClient } from '../../src/database/connection';
 import { findUnsyncedPermissions, syncPermissions } from '../../src/database/rbac/permission-sync';
@@ -210,6 +212,11 @@ describe('permission registry sync (step 2)', () => {
 
   it('adds every registry key once: a second run changes nothing (idempotent)', async () => {
     await inRolledBackSync(async () => {
+      // The suite's database is synced like `db:migrate` leaves it; start from one that is not.
+      await defaultTxHost.tx
+        .update(permissions)
+        .set({ deletedAt: NOW })
+        .where(and(eq(permissions.source, 'api'), isNull(permissions.deletedAt)));
       expect(await findUnsyncedPermissions(PERMISSION_REGISTRY)).toEqual(
         PERMISSION_REGISTRY.map((entry) => entry.key),
       );
@@ -456,5 +463,61 @@ describe('effective permissions (step 3)', () => {
     } finally {
       await closeRedisClient(offline);
     }
+  });
+});
+
+describe('routes check permissions per request (step 4a)', () => {
+  const permissionId = async (key: string): Promise<string> => {
+    const [row] = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.key, key), isNull(permissions.deletedAt)));
+    return row.id;
+  };
+
+  it('403 without the permission, 200 through a role or a grant, 403 again right after a revocation — same token', async () => {
+    const app = createApp();
+    const base = `${appConfig.API_BASE_PATH}/v1`;
+    const userId = await insertUser();
+    // The token's role claim authorizes nothing (it still says admin until step 4b).
+    const { token } = await signAccessToken({ userId, role: 'admin' });
+    const get = async (path: string): Promise<string> => {
+      const res = await app.request(`${base}${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = (await res.json()) as { error?: { code: string } };
+      return `${String(res.status)}${body.error ? ` ${body.error.code}` : ''}`;
+    };
+
+    expect(await get('/orders')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+    expect(await get('/projects')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+
+    const role = await insertRole();
+    await rbacService.mapPermission(role, await permissionId('orders.read'));
+    await rbacService.assignRole(userId, role);
+    expect(await get('/orders')).toBe('200');
+
+    await rbacService.grantPermission(userId, await permissionId('projects.read'));
+    expect(await get('/projects')).toBe('200');
+
+    await rbacService.revokeRole(userId, role);
+    expect(await get('/orders')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+    await rbacService.revokePermission(userId, await permissionId('projects.read'));
+    expect(await get('/projects')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+
+    // allowAnyUser(): no permission needed.
+    expect(await get('/auth/me')).not.toStartWith('403');
+  });
+
+  it('a super admin passes every permission check', async () => {
+    const app = createApp();
+    const userId = await insertUser();
+    await rbacService.assignRole(userId, await roleId('super_admin'));
+    const { token } = await signAccessToken({ userId, role: 'user' });
+
+    const res = await app.request(`${appConfig.API_BASE_PATH}/v1/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
   });
 });

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../../core/dto/common.dto';
-import { validate } from '../../../core/middlewares';
+import { requirePermission, validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { projectTasksController } from './project-tasks.controller';
 import { PROJECT_TASK_MESSAGES } from './project-tasks.messages';
@@ -31,6 +31,7 @@ parentRouter.post(
     },
     errors: [404],
   }),
+  requirePermission('project-tasks.create'),
   validate({ params: projectTaskParentParamSchema, body: createProjectTaskSchema }),
   projectTasksController.create,
 );
@@ -47,6 +48,7 @@ parentRouter.get(
     },
     errors: [404],
   }),
+  requirePermission('project-tasks.read'),
   validate({ params: projectTaskParentParamSchema, query: projectTaskListQuerySchema }),
   projectTasksController.list,
 );
@@ -67,6 +69,7 @@ router.get(
     },
     errors: [404],
   }),
+  requirePermission('project-tasks.read'),
   validate({ params: uuidParamSchema }),
   projectTasksController.getById,
 );
@@ -83,6 +86,7 @@ router.patch(
     },
     errors: [404],
   }),
+  requirePermission('project-tasks.update'),
   validate({ params: uuidParamSchema, body: updateProjectTaskSchema }),
   projectTasksController.update,
 );
@@ -99,6 +103,7 @@ router.delete(
     },
     errors: [404],
   }),
+  requirePermission('project-tasks.delete'),
   validate({ params: uuidParamSchema }),
   projectTasksController.remove,
 );
@@ -115,6 +120,7 @@ router.post(
     },
     errors: [404],
   }),
+  requirePermission('project-tasks.restore'),
   validate({ params: uuidParamSchema }),
   projectTasksController.restore,
 );

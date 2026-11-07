@@ -1,15 +1,14 @@
 import { beforeAll, describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { createApp } from '../../app';
 import { globalErrorHandler } from './error-handler';
 import { validate, getValidatedBody, getValidatedQuery, getValidatedParams } from './validate';
 import { Hono } from 'hono';
-import { authorize } from '../../../test/helpers/authorized-app';
+import { authorize, createTestApp } from '../../../test/helpers/authorized-app';
 
 describe('Validation Middleware (Integration)', () => {
   let app: Hono;
   beforeAll(async () => {
-    app = await authorize(createApp());
+    app = await authorize(createTestApp());
   });
 
   it('POST /api/v1/users with invalid body should return 400 with sanitized validation error details', async () => {

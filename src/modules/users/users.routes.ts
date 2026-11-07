@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../core/dto/common.dto';
 import { APP_ERROR_CODES } from '../../core/errors';
-import { requireRole, requireSelfOrRole, validate } from '../../core/middlewares';
+import { requirePermission, requireSelfOrPermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { usersController } from './users.controller';
 import {
@@ -19,8 +19,6 @@ export const userRoutes = new Hono();
 const tags = ['Users'];
 
 /** User management is for admins; a user may read their own record (`/users/:id`, own id). */
-const adminOnly = requireRole('admin');
-const selfOrAdmin = requireSelfOrRole('id', 'admin');
 
 userRoutes.post(
   '/',
@@ -35,7 +33,7 @@ userRoutes.post(
     },
     errors: [409],
   }),
-  adminOnly,
+  requirePermission('users.create'),
   validate({ body: createUserSchema }),
   usersController.create,
 );
@@ -51,7 +49,7 @@ userRoutes.get(
       paginatedItem: userResponseSchema,
     },
   }),
-  adminOnly,
+  requirePermission('users.read'),
   validate({ query: userListQuerySchema }),
   usersController.list,
 );
@@ -68,7 +66,7 @@ userRoutes.get(
     },
     errors: [404],
   }),
-  selfOrAdmin,
+  requireSelfOrPermission('id', 'users.read'),
   validate({ params: uuidParamSchema }),
   usersController.getById,
 );
@@ -85,7 +83,7 @@ userRoutes.patch(
     },
     errors: [404, 409, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
   }),
-  adminOnly,
+  requirePermission('users.update'),
   validate({ params: uuidParamSchema, body: updateUserSchema }),
   usersController.update,
 );
@@ -102,7 +100,7 @@ userRoutes.delete(
     },
     errors: [404, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
   }),
-  adminOnly,
+  requirePermission('users.delete'),
   validate({ params: uuidParamSchema }),
   usersController.remove,
 );
@@ -119,7 +117,7 @@ userRoutes.put(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('users.update'),
   validate({ params: uuidParamSchema, body: setPasswordSchema }),
   usersController.setPassword,
 );
@@ -136,7 +134,7 @@ userRoutes.post(
     },
     errors: [404, 409],
   }),
-  adminOnly,
+  requirePermission('users.restore'),
   validate({ params: uuidParamSchema }),
   usersController.restore,
 );

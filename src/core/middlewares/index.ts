@@ -13,7 +13,7 @@ export * from './authenticate';
 // partner:start
 export * from './partner-auth';
 // partner:end
-export * from './require-role';
+export * from './require-permission';
 // partner:start
 export * from './require-partner';
 // partner:end

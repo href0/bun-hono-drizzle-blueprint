@@ -97,7 +97,7 @@ Business failures **throw** an `ApiError` subclass from `src/core/errors/`: `new
 | `ValidationError` | 400 | `VALIDATION_ERROR` | `ERR_INVALID_INPUT` (default) · `ERR_INVALID_JSON` · `ERR_NON_SNAKE_CASE_KEY` | Schema not met · body not valid JSON · key not snake_case (`field` = the key as sent) |
 | `BadRequestError` | 400 | `BAD_REQUEST` | `ERR_BAD_REQUEST` | Business rule violated |
 | `UnauthorizedError` | 401 | `UNAUTHORIZED` | `ERR_UNAUTHORIZED` (default) · `ERR_AUTH_TOKEN_EXPIRED` · `ERR_AUTH_TOKEN_INVALID` · `ERR_AUTH_INVALID_CREDENTIALS` · `ERR_AUTH_REFRESH_INVALID` · `ERR_AUTH_REFRESH_REUSED` | No `Authorization` · access token expired / invalid · login failed (deliberately not distinguished) · refresh token invalid · old refresh token reused (session revoked) |
-| `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` (default) · `ERR_ROLE_FORBIDDEN` · `ERR_CSRF_ORIGIN_FORBIDDEN` · `ERR_SELF_LOCKOUT_FORBIDDEN` | Access denied · role not allowed (`requireRole`) · origin not allowed on a cookie endpoint · admin locking out their own account |
+| `ForbiddenError` | 403 | `FORBIDDEN` | `ERR_FORBIDDEN` (default) · `ERR_PERMISSION_FORBIDDEN` · `ERR_CSRF_ORIGIN_FORBIDDEN` · `ERR_SELF_LOCKOUT_FORBIDDEN` | Access denied · role not allowed (`requireRole`) · origin not allowed on a cookie endpoint · admin locking out their own account |
 | `NotFoundError` | 404 | `NOT_FOUND` | `ERR_NOT_FOUND` (default) · `ERR_ROUTE_NOT_FOUND` | Entity not found · no such route (`notFoundHandler`) |
 | `ConflictError` | 409 | `CONFLICT` | `ERR_CONFLICT` | Unique value already taken — map `isUniqueViolation()` to it, never a 500 |
 | `PayloadTooLargeError` | 413 | `PAYLOAD_TOO_LARGE` | `ERR_PAYLOAD_TOO_LARGE` | Body over the limit |

@@ -40,7 +40,7 @@ const document = {
         tags: ['Projects'],
         summary: 'Create a project',
         security: [{ bearerAuth: [] }],
-        'x-allowed-callers': ['admin'],
+        'x-allowed-callers': ['self:id', 'permission:users.read'],
         requestBody: {
           content: {
             'application/json': {
@@ -115,7 +115,7 @@ describe('renderContractMarkdown', () => {
   it('documents access, fields, examples, messages and every error code of an endpoint', () => {
     const projects = files.get('projects.md') ?? '';
     expect(projects).toContain(
-      '- Access token: `Authorization: Bearer <access_token>`\n- Hanya: role `admin`',
+      '- Access token: `Authorization: Bearer <access_token>`\n- Hanya: pemilik resource (`id` = id Anda) atau permission `users.read`',
     );
     expect(projects).toContain('| `name` | string | ya | panjang ≥ 1; panjang ≤ 120 |');
     expect(projects).toContain('| `budget` | integer \\| null | tidak |  |');

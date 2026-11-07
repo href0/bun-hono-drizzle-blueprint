@@ -1,5 +1,6 @@
 /**
- * Roles for `requireRole()` (D6: simple RBAC). Stored in `users.role` (varchar(20), database
+ * The legacy role of `users.role` and the access token (D6), no longer used for authorization —
+ * routes check permissions (D46–D61) — and removed with the column (plan RBAC step 4b). Stored in `users.role` (varchar(20), database
  * default `'user'`); the schema cannot import this file, so `src/database/roles-column.test.ts`
  * keeps both in sync. Adding a role: append it here — no migration needed unless it is longer
  * than 20 characters or becomes the default.

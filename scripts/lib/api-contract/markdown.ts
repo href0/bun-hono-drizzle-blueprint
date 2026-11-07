@@ -251,14 +251,17 @@ class ContractMarkdown {
       }
     }
     const callers = asArray(op['x-allowed-callers']).map(String);
-    if (callers.length > 0) {
+    if (callers.length === 1 && callers[0] === 'any-user') {
+      lines.push('Semua pengguna yang sudah login');
+    } else if (callers.length > 0) {
       const who = callers.map((caller) => {
         if (caller.startsWith('self:'))
           return `pemilik resource (\`${caller.slice(5)}\` = id Anda)`;
+        if (caller.startsWith('permission:')) return `permission \`${caller.slice(11)}\``;
         // partner:start
         if (caller.startsWith('partner:')) return `partner \`${caller.slice(8)}\``;
         // partner:end
-        return `role \`${caller}\``;
+        return `\`${caller}\``;
       });
       lines.push(`Hanya: ${who.join(' atau ')}`);
     }

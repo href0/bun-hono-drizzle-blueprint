@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../../core/dto/common.dto';
-import { validate } from '../../../core/middlewares';
+import { requirePermission, validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { projectBudgetsController } from './project-budgets.controller';
 import { PROJECT_BUDGET_MESSAGES } from './project-budgets.messages';
@@ -29,6 +29,7 @@ parentRouter.get(
     },
     errors: [404],
   }),
+  requirePermission('project-budgets.read'),
   validate({ params: projectBudgetParentParamSchema }),
   projectBudgetsController.getForParent,
 );
@@ -48,6 +49,7 @@ parentRouter.put(
     ],
     errors: [404],
   }),
+  requirePermission('project-budgets.update'),
   validate({ params: projectBudgetParentParamSchema, body: saveProjectBudgetSchema }),
   projectBudgetsController.save,
 );
@@ -64,6 +66,7 @@ parentRouter.delete(
     },
     errors: [404],
   }),
+  requirePermission('project-budgets.delete'),
   validate({ params: projectBudgetParentParamSchema }),
   projectBudgetsController.removeForParent,
 );
@@ -84,6 +87,7 @@ router.get(
     },
     errors: [404],
   }),
+  requirePermission('project-budgets.read'),
   validate({ params: uuidParamSchema }),
   projectBudgetsController.getById,
 );
@@ -100,6 +104,7 @@ router.post(
     },
     errors: [404, 409],
   }),
+  requirePermission('project-budgets.restore'),
   validate({ params: uuidParamSchema }),
   projectBudgetsController.restore,
 );

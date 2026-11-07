@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { authConfig } from '../../config';
 import { CacheService, cacheService, CACHE_KEYS } from '../../core/cache';
 import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors';
-import { SUPER_ADMIN_ROLE } from '../../core/security/rbac';
+import { SUPER_ADMIN_ROLE, type EffectivePermissions } from '../../core/security/rbac';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
 import type { Role, RolePermission, UserPermission, UserRole } from '../../database/schema';
@@ -32,16 +32,6 @@ import {
   rbacRoleNotFoundMessage,
   rbacUserNotFoundMessage,
 } from './rbac.messages';
-
-/**
- * What a user may do (D52). `superAdmin`: every permission that is not retired — the list is not
- * stored, so permissions added by a later sync count at once; otherwise the keys of every live role
- * ∪ the user's own grants that have not expired.
- */
-export interface EffectivePermissions {
-  superAdmin: boolean;
-  permissions: string[];
-}
 
 export interface GrantPermissionInput {
   /** `null` / absent = no end. Must lie in the future. */
@@ -103,7 +93,7 @@ export class RbacService {
   @Transactional()
   async assignRole(userId: string, roleId: string): Promise<UserRole> {
     await this.requireLiveUser(userId);
-    await this.requireRole(roleId);
+    await this.findRoleOrFail(roleId);
     if (await this.userRolesRepo.findLive(userId, roleId)) {
       throw new ConflictError(RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED);
     }
@@ -229,7 +219,7 @@ export class RbacService {
     }
   }
 
-  private async requireRole(roleId: string): Promise<Role> {
+  private async findRoleOrFail(roleId: string): Promise<Role> {
     const role = await this.rolesRepo.findById(roleId);
     if (!role) throw new NotFoundError(rbacRoleNotFoundMessage(roleId));
     return role;
@@ -237,7 +227,7 @@ export class RbacService {
 
   /** `super_admin` holds everything by definition and has no mapping (D52). */
   private async requireMappableRole(roleId: string): Promise<void> {
-    const role = await this.requireRole(roleId);
+    const role = await this.findRoleOrFail(roleId);
     if (role.key === SUPER_ADMIN_ROLE) throw new ConflictError(RBAC_MESSAGES.SUPER_ADMIN_FIXED);
   }
 

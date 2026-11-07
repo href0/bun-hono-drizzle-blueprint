@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { authConfig, httpConfig } from '../../config';
-import { csrfProtection, validate } from '../../core/middlewares';
+import { allowAnyUser, csrfProtection, validate } from '../../core/middlewares';
 import { APP_ERROR_CODES } from '../../core/errors';
 import { describeEndpoint } from '../../core/openapi';
 import { authController } from './auth.controller';
@@ -106,6 +106,7 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
         data: z.null(),
       },
     }),
+    allowAnyUser(),
     authController.logoutAll,
   );
   routes.post(
@@ -124,6 +125,7 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
       },
       errors: [{ status: 429, codes: [APP_ERROR_CODES.AUTH_LOGIN_LOCKED] }],
     }),
+    allowAnyUser(),
     validate({ body: changePasswordSchema }),
     authController.changePassword,
   );
@@ -139,6 +141,7 @@ export const buildAuthRoutes = (options: AuthRoutesOptions): Hono => {
         data: authUserSchema,
       },
     }),
+    allowAnyUser(),
     authController.me,
   );
 

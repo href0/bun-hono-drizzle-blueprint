@@ -2,7 +2,7 @@ import type { MiddlewareHandler } from 'hono';
 import { APP_ERROR_CODES, ForbiddenError } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { currentPartner } from './partner-auth';
-import { documentsForbidden } from './require-role';
+import { documentsForbidden } from './require-permission';
 
 /**
  * Allows a partner route only to the given partner codes (D27), on top of the credential's

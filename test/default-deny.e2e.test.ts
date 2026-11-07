@@ -7,7 +7,7 @@ import {
   // partner:end
   isPublicRoute,
 } from '../src/core/security/public-routes';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 
 /**
  * Default-deny (D7; docs/standards/auth-and-inbound.md §2): enumerates every route of createApp() and proves that each one is
@@ -69,7 +69,7 @@ describe('default-deny authentication (every route of createApp)', () => {
     // Guards the enumeration; no vendor (a fresh project after `bun run setup`) = no routes.
     expect(webhookRoutes.length > 0).toBe(WEBHOOK_VENDORS.length > 0);
     const vendors = new Set(WEBHOOK_VENDORS.map(({ vendor }) => vendor));
-    const withToken = await authorize(createApp(), 'admin');
+    const withToken = await authorize(createTestApp(), 'super_admin');
 
     const wrong: string[] = [];
     for (const { method, path, concrete } of webhookRoutes) {
@@ -125,7 +125,7 @@ describe('default-deny authentication (every route of createApp)', () => {
   it('every partner route answers 401 ERR_PARTNER_HEADERS_MISSING without partner headers — also with a valid access token', async () => {
     const partnerRoutes = versioned.filter(({ path }) => isPartner(path));
     expect(partnerRoutes.length).toBeGreaterThan(0);
-    const withToken = await authorize(createApp(), 'admin');
+    const withToken = await authorize(createTestApp(), 'super_admin');
 
     const open: string[] = [];
     for (const { method, path, concrete } of partnerRoutes) {
@@ -158,7 +158,7 @@ describe('default-deny authentication (every route of createApp)', () => {
   });
 
   it('a route added later without registering it as public is protected automatically', async () => {
-    const extended = createApp();
+    const extended = createTestApp();
     extended.get(`${v1}/probe/new-feature`, (c) => c.text('new feature'));
 
     expect((await extended.request(`${v1}/probe/new-feature`)).status).toBe(401);

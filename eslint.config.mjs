@@ -400,7 +400,7 @@ const CLI_PROMPT_IMPORT_PATTERNS = [
  */
 /** @type {Record<string, string[]>} Helpers per caller. */
 const CHANNEL_HELPERS = {
-  user: ['requireRole', 'requireSelfOrRole', 'currentUser'],
+  user: ['requirePermission', 'requireSelfOrPermission', 'allowAnyUser', 'currentUser'],
   // partner:start
   partner: ['currentPartner', 'requirePartner'],
   // partner:end

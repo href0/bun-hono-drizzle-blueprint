@@ -2,8 +2,7 @@ import { describe, expect, it, spyOn, beforeAll, afterAll } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import type { User } from '../src/database/schema';
 import type { Hono } from 'hono';
-import { createApp } from '../src/app';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 import { usersService } from '../src/modules/users/users.service';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../src/core/errors';
 import { USER_MESSAGES } from '../src/modules/users/users.messages';
@@ -62,7 +61,7 @@ describe('Users Module — E2E Contract Tests', () => {
       return { users: [mockUser], total: 1 };
     });
 
-    app = await authorize(createApp());
+    app = await authorize(createTestApp());
   });
 
   afterAll(() => {
@@ -349,7 +348,7 @@ describe('Users Module — E2E: update, soft delete, restore', () => {
         return mockUser;
       }),
     );
-    app = await authorize(createApp());
+    app = await authorize(createTestApp());
   });
 
   afterAll(() => {
@@ -423,9 +422,9 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
         return { ...mockUser, role: dto.role ?? 'user' };
       }),
     );
-    admin = await authorize(createApp(), 'admin');
+    admin = await authorize(createTestApp(), 'super_admin');
     // A regular user whose own record is mockUser.
-    owner = await authorize(createApp(), 'user', mockUser.id);
+    owner = await authorize(createTestApp(), [], mockUser.id);
   });
 
   afterAll(() => {
@@ -444,7 +443,7 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
   const codeOf = async (res: Response): Promise<string> =>
     `${String(res.status)} ${((await res.json()) as { error?: { code: string } }).error?.code ?? 'ok'}`;
 
-  it('a non-admin cannot create, list, update, delete or restore users (403 ERR_ROLE_FORBIDDEN)', async () => {
+  it('a user without the users.* permissions cannot create, list, update, delete or restore users (403 ERR_PERMISSION_FORBIDDEN)', async () => {
     const attempts = [
       ['POST', '', { email: 'x@example.com', full_name: 'X', password: 'password123' }],
       ['GET', ''],
@@ -454,13 +453,17 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
     ] as const;
 
     for (const [method, path, body] of attempts) {
-      expect(await codeOf(await send(owner, method, path, body))).toBe('403 ERR_ROLE_FORBIDDEN');
+      expect(await codeOf(await send(owner, method, path, body))).toBe(
+        '403 ERR_PERMISSION_FORBIDDEN',
+      );
     }
   });
 
   it('a user sees their own record, nobody else’s (403, existing or not)', async () => {
     expect((await send(owner, 'GET', `/${mockUser.id}`)).status).toBe(200);
-    expect(await codeOf(await send(owner, 'GET', `/${otherId}`))).toBe('403 ERR_ROLE_FORBIDDEN');
+    expect(await codeOf(await send(owner, 'GET', `/${otherId}`))).toBe(
+      '403 ERR_PERMISSION_FORBIDDEN',
+    );
   });
 
   it('an admin sees anyone and may create users with a role from ROLES', async () => {
@@ -502,8 +505,8 @@ describe('Users Module — E2E: password reset and email normalization', () => {
         return { ...mockUser, email: dto.email };
       }),
     );
-    admin = await authorize(createApp(), 'admin');
-    user = await authorize(createApp(), 'user', mockUser.id);
+    admin = await authorize(createTestApp(), 'super_admin');
+    user = await authorize(createTestApp(), [], mockUser.id);
   });
 
   afterAll(() => {
@@ -557,7 +560,7 @@ describe('Users Module — E2E: an admin cannot lock themselves out (contract of
       spyOn(usersService, 'updateUser').mockImplementation(async () => selfLockout()),
       spyOn(usersService, 'deleteUser').mockImplementation(async () => selfLockout()),
     );
-    app = await authorize(createApp(), 'admin', mockUser.id);
+    app = await authorize(createTestApp(), 'super_admin', mockUser.id);
   });
 
   afterAll(() => {

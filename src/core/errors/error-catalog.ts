@@ -142,12 +142,12 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
       en: '`Origin` not allowed on a cookie endpoint (CSRF)',
     },
   },
-  [CODE.ROLE_FORBIDDEN]: {
+  [CODE.PERMISSION_FORBIDDEN]: {
     status: 403,
     type: TYPE.FORBIDDEN,
     meaning: {
-      id: 'Role pengguna tidak diizinkan untuk endpoint ini',
-      en: 'The user role is not allowed on this endpoint',
+      id: 'Pengguna tidak memiliki permission yang dibutuhkan endpoint ini',
+      en: 'The user lacks the permission this endpoint requires',
     },
   },
   [CODE.SELF_LOCKOUT_FORBIDDEN]: {

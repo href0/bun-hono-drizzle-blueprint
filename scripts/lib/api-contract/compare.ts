@@ -91,9 +91,14 @@ const classifyAttribute = (change: Extract<Change, { kind: 'changed' }>): Severi
   // A code added or removed changes what a client may meet, but breaks no request that worked.
   if (attribute === 'x-error-codes') return 'safe';
   if (attribute === 'x-allowed-callers') {
-    // No list = any authenticated caller; a list = only those: losing one breaks its clients.
-    const old = asValues(before);
-    const next = asValues(after);
+    // No list (or `any-user`, allowAnyUser()) = any authenticated caller; a list = only those
+    // alternatives (`permission:<key>`, `self:<param>`, …): losing one breaks its clients.
+    const anyone = (value: string | undefined): string[] | undefined => {
+      const list = asValues(value);
+      return list === undefined || (list.length === 1 && list[0] === 'any-user') ? undefined : list;
+    };
+    const old = anyone(before);
+    const next = anyone(after);
     const narrowed =
       next !== undefined && (old === undefined || old.some((v) => !next.includes(v)));
     return narrowed ? 'BREAKING' : 'safe';

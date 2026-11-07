@@ -388,7 +388,7 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 Every route carries `describeEndpoint()` with the success envelope and the **domain** errors only — `docs/standards/openapi.md` §2.
 
-Routes are protected by default; role checks with `requireRole(...)` after `describeEndpoint()` — `docs/standards/auth-and-inbound.md` §2.
+Routes are protected by default; permission checks with `requirePermission('<module>.<action>')` after `describeEndpoint()` — `docs/standards/auth-and-inbound.md` §2.
 
 ```typescript
 import { Hono } from 'hono';
