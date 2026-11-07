@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { createApp } from '../../src/app';
 import { appConfig, redisConfig } from '../../src/config';
@@ -105,7 +105,9 @@ describe('migration 0010: system roles', () => {
   });
 });
 
-describe('migration 0010: users.role → user_roles', () => {
+// The move of the old users.role column is the boilerplate's history: `bun run setup` regenerates the
+// migrations from scratch (one 0000, no users.role ever), so a new project has no 0010 to replay.
+describe.skipIf(!existsSync(MIGRATION))('migration 0010: users.role → user_roles', () => {
   it('gives every existing user exactly their role: admin → super_admin, user → user, others → a role of their own', async () => {
     await inRolledBackTransaction(async (sql) => {
       // The state before 0010's data part: users with a role (the column 0011 dropped, back as it
