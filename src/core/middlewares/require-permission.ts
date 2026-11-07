@@ -4,7 +4,7 @@ import { getRequestContext } from '../context/request-context';
 import { APP_ERROR_CODES, ForbiddenError, type AppErrorCode } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
 import { documentErrors } from '../openapi/describe-endpoint';
-import type { PermissionLookup } from '../security/rbac';
+import type { PermissionEndpointsSource, PermissionLookup } from '../security/rbac';
 import { currentUser } from './authenticate';
 
 /**
@@ -42,17 +42,26 @@ export const documentsForbidden = (
 /**
  * Makes the signed-in user's effective permissions available to the guards below (D49, D53):
  * resolved through `lookup` at most once per request, and only when a route asks — routes behind
- * `allowAnyUser()` never touch the database or the cache. Mounted by `src/app.ts` after
- * `authenticate()`; without a user (public routes) it does nothing.
+ * `allowAnyUser()` never touch the database or the cache. Also hands the RBAC module the
+ * endpoints each permission opens (`endpoints`, D47: built from the app's OpenAPI document, once
+ * per app). Mounted by `src/app.ts` after `authenticate()`; without a user (public routes) it
+ * does nothing.
  */
 export const permissionContext =
-  ({ lookup }: { lookup: PermissionLookup }): MiddlewareHandler =>
+  ({
+    lookup,
+    endpoints,
+  }: {
+    lookup: PermissionLookup;
+    endpoints?: PermissionEndpointsSource;
+  }): MiddlewareHandler =>
   async (_c, next) => {
     const context = getRequestContext();
     const user = context?.user;
     if (context && user) {
       let resolved: ReturnType<PermissionLookup> | undefined;
       context.permissions = (): ReturnType<PermissionLookup> => (resolved ??= lookup(user.id));
+      if (endpoints) context.permissionEndpoints = endpoints;
     }
     await next();
   };

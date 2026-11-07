@@ -6,7 +6,13 @@ import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors
 import { SUPER_ADMIN_ROLE, type EffectivePermissions } from '../../core/security/rbac';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
-import type { Role, RolePermission, UserPermission, UserRole } from '../../database/schema';
+import type {
+  Permission,
+  Role,
+  RolePermission,
+  UserPermission,
+  UserRole,
+} from '../../database/schema';
 import { nowInstant } from '../../utils/datetime.util';
 import {
   RbacPermissionsRepository,
@@ -23,6 +29,7 @@ import {
   type ActiveGrant,
 } from './rbac-user-permissions.repository';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
+import { requireActorHolds } from './rbac-grant-guard.util';
 import {
   RBAC_MESSAGES,
   rbacPermissionNotFoundMessage,
@@ -114,10 +121,15 @@ export class RbacService {
     await this.forget([userId]);
   }
 
+  /**
+   * Adds a permission to a role. Whoever does it must hold the permission (no escalation through a
+   * role the caller holds or assigns, `requireActorHolds`).
+   */
   @Transactional()
   async mapPermission(roleId: string, permissionId: string): Promise<RolePermission> {
     await this.requireMappableRole(roleId);
-    await this.requireGrantablePermission(permissionId);
+    const permission = await this.requireGrantablePermission(permissionId);
+    await requireActorHolds([permission.key]);
     if (await this.rolePermissionsRepo.findLive(roleId, permissionId)) {
       throw new ConflictError(RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED);
     }
@@ -187,8 +199,11 @@ export class RbacService {
     }, this.ttlSeconds);
   }
 
-  /** Drops the cached permissions of `userIds` once the change has committed. */
-  private async forget(userIds: readonly string[]): Promise<void> {
+  /**
+   * Drops the cached permissions of `userIds` once the change has committed (D63) — for every
+   * change in the module that alters what users hold (a role or a permission deleted / restored).
+   */
+  async forget(userIds: readonly string[]): Promise<void> {
     await afterCommit(async () => {
       for (let start = 0; start < userIds.length; start += INVALIDATION_BATCH) {
         await Promise.all(
@@ -231,10 +246,10 @@ export class RbacService {
     if (role.key === SUPER_ADMIN_ROLE) throw new ConflictError(RBAC_MESSAGES.SUPER_ADMIN_FIXED);
   }
 
-  private async requireGrantablePermission(permissionId: string): Promise<void> {
-    if (!(await this.permissionsRepo.findGrantableById(permissionId))) {
-      throw new NotFoundError(rbacPermissionNotFoundMessage(permissionId));
-    }
+  private async requireGrantablePermission(permissionId: string): Promise<Permission> {
+    const permission = await this.permissionsRepo.findGrantableById(permissionId);
+    if (!permission) throw new NotFoundError(rbacPermissionNotFoundMessage(permissionId));
+    return permission;
   }
 }
 

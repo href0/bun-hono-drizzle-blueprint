@@ -3,6 +3,7 @@ import type { PermissionDefinition } from './core/security/rbac';
 import { PARTNER_CREDENTIAL_PERMISSIONS } from './modules/partner-credentials/partner-credentials.permissions';
 // partner:end
 import { USER_PERMISSIONS } from './modules/users/users.permissions';
+import { PERMISSION_PERMISSIONS, ROLE_PERMISSIONS } from './modules/rbac/rbac.permissions';
 // Example outbound module (JSONPlaceholder → /users/:id/external-posts): removed by `bun run setup <name>` unless --keep-examples.
 import { USER_POST_PERMISSIONS } from './modules/user-posts/user-posts.permissions';
 // Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.
@@ -21,6 +22,8 @@ import { PROJECT_BUDGET_PERMISSIONS } from './modules/projects/project-budgets/p
  */
 export const PERMISSION_REGISTRY: readonly PermissionDefinition[] = [
   ...USER_PERMISSIONS.all,
+  ...ROLE_PERMISSIONS.all,
+  ...PERMISSION_PERMISSIONS.all,
   // partner:start
   ...PARTNER_CREDENTIAL_PERMISSIONS.all,
   // partner:end
