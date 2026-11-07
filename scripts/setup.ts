@@ -206,7 +206,7 @@ const EXAMPLE_MODULES: ExampleModule[] = [
           "import { ORDER_PERMISSIONS } from './modules/orders/orders.permissions';",
         ].join('\n'),
       },
-      { file: 'src/permissions.ts', line: '  ...ORDER_PERMISSIONS,' },
+      { file: 'src/permissions.ts', line: '  ...ORDER_PERMISSIONS.all,' },
       {
         file: 'docs/standards/structure.md',
         line: '│   ├── orders/                  # Example header + detail module (removed by `bun run setup` unless --keep-examples)',
@@ -271,9 +271,9 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       {
         file: 'src/permissions.ts',
         line: [
-          '  ...PROJECT_PERMISSIONS,',
-          '  ...PROJECT_TASK_PERMISSIONS,',
-          '  ...PROJECT_BUDGET_PERMISSIONS,',
+          '  ...PROJECT_PERMISSIONS.all,',
+          '  ...PROJECT_TASK_PERMISSIONS.all,',
+          '  ...PROJECT_BUDGET_PERMISSIONS.all,',
         ].join('\n'),
       },
       {
@@ -382,7 +382,7 @@ const EXAMPLE_MODULES: ExampleModule[] = [
           "import { USER_POST_PERMISSIONS } from './modules/user-posts/user-posts.permissions';",
         ].join('\n'),
       },
-      { file: 'src/permissions.ts', line: '  ...USER_POST_PERMISSIONS,' },
+      { file: 'src/permissions.ts', line: '  ...USER_POST_PERMISSIONS.all,' },
       { file: 'src/config/index.ts', line: "export * from './jsonplaceholder.config';" },
       {
         file: 'src/config/config.test.ts',

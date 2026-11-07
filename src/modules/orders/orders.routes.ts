@@ -15,6 +15,7 @@ import {
   updateOrderItemSchema,
   updateOrderSchema,
 } from './orders.dto';
+import { ORDER_PERMISSIONS } from './orders.permissions';
 
 const router = new Hono();
 const tags = ['Orders'];
@@ -31,7 +32,7 @@ router.post(
       data: orderResponseSchema,
     },
   }),
-  requirePermission('orders.create'),
+  requirePermission(ORDER_PERMISSIONS.create),
   validate({ body: createOrderSchema }),
   ordersController.create,
 );
@@ -47,7 +48,7 @@ router.get(
       paginatedItem: orderResponseSchema,
     },
   }),
-  requirePermission('orders.read'),
+  requirePermission(ORDER_PERMISSIONS.read),
   validate({ query: orderListQuerySchema }),
   ordersController.list,
 );
@@ -64,7 +65,7 @@ router.get(
     },
     errors: [404],
   }),
-  requirePermission('orders.read'),
+  requirePermission(ORDER_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   ordersController.getById,
 );
@@ -81,7 +82,7 @@ router.patch(
     },
     errors: [404],
   }),
-  requirePermission('orders.update'),
+  requirePermission(ORDER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: updateOrderSchema }),
   ordersController.update,
 );
@@ -98,7 +99,7 @@ router.delete(
     },
     errors: [404],
   }),
-  requirePermission('orders.delete'),
+  requirePermission(ORDER_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   ordersController.remove,
 );
@@ -115,7 +116,7 @@ router.post(
     },
     errors: [404],
   }),
-  requirePermission('orders.restore'),
+  requirePermission(ORDER_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   ordersController.restore,
 );
@@ -133,7 +134,7 @@ router.get(
     },
     errors: [404],
   }),
-  requirePermission('orders.read'),
+  requirePermission(ORDER_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   ordersController.listItems,
 );
@@ -150,7 +151,7 @@ router.post(
     },
     errors: [404],
   }),
-  requirePermission('orders.update'),
+  requirePermission(ORDER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: createOrderItemSchema }),
   ordersController.addItem,
 );
@@ -167,7 +168,7 @@ router.put(
     },
     errors: [404],
   }),
-  requirePermission('orders.update'),
+  requirePermission(ORDER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: syncOrderItemsSchema }),
   ordersController.syncItems,
 );
@@ -184,7 +185,7 @@ router.patch(
     },
     errors: [404],
   }),
-  requirePermission('orders.update'),
+  requirePermission(ORDER_PERMISSIONS.update),
   validate({ params: uuidChildParamSchema, body: updateOrderItemSchema }),
   ordersController.updateItem,
 );
@@ -201,7 +202,7 @@ router.delete(
     },
     errors: [404],
   }),
-  requirePermission('orders.update'),
+  requirePermission(ORDER_PERMISSIONS.update),
   validate({ params: uuidChildParamSchema }),
   ordersController.deleteItem,
 );

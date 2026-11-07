@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
 import {
   APP_MARKERS,
+  PERMISSION_MARKERS,
+  PERMISSIONS_PATH,
   APP_PATH,
   APPEND_ONLY_PATH,
   CONFIG_BARREL,
@@ -52,6 +54,18 @@ const FIXTURES = new Map([
     'export const INTEGRATION_REGISTRY = {\n  // scaffold:registry — keep it.\n} as const;\n',
   ],
   [CONFIG_BARREL, "export * from './app.config';\n"],
+  [
+    PERMISSIONS_PATH,
+    [
+      "import { USER_PERMISSIONS } from './modules/users/users.permissions';",
+      PERMISSION_MARKERS.imports,
+      'export const PERMISSION_REGISTRY = [',
+      '  ...USER_PERMISSIONS.all,',
+      PERMISSION_MARKERS.registry,
+      '];',
+      '',
+    ].join('\n'),
+  ],
   [
     STRUCTURE_PATH,
     '│   ├── health/                  # Health\n│   └── users/                   # Reference standalone-table module\n',
@@ -258,6 +272,17 @@ describe('planScaffold (against the real templates)', () => {
       `  v1.route('/products', productsRouter);\n${APP_MARKERS.v1Routes}`,
     );
     expect(edits.has(APPEND_ONLY_PATH)).toBe(false);
+    // Its API permissions join the registry (D47); the routes check PRODUCT_PERMISSIONS.<action>.
+    expect(edits.get(PERMISSIONS_PATH)).toContain(
+      `import { PRODUCT_PERMISSIONS } from './modules/products/products.permissions';\n${PERMISSION_MARKERS.imports}`,
+    );
+    expect(edits.get(PERMISSIONS_PATH)).toContain(
+      `  ...PRODUCT_PERMISSIONS.all,\n${PERMISSION_MARKERS.registry}`,
+    );
+    const permissions = plan.files.find((file) => file.path.endsWith('products.permissions.ts'));
+    expect(permissions?.content).toContain("crudPermissions('products', 'products')");
+    const routes = plan.files.find((file) => file.path.endsWith('products.routes.ts'));
+    expect(routes?.content.match(/requirePermission\(PRODUCT_PERMISSIONS\.\w+\)/g)).toHaveLength(6);
     expect(edits.get(STRUCTURE_PATH)).toBe(
       '│   ├── health/                  # Health\n│   ├── products/                # Standalone-table module (/api/v1/products)\n│   └── users/                   # Reference standalone-table module\n',
     );
@@ -538,7 +563,12 @@ describe('planScaffold — dependent modules (--parent, D33)', () => {
     );
 
     const edits = applied(plan, withParentInTree);
-    expect([...edits.keys()].sort()).toEqual([APP_PATH, SCHEMA_BARREL, STRUCTURE_PATH].sort());
+    expect([...edits.keys()].sort()).toEqual(
+      [APP_PATH, PERMISSIONS_PATH, SCHEMA_BARREL, STRUCTURE_PATH].sort(),
+    );
+    expect(edits.get(PERMISSIONS_PATH)).toContain(
+      "import { APPLICATION_MEMBER_PERMISSIONS } from './modules/applications/application-members/application-members.permissions';",
+    );
     expect(edits.get(APP_PATH)).toContain(
       "import { applicationMembersParentRouter, applicationMembersRouter } from './modules/applications/application-members/application-members.routes';",
     );

@@ -12,6 +12,7 @@ import {
   projectTaskResponseSchema,
   updateProjectTaskSchema,
 } from './project-tasks.dto';
+import { PROJECT_TASK_PERMISSIONS } from './project-tasks.permissions';
 
 const tags = ['ProjectTasks'];
 
@@ -31,7 +32,7 @@ parentRouter.post(
     },
     errors: [404],
   }),
-  requirePermission('project-tasks.create'),
+  requirePermission(PROJECT_TASK_PERMISSIONS.create),
   validate({ params: projectTaskParentParamSchema, body: createProjectTaskSchema }),
   projectTasksController.create,
 );
@@ -48,7 +49,7 @@ parentRouter.get(
     },
     errors: [404],
   }),
-  requirePermission('project-tasks.read'),
+  requirePermission(PROJECT_TASK_PERMISSIONS.read),
   validate({ params: projectTaskParentParamSchema, query: projectTaskListQuerySchema }),
   projectTasksController.list,
 );
@@ -69,7 +70,7 @@ router.get(
     },
     errors: [404],
   }),
-  requirePermission('project-tasks.read'),
+  requirePermission(PROJECT_TASK_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   projectTasksController.getById,
 );
@@ -86,7 +87,7 @@ router.patch(
     },
     errors: [404],
   }),
-  requirePermission('project-tasks.update'),
+  requirePermission(PROJECT_TASK_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: updateProjectTaskSchema }),
   projectTasksController.update,
 );
@@ -103,7 +104,7 @@ router.delete(
     },
     errors: [404],
   }),
-  requirePermission('project-tasks.delete'),
+  requirePermission(PROJECT_TASK_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   projectTasksController.remove,
 );
@@ -120,7 +121,7 @@ router.post(
     },
     errors: [404],
   }),
-  requirePermission('project-tasks.restore'),
+  requirePermission(PROJECT_TASK_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   projectTasksController.restore,
 );

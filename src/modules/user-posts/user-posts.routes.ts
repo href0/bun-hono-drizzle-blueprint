@@ -6,6 +6,7 @@ import { describeEndpoint } from '../../core/openapi';
 import { userPostsController } from './user-posts.controller';
 import { externalPostSchema } from './user-posts.dto';
 import { USER_POST_MESSAGES } from './user-posts.messages';
+import { USER_POST_PERMISSIONS } from './user-posts.permissions';
 
 /** Mounted at `/users` next to the users module: `/users/:id/external-posts`, own id or admin. */
 export const userPostRoutes = new Hono();
@@ -23,7 +24,7 @@ userPostRoutes.get(
     },
     errors: [502, 504],
   }),
-  requireSelfOrPermission('id', 'user-posts.read'),
+  requireSelfOrPermission('id', USER_POST_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   userPostsController.list,
 );

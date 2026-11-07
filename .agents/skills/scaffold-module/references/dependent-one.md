@@ -117,6 +117,27 @@ export const <camelSingular>MissingMessage = (<parentCamelSingular>Id: string): 
 
 ---
 
+### Step 3a: Create Permissions (`src/modules/<parent-name>/<name>/<name>.permissions.ts`)
+
+The module's API permissions (D47, D54): every route checks one with `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` — the key is written once, a typo is a compile error. `bun run scaffold` collects `.all` in `src/permissions.ts`; `bun run db:migrate` syncs them into the database, where an administrator maps them to roles. Keep only the actions a route checks.
+
+```typescript
+import { definePermissions } from '../../../core/security/rbac';
+
+/**
+ * The API permissions of the <name> module (D47). A 1:1 dependent is saved with one upsert (`PUT`
+ * under its parent), so it has no separate `create`: writing it is `update`.
+ */
+export const <UPPER_SINGULAR>_PERMISSIONS = definePermissions('<name>', {
+  read: 'Read <words>',
+  update: 'Save <words>',
+  delete: 'Delete <words>',
+  restore: 'Restore <words>',
+});
+```
+
+---
+
 ### Step 4: Create Repository (`src/modules/<parent-name>/<name>/<name>.repository.ts`)
 
 ```typescript
@@ -286,10 +307,11 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../../core/dto/common.dto';
-import { validate } from '../../../core/middlewares';
+import { requirePermission, validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
+import { <UPPER_SINGULAR>_PERMISSIONS } from './<name>.permissions';
 import {
   <camelSingular>ParentParamSchema,
   <camelSingular>ResponseSchema,
@@ -309,6 +331,7 @@ parentRouter.get(
     response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: <camelSingular>ParentParamSchema }),
   <camelPlural>Controller.getForParent,
 );
@@ -321,6 +344,7 @@ parentRouter.put(
     alsoResponds: [{ status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED }],
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: <camelSingular>ParentParamSchema, body: save<PascalSingular>Schema }),
   <camelPlural>Controller.save,
 );
@@ -332,6 +356,7 @@ parentRouter.delete(
     response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.delete),
   validate({ params: <camelSingular>ParentParamSchema }),
   <camelPlural>Controller.removeForParent,
 );
@@ -347,6 +372,7 @@ router.get(
     response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.getById,
 );
@@ -358,6 +384,7 @@ router.post(
     response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema },
     errors: [404, 409],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.restore,
 );
@@ -554,6 +581,7 @@ describe('to<PascalSingular>Response', () => {
 ### Step 13: Create Controller Test (`src/modules/<parent-name>/<name>/<name>.controller.test.ts`)
 
 ```typescript
+import { signedIn } from '../../../../test/helpers/signed-in';
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
@@ -582,6 +610,7 @@ const record: <PascalSingular> = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
+app.use('*', signedIn());
 app.route('/<parent-name>/:<parentCamelSingular>Id/<segment>', <camelPlural>ParentRouter);
 app.route('/<name>', <camelPlural>Router);
 app.onError(globalErrorHandler);
