@@ -13,7 +13,7 @@ import {
 import { logger } from '../../core/logger';
 import { verifyAccessToken } from '../../core/security/jwt';
 import { hashPassword, verifyPassword } from '../../core/security/password';
-import { transactionStorage } from '../../database/transaction-host';
+import { runInFakeTransaction } from '../../database/transaction-host';
 import type { User } from '../../database/schema';
 import { sha256Hex } from '../../utils/crypto.util';
 import { nowInstant } from '../../utils/datetime.util';
@@ -64,7 +64,7 @@ const setup = (users: User[], options: { cacheDown?: boolean } = {}) => {
 const inRequest = <T>(fn: () => Promise<T>): Promise<T> =>
   runWithRequestContext(
     { requestId: 'req-1', locale: 'en', clientIp: '203.0.113.7', actor: 'anonymous' },
-    () => transactionStorage.run({} as never, fn),
+    () => runInFakeTransaction({}, fn),
   );
 
 const rejection = async (promise: Promise<unknown>): Promise<ApiError> => {

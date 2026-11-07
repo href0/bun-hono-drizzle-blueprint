@@ -6,7 +6,7 @@ import { getActor } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
 import { hashPassword } from '../../core/security/password';
 import { isUniqueViolation } from '../../database/unique-violation';
-import { Transactional } from '../../database/transactional.decorator';
+import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import type {
   CreateUserDto,
   PublicUser,
@@ -124,7 +124,7 @@ export class UsersService {
     try {
       const updated = await this.repo.updateById(id, dto);
       if (!updated) throw new NotFoundError(userNotFoundMessage(id));
-      await this.cache.del(CACHE_KEYS.userDetail(id));
+      await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
       return updated;
     } catch (error) {
       if (isUniqueViolation(error)) throw emailTaken();
@@ -137,7 +137,7 @@ export class UsersService {
     forbidSelfLockout(id);
     const deleted = await this.repo.softDeleteById(id);
     if (!deleted) throw new NotFoundError(userNotFoundMessage(id));
-    await this.cache.del(CACHE_KEYS.userDetail(id));
+    await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
   }
 
   /**
@@ -151,14 +151,14 @@ export class UsersService {
       passwordChangedAt: nowInstant(),
     });
     if (!updated) throw new NotFoundError(userNotFoundMessage(id));
-    await this.cache.del(CACHE_KEYS.userDetail(id));
+    await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
   }
 
   async restoreUser(id: string): Promise<User> {
     try {
       const restored = await this.repo.restoreById(id);
       if (!restored) throw new NotFoundError(userNotFoundMessage(id));
-      await this.cache.del(CACHE_KEYS.userDetail(id));
+      await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
       return restored;
     } catch (error) {
       // A live user took the email while this one was deleted (activeUniqueIndex).

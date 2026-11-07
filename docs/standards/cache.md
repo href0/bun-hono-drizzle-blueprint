@@ -92,7 +92,7 @@ export class UsersService {
 }
 ```
 
-Invalidate on writes with `await this.cache.del(CACHE_KEYS.userDetail(id))` once the write has succeeded.
+Invalidate on writes with `await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)))` (`src/database/transaction-host.ts`, D63, R88): the drop waits for the outermost commit — at once without a transaction, never after a rollback. A drop inside an open transaction lets a concurrent read cache the old row again until the TTL; ESLint (`CACHE_DROP_RULES`) refuses `cache.del` outside `afterCommit` in modules.
 
 ---
 

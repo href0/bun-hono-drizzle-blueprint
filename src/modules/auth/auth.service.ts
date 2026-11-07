@@ -15,7 +15,7 @@ import { logger } from '../../core/logger';
 import { signAccessToken, type SignedAccessToken } from '../../core/security/jwt';
 import { hashPassword, verifyPassword } from '../../core/security/password';
 import { isRole } from '../../core/security/roles';
-import { Transactional } from '../../database/transactional.decorator';
+import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
 import type { User } from '../../database/schema';
 import { generateOpaqueToken, sha256Hex } from '../../utils/crypto.util';
@@ -137,7 +137,7 @@ export class AuthService {
       throw invalidCredentials();
     }
 
-    await this.cache.del(attempt.key);
+    await afterCommit(() => this.cache.del(attempt.key));
     logger.info({ userId: user.id }, 'Login succeeded');
     const now = nowInstant();
     const family = { familyId: Bun.randomUUIDv7(), familyStartedAt: now };
@@ -196,7 +196,7 @@ export class AuthService {
         details: [{ field: 'currentPassword', message: AUTH_MESSAGES.CURRENT_PASSWORD_INCORRECT }],
       });
     }
-    await this.cache.del(attempt.key);
+    await afterCommit(() => this.cache.del(attempt.key));
 
     const passwordHash = await hashPassword(dto.newPassword);
     const session = await this.replacePassword(user, passwordHash, client);

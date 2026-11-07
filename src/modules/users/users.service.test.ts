@@ -4,7 +4,7 @@ import { UsersService } from './users.service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
 import { runWithRequestContext } from '../../core/context/request-context';
 import { verifyPassword } from '../../core/security/password';
-import { transactionStorage } from '../../database/transaction-host';
+import { runInFakeTransaction } from '../../database/transaction-host';
 import type { UsersRepository } from './users.repository';
 import { CacheService, type CacheClient } from '../../core/cache';
 import type { User } from '../../database/schema';
@@ -35,7 +35,7 @@ describe('UsersService (Unit)', () => {
 
     const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
 
-    await transactionStorage.run(mockTx, async () => {
+    await runInFakeTransaction(mockTx, async () => {
       expect(
         service.createUser({
           email: 'test@example.com',
@@ -55,7 +55,7 @@ describe('UsersService (Unit)', () => {
 
     const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
 
-    await transactionStorage.run(mockTx, async () => {
+    await runInFakeTransaction(mockTx, async () => {
       const created = await service.createUser({
         email: 'test@example.com',
         fullName: 'Test User',
@@ -183,7 +183,7 @@ describe('UsersService (Unit)', () => {
     };
     const service = new UsersService(mockRepo as UsersRepository, {} as CacheService);
 
-    await transactionStorage.run(mockTx, async () => {
+    await runInFakeTransaction(mockTx, async () => {
       expect(
         service.createUser({ email: 'a@b.c', fullName: 'A', password: 'password123' }),
       ).rejects.toThrow(ConflictError);
@@ -198,7 +198,7 @@ describe('UsersService (Unit)', () => {
     };
     const service = new UsersService(mockRepo as UsersRepository, {} as CacheService);
 
-    await transactionStorage.run(mockTx, async () => {
+    await runInFakeTransaction(mockTx, async () => {
       expect(
         service.createUser({ email: 'a@b.c', fullName: 'A', password: 'password123' }),
       ).rejects.toBe(failure);
@@ -212,7 +212,7 @@ describe('UsersService (Unit)', () => {
       const mockRepo: Partial<UsersRepository> = { updateById: async () => updated };
       const service = new UsersService(mockRepo as UsersRepository, cache);
 
-      await transactionStorage.run(mockTx, async () => {
+      await runInFakeTransaction(mockTx, async () => {
         expect(await service.updateUser(mockUser.id, { fullName: 'New' })).toEqual(updated);
       });
       expect(deleted).toEqual(['user:detail:' + mockUser.id]);
@@ -226,7 +226,7 @@ describe('UsersService (Unit)', () => {
       };
       const service = new UsersService(mockRepo as UsersRepository, cacheSpy().cache);
 
-      await transactionStorage.run(mockTx, async () => {
+      await runInFakeTransaction(mockTx, async () => {
         expect(service.updateUser(mockUser.id, { email: other.email })).rejects.toThrow(
           ConflictError,
         );
@@ -247,7 +247,7 @@ describe('UsersService (Unit)', () => {
         cacheSpy().cache,
       );
 
-      await transactionStorage.run(mockTx, async () => {
+      await runInFakeTransaction(mockTx, async () => {
         expect(service.updateUser(mockUser.id, { fullName: 'x' })).rejects.toThrow(NotFoundError);
         expect(racing.updateUser(mockUser.id, { email: 'x@y.z' })).rejects.toThrow(ConflictError);
       });
@@ -366,7 +366,7 @@ describe('UsersService password reset and self-lockout', () => {
     const self = `user:${user.id}` as const;
 
     expect(asActor(self, () => service.deleteUser(user.id))).rejects.toThrow(ForbiddenError);
-    await transactionStorage.run({} as never, async () => {
+    await runInFakeTransaction({}, async () => {
       expect(asActor(self, () => service.updateUser(user.id, { isActive: false }))).rejects.toThrow(
         ForbiddenError,
       );

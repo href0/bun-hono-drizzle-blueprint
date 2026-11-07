@@ -8,6 +8,7 @@ import {
   partnerSecretCipher,
 } from '../../core/security/partner-credentials';
 import { isUniqueViolation } from '../../database/unique-violation';
+import { afterCommit } from '../../database/transactional.decorator';
 import type { PartnerCredential } from '../../database/schema';
 import type { SecretCipher } from '../../utils/secret-cipher.util';
 import type {
@@ -173,7 +174,7 @@ export class PartnerCredentialsService {
 
   /** Drops the gateway's cached view of a credential, so a change applies to the next request. */
   private async forget(apiKeyHash: string): Promise<void> {
-    await this.cache.del(CACHE_KEYS.partnerCredential(apiKeyHash));
+    await afterCommit(() => this.cache.del(CACHE_KEYS.partnerCredential(apiKeyHash)));
   }
 }
 

@@ -16,6 +16,7 @@ import {
 } from '../../src/database/schema';
 import { NOW } from '../../src/database/schema/columns';
 import { defaultTxHost, transactionStorage } from '../../src/database/transaction-host';
+import { runInTransaction } from '../../src/database/transactional.decorator';
 import { isUniqueViolation } from '../../src/database/unique-violation';
 import { RbacService, rbacService } from '../../src/modules/rbac/rbac.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
@@ -406,6 +407,27 @@ describe('effective permissions (step 3)', () => {
     for (const userId of [first, second]) {
       expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
     }
+  });
+
+  it('drops the cache after the commit: a read racing the open transaction cannot keep the old state (D63)', async () => {
+    const userId = await insertUser();
+    const role = await insertRole();
+    const extra = await insertPermission();
+    await rbacService.mapPermission(role, extra.id);
+    await rbacService.assignRole(userId, role);
+
+    await runInTransaction(async () => {
+      await rbacService.revokeRole(userId, role);
+      // Another request, outside this uncommitted transaction, still sees the role and caches it.
+      const racing = await transactionStorage.exit(() =>
+        rbacService.getEffectivePermissions(userId),
+      );
+      expect(racing.permissions).toEqual([extra.key]);
+      expect(await cacheService.get<unknown>(CACHE_KEYS.userPermissions(userId))).toEqual(racing);
+    });
+
+    expect(await cacheService.get(CACHE_KEYS.userPermissions(userId))).toBeNull();
+    expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
   });
 
   it('reads from the database while Redis is unavailable (fail-open)', async () => {
