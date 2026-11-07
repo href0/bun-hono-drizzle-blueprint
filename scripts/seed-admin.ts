@@ -60,7 +60,11 @@ const main = async (): Promise<void> => {
       { ...answers, email: answers.email.trim().toLowerCase(), promote: flags.promote },
       undefined,
       undefined,
-      (userId) => cacheService.del(CACHE_KEYS.userDetail(userId)),
+      // The cached detail and the cached permissions (the super admin role) are both stale now.
+      async (userId) => {
+        await cacheService.del(CACHE_KEYS.userDetail(userId));
+        await cacheService.del(CACHE_KEYS.userPermissions(userId));
+      },
     );
     const messages = {
       created: 'Created admin',

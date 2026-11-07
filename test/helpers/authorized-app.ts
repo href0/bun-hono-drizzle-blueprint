@@ -1,24 +1,16 @@
-import type { Hono, MiddlewareHandler } from 'hono';
+import type { Hono } from 'hono';
 import { createApp } from '../../src/app';
-import { getRequestContext, setAuthenticatedUser } from '../../src/core/context/request-context';
 import { signAccessToken } from '../../src/core/security/jwt';
 import type { EffectivePermissions } from '../../src/core/security/rbac';
+import { TEST_PRINCIPAL_ID, toEffective, type TestGrant } from './signed-in';
 
-/** The user behind `authorize()` — a fixed id so tests can assert actor stamps (`user:<id>`). */
-export const TEST_PRINCIPAL_ID = '0192f1d0-0000-7000-8000-00000000a11c';
-
-/** What a test user may do: every permission (`super_admin`), or exactly these keys. */
-export type TestGrant = 'super_admin' | readonly string[];
+/** The user behind `authorize()` (see ./signed-in). */
+export { TEST_PRINCIPAL_ID };
 
 /** The permissions each user holds on an app made by `createTestApp()`. */
 const grantsOf = new WeakMap<Hono, Map<string, EffectivePermissions>>();
 
 const NOTHING: EffectivePermissions = { superAdmin: false, permissions: [] };
-
-const toEffective = (grant: TestGrant): EffectivePermissions =>
-  grant === 'super_admin'
-    ? { superAdmin: true, permissions: [] }
-    : { superAdmin: false, permissions: [...grant] };
 
 /**
  * `createApp()` for tests of a module's HTTP contract: permissions come from `authorize()` instead
@@ -57,18 +49,3 @@ export const authorize = async (
   };
   return app;
 };
-
-/**
- * For tests that mount a module's router on a bare `Hono` (after `requestContextMiddleware()`):
- * the request is signed in as `userId` holding `grant`, as `authenticate()` + `permissionContext()`
- * would leave it.
- */
-export const signedIn =
-  (grant: TestGrant = 'super_admin', userId: string = TEST_PRINCIPAL_ID): MiddlewareHandler =>
-  async (_c, next) => {
-    setAuthenticatedUser({ id: userId, role: 'user' });
-    const context = getRequestContext();
-    const effective = toEffective(grant);
-    if (context) context.permissions = () => Promise.resolve(effective);
-    await next();
-  };

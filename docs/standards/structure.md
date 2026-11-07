@@ -112,7 +112,7 @@ src/
 ```
 test/
 ├── setup/hermetic-env.ts        # Preload: no real database / Redis in `bun test`
-├── helpers/                     # sql-recorder.ts (+ sql-recorder.test.ts; SQL recorder), repository-fixtures.ts (generic test tables), auth-fakes.ts (in-memory auth repositories), authorized-app.ts (tokens for contract tests), integration.ts (asActor, rejectionOf, unique for test:int)
+├── helpers/                     # sql-recorder.ts (+ sql-recorder.test.ts; SQL recorder), repository-fixtures.ts (generic test tables), auth-fakes.ts (in-memory auth repositories), authorized-app.ts (createTestApp + authorize: tokens and permissions for contract tests), signed-in.ts (+ signed-in.test.ts; signedIn(grant) for a router on a bare Hono), integration.ts (asActor, rejectionOf, unique for test:int)
 │   └── partner-signing-vectors.ts # published signing vectors of the partner gateway <!-- partner -->
 ├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, rbac, … (*.int.ts)
 │   └── partner.int.ts           # the partner gateway against a real database and Redis <!-- partner -->

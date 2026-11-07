@@ -1,9 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { hashPassword } from '../../core/security/password';
+import { SUPER_ADMIN_ROLE } from '../../core/security/rbac';
 import type { Role } from '../../core/security/roles';
 import { BaseRepository } from '../base.repository';
-import { users, type User } from '../schema';
+import { roles, userRoles, users, type User } from '../schema';
 import { defaultTxHost, type TransactionHost } from '../transaction-host';
 
 const ADMIN: Role = 'admin';
@@ -43,6 +44,49 @@ class SeedUsersRepository extends BaseRepository<typeof users> {
 }
 
 /**
+ * The `super_admin` role of a user (D52): routes check permissions, and a super admin holds every one.
+ * Written through BaseRepository (actor `system`).
+ */
+class SeedUserRolesRepository extends BaseRepository<typeof userRoles> {
+  constructor(txHost: TransactionHost) {
+    super(userRoles, txHost);
+  }
+
+  /** The live `super_admin` role; created by migration 0010 and by every permission sync. */
+  async findSuperAdminRoleId(): Promise<string> {
+    const rows = await this.txHost.tx
+      .select({ id: roles.id })
+      .from(roles)
+      .where(and(eq(roles.key, SUPER_ADMIN_ROLE), isNull(roles.deletedAt)))
+      .limit(1);
+    const id = rows.at(0)?.id;
+    if (id === undefined) {
+      throw new SeedAdminError(
+        'The super_admin role is missing: run "bun run db:migrate" (it syncs the system roles) first.',
+      );
+    }
+    return id;
+  }
+
+  async holds(userId: string, roleId: string): Promise<boolean> {
+    const rows = await this.txHost.tx
+      .select({ id: userRoles.id })
+      .from(userRoles)
+      .where(this.scoped(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  /** Gives `userId` the super admin role unless they hold it; true when it was given. */
+  async ensureSuperAdmin(userId: string): Promise<boolean> {
+    const roleId = await this.findSuperAdminRoleId();
+    if (await this.holds(userId, roleId)) return false;
+    await this.create({ userId, roleId });
+    return true;
+  }
+}
+
+/**
  * Creates the first administrator (`bun run seed:admin --email <email>`), or with `promote`
  * makes an existing live user an active admin. Idempotent: an existing active admin is left as is.
  */
@@ -57,12 +101,15 @@ export const seedAdmin = async (
     throw new SeedAdminError(`Not a valid email address: ${input.email}`);
   }
   const repository = new SeedUsersRepository(txHost);
+  const userRoleRepository = new SeedUserRolesRepository(txHost);
 
   const result = await txHost.run(async (): Promise<SeedAdminResult> => {
     const existing = await repository.findByEmail(input.email);
     if (existing) {
       if (existing.role === ADMIN && existing.isActive) {
-        return { action: 'unchanged', user: existing };
+        // An admin from before the permission RBAC (or a restored database) may lack the role.
+        const given = await userRoleRepository.ensureSuperAdmin(existing.id);
+        return { action: given ? 'promoted' : 'unchanged', user: existing };
       }
       if (!input.promote) {
         throw new SeedAdminError(
@@ -71,6 +118,7 @@ export const seedAdmin = async (
         );
       }
       const promoted = await repository.updateById(existing.id, { role: ADMIN, isActive: true });
+      await userRoleRepository.ensureSuperAdmin(existing.id);
       return { action: 'promoted', user: promoted ?? existing };
     }
 
@@ -91,6 +139,7 @@ export const seedAdmin = async (
       role: ADMIN,
       isActive: true,
     });
+    await userRoleRepository.ensureSuperAdmin(user.id);
     return { action: 'created', user };
   });
   if (result.action === 'promoted') await onUserChanged(result.user.id);

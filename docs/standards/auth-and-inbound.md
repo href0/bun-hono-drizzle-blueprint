@@ -34,7 +34,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 | A route for every signed-in user (own session, profile, password) | `allowAnyUser()` — no permission checked, but stated (`x-allowed-callers: any-user`) |
 | Who is calling (controller) | `currentUser()` → `{ id, role }`; services take the id as an argument or read `getActor()` (`user:<id>`, used for audit columns) |
 | A new public route | Add it to `PUBLIC_ROUTES` (reviewed) — never a per-route "skip auth" |
-| Contract tests | `authorize(createTestApp(), grant, userId?)` from `test/helpers/authorized-app.ts` (`grant`: `'super_admin'` or a list of permission keys; the lookup is a fake, the real one is proven by `test/integration/rbac.int.ts`); a router on a bare `Hono` gets `signedIn(grant)` |
+| Contract tests | `authorize(createTestApp(), grant, userId?)` from `test/helpers/authorized-app.ts` (`grant`: `'super_admin'` or a list of permission keys; the lookup is a fake, the real one is proven by `test/integration/rbac.int.ts`); a router on a bare `Hono` gets `signedIn(grant)` (`test/helpers/signed-in.ts`) |
 | First admin | `bun run seed:admin --email <email>` (in a terminal the password is asked masked, twice; piped, from stdin); last-resort recovery `--promote` |
 | Change password | Own: `POST /auth/change-password`; admin: `PUT /users/:id/password`. Both set `users.password_changed_at` → refresh refuses token families started before it |
 | Expired refresh tokens | `bun run auth:purge-tokens [--days 7]`, scheduled daily (no terminal: no question); run by hand in a terminal it shows how many would go and asks first (default No) |
