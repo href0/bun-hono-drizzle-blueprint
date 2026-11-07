@@ -116,7 +116,7 @@ test/
 │   └── partner-signing-vectors.ts # published signing vectors of the partner gateway <!-- partner -->
 ├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, rbac, … (*.int.ts)
 │   └── partner.int.ts           # the partner gateway against a real database and Redis <!-- partner -->
-├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, outbound, list-query (every paginated list follows http-contract.md §8), …
+├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, route-permissions (R89), outbound, list-query (every paginated list follows http-contract.md §8), …
 ├── hermetic-env.test.ts         # Guards the hermetic preload
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes) <!-- partner -->
 ├── structure.test.ts            # File names, module / integration patterns, dependent subfolders named after their parent, unique module names, module ≠ vendor, channel routers, *.int.ts placement
