@@ -496,21 +496,21 @@ describe('routes check permissions per request (step 4a)', () => {
       return `${String(res.status)}${body.error ? ` ${body.error.code}` : ''}`;
     };
 
-    expect(await get('/orders')).toBe('403 ERR_PERMISSION_FORBIDDEN');
-    expect(await get('/projects')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+    expect(await get('/users')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+    expect(await get('/roles')).toBe('403 ERR_PERMISSION_FORBIDDEN');
 
     const role = await insertRole();
-    await rbacService.mapPermission(role, await permissionId('orders.read'));
+    await rbacService.mapPermission(role, await permissionId('users.read'));
     await rbacService.assignRole(userId, role);
-    expect(await get('/orders')).toBe('200');
+    expect(await get('/users')).toBe('200');
 
-    await rbacService.grantPermission(userId, await permissionId('projects.read'));
-    expect(await get('/projects')).toBe('200');
+    await rbacService.grantPermission(userId, await permissionId('roles.read'));
+    expect(await get('/roles')).toBe('200');
 
     await rbacService.revokeRole(userId, role);
-    expect(await get('/orders')).toBe('403 ERR_PERMISSION_FORBIDDEN');
-    await rbacService.revokePermission(userId, await permissionId('projects.read'));
-    expect(await get('/projects')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+    expect(await get('/users')).toBe('403 ERR_PERMISSION_FORBIDDEN');
+    await rbacService.revokePermission(userId, await permissionId('roles.read'));
+    expect(await get('/roles')).toBe('403 ERR_PERMISSION_FORBIDDEN');
 
     // allowAnyUser(): no permission needed.
     expect(await get('/auth/me')).not.toStartWith('403');
@@ -641,32 +641,32 @@ describe('admin API: roles and permissions (step 6a)', () => {
       key,
     });
 
-    const ordersRead = await keyId('orders.read');
-    expect((await call('PUT', `/roles/${id}/permissions/${ordersRead}`)).status).toBe(201);
-    expect((await call('PUT', `/roles/${id}/permissions/${ordersRead}`)).status).toBe(200);
+    const usersRead = await keyId('users.read');
+    expect((await call('PUT', `/roles/${id}/permissions/${usersRead}`)).status).toBe(201);
+    expect((await call('PUT', `/roles/${id}/permissions/${usersRead}`)).status).toBe(200);
     const mapped = (await call('GET', `/roles/${id}/permissions`)).data as {
       key: string;
       endpoints: { method: string; path: string }[];
     }[];
-    expect(mapped.map(({ key: k }) => k)).toEqual(['orders.read']);
+    expect(mapped.map(({ key: k }) => k)).toEqual(['users.read']);
     expect(mapped[0]?.endpoints).toEqual(
       expect.arrayContaining([
-        { method: 'GET', path: `${base}/orders`, summary: expect.any(String) },
+        { method: 'GET', path: `${base}/users`, summary: expect.any(String) },
       ]),
     );
 
-    // A holder of the role reads orders; deleting the role takes it away on the next request.
+    // A holder of the role reads users; deleting the role takes it away on the next request.
     const holderId = await insertUser();
     await rbacService.assignRole(holderId, id);
     const holder = await caller(holderId);
-    expect((await holder('GET', '/orders')).status).toBe(200);
+    expect((await holder('GET', '/users')).status).toBe(200);
     expect((await call('DELETE', `/roles/${id}`)).status).toBe(200);
-    expect((await holder('GET', '/orders')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+    expect((await holder('GET', '/users')).code).toBe('ERR_PERMISSION_FORBIDDEN');
     expect((await call('POST', `/roles/${id}/restore`)).status).toBe(200);
-    expect((await holder('GET', '/orders')).status).toBe(200);
+    expect((await holder('GET', '/users')).status).toBe(200);
 
-    expect((await call('DELETE', `/roles/${id}/permissions/${ordersRead}`)).status).toBe(200);
-    expect((await holder('GET', '/orders')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+    expect((await call('DELETE', `/roles/${id}/permissions/${usersRead}`)).status).toBe(200);
+    expect((await holder('GET', '/users')).code).toBe('ERR_PERMISSION_FORBIDDEN');
 
     const changes = await db
       .select({ action: recordChanges.action })
@@ -687,12 +687,12 @@ describe('admin API: roles and permissions (step 6a)', () => {
     expect((await call('PATCH', `/roles/${root}`, { name: 'Root' })).status).toBe(409);
     expect((await call('DELETE', `/roles/${root}`)).status).toBe(409);
     expect((await call('DELETE', `/roles/${plain}`)).status).toBe(409);
-    const ordersRead = await keyId('orders.read');
-    expect((await call('PUT', `/roles/${root}/permissions/${ordersRead}`)).status).toBe(409);
+    const usersRead = await keyId('users.read');
+    expect((await call('PUT', `/roles/${root}/permissions/${usersRead}`)).status).toBe(409);
     // super_admin holds every permission that counts.
     const all = (await call('GET', `/roles/${root}/permissions`)).data as { key: string }[];
     expect(all.map(({ key }) => key)).toEqual(
-      expect.arrayContaining(['orders.read', 'roles.update']),
+      expect.arrayContaining(['users.read', 'roles.update']),
     );
   });
 
@@ -703,7 +703,7 @@ describe('admin API: roles and permissions (step 6a)', () => {
       'roles.update',
       'roles.restore',
       'roles.delete',
-      'orders.read',
+      'users.read',
     ]) {
       await rbacService.mapPermission(admins, await keyId(key));
     }
@@ -713,17 +713,17 @@ describe('admin API: roles and permissions (step 6a)', () => {
     const target = await insertRole();
 
     expect(
-      (await call('PUT', `/roles/${target}/permissions/${await keyId('orders.read')}`)).status,
+      (await call('PUT', `/roles/${target}/permissions/${await keyId('users.read')}`)).status,
     ).toBe(201);
     const refused = await call(
       'PUT',
-      `/roles/${target}/permissions/${await keyId('orders.delete')}`,
+      `/roles/${target}/permissions/${await keyId('users.delete')}`,
     );
     expect(refused).toMatchObject({ status: 403, code: 'ERR_PERMISSION_ESCALATION_FORBIDDEN' });
 
-    // A role holding orders.delete (mapped by the system), deleted: restoring it would give it back.
+    // A role holding users.delete (mapped by the system), deleted: restoring it would give it back.
     const powerful = await insertRole();
-    await rbacService.mapPermission(powerful, await keyId('orders.delete'));
+    await rbacService.mapPermission(powerful, await keyId('users.delete'));
     expect((await call('DELETE', `/roles/${powerful}`)).status).toBe(200);
     expect((await call('POST', `/roles/${powerful}/restore`)).code).toBe(
       'ERR_PERMISSION_ESCALATION_FORBIDDEN',
@@ -760,21 +760,21 @@ describe('admin API: roles and permissions (step 6a)', () => {
     expect((await call('POST', `/permissions/${id}/restore`)).status).toBe(200);
     expect((await rbacService.getEffectivePermissions(holderId)).permissions).toContain(key);
 
-    const ordersRead = await keyId('orders.read');
-    expect((await call('PATCH', `/permissions/${ordersRead}`, { label: 'x' })).status).toBe(409);
-    expect((await call('DELETE', `/permissions/${ordersRead}`)).status).toBe(409);
+    const usersRead = await keyId('users.read');
+    expect((await call('PATCH', `/permissions/${usersRead}`, { label: 'x' })).status).toBe(409);
+    expect((await call('DELETE', `/permissions/${usersRead}`)).status).toBe(409);
   });
 
   it('lists API permissions with the endpoints they open, filtered and counted in SQL', async () => {
     const call = await superAdmin();
-    const page = await call('GET', '/permissions?source=api&retired=false&group=orders&sort=key');
+    const page = await call('GET', '/permissions?source=api&retired=false&group=roles&sort=key');
     const rows = page.data as { key: string; endpoints: unknown[] }[];
     expect(rows.map(({ key }) => key)).toEqual([
-      'orders.create',
-      'orders.delete',
-      'orders.read',
-      'orders.restore',
-      'orders.update',
+      'roles.create',
+      'roles.delete',
+      'roles.read',
+      'roles.restore',
+      'roles.update',
     ]);
     expect(page.meta?.total_items).toBe(5);
     expect(rows.every(({ endpoints }) => endpoints.length > 0)).toBe(true);

@@ -64,6 +64,12 @@ const isStricter = (attribute: string, before?: string, after?: string): boolean
   return true;
 };
 
+/**
+ * `error.code` of an error response: an open set — every code is listed in one shared enum, and a
+ * client meets an unknown code as a generic error of its status (`docs/standards/openapi.md` §6).
+ */
+const ERROR_CODE_LOCATION = /^response [45]\d\d body\.error\.code$/;
+
 const classifyAttribute = (change: Extract<Change, { kind: 'changed' }>): Severity => {
   const { attribute, before, after } = change;
   const request = change.fact.side === 'request';
@@ -86,6 +92,8 @@ const classifyAttribute = (change: Extract<Change, { kind: 'changed' }>): Severi
     const narrowed =
       next !== undefined && (old === undefined || old.some((v) => !next.includes(v)));
     if (request) return narrowed ? 'BREAKING' : 'safe';
+    // A new error code is not a new shape: without this, one code would flag every error response.
+    if (ERROR_CODE_LOCATION.test(change.fact.location)) return 'safe';
     return widened ? 'BREAKING' : 'safe';
   }
   // A code added or removed changes what a client may meet, but breaks no request that worked.

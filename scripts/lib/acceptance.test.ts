@@ -205,11 +205,12 @@ const COMMAND_OUTPUT = [
 
 const reply = (
   status: number,
-  data: Record<string, unknown> = {},
+  data: Record<string, unknown> | unknown[] = {},
   headers?: HeadersInit,
 ): HttpResult => ({
   status,
-  json: { success: status < 400, status_code: status, data },
+  // A list endpoint answers an array ('data' is typed as an object for the common case).
+  json: { success: status < 400, status_code: status, data: data as Record<string, unknown> },
   headers: new Headers(headers),
 });
 
@@ -240,6 +241,8 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
   ]);
   let nextId = 0;
   let released = 0;
+  /** RBAC: has the new user (token `a1`, a login) been given the role yet? */
+  let readerHasRole = false;
 
   const webhook = (body: string, headers: Record<string, string>): HttpResult => {
     const timestamp = headers['x-globex-timestamp'] ?? '';
@@ -278,6 +281,22 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
     if (path === '/api/webhooks/globex') return webhook(body, headers);
     if (path.startsWith('/api/v1/partner/')) return partner(method, body, headers);
     if (options.token === undefined) return reply(401);
+    // RBAC: the admin holds everything (token a2, from refresh); a fresh login (a1) only what it was given.
+    if (path.startsWith('/api/v1/permissions?')) {
+      const endpoints = [{ method: 'GET', path: '/api/v1/users', summary: 'List users' }];
+      return reply(200, [{ id: 'perm-users-read', key: 'users.read', endpoints }]);
+    }
+    if (method === 'PUT' && /^\/api\/v1\/users\/[^/]+\/roles\//.test(path)) {
+      readerHasRole = true;
+      return reply(201);
+    }
+    if (method === 'PUT' && path.startsWith('/api/v1/roles/')) return reply(201);
+    if (path === '/api/v1/me/permissions') {
+      return reply(200, { super_admin: false, permissions: readerHasRole ? ['users.read'] : [] });
+    }
+    if (path === '/api/v1/users' && method === 'GET' && options.token === 'a1' && !readerHasRole) {
+      return reply(403);
+    }
     if (body === '{}' || path.includes('per_page=1000')) return reply(400);
     if (method !== 'POST') return reply(200);
     nextId += 1;

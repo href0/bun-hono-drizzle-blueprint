@@ -138,7 +138,7 @@ Labels are asymmetric — a client **sends** the request side and **reads** the 
 | Operation removed · success status changed · a security requirement removed or replaced | **BREAKING** | **BREAKING** |
 | Operation added · error status added · a security alternative added | safe | safe |
 
-| Error code added or removed (`x-error-codes`) | safe | safe |
+| Error code added or removed (`x-error-codes`), or a new code in the shared `error.code` enum of an error response — the set of codes is open: a client treats a code it does not know as a generic error of its status | safe | safe |
 | Allowed callers narrowed (a permission guard added or changed, an alternative removed — `x-allowed-callers`; `any-user` counts as no list) | **BREAKING** | **BREAKING** |
 
 Text only (`summary`, `description`, `tags`, `example`, success messages, …) is labelled `docs`; a keyword the engine does not know is assumed `BREAKING`. Source of truth: `scripts/lib/api-contract/compare.ts`, one test per row in `compare.test.ts`.

@@ -592,6 +592,70 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'C',
+    title: 'HTTP: RBAC — a role with a permission, given to a new user, who then gets in',
+    minutes: 0.05,
+    skipWhen: databaseStage,
+    run: async (ctx) => {
+      const admin = { token: token(ctx) };
+      const role = await ctx.http('POST', '/api/v1/roles', {
+        ...admin,
+        body: { key: 'acceptance_readers', name: 'Acceptance readers' },
+      });
+      const roleId = idOf(role, 'create a role');
+      const listed = await ctx.http('GET', '/api/v1/permissions?source=api&q=users.read', admin);
+      expectStatus(listed, 200, 'list the API permissions');
+      const usersRead = (
+        listed.json.data as unknown as { id: string; key: string; endpoints: unknown[] }[]
+      )
+        .filter((entry) => entry.key === 'users.read')
+        .at(0);
+      check(
+        usersRead !== undefined && usersRead.endpoints.length > 0,
+        'users.read is listed with the endpoints it opens',
+        JSON.stringify(listed.json.data).slice(0, 300),
+      );
+      expectStatus(
+        await ctx.http('PUT', `/api/v1/roles/${roleId}/permissions/${usersRead?.id ?? ''}`, admin),
+        201,
+        'map users.read to the role',
+      );
+
+      const password = strongPassword();
+      const user = await ctx.http('POST', '/api/v1/users', {
+        ...admin,
+        body: { email: 'reader@example.com', full_name: 'Reader', password },
+      });
+      const userId = idOf(user, 'create a user');
+      const login = await ctx.http('POST', '/api/v1/auth/login', {
+        body: { email: 'reader@example.com', password },
+      });
+      expectStatus(login, 200, 'the new user logs in');
+      const reader = { token: String(login.json.data?.access_token) };
+      expectStatus(
+        await ctx.http('GET', '/api/v1/users', reader),
+        403,
+        'GET /users without the role',
+      );
+      expectStatus(
+        await ctx.http('PUT', `/api/v1/users/${userId}/roles/${roleId}`, admin),
+        201,
+        'give the role to the user',
+      );
+      expectStatus(
+        await ctx.http('GET', '/api/v1/users', reader),
+        200,
+        'GET /users with the role, same token',
+      );
+      const mine = await ctx.http('GET', '/api/v1/me/permissions', reader);
+      check(
+        JSON.stringify(mine.json.data).includes('"users.read"'),
+        'GET /me/permissions lists users.read',
+        JSON.stringify(mine.json).slice(0, 300),
+      );
+    },
+  },
+  {
+    stage: 'C',
     title: 'HTTP: products, invoices with lines, audit entries',
     minutes: 0.05,
     skipWhen: databaseStage,
@@ -731,6 +795,16 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         401,
         'a forged signature',
       );
+    },
+  },
+  {
+    stage: 'C',
+    title: 'test:int: the integration suite of the new project',
+    minutes: 0.5,
+    skipWhen: databaseStage,
+    // Its own disposable database (the project's CI job `integration` runs the same suite).
+    run: async (ctx) => {
+      await ctx.run(['bun', 'run', 'env', 'dev', 'test:int']);
     },
   },
   {
