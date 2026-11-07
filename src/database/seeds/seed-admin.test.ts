@@ -30,6 +30,9 @@ const holdsSuperAdmin = (): unknown[][][] => [
   [['0192f1d0-0000-7000-8000-0000000000ab']],
 ];
 
+/** The `super_admin` lookup, then "does the user hold it?" (no). */
+const lacksSuperAdmin = (): unknown[][][] => [[[SUPER_ADMIN_ID]], []];
+
 describe('seedAdmin', () => {
   const recorder = createSqlRecorder();
   const input: SeedAdminInput = {
@@ -47,8 +50,8 @@ describe('seedAdmin', () => {
     recorder.reset();
   });
 
-  it('creates an active admin stamped by the system actor, with a hashed password', async () => {
-    const created = sampleUser({ email: input.email, role: 'admin', createdBy: 'system' });
+  it('creates an active super admin stamped by the system actor, with a hashed password', async () => {
+    const created = sampleUser({ email: input.email, createdBy: 'system' });
     recorder.respondWith([], [rowOf(users, created)], ...assignSuperAdmin(created.id));
 
     const result = await run();
@@ -62,7 +65,6 @@ describe('seedAdmin', () => {
         input.email,
         'Administrator',
         'hashed:long enough password',
-        'admin',
         true,
         'system',
       ]),
@@ -76,39 +78,31 @@ describe('seedAdmin', () => {
     );
   });
 
-  it('leaves an existing active admin untouched (idempotent)', async () => {
-    const admin = sampleUser({ email: input.email, role: 'admin' });
+  it('leaves an existing active super admin untouched (idempotent)', async () => {
+    const admin = sampleUser({ email: input.email });
     recorder.respondWith([rowOf(users, admin)], ...holdsSuperAdmin());
 
     expect(await run()).toEqual({ action: 'unchanged', user: admin });
     expect(sqlOf().some((sql) => sql.startsWith('insert') || sql.startsWith('update'))).toBe(false);
   });
 
-  it('gives an existing active admin the super_admin role when they lack it (admins from before the permission RBAC)', async () => {
-    const admin = sampleUser({ email: input.email, role: 'admin' });
-    recorder.respondWith([rowOf(users, admin)], ...assignSuperAdmin(admin.id));
+  it('refuses to touch an existing user who is not an active super admin without --promote', async () => {
+    recorder.respondWith([rowOf(users, sampleUser({ email: input.email }))], ...lacksSuperAdmin());
+    expect(run()).rejects.toThrow('already exists (not a super admin). Run again with --promote');
 
-    expect(await run()).toEqual({ action: 'promoted', user: admin });
-    expect(sqlOf()).toContain('insert into "user_roles"');
+    recorder.respondWith(
+      [rowOf(users, sampleUser({ email: input.email, isActive: false }))],
+      ...holdsSuperAdmin(),
+    );
+    expect(run()).rejects.toThrow('already exists (a super admin, inactive)');
   });
 
-  it('refuses when the super_admin role is missing (migrations not applied)', async () => {
-    recorder.respondWith([], [rowOf(users, sampleUser({ email: input.email, role: 'admin' }))], []);
-
-    expect(run()).rejects.toThrow('The super_admin role is missing');
-  });
-
-  it('refuses to touch an existing non-admin without --promote', async () => {
-    recorder.respondWith([rowOf(users, sampleUser({ email: input.email, isActive: false }))]);
-
-    expect(run()).rejects.toThrow('already exists (role user, inactive). Run again with --promote');
-  });
-
-  it('--promote turns an existing user into an active admin through the audited update', async () => {
+  it('--promote activates through the audited update and gives the super_admin role', async () => {
     const user = sampleUser({ email: input.email, isActive: false });
-    const promoted = { ...user, role: 'admin', isActive: true };
+    const promoted = { ...user, isActive: true };
     recorder.respondWith(
       [rowOf(users, user)],
+      ...lacksSuperAdmin(),
       [rowOf(users, user)],
       [rowOf(users, promoted)],
       [],
@@ -117,10 +111,23 @@ describe('seedAdmin', () => {
 
     const result = await run({ promote: true, password: undefined });
 
-    expect(result.action).toBe('promoted');
-    expect(result.user).toMatchObject({ role: 'admin', isActive: true });
+    expect(result).toEqual({ action: 'promoted', user: promoted });
     expect(sqlOf()).toContain('insert into "record_changes"');
     expect(sqlOf()).toContain('insert into "user_roles"');
+  });
+
+  it('--promote of an active user only gives the role (no update)', async () => {
+    const user = sampleUser({ email: input.email });
+    recorder.respondWith([rowOf(users, user)], ...lacksSuperAdmin(), ...assignSuperAdmin(user.id));
+
+    expect(await run({ promote: true, password: undefined })).toEqual({ action: 'promoted', user });
+    expect(sqlOf().some((sql) => sql.startsWith('update'))).toBe(false);
+  });
+
+  it('refuses when the super_admin role is missing (migrations not applied)', async () => {
+    recorder.respondWith([], [rowOf(users, sampleUser({ email: input.email }))], []);
+
+    expect(run()).rejects.toThrow('The super_admin role is missing');
   });
 
   it('--promote of an unknown email, a short password and an invalid email are refused', async () => {
@@ -141,7 +148,7 @@ describe('seedAdmin', () => {
 describe('seedAdmin with the default hasher', () => {
   it('stores an argon2 hash that verifies against the given password', async () => {
     const recorder = createSqlRecorder();
-    const created = sampleUser({ role: 'admin' });
+    const created = sampleUser();
     recorder.respondWith([], [rowOf(users, created)], ...assignSuperAdmin(created.id));
 
     await seedAdmin(
@@ -181,17 +188,11 @@ describe('seedAdmin cache eviction', () => {
     };
     const hash = (password: string) => Promise.resolve(password);
 
-    recorder.respondWith(
-      [rowOf(users, user)],
-      [rowOf(users, user)],
-      [rowOf(users, { ...user, role: 'admin' })],
-      [],
-      ...assignSuperAdmin(user.id),
-    );
+    recorder.respondWith([rowOf(users, user)], ...lacksSuperAdmin(), ...assignSuperAdmin(user.id));
     await seedAdmin(input, recorder.txHost, hash, onUserChanged);
-    recorder.respondWith([rowOf(users, { ...user, role: 'admin' })], ...holdsSuperAdmin());
+    recorder.respondWith([rowOf(users, user)], ...holdsSuperAdmin());
     await seedAdmin(input, recorder.txHost, hash, onUserChanged);
-    const other = sampleUser({ id: '0192f1d0-0000-7000-8000-0000000000cc', role: 'admin' });
+    const other = sampleUser({ id: '0192f1d0-0000-7000-8000-0000000000cc' });
     recorder.respondWith([], [rowOf(users, other)], ...assignSuperAdmin(other.id));
     await seedAdmin(
       { ...input, email: 'new@example.com', promote: false },

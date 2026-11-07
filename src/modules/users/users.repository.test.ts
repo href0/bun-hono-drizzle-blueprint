@@ -5,7 +5,7 @@ import { users, type User } from '../../database/schema';
 import { createSqlRecorder, rowOf } from '../../../test/helpers/sql-recorder';
 
 const COLUMNS =
-  '"id", "email", "full_name", "password_hash", "password_changed_at", "role", "is_active", "created_at", "updated_at", "created_by", "updated_by", "deleted_at"';
+  '"id", "email", "full_name", "password_hash", "password_changed_at", "is_active", "created_at", "updated_at", "created_by", "updated_by", "deleted_at"';
 
 /** Generic behaviour (paging, audited update, soft delete, restore) is tested in base.repository.test.ts. */
 describe('UsersRepository (Unit)', () => {
@@ -14,7 +14,6 @@ describe('UsersRepository (Unit)', () => {
     email: 'repo@example.com',
     fullName: 'Repo User',
     passwordHash: 'hash',
-    role: 'user',
     passwordChangedAt: null,
     isActive: true,
     createdAt: Temporal.Instant.from('2026-10-05T03:00:00Z'),
@@ -69,7 +68,6 @@ describe('UsersRepository (Unit)', () => {
       perPage: 10,
       sort: [{ field: 'fullName', direction: 'asc' }],
       q: 'ada',
-      role: 'admin',
       isActive: true,
       createdFrom: Temporal.Instant.from('2026-10-01T00:00:00Z'),
       createdTo: Temporal.Instant.from('2026-10-31T00:00:00Z'),
@@ -77,17 +75,12 @@ describe('UsersRepository (Unit)', () => {
 
     expect(result).toEqual({ rows: [sampleUser], total: 1 });
     const where =
-      'where ("users"."deleted_at" is null and (("users"."email" ilike $1 or "users"."full_name" ilike $2) and ("users"."role" = $3 and "users"."is_active" = $4 and ("users"."created_at" >= $5 and "users"."created_at" <= $6))))';
+      'where ("users"."deleted_at" is null and (("users"."email" ilike $1 or "users"."full_name" ilike $2) and ("users"."is_active" = $3 and ("users"."created_at" >= $4 and "users"."created_at" <= $5))))';
     expect(recorder.statements.map((statement) => statement.sql)).toEqual([
-      `select ${COLUMNS} from "users" ${where} order by "users"."full_name" asc, "users"."id" asc limit $7`,
+      `select ${COLUMNS} from "users" ${where} order by "users"."full_name" asc, "users"."id" asc limit $6`,
       `select count(*) from "users" ${where}`,
     ]);
-    expect(recorder.statements.at(1)?.params.slice(0, 4)).toEqual([
-      '%ada%',
-      '%ada%',
-      'admin',
-      true,
-    ]);
+    expect(recorder.statements.at(1)?.params.slice(0, 3)).toEqual(['%ada%', '%ada%', true]);
   });
 
   it('lists without filters: only the live-row scope', async () => {

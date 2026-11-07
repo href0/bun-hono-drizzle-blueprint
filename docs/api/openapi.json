@@ -1316,20 +1316,12 @@
                             "id": {
                               "format": "uuid",
                               "type": "string"
-                            },
-                            "role": {
-                              "enum": [
-                                "admin",
-                                "user"
-                              ],
-                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "email",
-                            "full_name",
-                            "role"
+                            "full_name"
                           ],
                           "type": "object"
                         }
@@ -1956,20 +1948,12 @@
                         "id": {
                           "format": "uuid",
                           "type": "string"
-                        },
-                        "role": {
-                          "enum": [
-                            "admin",
-                            "user"
-                          ],
-                          "type": "string"
                         }
                       },
                       "required": [
                         "id",
                         "email",
-                        "full_name",
-                        "role"
+                        "full_name"
                       ],
                       "type": "object"
                     },
@@ -15457,18 +15441,6 @@
           },
           {
             "in": "query",
-            "name": "role",
-            "required": false,
-            "schema": {
-              "enum": [
-                "admin",
-                "user"
-              ],
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
             "name": "is_active",
             "required": false,
             "schema": {
@@ -15529,8 +15501,11 @@
                           "is_active": {
                             "type": "boolean"
                           },
-                          "role": {
-                            "type": "string"
+                          "roles": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
                           },
                           "updated_at": {
                             "format": "date-time",
@@ -15541,7 +15516,7 @@
                           "id",
                           "email",
                           "full_name",
-                          "role",
+                          "roles",
                           "is_active",
                           "created_at",
                           "updated_at"
@@ -15800,13 +15775,6 @@
                     "maxLength": 1024,
                     "minLength": 8,
                     "type": "string"
-                  },
-                  "role": {
-                    "enum": [
-                      "admin",
-                      "user"
-                    ],
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -15846,8 +15814,11 @@
                         "is_active": {
                           "type": "boolean"
                         },
-                        "role": {
-                          "type": "string"
+                        "roles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
                         },
                         "updated_at": {
                           "format": "date-time",
@@ -15858,7 +15829,7 @@
                         "id",
                         "email",
                         "full_name",
-                        "role",
+                        "roles",
                         "is_active",
                         "created_at",
                         "updated_at"
@@ -16465,8 +16436,11 @@
                         "is_active": {
                           "type": "boolean"
                         },
-                        "role": {
-                          "type": "string"
+                        "roles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
                         },
                         "updated_at": {
                           "format": "date-time",
@@ -16477,7 +16451,7 @@
                         "id",
                         "email",
                         "full_name",
-                        "role",
+                        "roles",
                         "is_active",
                         "created_at",
                         "updated_at"
@@ -16767,13 +16741,6 @@
                   },
                   "is_active": {
                     "type": "boolean"
-                  },
-                  "role": {
-                    "enum": [
-                      "admin",
-                      "user"
-                    ],
-                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -16808,8 +16775,11 @@
                         "is_active": {
                           "type": "boolean"
                         },
-                        "role": {
-                          "type": "string"
+                        "roles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
                         },
                         "updated_at": {
                           "format": "date-time",
@@ -16820,7 +16790,7 @@
                         "id",
                         "email",
                         "full_name",
-                        "role",
+                        "roles",
                         "is_active",
                         "created_at",
                         "updated_at"
@@ -17842,8 +17812,11 @@
                         "is_active": {
                           "type": "boolean"
                         },
-                        "role": {
-                          "type": "string"
+                        "roles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
                         },
                         "updated_at": {
                           "format": "date-time",
@@ -17854,7 +17827,7 @@
                         "id",
                         "email",
                         "full_name",
-                        "role",
+                        "roles",
                         "is_active",
                         "created_at",
                         "updated_at"

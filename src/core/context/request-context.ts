@@ -2,7 +2,6 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { appConfig, type Locale } from '../../config';
 import type { LocalizedMessage } from '../i18n/translate';
 import type { EffectivePermissions } from '../security/rbac';
-import type { Role } from '../security/roles';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
 export type Actor =
@@ -17,7 +16,6 @@ export type Actor =
 /** The caller proven by a verified access token. */
 export interface AuthenticatedUser {
   readonly id: string;
-  readonly role: Role;
 }
 
 // partner:start

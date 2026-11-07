@@ -52,7 +52,7 @@ app.onError(globalErrorHandler);
 
 const as = async (userId: string, path: string): Promise<Response> => {
   // The token still carries a role (until plan RBAC step 4b): it authorizes nothing.
-  const { token } = await signAccessToken({ userId, role: 'admin' });
+  const { token } = await signAccessToken({ userId });
   return app.request(path, { headers: { Authorization: `Bearer ${token}` } });
 };
 
@@ -88,7 +88,7 @@ describe('requirePermission', () => {
     bare.use('/v1/*', authenticate({ basePath: '/v1', isPublic: () => false }));
     bare.get('/v1/orders', requirePermission('orders.read'), (c) => c.text('orders'));
     bare.onError(globalErrorHandler);
-    const { token } = await signAccessToken({ userId: ROOT, role: 'admin' });
+    const { token } = await signAccessToken({ userId: ROOT });
 
     const res = await bare.request('/v1/orders', { headers: { Authorization: `Bearer ${token}` } });
     expect(res.status).toBe(403);

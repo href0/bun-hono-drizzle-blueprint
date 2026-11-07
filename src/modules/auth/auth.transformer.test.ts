@@ -6,11 +6,10 @@ describe('auth transformer', () => {
     id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
     email: 'ada@example.com',
     fullName: 'Ada Lovelace',
-    role: 'admin' as const,
   };
   const accessToken = { token: 'header.payload.signature', expiresIn: 900 };
 
-  it('exposes only id, email, full name and role of the user', () => {
+  it('exposes only id, email and full name of the user (roles and permissions: /me/permissions)', () => {
     expect(toAuthUserResponse({ ...user, passwordHash: 'secret' } as typeof user)).toEqual(user);
   });
 

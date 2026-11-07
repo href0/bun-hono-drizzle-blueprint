@@ -380,14 +380,13 @@ describe('list queries on PostgreSQL (D41)', () => {
     expect(total).toBe(1);
   });
 
-  it('users: q, role and the created range narrow the page and the total together', async () => {
+  it('users: q and the created range narrow the page and the total together', async () => {
     const tag = unique('list');
     const admin = await asActor(() =>
       usersRepository.create({
         email: `${tag}-admin@example.com`,
         fullName: `Admin ${tag}`,
         passwordHash: 'not-a-real-hash',
-        role: 'admin',
       }),
     );
     await asActor(() =>
@@ -400,9 +399,9 @@ describe('list queries on PostgreSQL (D41)', () => {
 
     const base = { page: 1, perPage: 10, q: tag };
     expect((await usersRepository.findUserList(base)).total).toBe(2);
-    const admins = await usersRepository.findUserList({ ...base, role: 'admin' });
-    expect(admins.rows.map((row) => row.id)).toEqual([admin.id]);
-    expect(admins.total).toBe(1);
+    const named = await usersRepository.findUserList({ ...base, q: `Admin ${tag}` });
+    expect(named.rows.map((row) => row.id)).toEqual([admin.id]);
+    expect(named.total).toBe(1);
     const later = await usersRepository.findUserList({
       ...base,
       createdFrom: admin.createdAt.add({ hours: 1 }),

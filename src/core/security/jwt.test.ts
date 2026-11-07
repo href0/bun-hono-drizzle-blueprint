@@ -18,7 +18,6 @@ const settings: JwtSettings = {
 };
 const subject: AccessTokenSubject = {
   userId: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
-  role: 'admin',
 };
 const issuedAt = parseInstant('2026-10-12T03:00:00Z');
 const epoch = issuedAt.epochMilliseconds / 1000;
@@ -53,7 +52,6 @@ describe('signAccessToken', () => {
     expect(header).toEqual({ alg: 'HS256', typ: 'JWT' });
     expect(payload).toEqual({
       sub: subject.userId,
-      role: 'admin',
       jti: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/),
       iat: epoch,
       exp: epoch + 900,
@@ -143,7 +141,6 @@ describe('verifyAccessToken', () => {
     const hs512 = await sign(
       {
         sub: subject.userId,
-        role: 'admin',
         jti: Bun.randomUUIDv7(),
         iat: epoch,
         exp: epoch + 900,
@@ -159,15 +156,31 @@ describe('verifyAccessToken', () => {
   });
 
   it('rejects a payload edited after signing', async () => {
-    const { token } = await signAccessToken({ ...subject, role: 'user' }, settings, issuedAt);
+    const { token } = await signAccessToken({ ...subject }, settings, issuedAt);
     const [header, payload, signature] = token.split('.');
     const claims = JSON.parse(Buffer.from(payload, 'base64url').toString()) as object;
-    const tampered = `${header}.${base64Url({ ...claims, role: 'admin' })}.${signature}`;
+    const tampered = `${header}.${base64Url({ ...claims, sub: Bun.randomUUIDv7() })}.${signature}`;
 
     await expectInvalid(tampered);
   });
 
   it('rejects a correctly signed token missing a required claim (e.g. no exp = never expires)', async () => {
+    const claims = {
+      sub: subject.userId,
+      jti: Bun.randomUUIDv7(),
+      iat: epoch,
+      exp: epoch + 900,
+      iss: 'sample-app',
+      aud: 'sample-app',
+    };
+    for (const missing of ['exp', 'sub', 'jti', 'iss', 'aud'] as const) {
+      const rest = Object.fromEntries(Object.entries(claims).filter(([key]) => key !== missing));
+      await expectInvalid(await sign(rest, settings.JWT_SECRET, 'HS256'));
+    }
+    await expectInvalid(await sign({ ...claims, sub: 'not-a-uuid' }, settings.JWT_SECRET, 'HS256'));
+  });
+
+  it('accepts a token issued before the permission RBAC: its role claim is ignored (D58)', async () => {
     const claims = {
       sub: subject.userId,
       role: 'admin',
@@ -177,25 +190,13 @@ describe('verifyAccessToken', () => {
       iss: 'sample-app',
       aud: 'sample-app',
     };
-    for (const missing of ['exp', 'sub', 'role', 'jti', 'iss', 'aud'] as const) {
-      const rest = Object.fromEntries(Object.entries(claims).filter(([key]) => key !== missing));
-      await expectInvalid(await sign(rest, settings.JWT_SECRET, 'HS256'));
-    }
-    await expectInvalid(await sign({ ...claims, sub: 'not-a-uuid' }, settings.JWT_SECRET, 'HS256'));
-  });
 
-  it('rejects a role that is not (or no longer) one of ROLES', async () => {
-    const claims = {
-      sub: subject.userId,
-      role: 'superuser',
-      jti: Bun.randomUUIDv7(),
-      iat: epoch,
-      exp: epoch + 900,
-      iss: 'sample-app',
-      aud: 'sample-app',
-    };
-
-    await expectInvalid(await sign(claims, settings.JWT_SECRET, 'HS256'));
+    const verified = await verifyAccessToken(
+      await sign(claims, settings.JWT_SECRET, 'HS256'),
+      settings,
+      issuedAt,
+    );
+    expect(verified).toEqual({ userId: subject.userId, jti: claims.jti });
   });
 
   it('rejects malformed tokens', async () => {

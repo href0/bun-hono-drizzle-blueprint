@@ -37,7 +37,7 @@ const errorCode = async (res: Response): Promise<string | undefined> =>
 
 describe('authenticate (default-deny)', () => {
   it('records the verified user as actor user:<id> with its role', async () => {
-    const { token } = await signAccessToken({ userId: USER_ID, role: 'admin' });
+    const { token } = await signAccessToken({ userId: USER_ID });
 
     const res = await appWith().request(`${BASE}/private`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -46,7 +46,7 @@ describe('authenticate (default-deny)', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       actor: `user:${USER_ID}`,
-      user: { id: USER_ID, role: 'admin' },
+      user: { id: USER_ID },
     });
   });
 

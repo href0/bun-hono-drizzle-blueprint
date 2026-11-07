@@ -40,7 +40,7 @@ export const authorize = async (
   const grants = grantsOf.get(app);
   if (grants === undefined) throw new Error('authorize() needs an app made by createTestApp()');
   grants.set(userId, toEffective(grant));
-  const { token } = await signAccessToken({ userId, role: 'user' });
+  const { token } = await signAccessToken({ userId });
   const request = app.request.bind(app);
   app.request = (input, init, ...rest) => {
     const headers = new Headers(init?.headers);

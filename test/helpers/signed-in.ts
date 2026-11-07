@@ -21,7 +21,7 @@ export const toEffective = (grant: TestGrant): EffectivePermissions =>
 export const signedIn =
   (grant: TestGrant = 'super_admin', userId: string = TEST_PRINCIPAL_ID): MiddlewareHandler =>
   async (_c, next) => {
-    setAuthenticatedUser({ id: userId, role: 'user' });
+    setAuthenticatedUser({ id: userId });
     const context = getRequestContext();
     const effective = toEffective(grant);
     if (context) context.permissions = () => Promise.resolve(effective);

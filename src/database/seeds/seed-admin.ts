@@ -2,12 +2,10 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { hashPassword } from '../../core/security/password';
 import { SUPER_ADMIN_ROLE } from '../../core/security/rbac';
-import type { Role } from '../../core/security/roles';
 import { BaseRepository } from '../base.repository';
 import { roles, userRoles, users, type User } from '../schema';
 import { defaultTxHost, type TransactionHost } from '../transaction-host';
 
-const ADMIN: Role = 'admin';
 const MIN_PASSWORD_LENGTH = 8;
 
 /** A refusal the CLI prints as is (no stack trace); nothing was written. */
@@ -68,6 +66,10 @@ class SeedUserRolesRepository extends BaseRepository<typeof userRoles> {
     return id;
   }
 
+  async holdsSuperAdmin(userId: string): Promise<boolean> {
+    return this.holds(userId, await this.findSuperAdminRoleId());
+  }
+
   async holds(userId: string, roleId: string): Promise<boolean> {
     const rows = await this.txHost.tx
       .select({ id: userRoles.id })
@@ -106,20 +108,25 @@ export const seedAdmin = async (
   const result = await txHost.run(async (): Promise<SeedAdminResult> => {
     const existing = await repository.findByEmail(input.email);
     if (existing) {
-      if (existing.role === ADMIN && existing.isActive) {
-        // An admin from before the permission RBAC (or a restored database) may lack the role.
-        const given = await userRoleRepository.ensureSuperAdmin(existing.id);
-        return { action: given ? 'promoted' : 'unchanged', user: existing };
-      }
+      const superAdmin = await userRoleRepository.holdsSuperAdmin(existing.id);
+      if (superAdmin && existing.isActive) return { action: 'unchanged', user: existing };
       if (!input.promote) {
+        const state = [
+          superAdmin ? 'a super admin' : 'not a super admin',
+          existing.isActive ? '' : 'inactive',
+        ]
+          .filter(Boolean)
+          .join(', ');
         throw new SeedAdminError(
-          `${input.email} already exists (role ${existing.role}${existing.isActive ? '' : ', inactive'}). ` +
-            'Run again with --promote to make them an active admin (their password is kept).',
+          `${input.email} already exists (${state}). ` +
+            'Run again with --promote to make them an active super admin (their password is kept).',
         );
       }
-      const promoted = await repository.updateById(existing.id, { role: ADMIN, isActive: true });
+      const promoted = existing.isActive
+        ? existing
+        : ((await repository.updateById(existing.id, { isActive: true })) ?? existing);
       await userRoleRepository.ensureSuperAdmin(existing.id);
-      return { action: 'promoted', user: promoted ?? existing };
+      return { action: 'promoted', user: promoted };
     }
 
     if (input.promote) {
@@ -136,7 +143,6 @@ export const seedAdmin = async (
       email: input.email,
       fullName: input.fullName,
       passwordHash: await hash(input.password),
-      role: ADMIN,
       isActive: true,
     });
     await userRoleRepository.ensureSuperAdmin(user.id);

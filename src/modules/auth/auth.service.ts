@@ -5,7 +5,6 @@ import { getClientIp } from '../../core/context/request-context';
 import {
   APP_ERROR_CODES,
   ConflictError,
-  InternalServerError,
   TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
@@ -14,8 +13,8 @@ import { I18N_MESSAGES } from '../../core/i18n';
 import { logger } from '../../core/logger';
 import { signAccessToken, type SignedAccessToken } from '../../core/security/jwt';
 import { hashPassword, verifyPassword } from '../../core/security/password';
-import { isRole } from '../../core/security/roles';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
+import { DefaultRoleRepository, defaultRoleRepository } from '../../database/rbac/default-role';
 import { isUniqueViolation } from '../../database/unique-violation';
 import type { User } from '../../database/schema';
 import { generateOpaqueToken, sha256Hex } from '../../utils/crypto.util';
@@ -93,13 +92,12 @@ const emailTaken = (): ConflictError =>
     details: [{ field: 'email', message: AUTH_MESSAGES.EMAIL_ALREADY_REGISTERED }],
   });
 
-/** `users.role` is a plain varchar; a value outside ROLES is a broken invariant, not a login. */
-const toAuthUser = (user: User): AuthUser => {
-  if (!isRole(user.role)) {
-    throw new InternalServerError(`users.role of ${user.id} is not one of ROLES: ${user.role}`);
-  }
-  return { id: user.id, email: user.email, fullName: user.fullName, role: user.role };
-};
+/** The signed-in user as the client sees it; roles and permissions come from `/me/permissions` (D53). */
+const toAuthUser = (user: User): AuthUser => ({
+  id: user.id,
+  email: user.email,
+  fullName: user.fullName,
+});
 
 /**
  * Login, refresh-token rotation with reuse detection, logout (D1; docs/standards/auth-and-inbound.md §2).
@@ -116,6 +114,8 @@ export class AuthService {
     private readonly users: AuthUsersRepository = authUsersRepository,
     private readonly cache: CacheService = cacheService,
     private readonly settings: AuthSettings = authConfig,
+    /** Gives a new user the system role `user` (D59). */
+    private readonly defaultRole: DefaultRoleRepository = defaultRoleRepository,
   ) {}
 
   /**
@@ -223,6 +223,7 @@ export class AuthService {
         passwordHash,
         isActive: true,
       });
+      await this.defaultRole.assign(user.id);
       return toAuthUser(user);
     } catch (error) {
       // Another request registered the same email between the check and the insert.
@@ -323,7 +324,7 @@ export class AuthService {
       userAgent: client.userAgent?.slice(0, USER_AGENT_MAX_LENGTH) ?? null,
       ip: getClientIp() ?? null,
     });
-    const accessToken = await signAccessToken({ userId: user.id, role: authUser.role });
+    const accessToken = await signAccessToken({ userId: user.id });
 
     return {
       session: {

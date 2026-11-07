@@ -22,12 +22,12 @@ Base: `<API>/api/v1/auth`. Body dan respons memakai `snake_case`.
 | `POST /logout` | cookie | tanpa body | `null`, cookie dihapus (aman dipanggil berulang) |
 | `POST /logout-all` | access token | tanpa body | `null`, semua sesi user di semua perangkat diakhiri |
 | `POST /change-password` | access token | `{ "current_password", "new_password" }` | `{ "access_token", "token_type", "expires_in" }` + cookie baru; semua sesi lain diakhiri |
-| `GET /me` | access token | — | `{ "id", "email", "full_name", "role" }` |
+| `GET /me` | access token | — | `{ "id", "email", "full_name" }` |
 | `POST /register` | publik | `{ "email", "full_name", "password" }` | user baru (201). **Hanya ada bila `AUTH_REGISTRATION_ENABLED=true`**; kalau tidak, 404 |
 
 - Email tidak peka huruf besar/kecil: server menyimpan dan mencarinya dalam huruf kecil.
 - `expires_in` adalah umur access token dalam detik (default 900).
-- Hak akses berbasis **permission** (mis. `orders.read`), diberikan lewat role atau izin tambahan per pengguna dan diperiksa di setiap request — tidak tersimpan di access token, jadi perubahan hak akses berlaku di request berikutnya tanpa login ulang. Endpoint yang permission-nya tidak Anda miliki menjawab 403 `ERR_PERMISSION_FORBIDDEN`. (`user.role` masih ada di respons untuk sementara, tetapi tidak lagi menentukan akses.)
+- Hak akses berbasis **permission** (mis. `orders.read`), diberikan lewat role atau izin tambahan per pengguna dan diperiksa di setiap request — tidak tersimpan di access token, jadi perubahan hak akses berlaku di request berikutnya tanpa login ulang. Endpoint yang permission-nya tidak Anda miliki menjawab 403 `ERR_PERMISSION_FORBIDDEN`. Respons login dan `GET /auth/me` tidak lagi membawa `role`; daftar role dan permission pengguna tersedia dari endpoint khusus (lihat dokumentasi API).
 - Refresh token **tidak pernah** muncul di body respons.
 
 Cookie yang dipasang server:
@@ -182,7 +182,7 @@ Opsional: refresh lebih awal, misalnya 60 detik sebelum `expires_in` habis, supa
 | Keluar dari sesi ini | `POST /auth/logout` dengan `credentials: 'include'`, lalu hapus access token dari memori |
 | Keluar dari semua perangkat | `POST /auth/logout-all` dengan access token |
 
-Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 menit), karena server tidak menyimpan daftar access token. Hapus dari memori FE saat logout. Hal yang sama berlaku saat admin menonaktifkan, menghapus, atau **mengubah role** user: refresh berikutnya ditolak (atau memberi token dengan role baru), dan access token yang masih ada habis dengan sendirinya.
+Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 menit), karena server tidak menyimpan daftar access token. Hapus dari memori FE saat logout. Hal yang sama berlaku saat admin menonaktifkan atau menghapus user: refresh berikutnya ditolak, dan access token yang masih ada habis dengan sendirinya. Perubahan **hak akses** (role, permission) berbeda: tidak ada di token, jadi berlaku langsung di request berikutnya.
 
 ### Ganti password
 
@@ -203,7 +203,7 @@ Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 m
 | 401 | `ERR_AUTH_REFRESH_REUSED` | Refresh token lama dipakai lagi — seluruh sesi dicabut | Halaman login (periksa single-flight, §4) |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini | Sembunyikan fitur / tampilkan pesan |
 | 403 | `ERR_CSRF_ORIGIN_FORBIDDEN` | Origin FE tidak terdaftar | Konfigurasi: tambahkan origin ke `CORS_ORIGINS` |
-| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin mencoba menghapus, menonaktifkan, atau mencabut role admin akunnya sendiri | Tampilkan pesan |
+| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin mencoba menghapus atau menonaktifkan akunnya sendiri | Tampilkan pesan |
 | 400 | `ERR_INVALID_INPUT` (`details[].field = current_password`) | Password lama salah saat ganti password | Tampilkan pesan |
 | 429 | `ERR_AUTH_LOGIN_LOCKED` | Terlalu banyak percobaan login untuk email ini dari alamat ini | Tunggu `Retry-After` detik |
 | 429 | `ERR_RATE_LIMITED` | Batas request global | Tunggu `Retry-After` detik |
@@ -269,11 +269,11 @@ Subdomain lain di domain yang sama tidak bisa membaca cookie kita (`HttpOnly`, h
 
 ## 8. Akun admin pertama
 
-User dibuat oleh admin (`POST /api/v1/users`, role `admin`). Admin pertama dibuat developer di server:
+User dibuat oleh pengguna dengan permission `users.create` (`POST /api/v1/users`); user baru mendapat role `user` (tanpa permission sampai admin memetakannya). Admin pertama (role `super_admin`, memegang semua permission) dibuat developer di server:
 
 ```bash
 bun run seed:admin --email admin@example.com --name "Admin"   # password ditanyakan (disamarkan, dua kali)
-bun run seed:admin --email someone@example.com --promote      # user yang sudah ada → admin aktif
+bun run seed:admin --email someone@example.com --promote      # user yang sudah ada → super admin aktif
 ```
 
 Password tidak pernah diberikan lewat argumen atau env (tercatat di riwayat shell dan daftar proses). Untuk otomasi, kirim lewat stdin: `printf '%s\n' "$PASSWORD" | bun run seed:admin --email …`.

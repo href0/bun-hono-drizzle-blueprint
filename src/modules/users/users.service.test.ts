@@ -6,8 +6,34 @@ import { runWithRequestContext } from '../../core/context/request-context';
 import { verifyPassword } from '../../core/security/password';
 import { runInFakeTransaction } from '../../database/transaction-host';
 import type { UsersRepository } from './users.repository';
+import type { UsersRolesRepository } from './users-roles.repository';
+import type { DefaultRoleRepository } from '../../database/rbac/default-role';
 import { CacheService, type CacheClient } from '../../core/cache';
 import type { User } from '../../database/schema';
+
+/** Every user holds the role `user` here; giving the default role does nothing (database: test:int). */
+const ROLE_KEYS = {
+  findRoleKeys: (ids: readonly string[]) =>
+    Promise.resolve(new Map(ids.map((id) => [id, ['user']]))),
+} as unknown as UsersRolesRepository;
+const givenDefaultRoles: string[] = [];
+
+/** What the service returns for a row: no password data, the user's role keys. */
+const viewOf = ({ passwordHash: _hash, passwordChangedAt: _changed, ...user }: User) => ({
+  ...user,
+  roles: ['user'],
+});
+
+class TestUsersService extends UsersService {
+  constructor(repo: UsersRepository, cache: CacheService) {
+    super(repo, cache, ROLE_KEYS, {
+      assign: (userId: string) => {
+        givenDefaultRoles.push(userId);
+        return Promise.resolve();
+      },
+    } as unknown as DefaultRoleRepository);
+  }
+}
 
 describe('UsersService (Unit)', () => {
   const mockUser: User = {
@@ -15,7 +41,6 @@ describe('UsersService (Unit)', () => {
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'hashed_password',
-    role: 'user',
     passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
@@ -33,7 +58,7 @@ describe('UsersService (Unit)', () => {
     };
     const mockCache: Partial<CacheService> = {};
 
-    const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
+    const service = new TestUsersService(mockRepo as UsersRepository, mockCache as CacheService);
 
     await runInFakeTransaction(mockTx, async () => {
       expect(
@@ -53,7 +78,7 @@ describe('UsersService (Unit)', () => {
     };
     const mockCache: Partial<CacheService> = {};
 
-    const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
+    const service = new TestUsersService(mockRepo as UsersRepository, mockCache as CacheService);
 
     await runInFakeTransaction(mockTx, async () => {
       const created = await service.createUser({
@@ -65,6 +90,9 @@ describe('UsersService (Unit)', () => {
       expect(created).toBeDefined();
       expect(created.email).toBe('test@example.com');
       expect(created.fullName).toBe('Test User');
+      // D59: a new user starts with the system role user.
+      expect(givenDefaultRoles.at(-1)).toBe(created.id);
+      expect(created.roles).toEqual(['user']);
     });
   });
 
@@ -76,7 +104,7 @@ describe('UsersService (Unit)', () => {
       getOrSet: async (_key, _ttl, fetcher) => fetcher(),
     };
 
-    const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
+    const service = new TestUsersService(mockRepo as UsersRepository, mockCache as CacheService);
 
     expect(service.getUserById('non-existent-id')).rejects.toThrow(NotFoundError);
   });
@@ -89,14 +117,10 @@ describe('UsersService (Unit)', () => {
       getOrSet: async (_key, _ttl, fetcher) => fetcher(),
     };
 
-    const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
+    const service = new TestUsersService(mockRepo as UsersRepository, mockCache as CacheService);
     const user = await service.getUserById(mockUser.id);
-    // toEqual treats an undefined property as absent: the public user is the user minus the hash.
-    expect(user as unknown).toEqual({
-      ...mockUser,
-      passwordHash: undefined,
-      passwordChangedAt: undefined,
-    });
+    // The public user is the user minus the password data, plus the keys of their roles.
+    expect(user).toEqual(viewOf(mockUser));
     expect(user).not.toHaveProperty('passwordHash');
   });
 
@@ -122,7 +146,7 @@ describe('UsersService (Unit)', () => {
         return user;
       },
     } as unknown as UsersRepository;
-    const service = new UsersService(repo, new CacheService(client));
+    const service = new TestUsersService(repo, new CacheService(client));
 
     const miss = await service.getUserById(user.id);
     const hit = await service.getUserById(user.id);
@@ -139,7 +163,7 @@ describe('UsersService (Unit)', () => {
       get: async () => JSON.stringify({ id: mockUser.id, createdAt: 'not-a-date' }),
       set: async () => 'OK',
     } as unknown as CacheClient;
-    const service = new UsersService(
+    const service = new TestUsersService(
       { findById: async () => mockUser } as unknown as UsersRepository,
       new CacheService(client),
     );
@@ -157,10 +181,10 @@ describe('UsersService (Unit)', () => {
     };
     const mockCache: Partial<CacheService> = {};
 
-    const service = new UsersService(mockRepo as UsersRepository, mockCache as CacheService);
-    const query = { page: 2, perPage: 10, q: 'ada', role: 'admin' as const };
+    const service = new TestUsersService(mockRepo as UsersRepository, mockCache as CacheService);
+    const query = { page: 2, perPage: 10, q: 'ada' };
     const result = await service.listUsers(query);
-    expect(result.users).toEqual([mockUser]);
+    expect(result.users).toEqual([viewOf(mockUser)]);
     expect(result.total).toBe(1);
     expect(listQuery).toEqual(query);
   });
@@ -181,7 +205,7 @@ describe('UsersService (Unit)', () => {
       findByEmail: async () => null,
       create: async () => Promise.reject(uniqueViolation),
     };
-    const service = new UsersService(mockRepo as UsersRepository, {} as CacheService);
+    const service = new TestUsersService(mockRepo as UsersRepository, {} as CacheService);
 
     await runInFakeTransaction(mockTx, async () => {
       expect(
@@ -196,7 +220,7 @@ describe('UsersService (Unit)', () => {
       findByEmail: async () => null,
       create: async () => Promise.reject(failure),
     };
-    const service = new UsersService(mockRepo as UsersRepository, {} as CacheService);
+    const service = new TestUsersService(mockRepo as UsersRepository, {} as CacheService);
 
     await runInFakeTransaction(mockTx, async () => {
       expect(
@@ -210,10 +234,10 @@ describe('UsersService (Unit)', () => {
       const { cache, deleted } = cacheSpy();
       const updated = { ...mockUser, fullName: 'New' };
       const mockRepo: Partial<UsersRepository> = { updateById: async () => updated };
-      const service = new UsersService(mockRepo as UsersRepository, cache);
+      const service = new TestUsersService(mockRepo as UsersRepository, cache);
 
       await runInFakeTransaction(mockTx, async () => {
-        expect(await service.updateUser(mockUser.id, { fullName: 'New' })).toEqual(updated);
+        expect(await service.updateUser(mockUser.id, { fullName: 'New' })).toEqual(viewOf(updated));
       });
       expect(deleted).toEqual(['user:detail:' + mockUser.id]);
     });
@@ -224,22 +248,24 @@ describe('UsersService (Unit)', () => {
         findByEmail: async () => other,
         updateById: async () => mockUser,
       };
-      const service = new UsersService(mockRepo as UsersRepository, cacheSpy().cache);
+      const service = new TestUsersService(mockRepo as UsersRepository, cacheSpy().cache);
 
       await runInFakeTransaction(mockTx, async () => {
         expect(service.updateUser(mockUser.id, { email: other.email })).rejects.toThrow(
           ConflictError,
         );
-        expect(await service.updateUser(other.id, { email: other.email })).toEqual(mockUser);
+        expect(await service.updateUser(other.id, { email: other.email })).toEqual(
+          viewOf(mockUser),
+        );
       });
     });
 
     it('NotFoundError for a missing or deleted user; unique violation → ConflictError', async () => {
-      const service = new UsersService(
+      const service = new TestUsersService(
         { updateById: async () => null } as unknown as UsersRepository,
         cacheSpy().cache,
       );
-      const racing = new UsersService(
+      const racing = new TestUsersService(
         {
           findByEmail: async () => null,
           updateById: async () => Promise.reject(uniqueViolation),
@@ -257,11 +283,11 @@ describe('UsersService (Unit)', () => {
   describe('deleteUser / restoreUser', () => {
     it('soft-deletes and evicts the cached detail; NotFoundError when nothing to delete', async () => {
       const { cache, deleted } = cacheSpy();
-      const service = new UsersService(
+      const service = new TestUsersService(
         { softDeleteById: async () => mockUser } as unknown as UsersRepository,
         cache,
       );
-      const missing = new UsersService(
+      const missing = new TestUsersService(
         { softDeleteById: async () => null } as unknown as UsersRepository,
         cache,
       );
@@ -273,27 +299,27 @@ describe('UsersService (Unit)', () => {
 
     it('restores and evicts the cached detail; NotFoundError when not deleted', async () => {
       const { cache, deleted } = cacheSpy();
-      const service = new UsersService(
+      const service = new TestUsersService(
         { restoreById: async () => mockUser } as unknown as UsersRepository,
         cache,
       );
-      const missing = new UsersService(
+      const missing = new TestUsersService(
         { restoreById: async () => null } as unknown as UsersRepository,
         cache,
       );
 
-      expect(await service.restoreUser(mockUser.id)).toEqual(mockUser);
+      expect(await service.restoreUser(mockUser.id)).toEqual(viewOf(mockUser));
       expect(deleted).toEqual(['user:detail:' + mockUser.id]);
       expect(missing.restoreUser(mockUser.id)).rejects.toThrow(NotFoundError);
     });
 
     it('restore maps a taken email (activeUniqueIndex) to ConflictError and rethrows others', async () => {
       const failure = new Error('connection lost');
-      const taken = new UsersService(
+      const taken = new TestUsersService(
         { restoreById: async () => Promise.reject(uniqueViolation) } as unknown as UsersRepository,
         cacheSpy().cache,
       );
-      const broken = new UsersService(
+      const broken = new TestUsersService(
         { restoreById: async () => Promise.reject(failure) } as unknown as UsersRepository,
         cacheSpy().cache,
       );
@@ -310,7 +336,6 @@ describe('UsersService password reset and self-lockout', () => {
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'old-hash',
-    role: 'admin',
     passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
@@ -336,7 +361,7 @@ describe('UsersService password reset and self-lockout', () => {
         return user;
       },
     };
-    const service = new UsersService(repo as UsersRepository, cache);
+    const service = new TestUsersService(repo as UsersRepository, cache);
 
     await service.setPassword(user.id, { password: 'new password 1' });
 
@@ -346,7 +371,7 @@ describe('UsersService password reset and self-lockout', () => {
   });
 
   it('setPassword of an unknown user is a 404', async () => {
-    const service = new UsersService(
+    const service = new TestUsersService(
       { updateById: async () => null } as unknown as UsersRepository,
       cache,
     );
@@ -356,13 +381,13 @@ describe('UsersService password reset and self-lockout', () => {
     );
   });
 
-  it('an admin cannot delete, deactivate or demote themselves; other admins can', async () => {
+  it('an admin cannot delete or deactivate themselves; other admins can', async () => {
     const repo: Partial<UsersRepository> = {
       softDeleteById: async () => user,
       updateById: async () => user,
       findByEmail: async () => null,
     };
-    const service = new UsersService(repo as UsersRepository, cache);
+    const service = new TestUsersService(repo as UsersRepository, cache);
     const self = `user:${user.id}` as const;
 
     expect(asActor(self, () => service.deleteUser(user.id))).rejects.toThrow(ForbiddenError);
@@ -370,18 +395,13 @@ describe('UsersService password reset and self-lockout', () => {
       expect(asActor(self, () => service.updateUser(user.id, { isActive: false }))).rejects.toThrow(
         ForbiddenError,
       );
-      expect(asActor(self, () => service.updateUser(user.id, { role: 'user' }))).rejects.toThrow(
-        ForbiddenError,
-      );
       // Harmless changes of one's own account are fine.
       expect(
-        await asActor(self, () =>
-          service.updateUser(user.id, { fullName: 'Renamed', role: 'admin' }),
-        ),
-      ).toBe(user);
+        await asActor(self, () => service.updateUser(user.id, { fullName: 'Renamed' })),
+      ).toEqual(viewOf(user));
       expect(
         await asActor('user:another-admin', () => service.updateUser(user.id, { isActive: false })),
-      ).toBe(user);
+      ).toEqual(viewOf(user));
     });
     await asActor('user:another-admin', () => service.deleteUser(user.id));
   });

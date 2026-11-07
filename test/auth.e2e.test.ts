@@ -8,6 +8,7 @@ import { defaultTxHost } from '../src/database/transaction-host';
 import type { User } from '../src/database/schema';
 import { authRepository } from '../src/modules/auth/auth.repository';
 import { buildAuthRoutes } from '../src/modules/auth/auth.routes';
+import { defaultRoleRepository } from '../src/database/rbac/default-role';
 import { authUsersRepository } from '../src/modules/auth/auth-users.repository';
 import { createAuthFakes, sampleUser } from './helpers/auth-fakes';
 
@@ -59,6 +60,8 @@ beforeAll(async () => {
     spyOn(authUsersRepository, 'updateById').mockImplementation((id, patch) =>
       users().updateById(id, patch),
     ),
+    // A new user gets the role `user` (D59; proven against PostgreSQL by the integration suite).
+    spyOn(defaultRoleRepository, 'assign').mockImplementation(() => Promise.resolve()),
     // No database: transactions just run their callback.
     spyOn(defaultTxHost, 'run').mockImplementation((fn) => fn()),
     // A working Redis for the brute-force counter (the global rate limit has its own prefix).
@@ -125,7 +128,7 @@ describe('POST /api/v1/auth/login', () => {
       access_token: expect.any(String),
       token_type: 'Bearer',
       expires_in: 900,
-      user: { id: ada.id, email: ada.email, full_name: ada.fullName, role: 'user' },
+      user: { id: ada.id, email: ada.email, full_name: ada.fullName },
     });
     expect(res.headers.get('set-cookie')).toBe(
       `refresh_token=${cookie}; Max-Age=604800; ${COOKIE_ATTRIBUTES}`,
@@ -262,7 +265,6 @@ describe('bearer endpoints', () => {
       id: ada.id,
       email: ada.email,
       full_name: ada.fullName,
-      role: 'user',
     });
 
     const missing = await app.request('/api/v1/auth/me');
@@ -327,7 +329,6 @@ describe('POST /register', () => {
     expect(created.status).toBe(201);
     expect(((await created.json()) as Envelope).data).toMatchObject({
       email: 'new@example.com',
-      role: 'user',
     });
     expect((await register(enabled, ada.email)).status).toBe(409);
   });

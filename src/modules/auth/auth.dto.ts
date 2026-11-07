@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { emailField, MAX_PASSWORD_LENGTH, newPasswordField } from '../../core/dto/common.dto';
-import { ROLES } from '../../core/security/roles';
 
 export const loginSchema = z.object({
   email: emailField,
@@ -30,10 +29,9 @@ export const authUserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   fullName: z.string(),
-  role: z.enum(ROLES),
 });
 
-/** Also what the service returns: the role is narrowed to ROLES. */
+/** Also what the service returns. Roles and permissions: `GET /me/permissions` (plan RBAC step 6). */
 export type AuthUser = z.infer<typeof authUserSchema>;
 
 /** OAuth2-style token response; the refresh token travels only in the HttpOnly cookie. */

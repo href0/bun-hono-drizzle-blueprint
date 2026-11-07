@@ -5,7 +5,6 @@ import { authConfig, type AuthConfig } from '../../config';
 import { nowInstant } from '../../utils/datetime.util';
 import { APP_ERROR_CODES, UnauthorizedError } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
-import { ROLES, type Role } from './roles';
 
 /** The only algorithm issued and accepted; a token announcing any other (`none`, RS256…) is invalid. */
 const ALGORITHM = 'HS256';
@@ -15,9 +14,12 @@ export type JwtSettings = Pick<
   'JWT_SECRET' | 'JWT_ISSUER' | 'JWT_AUDIENCE' | 'ACCESS_TOKEN_TTL_SECONDS'
 >;
 
+/**
+ * Who the token is for — the user only: roles and permissions are never in the token (D53, D58),
+ * they are read per request, so a change applies at once instead of when the token expires.
+ */
 export interface AccessTokenSubject {
   userId: string;
-  role: Role;
 }
 
 export interface VerifiedAccessToken extends AccessTokenSubject {
@@ -37,8 +39,7 @@ export interface SignedAccessToken {
  */
 const claimsSchema = z.object({
   sub: z.string().uuid(),
-  /** A role removed from ROLES invalidates the tokens that still carry it. */
-  role: z.enum(ROLES),
+  // A `role` claim of tokens issued before the permission RBAC is ignored (stripped), not refused.
   jti: z.string().uuid(),
   iat: z.number().int(),
   exp: z.number().int(),
@@ -62,7 +63,6 @@ export const signAccessToken = async (
   const token = await sign(
     {
       sub: subject.userId,
-      role: subject.role,
       jti: Bun.randomUUIDv7(),
       iat: issuedAt,
       exp: issuedAt + settings.ACCESS_TOKEN_TTL_SECONDS,
@@ -110,5 +110,5 @@ export const verifyAccessToken = async (
     });
   }
 
-  return { userId: claims.data.sub, role: claims.data.role, jti: claims.data.jti };
+  return { userId: claims.data.sub, jti: claims.data.jti };
 };

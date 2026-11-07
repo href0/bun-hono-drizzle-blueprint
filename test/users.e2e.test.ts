@@ -15,12 +15,11 @@ import { USER_MESSAGES } from '../src/modules/users/users.messages';
  * which pollutes users.service.test.ts. spyOn only intercepts method calls on the shared singleton.
  */
 
-const mockUser: User = {
+const mockUser: User & { roles: string[] } = {
   id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   email: 'test@example.com',
   fullName: 'Test User',
   passwordHash: '$argon2id$v=19$m=16,t=2,p=1$abc',
-  role: 'user',
   passwordChangedAt: null,
   createdBy: 'system',
   updatedBy: 'system',
@@ -28,6 +27,7 @@ const mockUser: User = {
   isActive: true,
   createdAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
   updatedAt: Temporal.Instant.from('2026-01-01T00:00:00Z'),
+  roles: ['user'],
 };
 
 // No module mocks: the test env is hermetic (bunfig.toml preload) and the clients are lazy — the
@@ -90,7 +90,7 @@ describe('Users Module — E2E Contract Tests', () => {
         success: boolean;
         status_code: number;
         message: string;
-        data: { id: string; email: string; full_name: string; role: string; is_active: boolean };
+        data: { id: string; email: string; full_name: string; roles: string[]; is_active: boolean };
       };
 
       expect(body.success).toBe(true);
@@ -99,7 +99,7 @@ describe('Users Module — E2E Contract Tests', () => {
       // Verify snake_case wire format — core contract invariant
       expect(body.data.full_name).toBe('Test User');
       expect(body.data.is_active).toBe(true);
-      expect(body.data.role).toBe('user');
+      expect(body.data.roles).toEqual(['user']);
       expect(body.data.email).toBe('test@example.com');
     });
 
@@ -232,7 +232,7 @@ describe('Users Module — E2E Contract Tests', () => {
     it('passes sort, q and the typed filters to the service, parsed (D41)', async () => {
       listUsersSpy.mockClear();
       const res = await app.request(
-        '/api/v1/users?page=2&per_page=5&sort=-email,full_name&q=%20ada%20&role=admin&is_active=false&created_from=2026-10-01T00:00:00Z&created_to=2026-10-31T00:00:00Z',
+        '/api/v1/users?page=2&per_page=5&sort=-email,full_name&q=%20ada%20&is_active=false&created_from=2026-10-01T00:00:00Z&created_to=2026-10-31T00:00:00Z',
       );
       expect(res.status).toBe(200);
       expect(listUsersSpy.mock.calls[0]?.[0]).toEqual({
@@ -243,7 +243,6 @@ describe('Users Module — E2E Contract Tests', () => {
           { field: 'fullName', direction: 'asc' },
         ],
         q: 'ada',
-        role: 'admin',
         isActive: false,
         createdFrom: Temporal.Instant.from('2026-10-01T00:00:00Z'),
         createdTo: Temporal.Instant.from('2026-10-31T00:00:00Z'),
@@ -273,7 +272,11 @@ describe('Users Module — E2E Contract Tests', () => {
       );
       expect((await refused('q=%20%20'))[0]?.field).toBe('q');
       expect((await refused(`q=${'x'.repeat(101)}`))[0]?.field).toBe('q');
-      expect((await refused('role=root'))[0]?.field).toBe('role');
+      // Roles are not a filter (any more): an unknown parameter.
+      expect((await refused('role=admin'))[0]).toEqual({
+        field: 'role',
+        message: 'Unknown query parameter',
+      });
       expect(
         await refused('created_from=2026-10-02T00:00:00Z&created_to=2026-10-01T00:00:00Z'),
       ).toEqual([{ field: 'created_to', message: 'Must not be before created_from' }]);
@@ -419,7 +422,7 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
       spyOn(usersService, 'getUserById').mockImplementation(async () => mockUser),
       spyOn(usersService, 'createUser').mockImplementation(async (dto) => {
         createdWith.push(dto);
-        return { ...mockUser, role: dto.role ?? 'user' };
+        return mockUser;
       }),
     );
     admin = await authorize(createTestApp(), 'super_admin');
@@ -447,7 +450,7 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
     const attempts = [
       ['POST', '', { email: 'x@example.com', full_name: 'X', password: 'password123' }],
       ['GET', ''],
-      ['PATCH', `/${mockUser.id}`, { full_name: 'Self-promoted', role: 'admin' }],
+      ['PATCH', `/${mockUser.id}`, { full_name: 'Self-promoted' }],
       ['DELETE', `/${mockUser.id}`],
       ['POST', `/${mockUser.id}/restore`],
     ] as const;
@@ -466,26 +469,27 @@ describe('Users Module — E2E: who may do what (admin, owner, other users)', ()
     );
   });
 
-  it('an admin sees anyone and may create users with a role from ROLES', async () => {
+  it('an admin sees anyone and creates users, who start with the role user; a role in the body changes nothing', async () => {
     expect((await send(admin, 'GET', `/${otherId}`)).status).toBe(200);
 
     const created = await send(admin, 'POST', '', {
       email: 'ops@example.com',
       full_name: 'Ops',
       password: 'password123',
-      role: 'admin',
     });
     expect(created.status).toBe(201);
-    expect(((await created.json()) as { data: { role: string } }).data.role).toBe('admin');
-    expect(createdWith.at(-1)).toMatchObject({ role: 'admin' });
+    expect(((await created.json()) as { data: { roles: string[] } }).data.roles).toEqual(['user']);
+    expect(createdWith.at(-1)).not.toHaveProperty('role');
 
-    const invalid = await send(admin, 'POST', '', {
+    const withRole = await send(admin, 'POST', '', {
       email: 'root@example.com',
       full_name: 'Root',
       password: 'password123',
-      role: 'root',
+      role: 'super_admin',
     });
-    expect(invalid.status).toBe(400);
+    // Roles are given through the RBAC API, never with the user: an unknown key is dropped.
+    expect(withRole.status).toBe(201);
+    expect(createdWith.at(-1)).not.toHaveProperty('role');
   });
 });
 
@@ -567,11 +571,11 @@ describe('Users Module — E2E: an admin cannot lock themselves out (contract of
     for (const spy of spies) spy.mockRestore();
   });
 
-  it('PATCH (demote / deactivate) and DELETE of their own account → 403 ERR_SELF_LOCKOUT_FORBIDDEN', async () => {
+  it('PATCH (deactivate) and DELETE of their own account → 403 ERR_SELF_LOCKOUT_FORBIDDEN', async () => {
     const demote = await app.request(`/api/v1/users/${mockUser.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'user' }),
+      body: JSON.stringify({ is_active: false }),
     });
     const remove = await app.request(`/api/v1/users/${mockUser.id}`, { method: 'DELETE' });
 
