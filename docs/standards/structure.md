@@ -111,7 +111,7 @@ test/
 ├── setup/hermetic-env.ts        # Preload: no real database / Redis in `bun test`
 ├── helpers/                     # sql-recorder.ts (+ sql-recorder.test.ts; SQL recorder), repository-fixtures.ts (generic test tables), auth-fakes.ts (in-memory auth repositories), authorized-app.ts (tokens for contract tests), integration.ts (asActor, rejectionOf, unique for test:int)
 │   └── partner-signing-vectors.ts # published signing vectors of the partner gateway <!-- partner -->
-├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, … (*.int.ts)
+├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, rbac, … (*.int.ts)
 │   └── partner.int.ts           # the partner gateway against a real database and Redis <!-- partner -->
 ├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, outbound, list-query (every paginated list follows http-contract.md §8), …
 ├── hermetic-env.test.ts         # Guards the hermetic preload

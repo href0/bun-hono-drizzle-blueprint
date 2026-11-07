@@ -1,0 +1,165 @@
+import { describe, expect, it } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { db, sqlClient } from '../../src/database/connection';
+import { permissions, roles, userRoles } from '../../src/database/schema';
+import { NOW } from '../../src/database/schema/columns';
+import { isUniqueViolation } from '../../src/database/unique-violation';
+import { rejectionOf, unique } from '../helpers/integration';
+
+/**
+ * The RBAC tables on a real PostgreSQL (plan RBAC, step 1): the system roles and the move of
+ * `users.role` into `user_roles` written by migration 0010, and the constraints the schema
+ * declares (partial uniques, the permission source / `menu.` prefix CHECKs, RESTRICT foreign keys).
+ */
+
+const MIGRATION = 'drizzle/0010_rbac.sql';
+const DATA_MARKER = '-- Data (hand-written';
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+const SYSTEM = { createdBy: 'system', updatedBy: 'system' } as const;
+
+/** The hand-written data statements of the migration, as `drizzle-kit migrate` runs them. */
+const dataStatements = (): string[] => {
+  const migration = readFileSync(MIGRATION, 'utf-8');
+  const start = migration.indexOf(DATA_MARKER);
+  expect(start).toBeGreaterThan(0);
+  return migration
+    .slice(start)
+    .split('--> statement-breakpoint')
+    .map((statement) => statement.trim())
+    .filter((statement) => statement !== '');
+};
+
+/** Rolls back whatever `fn` wrote: the shared run database keeps only the migration's rows. */
+class Rollback extends Error {}
+const inRolledBackTransaction = async (fn: (sql: typeof sqlClient) => Promise<void>) => {
+  const error = await rejectionOf(
+    sqlClient.begin(async (sql) => {
+      await fn(sql as unknown as typeof sqlClient);
+      throw new Rollback();
+    }),
+  );
+  if (!(error instanceof Rollback)) throw error;
+};
+
+const sqlStateOf = (error: unknown): unknown => {
+  const outer = error as { code?: unknown; cause?: { code?: unknown } } | undefined;
+  return outer?.code ?? outer?.cause?.code;
+};
+
+const roleId = async (key: string): Promise<string> => {
+  const [row] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(and(eq(roles.key, key), isNull(roles.deletedAt)));
+  return row.id;
+};
+
+const insertUser = async (): Promise<string> => {
+  const id = Bun.randomUUIDv7();
+  await sqlClient`
+    insert into users (id, email, full_name, password_hash, created_by, updated_by)
+    values (${id}, ${`${unique('rbac')}@example.com`}, 'RBAC User', 'not-a-real-hash', 'system', 'system')`;
+  return id;
+};
+
+describe('migration 0010: system roles', () => {
+  it('creates super_admin and user as live system roles with UUID v7 ids', async () => {
+    const rows = await db
+      .select()
+      .from(roles)
+      .where(inArray(roles.key, ['super_admin', 'user']));
+    expect(rows.map((row) => row.key).sort()).toEqual(['super_admin', 'user']);
+    for (const row of rows) {
+      expect(row.isSystem).toBe(true);
+      expect(row.deletedAt).toBeNull();
+      expect(row.createdBy).toBe('system');
+      expect(row.id).toMatch(UUID_V7);
+    }
+  });
+});
+
+describe('migration 0010: users.role → user_roles', () => {
+  it('gives every existing user exactly their role: admin → super_admin, user → user, others → a role of their own', async () => {
+    await inRolledBackTransaction(async (sql) => {
+      // The state before 0010's data part: users with a role, no RBAC rows yet.
+      await sql`delete from user_roles`;
+      await sql`delete from roles`;
+      const people = {
+        admin: Bun.randomUUIDv7(),
+        user: Bun.randomUUIDv7(),
+        manager: Bun.randomUUIDv7(),
+      };
+      for (const [role, id] of Object.entries(people)) {
+        await sql`
+          insert into users (id, email, full_name, password_hash, role, created_by, updated_by)
+          values (${id}, ${`${unique(role)}@example.com`}, 'Before RBAC', 'x', ${role}, 'system', 'system')`;
+      }
+
+      for (const statement of dataStatements()) await sql.unsafe(statement);
+
+      const assigned = await sql<
+        { user_id: string; key: string; id: string; is_system: boolean }[]
+      >`
+        select ur.user_id, r.key, ur.id, r.is_system
+        from user_roles ur join roles r on r.id = ur.role_id
+        where ur.user_id in ${sql([people.admin, people.user, people.manager])}`;
+      const byUser = new Map(assigned.map((row) => [row.user_id, row]));
+      expect(assigned).toHaveLength(3);
+      expect(byUser.get(people.admin)?.key).toBe('super_admin');
+      expect(byUser.get(people.user)?.key).toBe('user');
+      expect(byUser.get(people.manager)?.key).toBe('manager');
+      expect(byUser.get(people.manager)?.is_system).toBe(false);
+      for (const row of assigned) expect(row.id).toMatch(UUID_V7);
+
+      const [{ count }] = await sql<{ count: number }[]>`
+        select count(*)::int as count from users u
+        where not exists (select 1 from user_roles ur where ur.user_id = u.id and ur.deleted_at is null)`;
+      expect(count).toBe(0);
+    });
+  });
+});
+
+describe('RBAC constraints', () => {
+  it('allows one live assignment of a role per user; after a revocation (soft delete) it can be given again', async () => {
+    const userId = await insertUser();
+    const role = await roleId('user');
+    const assign = () =>
+      db
+        .insert(userRoles)
+        .values({ id: Bun.randomUUIDv7(), userId, roleId: role, ...SYSTEM })
+        .returning();
+
+    const [first] = await assign();
+    expect(isUniqueViolation(await rejectionOf(assign()))).toBe(true);
+
+    await db.update(userRoles).set({ deletedAt: NOW }).where(eq(userRoles.id, first.id));
+    const [again] = await assign();
+    expect(again.id).not.toBe(first.id);
+  });
+
+  it('keeps menu permissions and API permissions apart: source api|menu, and menu. prefix ⇔ menu', async () => {
+    const insert = (key: string, source: string) =>
+      db
+        .insert(permissions)
+        .values({ id: Bun.randomUUIDv7(), key, label: key, groupName: 'test', source, ...SYSTEM });
+    const suffix = unique('p');
+
+    expect(sqlStateOf(await rejectionOf(insert(`orders.${suffix}`, 'menu')))).toBe('23514');
+    expect(sqlStateOf(await rejectionOf(insert(`menu.${suffix}`, 'api')))).toBe('23514');
+    expect(sqlStateOf(await rejectionOf(insert(`other.${suffix}`, 'ui')))).toBe('23514');
+
+    expect(await rejectionOf(insert(`orders.${suffix}`, 'api'))).toBeUndefined();
+    expect(await rejectionOf(insert(`menu.${suffix}`, 'menu'))).toBeUndefined();
+  });
+
+  it('refuses a hard delete of a role that is still referenced (ON DELETE RESTRICT)', async () => {
+    const userId = await insertUser();
+    const role = await roleId('user');
+    await db.insert(userRoles).values({ id: Bun.randomUUIDv7(), userId, roleId: role, ...SYSTEM });
+
+    const error = await rejectionOf(db.delete(roles).where(eq(roles.id, role)));
+    expect(sqlStateOf(error)).toBe('23503');
+  });
+});
