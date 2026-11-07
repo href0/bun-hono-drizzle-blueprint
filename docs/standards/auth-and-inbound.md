@@ -1,6 +1,6 @@
 # Authentication, Authorization & Inbound Channels
 
-Read this file when: adding a route (who may call it?), a role check, a public route, an endpoint of an inbound channel or a vendor webhook. Frontend-facing guide: [docs/auth-guide.md](../auth-guide.md).
+Read this file when: adding a route (who may call it?), a permission check, a public route, an endpoint of an inbound channel or a vendor webhook. Frontend-facing guide: [docs/auth-guide.md](../auth-guide.md).
 <!-- partner:start -->
 
 Partner-facing guide: [docs/partner-integration-guide.md](../partner-integration-guide.md). The partner gateway (§3, §4) is optional: `bun run setup --no-partner` removes it ([project-setup.md](project-setup.md)).
@@ -12,7 +12,7 @@ Partner-facing guide: [docs/partner-integration-guide.md](../partner-integration
 
 | Caller | Files | Mounted under | Authenticated by | Helpers allowed | Actor |
 |---|---|---|---|---|---|
-| Users (FE, mobile) | `<module>.<role>.ts` | `<API_BASE_PATH>/v1/<module>` | `authenticate()` — JWT Bearer | `requireRole`, `requireSelfOrRole`, `currentUser` | `user:<id>` |
+| Users (FE, mobile) | `<module>.<role>.ts` | `<API_BASE_PATH>/v1/<module>` | `authenticate()` — JWT Bearer | `requirePermission`, `requireSelfOrPermission`, `allowAnyUser`, `currentUser` | `user:<id>` |
 | Partner systems | `<module>.partner.<role>.ts` | `<API_BASE_PATH>/v1/partner/...` | `partnerAuth()` — signing v1 | `currentPartner`, `requirePartner` | `partner:<code>` | <!-- partner -->
 | Vendor webhooks | `<module>.webhook.<role>.ts` | `<API_BASE_PATH>/webhooks/<vendor>` (outside `/v1`) | `webhookAuth()` — the vendor's verifier | `currentWebhook` | `webhook:<vendor>` |
 
@@ -30,7 +30,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 | Need | How |
 |---|---|
 | Route for users holding a permission | `requirePermission(ORDER_PERMISSIONS.read)` — the key from the module's constant, never a string, so a typo is a compile error — after `describeEndpoint()`, before `validate()` → 403 `ERR_PERMISSION_FORBIDDEN` (documented in OpenAPI automatically, `x-allowed-callers: permission:<key>`). The key comes from the module's `<module>.permissions.ts` (registry `src/permissions.ts`, D47–D49); a role or a per-user grant gives it, a super admin holds every permission. Permissions are never in the token: `permissionContext()` (mounted after `authenticate()`) resolves them once per request through the RBAC module's cache, so a revocation applies to the next request (D53) |
-| A user's own resource (`/users/:id`) | `requireSelfOrPermission('id', 'users.read')` — the owner or a holder of the permission; otherwise the same 403 whether the resource exists or not |
+| A user's own resource (`/users/:id`) | `requireSelfOrPermission('id', USER_PERMISSIONS.read)` — the owner or a holder of the permission; otherwise the same 403 whether the resource exists or not |
 | A route for every signed-in user (own session, profile, password) | `allowAnyUser()` — no permission checked, but stated (`x-allowed-callers: any-user`) |
 | Who is calling (controller) | `currentUser()` → `{ id }` (roles and permissions are never in the token or the context user, D53 / D58); services take the id as an argument or read `getActor()` (`user:<id>`, used for audit columns) |
 | A new public route | Add it to `PUBLIC_ROUTES` (reviewed) — never a per-route "skip auth" |
@@ -41,11 +41,11 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 
 - Login returns a JWT HS256 access token (TTL `ACCESS_TOKEN_TTL_SECONDS`, default 15 min) in the body; the refresh token is **opaque**, only in the `refresh_token` cookie (`HttpOnly; Secure; SameSite=Strict; Path=<base>/v1/auth`), stored as a SHA-256 hash in `auth_refresh_tokens` (D1–D3).
 - Every refresh rotates the token; reusing an old one revokes its whole family (theft detection, 401 `ERR_AUTH_REFRESH_REUSED`).
-- **Access token claims** (D2): `sub` (user id), `role`, `jti` (UUID v7), `iat`, `exp`, `iss` = `JWT_ISSUER`, `aud` = `JWT_AUDIENCE`; verified with `alg` pinned to HS256 (`src/core/security/jwt.ts`).
+- **Access token claims** (D2): `sub` (user id), `jti` (UUID v7), `iat`, `exp`, `iss` = `JWT_ISSUER`, `aud` = `JWT_AUDIENCE` — no role or permission (D53); a `role` claim of an older token is ignored; verified with `alg` pinned to HS256 (`src/core/security/jwt.ts`).
 - **Refresh, step by step** (`auth.service.ts`, one transaction): read the cookie (missing → 401 `ERR_AUTH_REFRESH_INVALID`) → find its row by `sha256(token)` `FOR UPDATE` (unknown → invalid, cookie cleared) → a revoked row that has a `replaced_by_id` is **reuse**: revoke every live token of the family, log `warn`, 401 `ERR_AUTH_REFRESH_REUSED`; revoked without a replacement (logout, logout-all, password change) or expired → invalid → the user must still be active and the family must have started after `password_changed_at` (otherwise the family is revoked) → insert the new token in the same family with `expires_at = min(now + REFRESH_TOKEN_TTL_SECONDS, family_started_at + REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS)`, mark the old one revoked and `replaced_by_id` = the new one → new access token + new cookie.
 - Cookie endpoints (`/auth/login`, `/auth/refresh`, `/auth/logout`) use `csrfProtection()` (`Origin` ∈ `CORS_ORIGINS`, `Sec-Fetch-Site`); why, and the effect of domains / subdomains: [auth-guide.md](../auth-guide.md) §7.
 - Login attempts are limited per (email, IP) (`AUTH_LOGIN_MAX_ATTEMPTS`, Redis counter) → 429 `ERR_AUTH_LOGIN_LOCKED`. The counter fails open: without Redis the lock is off and only the argon2id cost slows guessing ([cache.md](cache.md) §6) — run Redis in production.
-- Access tokens are not re-checked against the database: role changes, deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); the next refresh already refuses / re-reads the role.
+- Access tokens are not re-checked against the database: deactivation and password changes take full effect when the token expires (≤ `ACCESS_TOKEN_TTL_SECONDS`); the next refresh already refuses. Role and permission changes apply to the next request, since permissions are resolved per request (§2).
 - Passwords are hashed and verified only with `hashPassword` / `verifyPassword` (`src/core/security/password.ts`, argon2id with Bun's defaults; a cheap cost only when `NODE_ENV=test`, so never run a server with `NODE_ENV=test`). The login dummy hash uses the same helper, so an unknown email costs as long as a wrong password (R75).
 - Request emails use `emailField` (trimmed, lower-cased; stored and searched lower-case); new passwords `newPasswordField`. An admin cannot delete, deactivate or demote their own account (403 `ERR_SELF_LOCKOUT_FORBIDDEN`).
 - Security logs never contain plaintext emails (hashed): `Login failed` (`reason`), `Login locked`, `Login succeeded`, `Logged out of every session`, `Password changed`, `Refresh token reused`, `Refresh refused`.
