@@ -4,7 +4,7 @@ import { authConfig } from '../../config';
 import { CacheService, cacheService, CACHE_KEYS } from '../../core/cache';
 import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors';
 import { SUPER_ADMIN_ROLE } from '../../core/security/rbac';
-import { runInTransaction } from '../../database/transactional.decorator';
+import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
 import type { Role, RolePermission, UserPermission, UserRole } from '../../database/schema';
 import { nowInstant } from '../../utils/datetime.util';
@@ -61,9 +61,8 @@ const INVALIDATION_BATCH = 100;
  * RBAC (plan RBAC step 3): the effective permissions of a user, cached per user (D53), and every
  * change of roles, role mappings and per-user grants. Writes run in one transaction through the
  * base repositories (audited in `record_changes`); the cached permissions of every affected user
- * are dropped **after** the transaction, so a concurrent read cannot cache the old state again.
- * Inside a caller's transaction the drop happens before that transaction commits — call these
- * methods outside one. Redis down: reads go to the database, a missed drop is bounded by
+ * are dropped after the outermost commit (`afterCommit`, D63), so a concurrent read cannot cache
+ * the old state again. Redis down: reads go to the database, a missed drop is bounded by
  * `RBAC_PERMISSION_CACHE_TTL_SECONDS`.
  */
 export class RbacService {
@@ -101,61 +100,56 @@ export class RbacService {
     return effective.superAdmin || effective.permissions.includes(permission);
   }
 
+  @Transactional()
   async assignRole(userId: string, roleId: string): Promise<UserRole> {
-    const assigned = await runInTransaction(async () => {
-      await this.requireLiveUser(userId);
-      await this.requireRole(roleId);
-      if (await this.userRolesRepo.findLive(userId, roleId)) {
-        throw new ConflictError(RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED);
-      }
-      return this.createUnique(
-        () => this.userRolesRepo.create({ userId, roleId }),
-        RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED,
-      );
-    });
+    await this.requireLiveUser(userId);
+    await this.requireRole(roleId);
+    if (await this.userRolesRepo.findLive(userId, roleId)) {
+      throw new ConflictError(RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED);
+    }
+    const assigned = await this.createUnique(
+      () => this.userRolesRepo.create({ userId, roleId }),
+      RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED,
+    );
     await this.forget([userId]);
     return assigned;
   }
 
   /** Soft delete = revocation (D55), audited. */
+  @Transactional()
   async revokeRole(userId: string, roleId: string): Promise<void> {
-    await runInTransaction(async () => {
-      const assignment = await this.userRolesRepo.findLive(userId, roleId);
-      if (!assignment) throw new NotFoundError(rbacRoleNotAssignedMessage(userId, roleId));
-      await this.userRolesRepo.softDeleteById(assignment.id);
-    });
+    const assignment = await this.userRolesRepo.findLive(userId, roleId);
+    if (!assignment) throw new NotFoundError(rbacRoleNotAssignedMessage(userId, roleId));
+    await this.userRolesRepo.softDeleteById(assignment.id);
     await this.forget([userId]);
   }
 
+  @Transactional()
   async mapPermission(roleId: string, permissionId: string): Promise<RolePermission> {
-    const { mapping, holders } = await runInTransaction(async () => {
-      await this.requireMappableRole(roleId);
-      await this.requireGrantablePermission(permissionId);
-      if (await this.rolePermissionsRepo.findLive(roleId, permissionId)) {
-        throw new ConflictError(RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED);
-      }
-      const created = await this.createUnique(
-        () => this.rolePermissionsRepo.create({ roleId, permissionId }),
-        RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED,
-      );
-      return { mapping: created, holders: await this.userRolesRepo.findHolderIds(roleId) };
-    });
-    await this.forget(holders);
+    await this.requireMappableRole(roleId);
+    await this.requireGrantablePermission(permissionId);
+    if (await this.rolePermissionsRepo.findLive(roleId, permissionId)) {
+      throw new ConflictError(RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED);
+    }
+    const mapping = await this.createUnique(
+      () => this.rolePermissionsRepo.create({ roleId, permissionId }),
+      RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED,
+    );
+    await this.forget(await this.userRolesRepo.findHolderIds(roleId));
     return mapping;
   }
 
+  @Transactional()
   async unmapPermission(roleId: string, permissionId: string): Promise<void> {
-    const holders = await runInTransaction(async () => {
-      await this.requireMappableRole(roleId);
-      const mapping = await this.rolePermissionsRepo.findLive(roleId, permissionId);
-      if (!mapping) throw new NotFoundError(rbacPermissionNotMappedMessage(roleId, permissionId));
-      await this.rolePermissionsRepo.softDeleteById(mapping.id);
-      return this.userRolesRepo.findHolderIds(roleId);
-    });
-    await this.forget(holders);
+    await this.requireMappableRole(roleId);
+    const mapping = await this.rolePermissionsRepo.findLive(roleId, permissionId);
+    if (!mapping) throw new NotFoundError(rbacPermissionNotMappedMessage(roleId, permissionId));
+    await this.rolePermissionsRepo.softDeleteById(mapping.id);
+    await this.forget(await this.userRolesRepo.findHolderIds(roleId));
   }
 
   /** An extra permission for one user, optionally until `expiresAt` (D51). */
+  @Transactional()
   async grantPermission(
     userId: string,
     permissionId: string,
@@ -165,34 +159,31 @@ export class RbacService {
     if (expiresAt !== null && Temporal.Instant.compare(expiresAt, nowInstant()) <= 0) {
       throw new BadRequestError(RBAC_MESSAGES.EXPIRY_IN_PAST);
     }
-    const granted = await runInTransaction(async () => {
-      await this.requireLiveUser(userId);
-      await this.requireGrantablePermission(permissionId);
-      if (await this.userPermissionsRepo.findLive(userId, permissionId)) {
-        throw new ConflictError(RBAC_MESSAGES.PERMISSION_ALREADY_GRANTED);
-      }
-      return this.createUnique(
-        () =>
-          this.userPermissionsRepo.create({
-            userId,
-            permissionId,
-            expiresAt,
-            note: input.note ?? null,
-          }),
-        RBAC_MESSAGES.PERMISSION_ALREADY_GRANTED,
-      );
-    });
+    await this.requireLiveUser(userId);
+    await this.requireGrantablePermission(permissionId);
+    if (await this.userPermissionsRepo.findLive(userId, permissionId)) {
+      throw new ConflictError(RBAC_MESSAGES.PERMISSION_ALREADY_GRANTED);
+    }
+    const granted = await this.createUnique(
+      () =>
+        this.userPermissionsRepo.create({
+          userId,
+          permissionId,
+          expiresAt,
+          note: input.note ?? null,
+        }),
+      RBAC_MESSAGES.PERMISSION_ALREADY_GRANTED,
+    );
     await this.forget([userId]);
     return granted;
   }
 
   /** Soft delete = revocation (D55), audited — also for a grant that has already expired. */
+  @Transactional()
   async revokePermission(userId: string, permissionId: string): Promise<void> {
-    await runInTransaction(async () => {
-      const grant = await this.userPermissionsRepo.findLive(userId, permissionId);
-      if (!grant) throw new NotFoundError(rbacPermissionNotGrantedMessage(userId, permissionId));
-      await this.userPermissionsRepo.softDeleteById(grant.id);
-    });
+    const grant = await this.userPermissionsRepo.findLive(userId, permissionId);
+    if (!grant) throw new NotFoundError(rbacPermissionNotGrantedMessage(userId, permissionId));
+    await this.userPermissionsRepo.softDeleteById(grant.id);
     await this.forget([userId]);
   }
 
@@ -206,14 +197,17 @@ export class RbacService {
     }, this.ttlSeconds);
   }
 
+  /** Drops the cached permissions of `userIds` once the change has committed. */
   private async forget(userIds: readonly string[]): Promise<void> {
-    for (let start = 0; start < userIds.length; start += INVALIDATION_BATCH) {
-      await Promise.all(
-        userIds
-          .slice(start, start + INVALIDATION_BATCH)
-          .map((userId) => this.cache.del(CACHE_KEYS.userPermissions(userId))),
-      );
-    }
+    await afterCommit(async () => {
+      for (let start = 0; start < userIds.length; start += INVALIDATION_BATCH) {
+        await Promise.all(
+          userIds
+            .slice(start, start + INVALIDATION_BATCH)
+            .map((userId) => this.cache.del(CACHE_KEYS.userPermissions(userId))),
+        );
+      }
+    });
   }
 
   /** A unique violation of a concurrent identical write is the same conflict as the check before it. */

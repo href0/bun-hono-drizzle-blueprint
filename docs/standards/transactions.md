@@ -132,4 +132,5 @@ describe('UsersRepository (Unit)', () => {
 
 - A query with nothing queued gets no rows; partial selects take raw rows (`respondWith([[5]])` for a count).
 - The recorder proves what is **sent**, not how PostgreSQL reacts (constraints, partial indexes, `FOR UPDATE` locks) — that is the integration suite.
+- Work that must wait for the commit — cache invalidation (R88) — is queued with `afterCommit(fn)` (services import it with `Transactional` from `transactional.decorator.ts`; `transaction-host.ts` itself stays repository-only, R32): it runs after the outermost commit, at once without a transaction, never after a rollback. Service tests with fake repositories wrap the call in `runInFakeTransaction({}, fn)`, which commits the stand-in (runs the queued work) when `fn` succeeds.
 - `@Transactional()` / `runInTransaction()` use `defaultTxHost` (the real pool). Code that must be tested transactionally opens its transaction through its injected host (`this.txHost.run(...)`); a repository call inside joins it.

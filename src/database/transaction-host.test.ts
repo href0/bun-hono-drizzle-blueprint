@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { getRequestContext, runWithRequestContext } from '../core/context/request-context';
-import { defaultTxHost, TransactionHost, transactionStorage } from './transaction-host';
+import {
+  afterCommit,
+  defaultTxHost,
+  runInFakeTransaction,
+  TransactionHost,
+  transactionStorage,
+} from './transaction-host';
 import { db } from './connection';
 import { createSqlRecorder } from '../../test/helpers/sql-recorder';
 
@@ -69,5 +75,93 @@ describe('TransactionHost (Unit)', () => {
           expect(getRequestContext()?.requestId).toBe('req-tx');
         }),
     );
+  });
+});
+
+describe('afterCommit (D63, R88)', () => {
+  /** The statements so far, plus `AFTER` where queued work ran. */
+  const trace = (recorder: ReturnType<typeof createSqlRecorder>, log: string[]) => () => {
+    log.push(...recorder.statements.splice(0).map((statement) => statement.sql), 'AFTER');
+    return Promise.resolve();
+  };
+
+  it('runs at once outside a transaction', async () => {
+    const log: string[] = [];
+    await afterCommit(() => {
+      log.push('ran');
+      return Promise.resolve();
+    });
+    expect(log).toEqual(['ran']);
+  });
+
+  it('runs after the outermost commit — also work queued by a joined, nested run', async () => {
+    const recorder = createSqlRecorder();
+    const log: string[] = [];
+
+    const result = await recorder.txHost.run(async () => {
+      await afterCommit(trace(recorder, log));
+      await recorder.txHost.run(() => afterCommit(trace(recorder, log)));
+      expect(log).toEqual([]);
+      return 'done';
+    });
+
+    expect(result).toBe('done');
+    expect(log).toEqual(['BEGIN', 'COMMIT', 'AFTER', 'AFTER']);
+  });
+
+  it('never runs after a rollback', async () => {
+    const recorder = createSqlRecorder();
+    const log: string[] = [];
+
+    const failure = await recorder.txHost
+      .run(async () => {
+        await afterCommit(trace(recorder, log));
+        throw new Error('refused');
+      })
+      .catch((error: unknown) => error);
+
+    expect(failure).toEqual(new Error('refused'));
+    expect(log).toEqual([]);
+    await recorder.txHost.run(() => Promise.resolve());
+    expect(log).toEqual([]);
+  });
+
+  it('logs work that fails after the commit instead of failing the committed change', async () => {
+    const recorder = createSqlRecorder();
+    const log: string[] = [];
+
+    await recorder.txHost.run(async () => {
+      await afterCommit(() => Promise.reject(new Error('cache down')));
+      await afterCommit(trace(recorder, log));
+    });
+
+    expect(log).toEqual(['BEGIN', 'COMMIT', 'AFTER']);
+  });
+
+  it('runInFakeTransaction: the stand-in commits when fn succeeds, drops the work when it throws', async () => {
+    const log: string[] = [];
+    const queue = () =>
+      afterCommit(() => {
+        log.push('ran');
+        return Promise.resolve();
+      });
+
+    expect(
+      await runInFakeTransaction({}, async () => {
+        await queue();
+        expect(log).toEqual([]);
+        return 1;
+      }),
+    ).toBe(1);
+    expect(log).toEqual(['ran']);
+
+    const fake = {};
+    const failure = await runInFakeTransaction(fake, async () => {
+      await queue();
+      throw new Error('refused');
+    }).catch((error: unknown) => error);
+    expect(failure).toEqual(new Error('refused'));
+    await runInFakeTransaction(fake, () => Promise.resolve());
+    expect(log).toEqual(['ran']);
   });
 });

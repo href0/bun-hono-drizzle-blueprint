@@ -1,5 +1,8 @@
 import { defaultTxHost } from './transaction-host';
 
+/** Work after the outermost commit (D63, R88): services queue cache invalidation with it. */
+export { afterCommit } from './transaction-host';
+
 /** Runs `fn` in a transaction on the default connection; joins an active one (`TransactionHost.run`). */
 export const runInTransaction = async <T>(fn: () => Promise<T>): Promise<T> =>
   defaultTxHost.run(fn);

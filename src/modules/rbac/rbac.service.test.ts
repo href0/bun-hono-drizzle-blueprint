@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { CacheService, type CacheClient } from '../../core/cache';
 import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors';
 import type { Role } from '../../database/schema';
-import { transactionStorage } from '../../database/transaction-host';
+import { runInFakeTransaction } from '../../database/transaction-host';
 import { nowInstant, parseInstant } from '../../utils/datetime.util';
 import type { RbacPermissionsRepository } from './rbac-permissions.repository';
 import type { RbacRolePermissionsRepository } from './rbac-role-permissions.repository';
@@ -38,8 +38,8 @@ const memoryCache = () => {
 const role = (key: string): Role => ({ id: `role-${key}`, key }) as Role;
 const SOON = (seconds: number) => nowInstant().add({ seconds });
 
-/** Runs `fn` as if inside a transaction, so `runInTransaction` joins instead of opening one. */
-const inTx = <T>(fn: () => Promise<T>): Promise<T> => transactionStorage.run({} as never, fn);
+/** Runs `fn` in a stand-in transaction that commits: `@Transactional()` joins it, `afterCommit` work runs after. */
+const inTx = <T>(fn: () => Promise<T>): Promise<T> => runInFakeTransaction({}, fn);
 
 const errorOf = async (promise: Promise<unknown>): Promise<unknown> =>
   promise.then(
@@ -249,7 +249,7 @@ describe('RbacService', () => {
     it('400 for a grant that would already have expired', async () => {
       const past = parseInstant('2020-01-01T00:00:00Z');
       expect(
-        await errorOf(service().grantPermission('u1', 'p1', { expiresAt: past })),
+        await errorOf(inTx(() => service().grantPermission('u1', 'p1', { expiresAt: past }))),
       ).toBeInstanceOf(BadRequestError);
     });
   });

@@ -60,7 +60,7 @@ src/
 │   ├── append-only.repository.ts # AppendOnlyRepository: record tables (append + read)
 │   ├── read-only.repository.ts  # ReadOnlyRepository: reference views (read only)
 │   ├── unique-violation.ts      # isUniqueViolation(): SQLSTATE 23505 → services throw ConflictError
-│   ├── transaction-host.ts      # TransactionHost (active transaction or pool)
+│   ├── transaction-host.ts      # TransactionHost (active transaction or pool), afterCommit() (work after the outermost commit, D63), runInFakeTransaction() for service tests
 │   ├── transactional.decorator.ts # @Transactional() and runInTransaction()
 │   ├── health-probe.ts          # pingDatabase() for health checks
 │   ├── seeds/                   # seed-admin.ts (`bun run seed:admin`)

@@ -175,6 +175,19 @@ const RAW_QUERY_RULES = [
   },
 ];
 
+/**
+ * R88 (D63): a module drops cache entries only after the change committed — inside
+ * `afterCommit(() => …)` (`src/database/transaction-host.ts`). A drop inside a transaction lets a
+ * concurrent read cache the old row again until the TTL.
+ */
+const CACHE_DROP_RULES = [
+  {
+    selector: `CallExpression[callee.property.name='del'][callee.object.property.name='cache']:not(CallExpression[callee.name='afterCommit'] CallExpression), CallExpression[callee.property.name='del'][callee.object.name='cache']:not(CallExpression[callee.name='afterCommit'] CallExpression), CallExpression[callee.property.name='del'][callee.object.name='cacheService']:not(CallExpression[callee.name='afterCommit'] CallExpression)`,
+    message:
+      'Drop cache entries after the commit: await afterCommit(() => this.cache.del(key)) (src/database/transaction-host.ts, docs/standards/cache.md).',
+  },
+];
+
 /** @Transactional() marks a business operation: services only. */
 const TRANSACTIONAL_RULES = [
   {
@@ -698,6 +711,7 @@ export default tseslint.config(
         'error',
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
+        ...CACHE_DROP_RULES,
         ...MODULE_ERROR_RULES,
         ...MODULE_DATA_RULES,
         ...TX_WRITE_RULES,
@@ -718,6 +732,7 @@ export default tseslint.config(
         'error',
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
+        ...CACHE_DROP_RULES,
         ...MODULE_ERROR_RULES,
         ...MODULE_DATA_RULES,
         ...TX_WRITE_RULES,
@@ -733,6 +748,7 @@ export default tseslint.config(
         'error',
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
+        ...CACHE_DROP_RULES,
         ...MODULE_ERROR_RULES,
         ...MODULE_DATA_RULES,
         ...REPOSITORY_SYNTAX_RULES,
@@ -750,6 +766,7 @@ export default tseslint.config(
         'error',
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
+        ...CACHE_DROP_RULES,
         ...MODULE_ERROR_RULES,
         ...MODULE_DATA_RULES,
         ...AUTH_TOKEN_REPOSITORY_RULES,
@@ -766,6 +783,7 @@ export default tseslint.config(
         'error',
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
+        ...CACHE_DROP_RULES,
         ...MODULE_ERROR_RULES,
         ...MODULE_DATA_RULES,
         ...TX_WRITE_RULES,
@@ -788,6 +806,7 @@ export default tseslint.config(
         'error',
         ...SOURCE_SYNTAX_RULES,
         ...MODULE_SYNTAX_RULES,
+        ...CACHE_DROP_RULES,
         ...MODULE_ERROR_RULES,
         ...MODULE_DATA_RULES,
         ...TX_WRITE_RULES,
