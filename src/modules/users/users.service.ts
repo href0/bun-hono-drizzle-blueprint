@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { UsersRepository, usersRepository } from './users.repository';
+import { UsersRolesRepository, usersRolesRepository } from './users-roles.repository';
 import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../../core/cache';
 import { instantField } from '../../core/dto/datetime.dto';
 import { getActor } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors';
 import { hashPassword } from '../../core/security/password';
+import { DefaultRoleRepository, defaultRoleRepository } from '../../database/rbac/default-role';
 import { isUniqueViolation } from '../../database/unique-violation';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import type {
@@ -13,6 +15,7 @@ import type {
   SetPasswordDto,
   UpdateUserDto,
   UserListQueryDto,
+  UserWithRoles,
 } from './users.dto';
 import { nowInstant } from '../../utils/datetime.util';
 import { USER_MESSAGES, userNotFoundMessage } from './users.messages';
@@ -22,11 +25,12 @@ const toPublicUser = ({
   passwordHash: _passwordHash,
   passwordChangedAt: _passwordChangedAt,
   ...user
-}: User): PublicUser => user;
+}: PublicUser & Partial<Pick<User, 'passwordHash' | 'passwordChangedAt'>>): PublicUser => user;
 
 /**
- * An admin may not lock themselves out: delete, deactivate or demote their own account (another
- * admin can; the last-resort recovery is `bun run seed:admin --promote`).
+ * An admin may not lock themselves out: delete or deactivate their own account (another admin can;
+ * the last-resort recovery is `bun run seed:admin --promote`). Removing their own roles is the RBAC
+ * API's concern.
  */
 const forbidSelfLockout = (id: string): void => {
   if (getActor() === `user:${id}`) {
@@ -44,7 +48,6 @@ const cachedUserSchema = z.object({
   id: z.string(),
   email: z.string(),
   fullName: z.string(),
-  role: z.string(),
   isActive: z.boolean(),
   createdAt: instantField,
   updatedAt: instantField,
@@ -64,22 +67,38 @@ export class UsersService {
   constructor(
     private readonly repo: UsersRepository = usersRepository,
     private readonly cache: CacheService = cacheService,
+    private readonly userRoles: UsersRolesRepository = usersRolesRepository,
+    /** Gives a new user the system role `user` (D59). */
+    private readonly defaultRole: DefaultRoleRepository = defaultRoleRepository,
   ) {}
 
+  /** Adds each user's live role keys (one query for the whole list). */
+  private async withRoles(list: readonly PublicUser[]): Promise<UserWithRoles[]> {
+    const keys = await this.userRoles.findRoleKeys(list.map((user) => user.id));
+    return list.map((user) => ({ ...toPublicUser(user), roles: keys.get(user.id) ?? [] }));
+  }
+
+  private async oneWithRoles(user: PublicUser): Promise<UserWithRoles> {
+    const [withRoles] = await this.withRoles([user]);
+    return withRoles;
+  }
+
+  /** A new user starts with the system role `user` (D59) — in the same transaction. */
   @Transactional()
-  async createUser(dto: CreateUserDto): Promise<User> {
+  async createUser(dto: CreateUserDto): Promise<UserWithRoles> {
     if (await this.repo.findByEmail(dto.email)) throw emailTaken();
 
     const passwordHash = await hashPassword(dto.password);
 
     try {
-      return await this.repo.create({
+      const user = await this.repo.create({
         email: dto.email,
         fullName: dto.fullName,
         passwordHash,
-        ...(dto.role === undefined ? {} : { role: dto.role }),
         isActive: true,
       });
+      await this.defaultRole.assign(user.id);
+      return await this.oneWithRoles(user);
     } catch (error) {
       // Another request registered the same email between the check and the insert.
       if (isUniqueViolation(error)) throw emailTaken();
@@ -87,11 +106,14 @@ export class UsersService {
     }
   }
 
-  /** Cached without the password hash; a hit is revived to the same types as a miss. */
-  async getUserById(id: string): Promise<PublicUser> {
+  /**
+   * Cached without the password hash; a hit is revived to the same types as a miss. The roles are
+   * read fresh: they change through the RBAC API, which knows nothing of this cache.
+   */
+  async getUserById(id: string): Promise<UserWithRoles> {
     const cacheKey = CACHE_KEYS.userDetail(id);
 
-    return this.cache.getOrSet(
+    const user = await this.cache.getOrSet(
       cacheKey,
       CACHE_TTL.USER_DETAIL,
       async () => {
@@ -103,19 +125,18 @@ export class UsersService {
       },
       { revive: reviveCachedUser },
     );
+    return this.oneWithRoles(user);
   }
 
   /** Live users matching the query; newest first unless `sort` says otherwise (D41). */
-  async listUsers(query: UserListQueryDto): Promise<{ users: User[]; total: number }> {
+  async listUsers(query: UserListQueryDto): Promise<{ users: UserWithRoles[]; total: number }> {
     const { rows, total } = await this.repo.findUserList(query);
-    return { users: rows, total };
+    return { users: await this.withRoles(rows), total };
   }
 
   @Transactional()
-  async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
-    if (dto.isActive === false || (dto.role !== undefined && dto.role !== 'admin')) {
-      forbidSelfLockout(id);
-    }
+  async updateUser(id: string, dto: UpdateUserDto): Promise<UserWithRoles> {
+    if (dto.isActive === false) forbidSelfLockout(id);
     if (dto.email !== undefined) {
       const holder = await this.repo.findByEmail(dto.email);
       if (holder && holder.id !== id) throw emailTaken();
@@ -125,7 +146,7 @@ export class UsersService {
       const updated = await this.repo.updateById(id, dto);
       if (!updated) throw new NotFoundError(userNotFoundMessage(id));
       await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
-      return updated;
+      return await this.oneWithRoles(updated);
     } catch (error) {
       if (isUniqueViolation(error)) throw emailTaken();
       throw error;
@@ -154,12 +175,12 @@ export class UsersService {
     await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
   }
 
-  async restoreUser(id: string): Promise<User> {
+  async restoreUser(id: string): Promise<UserWithRoles> {
     try {
       const restored = await this.repo.restoreById(id);
       if (!restored) throw new NotFoundError(userNotFoundMessage(id));
       await afterCommit(() => this.cache.del(CACHE_KEYS.userDetail(id)));
-      return restored;
+      return await this.oneWithRoles(restored);
     } catch (error) {
       // A live user took the email while this one was deleted (activeUniqueIndex).
       if (isUniqueViolation(error)) throw emailTaken();

@@ -154,8 +154,8 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
     status: 403,
     type: TYPE.FORBIDDEN,
     meaning: {
-      id: 'Admin tidak bisa menghapus, menonaktifkan, atau menurunkan role akunnya sendiri',
-      en: 'An admin cannot delete, deactivate or demote their own account',
+      id: 'Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri',
+      en: 'An admin cannot delete or deactivate their own account',
     },
   },
   // partner:start

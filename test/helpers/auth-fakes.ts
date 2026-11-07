@@ -24,7 +24,6 @@ export const sampleUser = (overrides: Partial<User> = {}): User => ({
   fullName: 'Ada Lovelace',
   // Filled in by the tests that log in (hashing is slow; most tests never need it).
   passwordHash: 'not-a-real-hash',
-  role: 'user',
   passwordChangedAt: null,
   isActive: true,
   createdAt: parseInstant('2026-10-01T00:00:00Z'),
@@ -102,7 +101,6 @@ export const createAuthFakes = (
       const user = sampleUser({
         ...input,
         id: Bun.randomUUIDv7(),
-        role: input.role ?? 'user',
         isActive: input.isActive ?? true,
       });
       users.push(user);

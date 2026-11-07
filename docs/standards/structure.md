@@ -48,7 +48,7 @@ src/
 │   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, webhookAuth, permissionContext / requirePermission / requireSelfOrPermission / allowAnyUser, validate, globalErrorHandler, …
 │   ├── openapi/                 # describeEndpoint, envelope schemas, OpenAPI document + Scalar UI (<base>/docs), contract guard (NODE_ENV=test)
 │   ├── response/                # ApiResponse (success envelope), error envelope builder
-│   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist), rbac.ts (PermissionDefinition, crudPermissions, registry checks, SYSTEM_ROLES)
+│   └── security/                # JWT HS256 access tokens (no role claim), PUBLIC_ROUTES (default-deny allowlist), rbac.ts (PermissionDefinition, crudPermissions, registry checks, SYSTEM_ROLES)
 │       └── partner-credentials.ts # partnerAuth() keys: API key hash, secret cipher (the partner gateway) <!-- partner -->
 │
 ├── database/                    # Drizzle infrastructure & data layer
@@ -65,7 +65,7 @@ src/
 │   ├── health-probe.ts          # pingDatabase() for health checks
 │   ├── seeds/                   # seed-admin.ts (`bun run seed:admin`)
 │   ├── maintenance/             # purge-refresh-tokens.ts (`bun run auth:purge-tokens`: the purge and the count it shows first)
-│   ├── rbac/                    # permission-sync.ts: the permission registry into `permissions` + the system roles (`bun run db:sync-permissions`, run by `db:migrate`), the start check
+│   ├── rbac/                    # default-role.ts (the system role user of every new user, D59); permission-sync.ts: the permission registry into `permissions` + the system roles (`bun run db:sync-permissions`, run by `db:migrate`), the start check
 │   └── schema/                  # Table definitions (public) & reference views
 │       ├── schemas.ts           # appTable (public) & referenceSchema — the only pgTable / pgSchema
 │       ├── columns.ts           # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …

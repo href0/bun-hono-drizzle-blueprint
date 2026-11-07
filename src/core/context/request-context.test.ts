@@ -49,19 +49,19 @@ describe('RequestContext (Unit)', () => {
       { requestId: 'r', locale: 'id', clientIp: '127.0.0.1', actor: 'anonymous' },
       () => {
         const before = getAuthenticatedUser();
-        setAuthenticatedUser({ id: 'u-1', role: 'admin' });
+        setAuthenticatedUser({ id: 'u-1' });
         return { before, after: getAuthenticatedUser(), actor: getActor() };
       },
     );
 
     expect(seen).toEqual({
       before: undefined,
-      after: { id: 'u-1', role: 'admin' },
+      after: { id: 'u-1' },
       actor: 'user:u-1',
     });
     expect(getAuthenticatedUser()).toBeUndefined();
     expect(() => {
-      setAuthenticatedUser({ id: 'u-1', role: 'user' });
+      setAuthenticatedUser({ id: 'u-1' });
     }).toThrow('outside of a request context');
   });
 

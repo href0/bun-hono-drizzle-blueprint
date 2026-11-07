@@ -29,7 +29,6 @@
 | `per_page` | integer | tidak | ≤ 100; > 0; default `10` |
 | `sort` | string | tidak | Comma-separated, `-` = descending, at most 3; allowed: created_at, updated_at, email, full_name. Default: newest first |
 | `q` | string | tidak | panjang ≥ 1; panjang ≤ 100; Text searched in the listed columns (case-insensitive, substring) |
-| `role` | string | tidak | salah satu: `admin`, `user` |
 | `is_active` | boolean | tidak |  |
 | `created_from` | string (date-time) | tidak |  |
 | `created_to` | string (date-time) | tidak |  |
@@ -62,7 +61,9 @@ Pesan: `Daftar pengguna berhasil diambil` (en: `Users retrieved successfully`)
       "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
       "email": "user@example.com",
       "full_name": "string",
-      "role": "string",
+      "roles": [
+        "string"
+      ],
       "is_active": true,
       "created_at": "2026-01-01T00:00:00.000Z",
       "updated_at": "2026-01-01T00:00:00.000Z"
@@ -212,7 +213,6 @@ Pesan: `Daftar pengguna berhasil diambil` (en: `Users retrieved successfully`)
 | `email` | string (email) | ya | panjang ≤ 255 |
 | `full_name` | string | ya | panjang ≥ 1; panjang ≤ 255 |
 | `password` | string | ya | panjang ≥ 8; panjang ≤ 1024 |
-| `role` | string | tidak | salah satu: `admin`, `user` |
 
 **Contoh request**
 
@@ -224,8 +224,7 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "full_name": "string",
-  "password": "xxxxxxxx",
-  "role": "admin"
+  "password": "xxxxxxxx"
 }
 ```
 
@@ -242,7 +241,9 @@ Pesan: `Pengguna berhasil dibuat` (en: `User created successfully`)
     "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
     "email": "user@example.com",
     "full_name": "string",
-    "role": "string",
+    "roles": [
+      "string"
+    ],
     "is_active": true,
     "created_at": "2026-01-01T00:00:00.000Z",
     "updated_at": "2026-01-01T00:00:00.000Z"
@@ -445,7 +446,9 @@ Pesan: `Data pengguna berhasil diambil` (en: `User retrieved successfully`)
     "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
     "email": "user@example.com",
     "full_name": "string",
-    "role": "string",
+    "roles": [
+      "string"
+    ],
     "is_active": true,
     "created_at": "2026-01-01T00:00:00.000Z",
     "updated_at": "2026-01-01T00:00:00.000Z"
@@ -612,7 +615,6 @@ Pesan: `Data pengguna berhasil diambil` (en: `User retrieved successfully`)
 |---|---|---|---|
 | `email` | string (email) | tidak | panjang ≤ 255 |
 | `full_name` | string | tidak | panjang ≥ 1; panjang ≤ 255 |
-| `role` | string | tidak | salah satu: `admin`, `user` |
 | `is_active` | boolean | tidak |  |
 
 **Contoh request**
@@ -625,7 +627,6 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "full_name": "string",
-  "role": "admin",
   "is_active": true
 }
 ```
@@ -643,7 +644,9 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
     "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
     "email": "user@example.com",
     "full_name": "string",
-    "role": "string",
+    "roles": [
+      "string"
+    ],
     "is_active": true,
     "created_at": "2026-01-01T00:00:00.000Z",
     "updated_at": "2026-01-01T00:00:00.000Z"
@@ -662,7 +665,7 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
-| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus, menonaktifkan, atau menurunkan role akunnya sendiri |
+| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
@@ -876,7 +879,7 @@ Pesan: `Pengguna berhasil dihapus` (en: `User deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
-| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus, menonaktifkan, atau menurunkan role akunnya sendiri |
+| 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -1247,7 +1250,9 @@ Pesan: `Pengguna berhasil dipulihkan` (en: `User restored successfully`)
     "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
     "email": "user@example.com",
     "full_name": "string",
-    "role": "string",
+    "roles": [
+      "string"
+    ],
     "is_active": true,
     "created_at": "2026-01-01T00:00:00.000Z",
     "updated_at": "2026-01-01T00:00:00.000Z"

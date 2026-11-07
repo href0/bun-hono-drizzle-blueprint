@@ -192,7 +192,7 @@ Pesan: `Layanan aktif` (en: `Service online`)
 | `ERR_PERMISSION_FORBIDDEN` | 403 | `FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | `ERR_RATE_LIMITED` | 429 | `TOO_MANY_REQUESTS` | Batas request terlampaui: tunggu `Retry-After` detik |
 | `ERR_ROUTE_NOT_FOUND` | 404 | `NOT_FOUND` | Route tidak ada |
-| `ERR_SELF_LOCKOUT_FORBIDDEN` | 403 | `FORBIDDEN` | Admin tidak bisa menghapus, menonaktifkan, atau menurunkan role akunnya sendiri |
+| `ERR_SELF_LOCKOUT_FORBIDDEN` | 403 | `FORBIDDEN` | Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri |
 | `ERR_SERVICE_UNAVAILABLE` | 503 | `SERVICE_UNAVAILABLE` | Dependensi inti (database) tidak tersedia |
 | `ERR_UNAUTHORIZED` | 401 | `UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
 | `ERR_WEBHOOK_SIGNATURE_INVALID` | 401 | `UNAUTHORIZED` | Signature webhook vendor tidak ada atau tidak cocok |

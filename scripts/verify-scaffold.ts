@@ -311,7 +311,7 @@ const base = appConfig.API_BASE_PATH;
 const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid, channel }) => ({ label, documented, invalid, channel })))};
 const doc = await (await app.request(base + '/docs/openapi.json')).json();
 // Generated routes are protected (default-deny): without a token they must answer 401 ...
-const { token } = await signAccessToken({ userId: '0192f1d0-0000-7000-8000-00000000a11c', role: 'admin' });
+const { token } = await signAccessToken({ userId: '0192f1d0-0000-7000-8000-00000000a11c' });
 // partner:start
 // Partner routes need a signed request: a probe credential behind the real partnerAuth() lookup.
 const { partnerCredentialsService } = await import('./src/modules/partner-credentials/partner-credentials.service.ts');

@@ -22,8 +22,6 @@ export const users = appTable(
      * token families started before it are refused: every session older than the new password ends.
      */
     passwordChangedAt: instant('password_changed_at'),
-    /** One of `ROLES` (src/core/security/roles.ts); the default is `DEFAULT_ROLE`. */
-    role: varchar('role', { length: 20 }).notNull().default('user'),
     isActive: boolean('is_active').notNull().default(true),
     ...timestamps(),
     ...auditColumns(),

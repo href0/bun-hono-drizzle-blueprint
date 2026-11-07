@@ -5,7 +5,6 @@ import {
   ApiError,
   APP_ERROR_CODES,
   ConflictError,
-  InternalServerError,
   TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
@@ -20,6 +19,7 @@ import { nowInstant } from '../../utils/datetime.util';
 import { createAuthFakes, sampleUser } from '../../../test/helpers/auth-fakes';
 import type { AuthRepository } from './auth.repository';
 import type { AuthUsersRepository } from './auth-users.repository';
+import type { DefaultRoleRepository } from '../../database/rbac/default-role';
 import { AuthService, type AuthSettings } from './auth.service';
 
 const settings: AuthSettings = {
@@ -56,6 +56,7 @@ const setup = (users: User[], options: { cacheDown?: boolean } = {}) => {
     fakes.usersRepository as AuthUsersRepository,
     cache,
     settings,
+    { assign: () => Promise.resolve() } as unknown as DefaultRoleRepository,
   );
   return { ...fakes, counters, service };
 };
@@ -93,11 +94,9 @@ describe('AuthService.login', () => {
       id: ada.id,
       email: ada.email,
       fullName: ada.fullName,
-      role: 'user',
     });
     expect(await verifyAccessToken(session.accessToken.token)).toMatchObject({
       userId: ada.id,
-      role: 'user',
     });
     expect(session.refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(session.refreshMaxAge).toBeGreaterThan(3590);
@@ -166,15 +165,6 @@ describe('AuthService.login', () => {
 
     const session = await inRequest(() => service.login({ email: ada.email, password: PASSWORD }));
     expect(session.user.id).toBe(ada.id);
-  });
-
-  it('refuses a user whose role is not one of ROLES (broken invariant → 500)', async () => {
-    const odd = sampleUser({ passwordHash: ada.passwordHash, role: 'superuser' });
-    const { service } = setup([odd]);
-
-    expect(
-      await rejection(inRequest(() => service.login({ email: odd.email, password: PASSWORD }))),
-    ).toBeInstanceOf(InternalServerError);
   });
 });
 
@@ -308,7 +298,6 @@ describe('AuthService logout, profile, registration', () => {
       id: ada.id,
       email: ada.email,
       fullName: ada.fullName,
-      role: 'user',
     });
     Object.assign(users[0] ?? {}, { isActive: false });
     expect((await rejection(service.getProfile(ada.id))).errorCode).toBe(
@@ -326,7 +315,7 @@ describe('AuthService logout, profile, registration', () => {
       service.register({ email: 'new@example.com', fullName: 'New User', password: 'long enough' }),
     );
 
-    expect(created).toMatchObject({ email: 'new@example.com', role: 'user' });
+    expect(created).toMatchObject({ email: 'new@example.com' });
     const stored = users.find((user) => user.email === 'new@example.com');
     expect(await verifyPassword('long enough', stored?.passwordHash ?? '')).toBe(true);
     expect(

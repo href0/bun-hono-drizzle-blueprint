@@ -23,9 +23,10 @@ import { defaultTxHost, transactionStorage } from '../../src/database/transactio
 import { runInTransaction } from '../../src/database/transactional.decorator';
 import { isUniqueViolation } from '../../src/database/unique-violation';
 import { RbacService, rbacService } from '../../src/modules/rbac/rbac.service';
+import { usersService } from '../../src/modules/users/users.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
 import { nowInstant } from '../../src/utils/datetime.util';
-import { rejectionOf, unique } from '../helpers/integration';
+import { asActor, rejectionOf, unique } from '../helpers/integration';
 
 /**
  * The RBAC tables on a real PostgreSQL (plan RBAC, step 1): the system roles and the move of
@@ -105,7 +106,9 @@ describe('migration 0010: system roles', () => {
 describe('migration 0010: users.role → user_roles', () => {
   it('gives every existing user exactly their role: admin → super_admin, user → user, others → a role of their own', async () => {
     await inRolledBackTransaction(async (sql) => {
-      // The state before 0010's data part: users with a role, no RBAC rows yet.
+      // The state before 0010's data part: users with a role (the column 0011 dropped, back as it
+      // was — this transaction is rolled back), no RBAC rows yet.
+      await sql.unsafe("alter table users add column role varchar(20) not null default 'user'");
       await sql`delete from user_roles`;
       await sql`delete from roles`;
       const people = {
@@ -482,7 +485,7 @@ describe('routes check permissions per request (step 4a)', () => {
     const base = `${appConfig.API_BASE_PATH}/v1`;
     const userId = await insertUser();
     // The token's role claim authorizes nothing (it still says admin until step 4b).
-    const { token } = await signAccessToken({ userId, role: 'admin' });
+    const { token } = await signAccessToken({ userId });
     const get = async (path: string): Promise<string> => {
       const res = await app.request(`${base}${path}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -515,7 +518,7 @@ describe('routes check permissions per request (step 4a)', () => {
     const app = createApp();
     const userId = await insertUser();
     await rbacService.assignRole(userId, await roleId('super_admin'));
-    const { token } = await signAccessToken({ userId, role: 'user' });
+    const { token } = await signAccessToken({ userId });
 
     const res = await app.request(`${appConfig.API_BASE_PATH}/v1/users`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -558,5 +561,23 @@ describe('seed:admin gives the super_admin role (step 4a)', () => {
     expect(
       (await seedAdmin({ email, fullName: 'x', promote: false }, undefined, hash)).action,
     ).toBe('unchanged');
+  });
+});
+
+describe('users start with the role user and show their roles (step 4b)', () => {
+  it('a user created by an administrator holds exactly the role user; their roles follow the RBAC changes', async () => {
+    const created = await asActor(() =>
+      usersService.createUser({
+        email: `${unique('new')}@example.com`,
+        fullName: 'New User',
+        password: 'long enough password',
+      }),
+    );
+    expect(created.roles).toEqual(['user']);
+
+    const role = await insertRole();
+    await rbacService.assignRole(created.id, role);
+    const [{ key }] = await db.select({ key: roles.key }).from(roles).where(eq(roles.id, role));
+    expect((await usersService.getUserById(created.id)).roles).toEqual([key, 'user'].sort());
   });
 });

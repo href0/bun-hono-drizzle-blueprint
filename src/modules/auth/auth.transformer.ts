@@ -5,7 +5,6 @@ export const toAuthUserResponse = (user: AuthUser): AuthUser => ({
   id: user.id,
   email: user.email,
   fullName: user.fullName,
-  role: user.role,
 });
 
 export const toAccessTokenResponse = (token: SignedAccessToken): AccessTokenResponse => ({

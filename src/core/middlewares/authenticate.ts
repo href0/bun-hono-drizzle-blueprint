@@ -29,7 +29,7 @@ export interface AuthenticateOptions {
  * Default-deny authentication (D7), mounted once for the whole versioned API. Routes listed
  * in `PUBLIC_ROUTES` pass through; every other request needs `Authorization: Bearer <access
  * token>`, which is verified (`verifyAccessToken`) and recorded in the request context — actor
- * `user:<id>` and role. Missing or malformed header → 401 `ERR_UNAUTHORIZED`; a rejected token →
+ * `user:<id>`. Missing or malformed header → 401 `ERR_UNAUTHORIZED`; a rejected token →
  * 401 `ERR_AUTH_TOKEN_EXPIRED` / `ERR_AUTH_TOKEN_INVALID`.
  */
 export const authenticate = ({
@@ -63,7 +63,7 @@ export const authenticate = ({
       c.header('WWW-Authenticate', 'Bearer error="invalid_token"');
       throw error;
     });
-    setAuthenticatedUser({ id: verified.userId, role: verified.role });
+    setAuthenticatedUser({ id: verified.userId });
     await next();
   };
 };

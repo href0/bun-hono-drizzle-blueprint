@@ -2,15 +2,14 @@ import { describe, expect, it } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import { UsersController } from './users.controller';
 import type { UsersService } from './users.service';
-import type { User } from '../../database/schema';
+import type { UserWithRoles } from './users.dto';
 
 describe('UsersController (Unit)', () => {
-  const mockUser: User = {
+  const mockUser: UserWithRoles & { passwordHash: string; passwordChangedAt: null } = {
     id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'hash',
-    role: 'user',
     passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
@@ -18,6 +17,7 @@ describe('UsersController (Unit)', () => {
     isActive: true,
     createdAt: Temporal.Now.instant(),
     updatedAt: Temporal.Now.instant(),
+    roles: ['user'],
   };
 
   const mockService: Partial<UsersService> = {

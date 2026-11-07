@@ -4,12 +4,11 @@ import { toUserResponse, toUserListResponse } from './users.transformer';
 import type { User } from '../../database/schema';
 
 describe('UsersTransformer (Unit)', () => {
-  const sampleUser: User = {
+  const sampleUser: User & { roles: string[] } = {
     id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: 'secret_hash',
-    role: 'user',
     passwordChangedAt: null,
     createdBy: 'system',
     updatedBy: 'system',
@@ -17,6 +16,7 @@ describe('UsersTransformer (Unit)', () => {
     isActive: true,
     createdAt: Temporal.Now.instant(),
     updatedAt: Temporal.Now.instant(),
+    roles: ['super_admin', 'user'],
   };
 
   it('should strip passwordHash from single user response', () => {
@@ -27,10 +27,11 @@ describe('UsersTransformer (Unit)', () => {
       'fullName',
       'id',
       'isActive',
-      'role',
+      'roles',
       'updatedAt',
     ]);
-    expect(res.role).toBe('user');
+    expect(res.roles).toEqual(['super_admin', 'user']);
+    expect(res.roles).not.toBe(sampleUser.roles);
     expect(res.id).toBe(sampleUser.id);
     expect(res.email).toBe(sampleUser.email);
     expect(res.fullName).toBe(sampleUser.fullName);

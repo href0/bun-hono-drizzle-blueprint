@@ -232,8 +232,7 @@ Pesan: `Login berhasil` (en: `Logged in successfully`)
     "user": {
       "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
       "email": "user@example.com",
-      "full_name": "string",
-      "role": "admin"
+      "full_name": "string"
     }
   }
 }
@@ -606,8 +605,7 @@ Pesan: `Profil berhasil diambil` (en: `Profile retrieved successfully`)
   "data": {
     "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
     "email": "user@example.com",
-    "full_name": "string",
-    "role": "admin"
+    "full_name": "string"
   }
 }
 ```

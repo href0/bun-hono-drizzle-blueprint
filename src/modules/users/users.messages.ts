@@ -17,8 +17,8 @@ export const USER_MESSAGES = {
     en: "Password changed; all of the user's sessions have ended",
   },
   SELF_LOCKOUT: {
-    id: 'Anda tidak dapat menghapus, menonaktifkan, atau mencabut peran admin akun Anda sendiri',
-    en: 'You cannot delete, deactivate or remove the admin role of your own account',
+    id: 'Anda tidak dapat menghapus atau menonaktifkan akun Anda sendiri',
+    en: 'You cannot delete or deactivate your own account',
   },
 } as const satisfies Record<string, LocalizedMessage>;
 

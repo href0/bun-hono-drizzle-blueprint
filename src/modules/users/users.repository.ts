@@ -46,7 +46,6 @@ export class UsersRepository extends BaseRepository<typeof users> {
       query,
       USER_LIST_COLUMNS,
       and(
-        query.role === undefined ? undefined : eq(users.role, query.role),
         query.isActive === undefined ? undefined : eq(users.isActive, query.isActive),
         instantRange(users.createdAt, query.createdFrom, query.createdTo),
       ),
