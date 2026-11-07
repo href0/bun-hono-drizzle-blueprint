@@ -34,7 +34,7 @@ Semua konfigurasi lewat environment variable. Daftar lengkap dan defaultnya ada 
 1. **Build** kedua image (§1).
 2. **Migrasi** sebelum versi baru naik:
    `docker run --rm --env-file <file-env-production> <app>-tools:<versi>`
-   (perintah default image tools = `bun run db:migrate`). Versi lama masih melayani trafik selama migrasi, jadi migrasi harus tetap cocok dengan kode lama: tambah kolom / tabel dulu, hapus yang lama di rilis berikutnya.
+   (perintah default image tools = `bun run db:migrate`: migrasi, lalu sinkron registry permission). Versi lama masih melayani trafik selama migrasi, jadi migrasi harus tetap cocok dengan kode lama: tambah kolom / tabel dulu, hapus yang lama di rilis berikutnya. Hal yang sama berlaku untuk permission: permission yang dihapus dari kode langsung diberi `retired_at` saat migrasi, jadi mengganti nama permission dilakukan dalam dua rilis (tambah yang baru, hapus yang lama di rilis berikutnya). Versi baru menolak start bila ada permission di kodenya yang belum tersinkron.
 3. **Admin pertama** (sekali, saat database masih kosong), interaktif:
    `docker run --rm -it --env-file <file-env-production> <app>-tools:<versi> bun run seed:admin --email <email>`
    Password ditanyakan di terminal, tidak pernah lewat argumen ([quality-gates.md](standards/quality-gates.md), tabel perintah).

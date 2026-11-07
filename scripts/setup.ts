@@ -200,6 +200,14 @@ const EXAMPLE_MODULES: ExampleModule[] = [
       },
       { file: 'src/app.ts', line: "  v1.route('/orders', ordersRouter);" },
       {
+        file: 'src/permissions.ts',
+        line: [
+          '// Example module (header + detail): removed by `bun run setup <name>` unless --keep-examples.',
+          "import { ORDER_PERMISSIONS } from './modules/orders/orders.permissions';",
+        ].join('\n'),
+      },
+      { file: 'src/permissions.ts', line: '  ...ORDER_PERMISSIONS,' },
+      {
         file: 'docs/standards/structure.md',
         line: '│   ├── orders/                  # Example header + detail module (removed by `bun run setup` unless --keep-examples)',
       },
@@ -251,6 +259,23 @@ const EXAMPLE_MODULES: ExampleModule[] = [
         line: "  v1.route('/projects/:projectId/budget', projectBudgetsParentRouter);",
       },
       { file: 'src/app.ts', line: "  v1.route('/project-budgets', projectBudgetsRouter);" },
+      {
+        file: 'src/permissions.ts',
+        line: [
+          '// Example modules (parent + dependents 1:N / 1:1): removed by `bun run setup <name>` unless --keep-examples.',
+          "import { PROJECT_PERMISSIONS } from './modules/projects/projects.permissions';",
+          "import { PROJECT_TASK_PERMISSIONS } from './modules/projects/project-tasks/project-tasks.permissions';",
+          "import { PROJECT_BUDGET_PERMISSIONS } from './modules/projects/project-budgets/project-budgets.permissions';",
+        ].join('\n'),
+      },
+      {
+        file: 'src/permissions.ts',
+        line: [
+          '  ...PROJECT_PERMISSIONS,',
+          '  ...PROJECT_TASK_PERMISSIONS,',
+          '  ...PROJECT_BUDGET_PERMISSIONS,',
+        ].join('\n'),
+      },
       {
         file: 'docs/standards/structure.md',
         line: '│   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)',
@@ -350,6 +375,14 @@ const EXAMPLE_MODULES: ExampleModule[] = [
         ].join('\n'),
       },
       { file: 'src/app.ts', line: "  v1.route('/users', userPostRoutes);" },
+      {
+        file: 'src/permissions.ts',
+        line: [
+          '// Example outbound module (JSONPlaceholder → /users/:id/external-posts): removed by `bun run setup <name>` unless --keep-examples.',
+          "import { USER_POST_PERMISSIONS } from './modules/user-posts/user-posts.permissions';",
+        ].join('\n'),
+      },
+      { file: 'src/permissions.ts', line: '  ...USER_POST_PERMISSIONS,' },
       { file: 'src/config/index.ts', line: "export * from './jsonplaceholder.config';" },
       {
         file: 'src/config/config.test.ts',
