@@ -79,7 +79,7 @@ export class RbacUserRolesRepository extends BaseRepository<typeof userRoles> {
 
   /**
    * The permission keys `userId` holds through their live roles: live mappings to live permissions
-   * that are not retired (D52, E4).
+   * that are not retired (D52, D67).
    */
   async findRolePermissionKeys(userId: string): Promise<string[]> {
     const rows = await this.txHost.tx

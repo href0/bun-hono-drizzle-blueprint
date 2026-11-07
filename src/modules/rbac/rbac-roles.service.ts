@@ -20,7 +20,7 @@ import { RbacService, rbacService } from './rbac.service';
 import { RBAC_MESSAGES, rbacRoleNotFoundMessage } from './rbac.messages';
 
 /**
- * Administration of roles (plan RBAC step 6a): CRUD and the permissions mapped to a role.
+ * Administration of roles (D68): CRUD and the permissions mapped to a role.
  * `super_admin` holds every permission and cannot be changed; system roles cannot be deleted; a
  * role's key never changes. Deleting or restoring a role changes what its holders hold: their
  * cached permissions are dropped after the commit. Restoring a role gives its permissions back, so

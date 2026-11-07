@@ -128,7 +128,7 @@ describe('RBAC repositories (SQL shape)', () => {
     }
   });
 
-  it('user access (step 6b): roles of a user, grants with their permission', async () => {
+  it('user access (D68): roles of a user, grants with their permission', async () => {
     const userRolesRepo = new RbacUserRolesRepository(recorder.txHost);
     expect(await userRolesRepo.findRolesOf('u1')).toEqual([]);
     expect(lastSql()).toContain('"roles"."deleted_at" is null');

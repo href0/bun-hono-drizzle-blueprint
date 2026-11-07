@@ -8,7 +8,7 @@ import {
 import { isoInstant } from '../../core/openapi';
 import { PERMISSION_LIMITS } from '../../core/security/rbac';
 
-/** Where a permission comes from (E1): the registry in code, or an administrator (frontend menus). */
+/** Where a permission comes from (D64): the registry in code, or an administrator (frontend menus). */
 export const PERMISSION_SOURCES = ['api', 'menu'] as const;
 
 export type PermissionSource = (typeof PERMISSION_SOURCES)[number];
@@ -55,7 +55,7 @@ export const permissionListQuerySchema = strictListQuery(
     q: searchQueryField,
     source: z.enum(PERMISSION_SOURCES).optional(),
     group: z.string().trim().min(1).max(PERMISSION_LIMITS.group).optional(),
-    /** `true` = only retired API permissions (E4), `false` = only those that count. */
+    /** `true` = only retired API permissions (D67), `false` = only those that count. */
     retired: booleanQueryField,
   }),
 );
@@ -76,7 +76,7 @@ export const permissionResponseSchema = z.object({
   label: z.string(),
   group: z.string(),
   source: z.enum(PERMISSION_SOURCES),
-  /** Set when an API permission left the code (E4): it no longer counts. */
+  /** Set when an API permission left the code (D67): it no longer counts. */
   retiredAt: isoInstant().nullable(),
   /** The endpoints this permission opens; empty for menu permissions. */
   endpoints: z.array(permissionEndpointSchema),

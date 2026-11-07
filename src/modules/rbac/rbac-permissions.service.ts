@@ -16,8 +16,8 @@ import { RbacService, rbacService } from './rbac.service';
 import { RBAC_MESSAGES, rbacPermissionMissingMessage } from './rbac.messages';
 
 /**
- * Administration of permissions (plan RBAC step 6a): every permission with the endpoints it opens
- * (D47), and the menu permissions an administrator creates for the frontend (E1). API permissions
+ * Administration of permissions (D68): every permission with the endpoints it opens
+ * (D47), and the menu permissions an administrator creates for the frontend (D64). API permissions
  * come from the registry in code and are never changed here. Deleting or restoring a menu
  * permission changes what its holders hold: their cached permissions are dropped after the commit.
  * A restore needs no escalation check: a menu permission only steers the frontend's menu, it opens
@@ -107,7 +107,7 @@ export class RbacPermissionsService {
   }
 }
 
-/** API permissions follow the registry in code (E1): never changed through the API. */
+/** API permissions follow the registry in code (D64): never changed through the API. */
 const requireMenu = (permission: Permission): void => {
   if (permission.source !== 'menu') throw new ConflictError(RBAC_MESSAGES.API_PERMISSION_FIXED);
 };

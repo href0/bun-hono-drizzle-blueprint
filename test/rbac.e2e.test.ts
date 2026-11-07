@@ -9,7 +9,7 @@ import { RBAC_MESSAGES } from '../src/modules/rbac/rbac.messages';
 import { authorize, createTestApp } from './helpers/authorized-app';
 
 /**
- * RBAC admin API (plan RBAC step 6a) — the HTTP contract of `/roles` and `/permissions` through
+ * RBAC admin API (D68) — the HTTP contract of `/roles` and `/permissions` through
  * `createApp()`: services spied (hermetic), so routes, guards, validation, controllers and
  * transformers run for real. The rules themselves are proven by the service unit tests and, on a
  * real database, by `test/integration/rbac.int.ts`.

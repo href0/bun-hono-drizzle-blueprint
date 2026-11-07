@@ -11,7 +11,7 @@ const escalationForbidden = (): ForbiddenError =>
 /**
  * Whoever changes another user's account — email, name, password, active flag, delete, restore —
  * must hold at least what that user holds: otherwise resetting a stronger user's password and
- * signing in as them would be a way round the RBAC escalation rules (plan RBAC step 8b). A super
+ * signing in as them would be a way round the RBAC escalation rules (D69). A super
  * admin's account is changed only by a super admin. Refused with 403
  * `ERR_PERMISSION_ESCALATION_FORBIDDEN`. One's own account is always allowed; without a signed-in
  * user (seeds, jobs: actor `system`) nothing is checked; a request without `permissionContext()`

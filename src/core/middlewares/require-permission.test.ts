@@ -60,7 +60,7 @@ app.get('/v1/open', requirePermission('orders.read'), (c) => c.text('unreachable
 app.onError(globalErrorHandler);
 
 const as = async (userId: string, path: string): Promise<Response> => {
-  // The token still carries a role (until plan RBAC step 4b): it authorizes nothing.
+  // The token carries no role or permission: it authorizes nothing by itself (D53).
   const { token } = await signAccessToken({ userId });
   return app.request(path, { headers: { Authorization: `Bearer ${token}` } });
 };

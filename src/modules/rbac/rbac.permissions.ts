@@ -1,9 +1,9 @@
 import { crudPermissions, definePermissions } from '../../core/security/rbac';
 
-/** Roles and the permissions mapped to them (plan RBAC step 6a): routes check `ROLE_PERMISSIONS.<action>`. */
+/** Roles and the permissions mapped to them (D68): routes check `ROLE_PERMISSIONS.<action>`. */
 export const ROLE_PERMISSIONS = crudPermissions('roles', 'roles and their permissions');
 
-/** The roles of users (plan RBAC step 6b): giving one needs its permissions (no escalation). */
+/** The roles of users (D68): giving one needs its permissions (no escalation). */
 export const USER_ROLE_PERMISSIONS = definePermissions('user-roles', {
   read: 'Read the roles of users',
   create: 'Give roles to users',
@@ -17,7 +17,7 @@ export const USER_PERMISSION_PERMISSIONS = definePermissions('user-permissions',
   delete: 'Revoke extra permissions from users',
 });
 
-/** Permissions: reading every one with its endpoints; writing only menu permissions (E1). */
+/** Permissions: reading every one with its endpoints; writing only menu permissions (D64). */
 export const PERMISSION_PERMISSIONS = definePermissions('permissions', {
   read: 'Read permissions and the endpoints they open',
   create: 'Create menu permissions',

@@ -1,6 +1,6 @@
 /**
  * Syncs the permission registry (`src/permissions.ts`) into the database of the env file and makes
- * sure the system roles exist (plan RBAC step 2, D48, E4). `bun run db:migrate` runs it after the
+ * sure the system roles exist (D48, D67). `bun run db:migrate` runs it after the
  * migrations; alone:
  *
  *   bun run env dev db:sync-permissions

@@ -31,11 +31,11 @@ import { runWithRequestContext } from '../../src/core/context/request-context';
 import { ConflictError } from '../../src/core/errors';
 
 /**
- * The RBAC tables on a real PostgreSQL (plan RBAC, step 1): the system roles and the move of
+ * The RBAC tables on a real PostgreSQL (D55, D58): the system roles and the move of
  * `users.role` into `user_roles` written by migration 0010, and the constraints the schema
  * declares (partial uniques, the permission source / `menu.` prefix CHECKs, RESTRICT foreign keys);
- * the sync of the permission registry (step 2), each test in a transaction that is rolled back; and
- * the effective permissions with their cache and invalidation (step 3) on a real PostgreSQL + Redis.
+ * the sync of the permission registry (D48), each test in a transaction that is rolled back; and
+ * the effective permissions with their cache and invalidation (D52, D53) on a real PostgreSQL + Redis.
  */
 
 const MIGRATION = 'drizzle/0010_rbac.sql';
@@ -214,7 +214,7 @@ const apiPermission = async (key: string) => {
   return row;
 };
 
-describe('permission registry sync (step 2)', () => {
+describe('permission registry sync (D48, D67)', () => {
   const group = unique('sync');
   const read = permission(group, 'read', 'Read things');
   const approve = permission(group, 'approve', 'Approve things');
@@ -335,7 +335,7 @@ const insertPermission = async (): Promise<{ id: string; key: string }> => {
   return { id, key };
 };
 
-describe('effective permissions (step 3)', () => {
+describe('effective permissions (D52, D53)', () => {
   it('unites every live role and the live, unexpired grants; revocation and retirement remove them', async () => {
     const userId = await insertUser();
     const [staff, auditor] = [await insertRole(), await insertRole()];
@@ -475,7 +475,7 @@ describe('effective permissions (step 3)', () => {
   });
 });
 
-describe('routes check permissions per request (step 4a)', () => {
+describe('routes check permissions per request (D49, D53)', () => {
   const permissionId = async (key: string): Promise<string> => {
     const [row] = await db
       .select({ id: permissions.id })
@@ -488,7 +488,7 @@ describe('routes check permissions per request (step 4a)', () => {
     const app = createApp();
     const base = `${appConfig.API_BASE_PATH}/v1`;
     const userId = await insertUser();
-    // The token's role claim authorizes nothing (it still says admin until step 4b).
+    // The token carries no permission: it authorizes nothing by itself (D53).
     const { token } = await signAccessToken({ userId });
     const get = async (path: string): Promise<string> => {
       const res = await app.request(`${base}${path}`, {
@@ -531,7 +531,7 @@ describe('routes check permissions per request (step 4a)', () => {
   });
 });
 
-describe('seed:admin gives the super_admin role (step 4a)', () => {
+describe('seed:admin gives the super_admin role (D58)', () => {
   it('a created admin, a promoted user and an earlier admin without the role all pass every check', async () => {
     const hash = (password: string) => Promise.resolve(`hashed:${password}`);
     const created = await seedAdmin(
@@ -568,7 +568,7 @@ describe('seed:admin gives the super_admin role (step 4a)', () => {
   });
 });
 
-describe('users start with the role user and show their roles (step 4b)', () => {
+describe('users start with the role user and show their roles (D59)', () => {
   it('a user created by an administrator holds exactly the role user; their roles follow the RBAC changes', async () => {
     const created = await asActor(() =>
       usersService.createUser({
@@ -586,7 +586,7 @@ describe('users start with the role user and show their roles (step 4b)', () => 
   });
 });
 
-describe('admin API: roles and permissions (step 6a)', () => {
+describe('admin API: roles and permissions (D68, D69)', () => {
   const base = `${appConfig.API_BASE_PATH}/v1`;
   const keyId = async (key: string): Promise<string> => {
     const [row] = await db
@@ -783,7 +783,7 @@ describe('admin API: roles and permissions (step 6a)', () => {
   });
 });
 
-describe('user access (step 6b)', () => {
+describe('user access (D68, D69)', () => {
   const base = `${appConfig.API_BASE_PATH}/v1`;
   const keyId = async (key: string): Promise<string> => {
     const [row] = await db
@@ -945,7 +945,7 @@ describe('user access (step 6b)', () => {
   });
 });
 
-describe('accounts never go round RBAC (step 8b)', () => {
+describe('accounts never go round RBAC (D69)', () => {
   const base = `${appConfig.API_BASE_PATH}/v1`;
   const keyId = async (key: string): Promise<string> => {
     const [row] = await db

@@ -17,7 +17,7 @@ export interface PermissionSyncResult {
   added: string[];
   /** Live API permissions whose label or group changed. */
   updated: string[];
-  /** API permissions no longer in the registry: `retired_at` set (E4), never deleted. */
+  /** API permissions no longer in the registry: `retired_at` set (D67), never deleted. */
   retired: string[];
   /** Retired API permissions back in the registry: `retired_at` cleared. */
   restored: string[];
@@ -72,7 +72,7 @@ class SyncRolesRepository extends BaseRepository<typeof roles> {
 }
 
 /**
- * Brings the `permissions` table in step with the registry (plan RBAC step 2, D48, E4) and makes
+ * Brings the `permissions` table in step with the registry (D48, D67) and makes
  * sure the system roles exist (D52, D59). Idempotent: a second run changes nothing. Menu
  * permissions are never touched; an API permission is never deleted, only retired. One
  * transaction: the registry lands whole or not at all. Run by `bun run db:migrate` after the

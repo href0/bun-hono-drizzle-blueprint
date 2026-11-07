@@ -12,7 +12,7 @@ import { permissions } from './permissions.schema';
 import { roles } from './roles.schema';
 
 /**
- * Permission given to a role. Own `id` + soft delete like `user_roles` (E2): the audit trail is
+ * Permission given to a role. Own `id` + soft delete like `user_roles` (D65): the audit trail is
  * per id and a removal stays recorded. Unchanged by tenancy (D56).
  */
 export const rolePermissions = appTable(

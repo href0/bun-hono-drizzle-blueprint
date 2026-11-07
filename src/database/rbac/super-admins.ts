@@ -5,7 +5,7 @@ import { roles, userRoles, users } from '../schema';
 import { defaultTxHost, type TransactionHost } from '../transaction-host';
 
 /**
- * The anti-lockout rule for `super_admin` (D52, plan RBAC steps 6b and 8b), in one place for every
+ * The anti-lockout rule for `super_admin` (D52, D69), in one place for every
  * way to lose one — revoking the role (`rbac`), deleting or deactivating the user (`users`).
  */
 export class SuperAdminsRepository extends BaseRepository<typeof userRoles> {

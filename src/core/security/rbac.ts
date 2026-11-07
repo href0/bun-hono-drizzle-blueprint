@@ -1,6 +1,6 @@
 /**
  * RBAC building blocks shared by the permission registry (`src/permissions.ts`), its sync into the
- * database (`src/database/rbac/permission-sync.ts`) and, later, the guards (plan RBAC, D46–D61).
+ * database (`src/database/rbac/permission-sync.ts`) and the guards (D46–D61).
  *
  * An API permission is an action (`<module>.<action>`, D47) declared in code — one
  * `<module>.permissions.ts` per module — and synced into the `permissions` table, where roles and
@@ -89,7 +89,7 @@ export const PERMISSION_LIMITS = { key: 100, label: 150, group: 100 } as const;
 const KEBAB = '[a-z][a-z0-9]*(?:-[a-z0-9]+)*';
 const API_PERMISSION_KEY = new RegExp(`^(${KEBAB})\\.(${KEBAB})$`);
 
-/** The prefix reserved for menu permissions (E1); no API permission may use it. */
+/** The prefix reserved for menu permissions (D64); no API permission may use it. */
 export const MENU_PERMISSION_PREFIX = 'menu.';
 
 /**

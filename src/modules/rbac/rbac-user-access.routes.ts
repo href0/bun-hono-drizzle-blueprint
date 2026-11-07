@@ -11,7 +11,7 @@ import { RBAC_MESSAGES } from './rbac.messages';
 import { USER_PERMISSION_PERMISSIONS, USER_ROLE_PERMISSIONS } from './rbac.permissions';
 
 /**
- * `/users/:id/roles` and `/users/:id/permissions`: what a user holds (plan RBAC step 6b), mounted
+ * `/users/:id/roles` and `/users/:id/permissions`: what a user holds (D68), mounted
  * next to the `users` module. Giving needs what is given (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`);
  * `super_admin` only by a super admin, never taken from oneself or from the last active holder.
  */
