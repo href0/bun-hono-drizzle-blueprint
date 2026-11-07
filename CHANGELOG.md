@@ -2,7 +2,7 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-07
 
 **Breaking (MAJOR, D61).** Authorization moves from one role per user to permissions kept in the database (D46–D61, D64–D71): every route names the permission it checks, administrators manage roles, role permissions, menu permissions and per-user grants through an API, and no administrator can give more than they hold. The role leaves the access token and the `users` table. Every local command now names its environment (D62). A project that is already set up follows *Upgrading a project* below.
 
@@ -15,7 +15,7 @@ All notable changes to this boilerplate are documented in this file. The format 
 - **RBAC admin API** (module `rbac`): `/roles` (CRUD, permissions of a role), `/permissions` (every permission with the endpoints it opens — read from the routes, D47 — and menu permissions `menu.…`), `/users/:id/roles`, `/users/:id/permissions` (grants with `expires_at` and `note`), `GET /me/permissions` for the frontend.
 - **Scaffold**: every user-channel template generates `<module>.permissions.ts`, checks a constant on every route and registers `.all` in `src/permissions.ts`.
 - **Acceptance** stage C: the RBAC flow over HTTP (a role, a user given it) and `test:int` of the new project.
-- **Plans** end with a closing review and carry review checkpoints (`docs/plans/README.md`).
+- **Plans** end with a closing review and carry review checkpoints (`docs/plans/README.md`, D71); **rule R90** (`test/docs-sync.test.ts`): every decision ID cited has its row in `docs/decisions.md`, and code never cites a plan.
 - `bun run start:<dev|test|stg|demo|prod>` and `bun run env <environment> <command>` (D62, R87).
 
 ### Changed
@@ -24,6 +24,7 @@ All notable changes to this boilerplate are documented in this file. The format 
 - `users` responses carry `roles: string[]` (read-only); `role` is gone from the login response, `GET /auth/me`, the user DTOs and the list filters.
 - `bun run seed:admin` gives the `super_admin` role (`--promote` too).
 - `bun run openapi:check`: a new code in the shared `error.code` enum of error responses is a safe change, no longer hundreds of `BREAKING` ones.
+- **CI job `docker`**: the tools image migrates with the same environment as the production image (database, Redis, JWT, partner keys), as a deployment gives it ([deployment.md](docs/deployment.md) §3) — `db:migrate` now also syncs the permission registry through the application configuration. A project with its own CI takes the same change.
 - `.env` is no longer used: commands load `.env.<environment>` only and refuse while `.env` or `.env.local` exists; `bun run setup` creates `.env.dev`.
 
 ### Removed
