@@ -164,21 +164,36 @@ jobs:
       - name: Build the tools image
         run: docker build --target tools -t app-tools:ci .
 
-      - name: Migrate with the tools image
-        run: docker run --rm --network host -e DATABASE_URL app-tools:ci
+      # Throwaway secrets, written once for both containers: like a deployment, the tools image and
+      # the production image get the same environment (docs/deployment.md §3) — `db:migrate` syncs
+      # the permission registry through the application's configuration, which needs all of it.
+      - name: Throwaway production environment
+        run: |
+          {
+            echo "JWT_SECRET=$(openssl rand -hex 48)"
+            # partner:start
+            echo "PARTNER_SECRET_KEYS=k1:$(openssl rand -hex 32)"
+            echo "PARTNER_SECRET_ACTIVE_KEY_ID=k1"
+            # partner:end
+          } >> "$GITHUB_ENV"
+          {
+            echo "-e DATABASE_URL -e REDIS_HOST=localhost -e REDIS_PORT=6379"
+            echo "-e CORS_ORIGINS=https://app.example.com -e JWT_SECRET"
+            # partner:start
+            echo "-e PARTNER_SECRET_KEYS -e PARTNER_SECRET_ACTIVE_KEY_ID"
+            # partner:end
+          } > "$RUNNER_TEMP/app-env-args"
 
-      # Throwaway secrets: this container only proves that the image starts.
+      - name: Migrate with the tools image
+        run: |
+          read -r -a env_args <<< "$(tr '\n' ' ' < "$RUNNER_TEMP/app-env-args")"
+          docker run --rm --network host "${env_args[@]}" app-tools:ci
+
+      # This container only proves that the image starts.
       - name: Start the production image and wait until healthy
         run: |
-          secrets=(-e "JWT_SECRET=$(openssl rand -hex 48)")
-          # partner:start
-          secrets+=(-e "PARTNER_SECRET_KEYS=k1:$(openssl rand -hex 32)" -e PARTNER_SECRET_ACTIVE_KEY_ID=k1)
-          # partner:end
-          docker run -d --name app --network host \
-            -e DATABASE_URL -e REDIS_HOST=localhost -e REDIS_PORT=6379 \
-            "${secrets[@]}" \
-            -e CORS_ORIGINS=https://app.example.com \
-            app:ci
+          read -r -a env_args <<< "$(tr '\n' ' ' < "$RUNNER_TEMP/app-env-args")"
+          docker run -d --name app --network host "${env_args[@]}" app:ci
           for attempt in $(seq 1 30); do
             status="$(docker inspect --format '{{.State.Health.Status}}' app)"
             if [ "$status" = healthy ]; then break; fi
