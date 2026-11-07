@@ -385,3 +385,64 @@ describe('manual-acceptance.md lists the steps of bun run acceptance', () => {
     expect(documented).toEqual(ACCEPTANCE_STEPS.map((step) => step.title));
   });
 });
+
+/** Where decision IDs are cited: code, tests, scripts, agent rules and documents (generated contract aside). */
+const CITING_ROOTS = ['src', 'scripts', 'test', '.agents', 'docs'];
+const CITING_FILES = ['ARCHITECTURE.md', 'README.md', 'CONTRIBUTING.md', 'CHANGELOG.md'];
+const CITING_EXTENSIONS = /\.(ts|mjs|cjs|md|mdx|ya?ml)$/;
+const NOT_CITING = /^docs\/api\//;
+
+const citingFiles = (): string[] => [
+  ...CITING_FILES.filter((path) => existsSync(resolve(ROOT, path))),
+  ...CITING_ROOTS.filter((dir) => existsSync(resolve(ROOT, dir))).flatMap((dir) =>
+    readdirSync(resolve(ROOT, dir), { recursive: true, encoding: 'utf8' })
+      .map((path) => `${dir}/${path}`)
+      .filter((path) => CITING_EXTENSIONS.test(path) && !NOT_CITING.test(path)),
+  ),
+];
+
+/**
+ * Decision rows: `docs/decisions.md`, and the rows of an active plan (`docs/plans/*.md`, its
+ * skeleton aside) — code may cite a plan's decision from its first step; deleting the plan before
+ * its rows moved to `decisions.md` then fails here.
+ */
+const decisionRows = (text: string): string[] => firstCaptures(text, /^\| (P?D\d+)\b/gm);
+const decisionIds = new Set([
+  ...decisionRows(read('docs/decisions.md')),
+  ...entries('docs/plans')
+    .filter((name) => name.endsWith('.md') && name !== 'README.md')
+    .flatMap((name) => decisionRows(read(`docs/plans/${name}`))),
+]);
+
+/** A finished plan is deleted: code that cites one (`plan <topic> step 3`) points at nothing. */
+const PLAN_REFERENCE = /\bplan [a-z][\w-]*,? steps? \d/i;
+
+describe('decision IDs (R90)', () => {
+  it('reads the decision rows (guards the parsing itself)', () => {
+    expect(decisionIds.has('D0')).toBe(true);
+    expect(decisionIds.size).toBeGreaterThan(40);
+  });
+
+  it('every D… / PD… cited in code, tests, scripts and documents has its row in docs/decisions.md', () => {
+    const dangling = citingFiles().flatMap((path) =>
+      [...new Set(firstCaptures(read(path), /\b(P?D\d{1,3})\b/g))]
+        .filter((id) => !decisionIds.has(id))
+        // Documents show the numbering a project uses (`PD` and a number) as examples; only code
+        // cites a real project decision.
+        .filter((id) => !id.startsWith('PD') || /^(src|scripts|test)\//.test(path))
+        .map((id) => `${path}: ${id}`),
+    );
+    expect(dangling).toEqual([]);
+  });
+
+  it('code, tests and scripts never cite a plan — its decisions get D… IDs, its plan file is deleted', () => {
+    const cites = citingFiles()
+      .filter((path) => /^(src|scripts|test)\//.test(path))
+      .flatMap((path) =>
+        lines(read(path)).flatMap((line, index) =>
+          PLAN_REFERENCE.test(line) ? [`${path}:${String(index + 1)}: ${line.trim()}`] : [],
+        ),
+      );
+    expect(cites).toEqual([]);
+  });
+});
