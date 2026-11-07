@@ -51,6 +51,7 @@ const fakeClient = (
 describe('CACHE_KEYS', () => {
   it('builds keys from the single source of truth', () => {
     expect(CACHE_KEYS.userDetail('123')).toBe('user:detail:123');
+    expect(CACHE_KEYS.userPermissions('123')).toBe('rbac:permissions:123');
   });
 });
 

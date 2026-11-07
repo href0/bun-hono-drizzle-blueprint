@@ -1,21 +1,33 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { redisConfig } from '../../src/config';
+import { CacheService, cacheService, CACHE_KEYS } from '../../src/core/cache';
+import { closeRedisClient, createRedisClient } from '../../src/core/cache/redis.client';
 import { permission, SYSTEM_ROLES } from '../../src/core/security/rbac';
 import { db, sqlClient } from '../../src/database/connection';
 import { findUnsyncedPermissions, syncPermissions } from '../../src/database/rbac/permission-sync';
-import { permissions, roles, userRoles } from '../../src/database/schema';
+import {
+  permissions,
+  recordChanges,
+  roles,
+  userPermissions,
+  userRoles,
+} from '../../src/database/schema';
 import { NOW } from '../../src/database/schema/columns';
 import { defaultTxHost, transactionStorage } from '../../src/database/transaction-host';
 import { isUniqueViolation } from '../../src/database/unique-violation';
+import { RbacService, rbacService } from '../../src/modules/rbac/rbac.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
+import { nowInstant } from '../../src/utils/datetime.util';
 import { rejectionOf, unique } from '../helpers/integration';
 
 /**
  * The RBAC tables on a real PostgreSQL (plan RBAC, step 1): the system roles and the move of
  * `users.role` into `user_roles` written by migration 0010, and the constraints the schema
  * declares (partial uniques, the permission source / `menu.` prefix CHECKs, RESTRICT foreign keys);
- * and the sync of the permission registry (step 2), each test in a transaction that is rolled back.
+ * the sync of the permission registry (step 2), each test in a transaction that is rolled back; and
+ * the effective permissions with their cache and invalidation (step 3) on a real PostgreSQL + Redis.
  */
 
 const MIGRATION = 'drizzle/0010_rbac.sql';
@@ -288,5 +300,139 @@ describe('permission registry sync (step 2)', () => {
         ['user', true, 'system'],
       ]);
     });
+  });
+});
+
+/** A live role and API permissions of this test only (committed: unique keys, nothing shared). */
+const insertRole = async (): Promise<string> => {
+  const id = Bun.randomUUIDv7();
+  await db.insert(roles).values({ id, key: unique('role'), name: 'Test role', ...SYSTEM });
+  return id;
+};
+const insertPermission = async (): Promise<{ id: string; key: string }> => {
+  const id = Bun.randomUUIDv7();
+  const key = `${unique('perm')}.read`;
+  await db
+    .insert(permissions)
+    .values({ id, key, label: key, groupName: 'test', source: 'api', ...SYSTEM });
+  return { id, key };
+};
+
+describe('effective permissions (step 3)', () => {
+  it('unites every live role and the live, unexpired grants; revocation and retirement remove them', async () => {
+    const userId = await insertUser();
+    const [staff, auditor] = [await insertRole(), await insertRole()];
+    const [a, b, c, expired] = [
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+    ];
+    await rbacService.mapPermission(staff, a.id);
+    await rbacService.mapPermission(auditor, b.id);
+    await rbacService.assignRole(userId, staff);
+    await rbacService.assignRole(userId, auditor);
+    await rbacService.grantPermission(userId, c.id, { expiresAt: nowInstant().add({ hours: 1 }) });
+    // Expired already: written directly, the service refuses a past expiry.
+    await db.insert(userPermissions).values({
+      id: Bun.randomUUIDv7(),
+      userId,
+      permissionId: expired.id,
+      expiresAt: nowInstant().subtract({ seconds: 1 }),
+      ...SYSTEM,
+    });
+
+    const effective = await rbacService.getEffectivePermissions(userId);
+    expect(effective).toEqual({ superAdmin: false, permissions: [a.key, b.key, c.key].sort() });
+    expect(await cacheService.get<unknown>(CACHE_KEYS.userPermissions(userId))).toEqual(effective);
+
+    await rbacService.revokeRole(userId, auditor);
+    expect(await cacheService.get(CACHE_KEYS.userPermissions(userId))).toBeNull();
+    await rbacService.revokePermission(userId, c.id);
+    expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([a.key]);
+
+    await db.update(permissions).set({ retiredAt: NOW }).where(eq(permissions.id, a.id));
+    await cacheService.del(CACHE_KEYS.userPermissions(userId));
+    expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
+  });
+
+  it('records every revocation in record_changes (D53)', async () => {
+    const userId = await insertUser();
+    const role = await insertRole();
+    const assignment = await rbacService.assignRole(userId, role);
+    await rbacService.revokeRole(userId, role);
+
+    const changes = await db
+      .select()
+      .from(recordChanges)
+      .where(
+        and(eq(recordChanges.tableName, 'user_roles'), eq(recordChanges.recordId, assignment.id)),
+      );
+    expect(changes.map((change) => change.action)).toEqual(['SOFT_DELETE']);
+  });
+
+  it('gives a super admin every permission and refuses to map that role', async () => {
+    const userId = await insertUser();
+    await rbacService.assignRole(userId, await roleId('super_admin'));
+
+    expect(await rbacService.getEffectivePermissions(userId)).toEqual({
+      superAdmin: true,
+      permissions: [],
+    });
+    expect(await rbacService.hasPermission(userId, 'anything.read')).toBe(true);
+    const permissionId = (await insertPermission()).id;
+    expect(
+      await rejectionOf(rbacService.mapPermission(await roleId('super_admin'), permissionId)),
+    ).toBeInstanceOf(Error);
+  });
+
+  it('a change of a role drops the cached permissions of every holder', async () => {
+    const [first, second] = [await insertUser(), await insertUser()];
+    const role = await insertRole();
+    const extra = await insertPermission();
+    await rbacService.assignRole(first, role);
+    await rbacService.assignRole(second, role);
+    for (const userId of [first, second]) {
+      expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
+    }
+
+    await rbacService.mapPermission(role, extra.id);
+
+    for (const userId of [first, second]) {
+      expect(await cacheService.get(CACHE_KEYS.userPermissions(userId))).toBeNull();
+      expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([extra.key]);
+    }
+    await rbacService.unmapPermission(role, extra.id);
+    for (const userId of [first, second]) {
+      expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
+    }
+  });
+
+  it('reads from the database while Redis is unavailable (fail-open)', async () => {
+    const userId = await insertUser();
+    const role = await insertRole();
+    const extra = await insertPermission();
+    await rbacService.mapPermission(role, extra.id);
+    await rbacService.assignRole(userId, role);
+
+    const offline = createRedisClient(redisConfig); // never connected: not ready
+    try {
+      const withoutRedis = new RbacService(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        new CacheService(offline),
+      );
+      expect(await withoutRedis.getEffectivePermissions(userId)).toEqual({
+        superAdmin: false,
+        permissions: [extra.key],
+      });
+      await withoutRedis.revokeRole(userId, role);
+      expect((await withoutRedis.getEffectivePermissions(userId)).permissions).toEqual([]);
+    } finally {
+      await closeRedisClient(offline);
+    }
   });
 });

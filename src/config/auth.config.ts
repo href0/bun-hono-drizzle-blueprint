@@ -31,6 +31,9 @@ const authSchema = z
     /** Failed logins allowed per (email, client IP) before `AUTH_LOGIN_LOCK_SECONDS` of 429. */
     AUTH_LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     AUTH_LOGIN_LOCK_SECONDS: seconds(15 * 60),
+    /** How long a user's effective permissions stay cached (D53): changes drop the entry at once;
+     * the TTL bounds staleness only when that drop failed (Redis down during the change). */
+    RBAC_PERMISSION_CACHE_TTL_SECONDS: seconds(60),
   })
   .refine(
     (config) => config.REFRESH_TOKEN_TTL_SECONDS <= config.REFRESH_TOKEN_ABSOLUTE_TTL_SECONDS,
