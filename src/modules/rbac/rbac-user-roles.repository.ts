@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
+import { and, asc, eq, isNull, type SQL } from 'drizzle-orm';
 import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
 import {
   permissions,
@@ -52,27 +52,6 @@ export class RbacUserRolesRepository extends BaseRepository<typeof userRoles> {
       .where(this.scoped(eq(userRoles.userId, userId)))
       .orderBy(asc(roles.key));
     return rows.map((row) => row.role);
-  }
-
-  /**
-   * Locks every live assignment of `roleId` (`FOR UPDATE`, by id) and returns their users: two
-   * concurrent revocations of the last holders wait for each other and the second sees the first.
-   */
-  async lockHolderIds(roleId: string): Promise<string[]> {
-    const rows = await this.lockWhere(this.scoped(eq(userRoles.roleId, roleId)));
-    return rows.map((row) => row.userId);
-  }
-
-  /** Which of `userIds` are live, active users (who can still sign in). */
-  async findActiveUserIds(userIds: readonly string[]): Promise<string[]> {
-    if (userIds.length === 0) return [];
-    const rows = await this.txHost.tx
-      .select({ id: users.id })
-      .from(users)
-      .where(
-        and(inArray(users.id, [...userIds]), isNull(users.deletedAt), eq(users.isActive, true)),
-      );
-    return rows.map((row) => row.id);
   }
 
   /** Is `userId` a live user? Roles and permissions are given to live users only. */

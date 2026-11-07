@@ -66,6 +66,10 @@ export const I18N_MESSAGES = {
     en: 'This route is not allowed for this partner',
   },
   // partner:end
+  ACCOUNT_ESCALATION_FORBIDDEN: {
+    id: 'Anda tidak dapat mengubah akun pengguna yang memiliki permission yang tidak Anda miliki',
+    en: 'You cannot change the account of a user who holds permissions you do not hold',
+  },
   PERMISSION_FORBIDDEN: {
     id: 'Anda tidak memiliki izin untuk fitur ini',
     en: 'You do not have permission to use this feature',

@@ -61,6 +61,7 @@ export const permissionContext =
     if (context && user) {
       let resolved: ReturnType<PermissionLookup> | undefined;
       context.permissions = (): ReturnType<PermissionLookup> => (resolved ??= lookup(user.id));
+      context.permissionsOf = lookup;
       if (endpoints) context.permissionEndpoints = endpoints;
     }
     await next();

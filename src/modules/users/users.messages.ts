@@ -20,6 +20,10 @@ export const USER_MESSAGES = {
     id: 'Anda tidak dapat menghapus atau menonaktifkan akun Anda sendiri',
     en: 'You cannot delete or deactivate your own account',
   },
+  LAST_SUPER_ADMIN: {
+    id: 'Super admin aktif terakhir tidak dapat dihapus atau dinonaktifkan',
+    en: 'The last active super admin cannot be deleted or deactivated',
+  },
 } as const satisfies Record<string, LocalizedMessage>;
 
 export const userNotFoundMessage = (id: string): LocalizedMessage => ({

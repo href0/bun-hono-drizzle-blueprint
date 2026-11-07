@@ -65,7 +65,7 @@ src/
 │   ├── health-probe.ts          # pingDatabase() for health checks
 │   ├── seeds/                   # seed-admin.ts (`bun run seed:admin`)
 │   ├── maintenance/             # purge-refresh-tokens.ts (`bun run auth:purge-tokens`: the purge and the count it shows first)
-│   ├── rbac/                    # default-role.ts (the system role user of every new user, D59); permission-sync.ts: the permission registry into `permissions` + the system roles (`bun run db:sync-permissions`, run by `db:migrate`), the start check
+│   ├── rbac/                    # default-role.ts (the system role user of every new user, D59); super-admins.ts (who else can still sign in as super admin: the anti-lockout rule of rbac and users); permission-sync.ts: the permission registry into `permissions` + the system roles (`bun run db:sync-permissions`, run by `db:migrate`), the start check
 │   └── schema/                  # Table definitions (public) & reference views
 │       ├── schemas.ts           # appTable (public) & referenceSchema — the only pgTable / pgSchema
 │       ├── columns.ts           # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …

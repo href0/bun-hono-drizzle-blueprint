@@ -942,3 +942,97 @@ describe('user access (step 6b)', () => {
     });
   });
 });
+
+describe('accounts never go round RBAC (step 8b)', () => {
+  const base = `${appConfig.API_BASE_PATH}/v1`;
+  const keyId = async (key: string): Promise<string> => {
+    const [row] = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.key, key), isNull(permissions.deletedAt)));
+    return row.id;
+  };
+  const caller = async (userId: string) => {
+    const app = createApp();
+    const { token } = await signAccessToken({ userId });
+    return async (method: string, route: string, body?: unknown): Promise<string> => {
+      const res = await app.request(`${base}${route}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      const json = (await res.json()) as { error?: { code: string } };
+      return `${String(res.status)}${json.error ? ` ${json.error.code}` : ''}`;
+    };
+  };
+
+  it('an account administrator changes only accounts holding no more than they do', async () => {
+    const admins = await insertRole();
+    for (const key of ['users.read', 'users.update', 'users.delete']) {
+      await rbacService.mapPermission(admins, await keyId(key));
+    }
+    const adminId = await insertUser();
+    await rbacService.assignRole(adminId, admins);
+    const admin = await caller(adminId);
+
+    const rootId = await insertUser();
+    await rbacService.assignRole(rootId, await roleId('super_admin'));
+    const plainId = await insertUser();
+
+    const password = { password: 'a new password 1' };
+    expect(await admin('PUT', `/users/${rootId}/password`, password)).toBe(
+      '403 ERR_PERMISSION_ESCALATION_FORBIDDEN',
+    );
+    expect(await admin('PATCH', `/users/${rootId}`, { is_active: false })).toBe(
+      '403 ERR_PERMISSION_ESCALATION_FORBIDDEN',
+    );
+    expect(await admin('DELETE', `/users/${rootId}`)).toBe(
+      '403 ERR_PERMISSION_ESCALATION_FORBIDDEN',
+    );
+    expect(await admin('PUT', `/users/${plainId}/password`, password)).toBe('200');
+  });
+
+  it('the last active super admin is never deleted or deactivated', async () => {
+    const superAdminRole = await roleId('super_admin');
+    const lastId = await insertUser();
+    await rbacService.assignRole(lastId, superAdminRole);
+    await inRolledBackSync(async () => {
+      // Every other holder deactivated: lastId is the only one who can still sign in.
+      await defaultTxHost.tx
+        .update(users)
+        .set({ isActive: false })
+        .where(
+          inArray(
+            users.id,
+            db
+              .select({ id: userRoles.userId })
+              .from(userRoles)
+              .where(and(eq(userRoles.roleId, superAdminRole), isNull(userRoles.deletedAt))),
+          ),
+        );
+      await defaultTxHost.tx.update(users).set({ isActive: true }).where(eq(users.id, lastId));
+      const asRoot = <T>(fn: () => Promise<T>) =>
+        runWithRequestContext(
+          {
+            requestId: 'int-8b',
+            locale: 'en',
+            clientIp: '127.0.0.1',
+            actor: 'user:0192f1d0-0000-7000-8000-00000000beef',
+            user: { id: '0192f1d0-0000-7000-8000-00000000beef' },
+            permissions: () => Promise.resolve({ superAdmin: true, permissions: [] }),
+            permissionsOf: (id: string) => rbacService.getEffectivePermissions(id),
+          },
+          fn,
+        );
+      expect(await rejectionOf(asRoot(() => usersService.deleteUser(lastId)))).toBeInstanceOf(
+        ConflictError,
+      );
+      expect(
+        await rejectionOf(asRoot(() => usersService.updateUser(lastId, { isActive: false }))),
+      ).toBeInstanceOf(ConflictError);
+    });
+  });
+});
