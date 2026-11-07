@@ -50,7 +50,7 @@ Every route under `<API_BASE_PATH>/v1` needs `Authorization: Bearer <access toke
 - Request emails use `emailField` (trimmed, lower-cased; stored and searched lower-case); new passwords `newPasswordField`. An admin cannot delete, deactivate or demote their own account (403 `ERR_SELF_LOCKOUT_FORBIDDEN`).
 - Security logs never contain plaintext emails (hashed): `Login failed` (`reason`), `Login locked`, `Login succeeded`, `Logged out of every session`, `Password changed`, `Refresh token reused`, `Refresh refused`.
 
-Enforced: `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public) and `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones nothing).
+Enforced: `test/default-deny.e2e.test.ts` (every route of `createApp()` → 401 without a token unless public), `test/openapi.e2e.test.ts` (protected operations carry `bearerAuth` + 401, public ones nothing) and `test/route-permissions.e2e.test.ts` (R89: every `/v1` operation is in exactly one category — permission guard, `allowAnyUser()`, `PUBLIC_ROUTES` or a channel — a route with no guard fails naming its method and path; a token without the permission gets 403 before validation; the routes and the registry name the same permissions, so a permission no route checks is removed from its `<module>.permissions.ts`).
 
 <!-- partner:start -->
 ## 3. Partners: signed requests (spec v1)
