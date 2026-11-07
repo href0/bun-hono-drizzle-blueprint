@@ -50,6 +50,7 @@ src/database/schema/domain/
 - **Route Prefix**: `<API_BASE_PATH>/v1/<kebab-case-plural>` (default `/api/v1/products`), registered on the `v1` router (`docs/standards/naming.md` §3).
 - **Table Name**: Plural `snake_case` in PostgreSQL's `public` schema (e.g. `products`).
 - **Messages constant**: `UPPER_SNAKE` singular + `_MESSAGES` (e.g. `PRODUCT_MESSAGES`) — written `<UPPER_SINGULAR>_MESSAGES` below.
+- **Permissions constant**: `UPPER_SNAKE` singular + `_PERMISSIONS` (e.g. `PRODUCT_PERMISSIONS`), keys `<name>.<action>` (D47); `<words>` below is the name in words for the labels admins read (`product reviews`).
 
 ---
 
@@ -171,6 +172,19 @@ export const <camelSingular>NotFoundMessage = (id: string): LocalizedMessage => 
   id: `<PascalSingular> dengan ID '${id}' tidak ditemukan`,
   en: `<PascalSingular> with ID '${id}' not found`,
 });
+```
+
+---
+
+### Step 4a: Create Permissions (`src/modules/<name>/<name>.permissions.ts`)
+
+The module's API permissions (D47, D54): every route checks one with `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` — the key is written once, a typo is a compile error. `bun run scaffold` collects `.all` in `src/permissions.ts`; `bun run db:migrate` syncs them into the database, where an administrator maps them to roles. Keep only the actions a route checks.
+
+```typescript
+import { crudPermissions } from '../../core/security/rbac';
+
+/** The API permissions of the <name> module (D47): routes check `<UPPER_SINGULAR>_PERMISSIONS.<action>`. */
+export const <UPPER_SINGULAR>_PERMISSIONS = crudPermissions('<name>', '<words>');
 ```
 
 ---
@@ -388,16 +402,17 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 Every route carries `describeEndpoint()` with the success envelope and the **domain** errors only — `docs/standards/openapi.md` §2.
 
-Routes are protected by default; permission checks with `requirePermission('<module>.<action>')` after `describeEndpoint()` — `docs/standards/auth-and-inbound.md` §2.
+Routes are protected by default; every route checks a permission with `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` after `describeEndpoint()` and before `validate()` — `docs/standards/auth-and-inbound.md` §2.
 
 ```typescript
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../core/dto/common.dto';
-import { validate } from '../../core/middlewares';
+import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
+import { <UPPER_SINGULAR>_PERMISSIONS } from './<name>.permissions';
 import {
   create<PascalSingular>Schema,
   update<PascalSingular>Schema,
@@ -415,6 +430,7 @@ router.post(
     summary: 'Create a <camelSingular>',
     response: { status: 201, description: 'Created', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema },
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.create),
   validate({ body: create<PascalSingular>Schema }),
   <camelPlural>Controller.create,
 );
@@ -425,6 +441,7 @@ router.get(
     summary: 'List <camelPlural> (paginated, sortable, searchable)',
     response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema },
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ query: <camelSingular>ListQuerySchema }),
   <camelPlural>Controller.list,
 );
@@ -436,6 +453,7 @@ router.get(
     response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.getById,
 );
@@ -447,6 +465,7 @@ router.patch(
     response: { status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: update<PascalSingular>Schema }),
   <camelPlural>Controller.update,
 );
@@ -458,6 +477,7 @@ router.delete(
     response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.remove,
 );
@@ -469,6 +489,7 @@ router.post(
     response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.restore,
 );
@@ -708,6 +729,7 @@ describe('to<PascalSingular>Response', () => {
 The routes run on a bare Hono app with the request context and the error handler, the service spied: this covers routes, validation, controller and transformer together (snake_case on the wire, status codes, a `NotFoundError` becoming a 404). Authentication is not part of the module — `test/default-deny.e2e.test.ts` proves every route needs a token once mounted in `createApp()`.
 
 ```typescript
+import { signedIn } from '../../../test/helpers/signed-in';
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
@@ -734,6 +756,7 @@ const record: <PascalSingular> = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
+app.use('*', signedIn());
 app.route('/', <camelPlural>Router);
 app.onError(globalErrorHandler);
 

@@ -10,6 +10,7 @@ import {
   projectBudgetResponseSchema,
   saveProjectBudgetSchema,
 } from './project-budgets.dto';
+import { PROJECT_BUDGET_PERMISSIONS } from './project-budgets.permissions';
 
 const tags = ['ProjectBudgets'];
 
@@ -29,7 +30,7 @@ parentRouter.get(
     },
     errors: [404],
   }),
-  requirePermission('project-budgets.read'),
+  requirePermission(PROJECT_BUDGET_PERMISSIONS.read),
   validate({ params: projectBudgetParentParamSchema }),
   projectBudgetsController.getForParent,
 );
@@ -49,7 +50,7 @@ parentRouter.put(
     ],
     errors: [404],
   }),
-  requirePermission('project-budgets.update'),
+  requirePermission(PROJECT_BUDGET_PERMISSIONS.update),
   validate({ params: projectBudgetParentParamSchema, body: saveProjectBudgetSchema }),
   projectBudgetsController.save,
 );
@@ -66,7 +67,7 @@ parentRouter.delete(
     },
     errors: [404],
   }),
-  requirePermission('project-budgets.delete'),
+  requirePermission(PROJECT_BUDGET_PERMISSIONS.delete),
   validate({ params: projectBudgetParentParamSchema }),
   projectBudgetsController.removeForParent,
 );
@@ -87,7 +88,7 @@ router.get(
     },
     errors: [404],
   }),
-  requirePermission('project-budgets.read'),
+  requirePermission(PROJECT_BUDGET_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   projectBudgetsController.getById,
 );
@@ -104,7 +105,7 @@ router.post(
     },
     errors: [404, 409],
   }),
-  requirePermission('project-budgets.restore'),
+  requirePermission(PROJECT_BUDGET_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   projectBudgetsController.restore,
 );

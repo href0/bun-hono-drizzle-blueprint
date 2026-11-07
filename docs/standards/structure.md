@@ -103,7 +103,7 @@ src/
 │
 ├── utils/                       # Pure functions (datetime, crypto, secret cipher, case converter, ip/route match, record diff, …)
 ├── app.ts                       # createApp(): middleware pipeline, versioned router, WEBHOOK_VENDORS; `// scaffold:*` markers = where `bun run scaffold` registers
-├── permissions.ts               # PERMISSION_REGISTRY: the `<module>.permissions.ts` of every module (D47–D49), synced into the database
+├── permissions.ts               # PERMISSION_REGISTRY: `<CONST>.all` of every `<module>.permissions.ts` (D47–D49), synced into the database; `// scaffold:permission*` markers = where `bun run scaffold` registers
 └── index.ts                     # Bun.serve, startup checks, graceful shutdown
 ```
 

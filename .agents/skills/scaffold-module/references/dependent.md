@@ -134,6 +134,19 @@ export const <camelSingular>NotFoundMessage = (id: string): LocalizedMessage => 
 
 ---
 
+### Step 3a: Create Permissions (`src/modules/<parent-name>/<name>/<name>.permissions.ts`)
+
+The module's API permissions (D47, D54): every route checks one with `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` — the key is written once, a typo is a compile error. `bun run scaffold` collects `.all` in `src/permissions.ts`; `bun run db:migrate` syncs them into the database, where an administrator maps them to roles. Keep only the actions a route checks.
+
+```typescript
+import { crudPermissions } from '../../../core/security/rbac';
+
+/** The API permissions of the <name> module (D47): routes check `<UPPER_SINGULAR>_PERMISSIONS.<action>`. */
+export const <UPPER_SINGULAR>_PERMISSIONS = crudPermissions('<name>', '<words>');
+```
+
+---
+
 ### Step 4: Create Repository (`src/modules/<parent-name>/<name>/<name>.repository.ts`)
 
 `DependentRepository` provides `findById`, `findPageForParent`, `countForParent`, `findListForParent` (the list query, D41), `createForParent`, `updateById`, `softDeleteById` and `restoreById` (`docs/standards/database.md` §6). Ownership and parent state are the two hooks — leave them out until the domain needs them.
@@ -360,10 +373,11 @@ Two routers from one file: the collection under the parent and the rows by their
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../../core/dto/common.dto';
-import { validate } from '../../../core/middlewares';
+import { requirePermission, validate } from '../../../core/middlewares';
 import { describeEndpoint } from '../../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
+import { <UPPER_SINGULAR>_PERMISSIONS } from './<name>.permissions';
 import {
   create<PascalSingular>Schema,
   <camelSingular>ListQuerySchema,
@@ -385,6 +399,7 @@ parentRouter.post(
     response: { status: 201, description: 'Created', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.create),
   validate({ params: <camelSingular>ParentParamSchema, body: create<PascalSingular>Schema }),
   <camelPlural>Controller.create,
 );
@@ -396,6 +411,7 @@ parentRouter.get(
     response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: <camelSingular>ParentParamSchema, query: <camelSingular>ListQuerySchema }),
   <camelPlural>Controller.list,
 );
@@ -411,6 +427,7 @@ router.get(
     response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.getById,
 );
@@ -422,6 +439,7 @@ router.patch(
     response: { status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: update<PascalSingular>Schema }),
   <camelPlural>Controller.update,
 );
@@ -433,6 +451,7 @@ router.delete(
     response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.remove,
 );
@@ -444,6 +463,7 @@ router.post(
     response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema },
     errors: [404],
   }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.restore,
 );
@@ -670,6 +690,7 @@ describe('to<PascalSingular>Response', () => {
 Both routers on a bare Hono app, mounted on the same paths as in `src/app.ts`; the service spied.
 
 ```typescript
+import { signedIn } from '../../../../test/helpers/signed-in';
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
@@ -697,6 +718,7 @@ const record: <PascalSingular> = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
+app.use('*', signedIn());
 app.route('/<parent-name>/:<parentCamelSingular>Id/<segment>', <camelPlural>ParentRouter);
 app.route('/<name>', <camelPlural>Router);
 app.onError(globalErrorHandler);

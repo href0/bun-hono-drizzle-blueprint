@@ -296,7 +296,7 @@ src/modules/projects/
 7. **Transformer** typed by the response schema — [http-contract.md](http-contract.md) §1.
 8. **Service** (`@Transactional()` on multi-step writes; `null` → `NotFoundError`, unique violation → `ConflictError`) — [transactions.md](transactions.md), [http-contract.md](http-contract.md) §5.
 9. **Controller** returning `ApiResponse` — [http-contract.md](http-contract.md) §1.
-10. **Routes**: `describeEndpoint()` → `requirePermission('<module>.<action>')` → `validate()` → handler; protected by default — [openapi.md](openapi.md), [auth-and-inbound.md](auth-and-inbound.md).
+10. **Routes**: `describeEndpoint()` → `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` (from `<module>.permissions.ts`, D47) → `validate()` → handler; protected by default — [openapi.md](openapi.md), [auth-and-inbound.md](auth-and-inbound.md).
 11. **Register** in `src/app.ts`: `v1.route('/<name>', router)` (channel routers: [auth-and-inbound.md](auth-and-inbound.md)).
 12. **Tests**: co-located repository (SQL recorder), service, transformer, controller tests + `test/<name>.e2e.test.ts` through `authorize(createApp())`; `test/integration/<name>.int.ts` when the module has its own queries, locks, unique indexes or Redis behaviour — [testing.md](testing.md).
 13. **Gates**: `bun run validate:full` — [quality-gates.md](quality-gates.md).

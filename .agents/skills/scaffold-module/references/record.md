@@ -104,6 +104,22 @@ export const <UPPER_SINGULAR>_MESSAGES = {
 
 ---
 
+### Step 3a: Create Permissions (`src/modules/<name>/<name>.permissions.ts`)
+
+The module's API permissions (D47, D54): every route checks one with `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` — the key is written once, a typo is a compile error. `bun run scaffold` collects `.all` in `src/permissions.ts`; `bun run db:migrate` syncs them into the database, where an administrator maps them to roles. Keep only the actions a route checks.
+
+```typescript
+import { definePermissions } from '../../core/security/rbac';
+
+/** The API permissions of the <name> module (D47): records are appended and read, never changed. */
+export const <UPPER_SINGULAR>_PERMISSIONS = definePermissions('<name>', {
+  read: 'Read <words>',
+  create: 'Append <words>',
+});
+```
+
+---
+
 ### Step 4: Create Repository (`src/modules/<name>/<name>.repository.ts`)
 
 ```typescript
@@ -233,10 +249,11 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 
 ```typescript
 import { Hono } from 'hono';
-import { validate } from '../../core/middlewares';
+import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
+import { <UPPER_SINGULAR>_PERMISSIONS } from './<name>.permissions';
 import {
   append<PascalSingular>Schema,
   list<PascalPlural>QuerySchema,
@@ -249,12 +266,14 @@ const tags = ['<PascalPlural>'];
 router.post(
   '/',
   describeEndpoint({ tags, summary: 'Append a record', response: { status: 201, description: 'Saved', message: <UPPER_SINGULAR>_MESSAGES.APPENDED, data: <camelSingular>ResponseSchema } }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.create),
   validate({ body: append<PascalSingular>Schema }),
   <camelPlural>Controller.append,
 );
 router.get(
   '/',
   describeEndpoint({ tags, summary: 'List records, newest first (paginated, sortable, searchable, optional kind)', response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema } }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ query: list<PascalPlural>QuerySchema }),
   <camelPlural>Controller.list,
 );
@@ -396,6 +415,7 @@ describe('to<PascalSingular>Response', () => {
 ### Step 13: Create Controller Test (`src/modules/<name>/<name>.controller.test.ts`)
 
 ```typescript
+import { signedIn } from '../../../test/helpers/signed-in';
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
@@ -409,6 +429,7 @@ const record: <PascalSingular> = { id: 1, kind: 'login', detail: null, createdAt
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
+app.use('*', signedIn());
 app.route('/', <camelPlural>Router);
 app.onError(globalErrorHandler);
 

@@ -22,6 +22,7 @@ import {
   APPEND_ONLY_PATH,
   CONFIG_BARREL,
   planScaffold,
+  PERMISSIONS_PATH,
   REGISTRY_PATH,
   SCHEMA_BARREL,
   STRUCTURE_PATH,
@@ -232,7 +233,14 @@ const plannedFiles = requests.flatMap((request) =>
   planScaffold(request).files.map((file) => file.path),
 );
 /** Shared files the CLI edits: restored byte for byte afterwards. */
-const SHARED = [APP_PATH, SCHEMA_BARREL, APPEND_ONLY_PATH, REGISTRY_PATH, CONFIG_BARREL];
+const SHARED = [
+  APP_PATH,
+  SCHEMA_BARREL,
+  APPEND_ONLY_PATH,
+  REGISTRY_PATH,
+  CONFIG_BARREL,
+  PERMISSIONS_PATH,
+];
 /** The contract folder (snapshot + Markdown) this check updates on purpose, as the developer does. */
 const CONTRACT_DIR = dirname(SNAPSHOT_PATH);
 const contractFiles = (): string[] =>
@@ -306,7 +314,8 @@ const { signProbeHooksWebhook } = await import('./src/integrations/probe-hooks/p
 const { createApp } = await import('./src/app.ts');
 const { appConfig } = await import('./src/config/index.ts');
 const { signAccessToken } = await import('./src/core/security/jwt.ts');
-const app = createApp();
+// The token's user holds every permission (hermetic: no database behind the lookup).
+const app = createApp({ permissionLookup: () => Promise.resolve({ superAdmin: true, permissions: [] }) });
 const base = appConfig.API_BASE_PATH;
 const variants = ${JSON.stringify(VARIANTS.map(({ label, documented, invalid, channel }) => ({ label, documented, invalid, channel })))};
 const doc = await (await app.request(base + '/docs/openapi.json')).json();

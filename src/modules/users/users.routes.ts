@@ -13,6 +13,7 @@ import {
   userResponseSchema,
 } from './users.dto';
 import { USER_MESSAGES } from './users.messages';
+import { USER_PERMISSIONS } from './users.permissions';
 
 export const userRoutes = new Hono();
 
@@ -33,7 +34,7 @@ userRoutes.post(
     },
     errors: [409],
   }),
-  requirePermission('users.create'),
+  requirePermission(USER_PERMISSIONS.create),
   validate({ body: createUserSchema }),
   usersController.create,
 );
@@ -49,7 +50,7 @@ userRoutes.get(
       paginatedItem: userResponseSchema,
     },
   }),
-  requirePermission('users.read'),
+  requirePermission(USER_PERMISSIONS.read),
   validate({ query: userListQuerySchema }),
   usersController.list,
 );
@@ -66,7 +67,7 @@ userRoutes.get(
     },
     errors: [404],
   }),
-  requireSelfOrPermission('id', 'users.read'),
+  requireSelfOrPermission('id', USER_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   usersController.getById,
 );
@@ -83,7 +84,7 @@ userRoutes.patch(
     },
     errors: [404, 409, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
   }),
-  requirePermission('users.update'),
+  requirePermission(USER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: updateUserSchema }),
   usersController.update,
 );
@@ -100,7 +101,7 @@ userRoutes.delete(
     },
     errors: [404, { status: 403, codes: [APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN] }],
   }),
-  requirePermission('users.delete'),
+  requirePermission(USER_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   usersController.remove,
 );
@@ -117,7 +118,7 @@ userRoutes.put(
     },
     errors: [404],
   }),
-  requirePermission('users.update'),
+  requirePermission(USER_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: setPasswordSchema }),
   usersController.setPassword,
 );
@@ -134,7 +135,7 @@ userRoutes.post(
     },
     errors: [404, 409],
   }),
-  requirePermission('users.restore'),
+  requirePermission(USER_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   usersController.restore,
 );

@@ -14,6 +14,7 @@ import {
   rotatedSecretSchema,
   updatePartnerCredentialSchema,
 } from './partner-credentials.dto';
+import { PARTNER_CREDENTIAL_PERMISSIONS } from './partner-credentials.permissions';
 
 export const partnerCredentialRoutes = new Hono();
 
@@ -34,7 +35,7 @@ partnerCredentialRoutes.post(
     },
     errors: [409],
   }),
-  requirePermission('partner-credentials.create'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.create),
   validate({ body: createPartnerCredentialSchema }),
   partnerCredentialsController.create,
 );
@@ -50,7 +51,7 @@ partnerCredentialRoutes.get(
       paginatedItem: partnerCredentialResponseSchema,
     },
   }),
-  requirePermission('partner-credentials.read'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.read),
   validate({ query: partnerCredentialListQuerySchema }),
   partnerCredentialsController.list,
 );
@@ -67,7 +68,7 @@ partnerCredentialRoutes.get(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.read'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.getById,
 );
@@ -84,7 +85,7 @@ partnerCredentialRoutes.patch(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.update'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: updatePartnerCredentialSchema }),
   partnerCredentialsController.update,
 );
@@ -101,7 +102,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.activate'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.activate),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.activate,
 );
@@ -118,7 +119,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.deactivate'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.deactivate),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.deactivate,
 );
@@ -135,7 +136,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.rotate-secret'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.rotateSecret),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.rotateSecret,
 );
@@ -152,7 +153,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.rotate-api-key'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.rotateApiKey),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.rotateApiKey,
 );
@@ -169,7 +170,7 @@ partnerCredentialRoutes.delete(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.delete'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.remove,
 );
@@ -186,7 +187,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  requirePermission('partner-credentials.restore'),
+  requirePermission(PARTNER_CREDENTIAL_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.restore,
 );

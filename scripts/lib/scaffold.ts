@@ -18,12 +18,19 @@ export const REGISTRY_PATH = 'src/integrations/registry.ts';
 export const CONFIG_BARREL = 'src/config/index.ts';
 /** The canonical tree names every module (test/docs-sync.test.ts): a new one gets its line. */
 export const STRUCTURE_PATH = 'docs/standards/structure.md';
+export const PERMISSIONS_PATH = 'src/permissions.ts';
 
 /** Permanent markers in `src/app.ts`: new lines go directly above them. */
 export const APP_MARKERS = {
   imports: '// scaffold:imports',
   webhookRoutes: '  // scaffold:webhook-routes',
   v1Routes: '  // scaffold:v1-routes',
+} as const;
+
+/** Permanent markers in `src/permissions.ts` (the registry of every module's API permissions, D47). */
+export const PERMISSION_MARKERS = {
+  imports: '// scaffold:permission-imports',
+  registry: '  // scaffold:permissions',
 } as const;
 
 export type ScaffoldKind =
@@ -268,6 +275,8 @@ export const fill = (
       [/<PascalSingular>/g, names.pascalSingular],
       [/<camelSingular>/g, names.camelSingular],
       [/<name>/g, names.name],
+      // The plural in words, for labels people read (`product-reviews` → "product reviews").
+      [/<words>/g, names.name.split('-').join(' ')],
     ] as [RegExp, string][]
   ).reduce((result, [pattern, value]) => result.replace(pattern, () => value), text);
 
@@ -293,7 +302,8 @@ export const materialize = (
   segment?: string,
 ): PlannedFile[] => {
   const text = template.split('\r\n').join('\n');
-  const stepPattern = /### Step \d+: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
+  const stepPattern =
+    /### Step \d+[a-z]?: [^\n]*\(`(src\/[^`]+)`\)[\s\S]*?```typescript\n([\s\S]*?)```/g;
   const files = [...text.matchAll(stepPattern)].flatMap((match) => {
     const path = fill(match.at(1) ?? '', names, vendor, detail, parent, segment);
     return registrations.includes(path)
@@ -416,6 +426,26 @@ const appendExport = (path: string, label: string, from: string): PlannedEdit =>
   apply: (content) =>
     `${content.endsWith('\n') || content === '' ? content : `${content}\n`}export * from '${from}';\n`,
 });
+
+/**
+ * Collects a module's API permissions in the registry (D47): `<UPPER_SINGULAR>_PERMISSIONS.all`,
+ * imported from `<dir>/<name>.permissions` (`dir` relative to `src/`).
+ */
+const permissionRegistration = (names: Names, dir: string): PlannedEdit => {
+  const constant = `${names.upperSingular}_PERMISSIONS`;
+  return {
+    path: PERMISSIONS_PATH,
+    label: `register ${constant} in the permission registry`,
+    apply: (content) =>
+      aboveMarker(
+        aboveMarker(content, PERMISSION_MARKERS.imports, [
+          `import { ${constant} } from './${dir}/${names.name}.permissions';`,
+        ]),
+        PERMISSION_MARKERS.registry,
+        [`  ...${constant}.all,`],
+      ),
+  };
+};
 
 const registryEntry = (code: string, vendorName: string): PlannedEdit => ({
   path: REGISTRY_PATH,
@@ -597,6 +627,8 @@ export const planScaffold = (request: ScaffoldRequest, root = '.'): ScaffoldPlan
         ),
     },
   ];
+  // A user-channel module checks permissions on every route; the partner channel has its own guard (D57).
+  if (variant !== 'partner') edits.push(permissionRegistration(names, `modules/${names.name}`));
   edits.push(
     structureLine(
       names.name,
@@ -715,6 +747,7 @@ const planDependent = (
             ],
           ),
       },
+      permissionRegistration(names, `modules/${parent.name}/${names.name}`),
       nestedStructureLine(
         parent.name,
         names.name,

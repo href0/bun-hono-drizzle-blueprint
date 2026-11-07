@@ -1,7 +1,4 @@
-import { crudPermissions, type PermissionDefinition } from '../../core/security/rbac';
+import { crudPermissions } from '../../core/security/rbac';
 
-/** The API permissions of the projects module (D47), collected in `src/permissions.ts`. */
-export const PROJECT_PERMISSIONS: readonly PermissionDefinition[] = crudPermissions(
-  'projects',
-  'projects',
-);
+/** The API permissions of the projects module (D47): routes check `PROJECT_PERMISSIONS.<action>`. */
+export const PROJECT_PERMISSIONS = crudPermissions('projects', 'projects');

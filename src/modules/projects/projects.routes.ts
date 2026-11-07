@@ -11,6 +11,7 @@ import {
   projectListQuerySchema,
   projectResponseSchema,
 } from './projects.dto';
+import { PROJECT_PERMISSIONS } from './projects.permissions';
 
 const router = new Hono();
 const tags = ['Projects'];
@@ -27,7 +28,7 @@ router.post(
       data: projectResponseSchema,
     },
   }),
-  requirePermission('projects.create'),
+  requirePermission(PROJECT_PERMISSIONS.create),
   validate({ body: createProjectSchema }),
   projectsController.create,
 );
@@ -43,7 +44,7 @@ router.get(
       paginatedItem: projectResponseSchema,
     },
   }),
-  requirePermission('projects.read'),
+  requirePermission(PROJECT_PERMISSIONS.read),
   validate({ query: projectListQuerySchema }),
   projectsController.list,
 );
@@ -60,7 +61,7 @@ router.get(
     },
     errors: [404],
   }),
-  requirePermission('projects.read'),
+  requirePermission(PROJECT_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   projectsController.getById,
 );
@@ -77,7 +78,7 @@ router.patch(
     },
     errors: [404],
   }),
-  requirePermission('projects.update'),
+  requirePermission(PROJECT_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: updateProjectSchema }),
   projectsController.update,
 );
@@ -94,7 +95,7 @@ router.delete(
     },
     errors: [404],
   }),
-  requirePermission('projects.delete'),
+  requirePermission(PROJECT_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   projectsController.remove,
 );
@@ -111,7 +112,7 @@ router.post(
     },
     errors: [404],
   }),
-  requirePermission('projects.restore'),
+  requirePermission(PROJECT_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   projectsController.restore,
 );

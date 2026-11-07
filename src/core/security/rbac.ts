@@ -36,9 +36,52 @@ export const permission = (group: string, action: string, label: string): Permis
   group,
 });
 
-/** The five CRUD permissions of a module: `crudPermissions('orders', 'orders')` → `orders.read` "Read orders", … */
-export const crudPermissions = (group: string, subject: string): PermissionDefinition[] =>
-  CRUD_ACTIONS.map((action) => permission(group, action, `${CRUD_VERBS[action]} ${subject}`));
+/**
+ * The permissions of one module: the key of each action by its camelCase name — what routes pass to
+ * `requirePermission()`, so a key is written once and a typo is a compile error — and `all`, the
+ * definitions collected in `src/permissions.ts`.
+ */
+export type ModulePermissions<A extends string> = { readonly [K in A]: string } & {
+  readonly all: readonly PermissionDefinition[];
+};
+
+/** `rotateSecret` → `rotate-secret`: actions are camelCase in code, kebab-case in keys. */
+const kebabOf = (action: string): string => action.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+/**
+ * `definePermissions('orders', { read: 'Read orders', approveRefund: 'Approve order refunds' })`
+ * → `.read` = `orders.read`, `.approveRefund` = `orders.approve-refund`,
+ * `.all` = their definitions (label and group for the admin screen). `all` is not an action name.
+ */
+export const definePermissions = <A extends string>(
+  group: string,
+  labels: Readonly<Record<A, string>>,
+): ModulePermissions<A> => {
+  const entries = Object.entries<string>(labels);
+  if (entries.some(([action]) => action === 'all')) {
+    throw new Error(`${group}: "all" is reserved, not an action name`);
+  }
+  const keys = Object.fromEntries(
+    entries.map(([action]) => [action, `${group}.${kebabOf(action)}`]),
+  ) as Record<A, string>;
+  return {
+    ...keys,
+    all: entries.map(([action, label]) => permission(group, kebabOf(action), label)),
+  };
+};
+
+/** The labels of the five CRUD actions: `crudLabels('orders')` → `{ read: 'Read orders', … }`. */
+export const crudLabels = (subject: string): Record<CrudAction, string> => ({
+  read: `${CRUD_VERBS.read} ${subject}`,
+  create: `${CRUD_VERBS.create} ${subject}`,
+  update: `${CRUD_VERBS.update} ${subject}`,
+  delete: `${CRUD_VERBS.delete} ${subject}`,
+  restore: `${CRUD_VERBS.restore} ${subject}`,
+});
+
+/** The five CRUD permissions of a module (D54): `crudPermissions('orders', 'orders').read` = `orders.read`. */
+export const crudPermissions = (group: string, subject: string): ModulePermissions<CrudAction> =>
+  definePermissions(group, crudLabels(subject));
 
 /** Column limits of the `permissions` table. */
 export const PERMISSION_LIMITS = { key: 100, label: 150, group: 100 } as const;

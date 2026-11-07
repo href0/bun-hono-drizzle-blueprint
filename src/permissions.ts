@@ -11,6 +11,7 @@ import { ORDER_PERMISSIONS } from './modules/orders/orders.permissions';
 import { PROJECT_PERMISSIONS } from './modules/projects/projects.permissions';
 import { PROJECT_TASK_PERMISSIONS } from './modules/projects/project-tasks/project-tasks.permissions';
 import { PROJECT_BUDGET_PERMISSIONS } from './modules/projects/project-budgets/project-budgets.permissions';
+// scaffold:permission-imports — `bun run scaffold` adds the permissions of new modules above this line; keep it.
 
 /**
  * Every API permission of the application (D47–D49): the `<module>.permissions.ts` of each module.
@@ -19,13 +20,14 @@ import { PROJECT_BUDGET_PERMISSIONS } from './modules/projects/project-budgets/p
  * modules because modules never import each other (R03).
  */
 export const PERMISSION_REGISTRY: readonly PermissionDefinition[] = [
-  ...USER_PERMISSIONS,
+  ...USER_PERMISSIONS.all,
   // partner:start
-  ...PARTNER_CREDENTIAL_PERMISSIONS,
+  ...PARTNER_CREDENTIAL_PERMISSIONS.all,
   // partner:end
-  ...USER_POST_PERMISSIONS,
-  ...ORDER_PERMISSIONS,
-  ...PROJECT_PERMISSIONS,
-  ...PROJECT_TASK_PERMISSIONS,
-  ...PROJECT_BUDGET_PERMISSIONS,
+  ...USER_POST_PERMISSIONS.all,
+  ...ORDER_PERMISSIONS.all,
+  ...PROJECT_PERMISSIONS.all,
+  ...PROJECT_TASK_PERMISSIONS.all,
+  ...PROJECT_BUDGET_PERMISSIONS.all,
+  // scaffold:permissions — `bun run scaffold` adds the permissions of new modules above this line; keep it.
 ];

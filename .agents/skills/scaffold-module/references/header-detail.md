@@ -174,6 +174,19 @@ export const <camelSingular><DetailPascalSingular>NotFoundMessage = (id: string)
 
 ---
 
+### Step 3a: Create Permissions (`src/modules/<name>/<name>.permissions.ts`)
+
+The module's API permissions (D47, D54): every route checks one with `requirePermission(<UPPER_SINGULAR>_PERMISSIONS.<action>)` — the key is written once, a typo is a compile error. `bun run scaffold` collects `.all` in `src/permissions.ts`; `bun run db:migrate` syncs them into the database, where an administrator maps them to roles. Keep only the actions a route checks.
+
+```typescript
+import { crudPermissions } from '../../core/security/rbac';
+
+/** The API permissions of the <name> module (D47): routes check `<UPPER_SINGULAR>_PERMISSIONS.<action>`. */
+export const <UPPER_SINGULAR>_PERMISSIONS = crudPermissions('<name>', '<words>');
+```
+
+---
+
 ### Step 4: Create Repositories (`src/modules/<name>/<name>.repository.ts`)
 
 Both classes extend a base (ESLint). `ChildRepository` takes the header table and the detail's foreign-key column; a missing or soft-deleted header is a `NotFoundError` from the repository itself.
@@ -465,10 +478,11 @@ export const <camelPlural>Controller = new <PascalPlural>Controller();
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidChildParamSchema, uuidParamSchema } from '../../core/dto/common.dto';
-import { validate } from '../../core/middlewares';
+import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { <camelPlural>Controller } from './<name>.controller';
 import { <UPPER_SINGULAR>_MESSAGES } from './<name>.messages';
+import { <UPPER_SINGULAR>_PERMISSIONS } from './<name>.permissions';
 import {
   create<PascalSingular><DetailPascalSingular>Schema,
   create<PascalSingular>Schema,
@@ -486,36 +500,42 @@ const tags = ['<PascalPlural>'];
 router.post(
   '/',
   describeEndpoint({ tags, summary: 'Create a <camelSingular>', response: { status: 201, description: 'Created', message: <UPPER_SINGULAR>_MESSAGES.CREATED, data: <camelSingular>ResponseSchema } }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.create),
   validate({ body: create<PascalSingular>Schema }),
   <camelPlural>Controller.create,
 );
 router.get(
   '/',
   describeEndpoint({ tags, summary: 'List <camelPlural> (paginated, sortable, searchable)', response: { status: 200, description: 'A page', message: <UPPER_SINGULAR>_MESSAGES.LIST_RETRIEVED, paginatedItem: <camelSingular>ResponseSchema } }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ query: <camelSingular>ListQuerySchema }),
   <camelPlural>Controller.list,
 );
 router.get(
   '/:id',
   describeEndpoint({ tags, summary: 'Get a <camelSingular> by id', response: { status: 200, description: 'Found', message: <UPPER_SINGULAR>_MESSAGES.RETRIEVED, data: <camelSingular>ResponseSchema }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.getById,
 );
 router.patch(
   '/:id',
   describeEndpoint({ tags, summary: 'Update a <camelSingular> (only the given fields)', response: { status: 200, description: 'Updated', message: <UPPER_SINGULAR>_MESSAGES.UPDATED, data: <camelSingular>ResponseSchema }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: update<PascalSingular>Schema }),
   <camelPlural>Controller.update,
 );
 router.delete(
   '/:id',
   describeEndpoint({ tags, summary: 'Delete a <camelSingular> (soft delete; restorable)', response: { status: 200, description: 'Deleted', message: <UPPER_SINGULAR>_MESSAGES.DELETED, data: z.null() }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.delete),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.remove,
 );
 router.post(
   '/:id/restore',
   describeEndpoint({ tags, summary: 'Restore a soft-deleted <camelSingular>', response: { status: 200, description: 'Restored', message: <UPPER_SINGULAR>_MESSAGES.RESTORED, data: <camelSingular>ResponseSchema }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.restore),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.restore,
 );
@@ -523,30 +543,35 @@ router.post(
 router.get(
   '/:id/<detail-plural>',
   describeEndpoint({ tags, summary: "List a <camelSingular>'s <detailCamelPlural>", response: { status: 200, description: '<DetailPascalPlural>, oldest first', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_PLURAL>_RETRIEVED, data: z.array(<camelSingular><DetailPascalSingular>ResponseSchema) }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   <camelPlural>Controller.list<DetailPascalPlural>,
 );
 router.post(
   '/:id/<detail-plural>',
   describeEndpoint({ tags, summary: 'Add an <detailCamelSingular> to a <camelSingular>', response: { status: 201, description: '<DetailPascalSingular> added', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_SINGULAR>_CREATED, data: <camelSingular><DetailPascalSingular>ResponseSchema }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: create<PascalSingular><DetailPascalSingular>Schema }),
   <camelPlural>Controller.add<DetailPascalSingular>,
 );
 router.put(
   '/:id/<detail-plural>',
   describeEndpoint({ tags, summary: "Replace a <camelSingular>'s <detailCamelSingular> list (update kept ids, add new, delete missing)", response: { status: 200, description: 'The saved list', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_PLURAL>_SAVED, data: z.array(<camelSingular><DetailPascalSingular>ResponseSchema) }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidParamSchema, body: sync<PascalSingular><DetailPascalPlural>Schema }),
   <camelPlural>Controller.sync<DetailPascalPlural>,
 );
 router.patch(
   '/:id/<detail-plural>/:childId',
   describeEndpoint({ tags, summary: 'Update an <detailCamelSingular> (only the given fields)', response: { status: 200, description: '<DetailPascalSingular> updated', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_SINGULAR>_UPDATED, data: <camelSingular><DetailPascalSingular>ResponseSchema }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidChildParamSchema, body: update<PascalSingular><DetailPascalSingular>Schema }),
   <camelPlural>Controller.update<DetailPascalSingular>,
 );
 router.delete(
   '/:id/<detail-plural>/:childId',
   describeEndpoint({ tags, summary: 'Delete an <detailCamelSingular>', response: { status: 200, description: '<DetailPascalSingular> deleted', message: <UPPER_SINGULAR>_MESSAGES.<DETAIL_UPPER_SINGULAR>_DELETED, data: z.null() }, errors: [404] }),
+  requirePermission(<UPPER_SINGULAR>_PERMISSIONS.update),
   validate({ params: uuidChildParamSchema }),
   <camelPlural>Controller.delete<DetailPascalSingular>,
 );
@@ -793,6 +818,7 @@ describe('<name> transformers', () => {
 The routes run on a bare Hono app with the request context and the error handler, the service spied — routes, validation, controller and transformer together. Authentication is proven for every route by `test/default-deny.e2e.test.ts` once mounted in `createApp()`.
 
 ```typescript
+import { signedIn } from '../../../test/helpers/signed-in';
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
@@ -813,6 +839,7 @@ const <detailCamelSingular>: <PascalSingular><DetailPascalSingular> = { id: <DET
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
+app.use('*', signedIn());
 app.route('/', <camelPlural>Router);
 app.onError(globalErrorHandler);
 
