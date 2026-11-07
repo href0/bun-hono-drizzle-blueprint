@@ -75,7 +75,15 @@ describe('RbacService', () => {
   beforeEach(() => {
     memory = memoryCache();
     roles = { findById: (id: string) => Promise.resolve(role(id.replace('role-', ''))) };
-    permissions = { findGrantableById: () => Promise.resolve({ id: 'p1' }) };
+    permissions = {
+      findGrantableById: () => Promise.resolve({ id: 'p1', key: 'orders.read' }),
+      findMappedToRole: () =>
+        Promise.resolve([
+          { key: 'orders.read', retiredAt: null },
+          { key: 'old.thing', retiredAt: {} },
+        ]),
+      findCounting: () => Promise.resolve([{ key: 'orders.read' }, { key: 'users.read' }]),
+    };
     rolePermissions = {
       findLive: () => Promise.resolve(null),
       create: (input: object) => Promise.resolve({ id: 'rp1', ...input }),
@@ -286,6 +294,154 @@ describe('RbacService', () => {
       expect(
         await errorOf(inTx(() => service().grantPermission('u1', 'p1', { expiresAt: past }))),
       ).toBeInstanceOf(BadRequestError);
+    });
+  });
+
+  describe('user access (step 6b)', () => {
+    /** Runs `fn` in a committing stand-in transaction as signed-in user `id` holding `effective`. */
+    const as = <T>(
+      id: string,
+      effective: { superAdmin: boolean; permissions: string[] },
+      fn: () => Promise<T>,
+    ) =>
+      runWithRequestContext(
+        {
+          requestId: 'r1',
+          locale: 'en',
+          clientIp: 'unknown',
+          actor: `user:${id}`,
+          user: { id },
+          permissions: () => Promise.resolve(effective),
+        },
+        () => inTx(fn),
+      );
+    const ROOT = { superAdmin: true, permissions: [] };
+    const codeOf = async (promise: Promise<unknown>) => {
+      const error = await errorOf(promise);
+      return error instanceof ForbiddenError || error instanceof ConflictError
+        ? error.errorCode
+        : String(error);
+    };
+
+    it('lists my permissions: the effective ones, or every key that counts for a super admin', async () => {
+      expect(await service().listMyPermissions('u1')).toEqual(
+        await service().getEffectivePermissions('u1'),
+      );
+      userRoles.findRoleKeys = () => Promise.resolve(['super_admin']);
+      expect(await service().listMyPermissions('u2')).toEqual({
+        superAdmin: true,
+        permissions: ['orders.read', 'users.read'],
+      });
+    });
+
+    it('lists the roles and grants of a live user; an unknown user is a 404', async () => {
+      userRoles.findRolesOf = () => Promise.resolve([role('user')]);
+      userPermissions.findGrantsOf = () => Promise.resolve([]);
+      expect(await service().listUserRoles('u1')).toEqual([role('user')]);
+      expect(await service().listUserGrants('u1')).toEqual([]);
+      userRoles.isLiveUser = () => Promise.resolve(false);
+      expect(await errorOf(service().listUserRoles('u1'))).toBeInstanceOf(NotFoundError);
+      expect(await errorOf(service().listUserGrants('u1'))).toBeInstanceOf(NotFoundError);
+    });
+
+    it('assigning a role needs every permission it carries (retired ones aside); super_admin only by a super admin', async () => {
+      const holder = { superAdmin: false, permissions: ['orders.read'] };
+      await as('a1', holder, () => service().assignRole('u1', 'role-staff'));
+      expect(
+        await codeOf(
+          as('a1', { superAdmin: false, permissions: [] }, () =>
+            service().assignRole('u1', 'role-staff'),
+          ),
+        ),
+      ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+      expect(
+        await codeOf(as('a1', holder, () => service().assignRole('u1', 'role-super_admin'))),
+      ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+      await as('root', ROOT, () => service().assignRole('u1', 'role-super_admin'));
+    });
+
+    it('PUT a role: given once, then a no-op', async () => {
+      expect(await inTx(() => service().putUserRole('u1', 'role-staff'))).toEqual({
+        created: true,
+      });
+      userRoles.findLive = () => Promise.resolve({ id: 'ur1' });
+      expect(await inTx(() => service().putUserRole('u1', 'role-staff'))).toEqual({
+        created: false,
+      });
+    });
+
+    it('revoking super_admin: only by a super admin, never one’s own, never the last active holder', async () => {
+      userRoles.findLive = () => Promise.resolve({ id: 'ur1' });
+      userRoles.lockHolderIds = () => Promise.resolve(['u1', 'u2']);
+      userRoles.findActiveUserIds = (ids: string[]) => Promise.resolve(ids);
+
+      expect(
+        await codeOf(
+          as('a1', { superAdmin: false, permissions: ['user-roles.delete'] }, () =>
+            service().revokeRole('u1', 'role-super_admin'),
+          ),
+        ),
+      ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+      expect(
+        await codeOf(as('u1', ROOT, () => service().revokeRole('u1', 'role-super_admin'))),
+      ).toBe(APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN);
+      await as('u2', ROOT, () => service().revokeRole('u1', 'role-super_admin'));
+
+      // u2 is the only other holder, and is inactive: u1 is the last who can sign in.
+      userRoles.findActiveUserIds = () => Promise.resolve([]);
+      expect(
+        await codeOf(as('root', ROOT, () => service().revokeRole('u1', 'role-super_admin'))),
+      ).toBe(APP_ERROR_CODES.CONFLICT);
+    });
+
+    it('granting needs the permission; PUT grants once, then changes expiry and note under the same rule', async () => {
+      const holder = { superAdmin: false, permissions: ['orders.read'] };
+      expect(
+        await codeOf(
+          as('a1', { superAdmin: false, permissions: [] }, () =>
+            service().grantPermission('u1', 'p1'),
+          ),
+        ),
+      ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+
+      const created = await as('a1', holder, () =>
+        service().putGrant('u1', 'p1', { note: 'audit' }),
+      );
+      expect(created.created).toBe(true);
+
+      const later = nowInstant().add({ hours: 1 });
+      userPermissions.findLive = () => Promise.resolve({ id: 'up1' });
+      userPermissions.updateById = (_id: string, patch: object) =>
+        Promise.resolve({ id: 'up1', ...patch });
+      memory.deleted.length = 0;
+      const changed = await as('a1', holder, () =>
+        service().putGrant('u1', 'p1', { expiresAt: later }),
+      );
+      expect(changed).toMatchObject({
+        grant: {
+          grant: { id: 'up1', expiresAt: later, note: null },
+          permission: { key: 'orders.read' },
+        },
+        created: false,
+      });
+      expect(memory.deleted).toEqual(['rbac:permissions:u1']);
+
+      expect(
+        await codeOf(
+          as('a1', { superAdmin: false, permissions: [] }, () => service().putGrant('u1', 'p1')),
+        ),
+      ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+      expect(
+        await errorOf(
+          inTx(() =>
+            service().putGrant('u1', 'p1', { expiresAt: nowInstant().subtract({ hours: 1 }) }),
+          ),
+        ),
+      ).toBeInstanceOf(BadRequestError);
+      userPermissions.updateById = () => Promise.resolve(null);
+      expect(await errorOf(inTx(() => service().putGrant('u1', 'p1')))).toBeInstanceOf(
+        NotFoundError,
+      );
     });
   });
 

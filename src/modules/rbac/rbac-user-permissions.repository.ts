@@ -1,7 +1,8 @@
-import { and, eq, gt, isNull, or, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, or, type SQL } from 'drizzle-orm';
 import type { Temporal } from 'temporal-polyfill';
 import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
 import { permissions, userPermissions, type UserPermission } from '../../database/schema';
+import type { GrantWithPermission } from './rbac-user-access.dto';
 import { NOW } from '../../database/schema/columns';
 import { rbacScope } from './rbac-scope.util';
 
@@ -37,6 +38,19 @@ export class RbacUserPermissionsRepository extends BaseRepository<typeof userPer
       )
       .limit(1);
     return rows.at(0) ?? null;
+  }
+
+  /** Every live grant of `userId` (expired ones too, so an admin sees them) with its live permission, by key. */
+  async findGrantsOf(userId: string): Promise<GrantWithPermission[]> {
+    return this.txHost.tx
+      .select({ grant: userPermissions, permission: permissions })
+      .from(userPermissions)
+      .innerJoin(
+        permissions,
+        and(eq(permissions.id, userPermissions.permissionId), isNull(permissions.deletedAt)),
+      )
+      .where(this.scoped(eq(userPermissions.userId, userId)))
+      .orderBy(asc(permissions.key));
   }
 
   /** Grants of `userId` that count now: live, not expired (database clock), permission not retired. */

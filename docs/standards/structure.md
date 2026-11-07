@@ -89,7 +89,7 @@ src/
 │   ├── projects/                # Example parent of dependent modules (removed by `bun run setup` unless --keep-examples)
 │   │   ├── project-tasks/       # Example dependent 1:N (/api/v1/projects/:projectId/tasks, /api/v1/project-tasks/:id)
 │   │   ├── project-budgets/     # Example dependent 1:1 (/api/v1/projects/:projectId/budget, /api/v1/project-budgets/:id)
-│   ├── rbac/                    # Effective permissions of a user (cached per user, D52–D53), roles / role mappings / per-user grants with cache invalidation; admin API /roles + /permissions (rbac-roles.*, rbac-permissions.*); rbac-grant-guard.util.ts = no escalation; rbac-scope.util.ts = the one filter of every RBAC query (D56)
+│   ├── rbac/                    # Effective permissions of a user (cached per user, D52–D53), roles / role mappings / per-user grants with cache invalidation; admin API /roles + /permissions (rbac-roles.*, rbac-permissions.*), /users/:id/roles + /users/:id/permissions (rbac-user-access.*), GET /me/permissions (rbac-me.routes.ts); rbac-grant-guard.util.ts = no escalation, super_admin only by a super admin; rbac-scope.util.ts = the one filter of every RBAC query (D56)
 │   ├── user-posts/              # Example module consuming an outbound adapter (/api/v1/users/:id/external-posts) (removed by `bun run setup` unless --keep-examples)
 │   └── users/                   # Reference standalone-table module (/api/v1/users)
 │       ├── users.dto.ts         # Request & response schemas
@@ -116,7 +116,7 @@ test/
 │   └── partner-signing-vectors.ts # published signing vectors of the partner gateway <!-- partner -->
 ├── integration/                 # bun run test:int: setup.ts (preload: disposable DB, migrations, fixtures) + data-layer, redis, auth, rbac, … (*.int.ts)
 │   └── partner.int.ts           # the partner gateway against a real database and Redis <!-- partner -->
-├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, route-permissions (R89), outbound, list-query (every paginated list follows http-contract.md §8), …
+├── *.e2e.test.ts                # health, auth, users, orders (example), vendor-webhooks, openapi, platform, default-deny, route-permissions (R89), rbac + rbac-user-access (RBAC admin API), outbound, list-query (every paginated list follows http-contract.md §8), …
 ├── hermetic-env.test.ts         # Guards the hermetic preload
 ├── partner-guide.test.ts        # docs/partner-integration-guide.md matches the code (vectors, headers, error codes) <!-- partner -->
 ├── structure.test.ts            # File names, module / integration patterns, dependent subfolders named after their parent, unique module names, module ≠ vendor, channel routers, *.int.ts placement

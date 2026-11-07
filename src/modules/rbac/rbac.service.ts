@@ -2,7 +2,13 @@ import { Temporal } from 'temporal-polyfill';
 import { z } from 'zod';
 import { authConfig } from '../../config';
 import { CacheService, cacheService, CACHE_KEYS } from '../../core/cache';
-import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors';
+import {
+  APP_ERROR_CODES,
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../../core/errors';
 import { SUPER_ADMIN_ROLE, type EffectivePermissions } from '../../core/security/rbac';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
@@ -28,8 +34,9 @@ import {
   rbacUserPermissionsRepository,
   type ActiveGrant,
 } from './rbac-user-permissions.repository';
+import type { GrantWithPermission } from './rbac-user-access.dto';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
-import { requireActorHolds } from './rbac-grant-guard.util';
+import { actorUserId, requireActorHolds, requireActorIsSuperAdmin } from './rbac-grant-guard.util';
 import {
   RBAC_MESSAGES,
   rbacPermissionNotFoundMessage,
@@ -97,10 +104,42 @@ export class RbacService {
     return effective.superAdmin || effective.permissions.includes(permission);
   }
 
+  /** The effective permissions as the frontend needs them: a super admin gets every key that counts. */
+  async listMyPermissions(userId: string): Promise<EffectivePermissions> {
+    const effective = await this.getEffectivePermissions(userId);
+    if (!effective.superAdmin) return effective;
+    const all = await this.permissionsRepo.findCounting();
+    return { superAdmin: true, permissions: all.map(({ key }) => key) };
+  }
+
+  /** The live roles of a live user, by key. */
+  async listUserRoles(userId: string): Promise<Role[]> {
+    await this.requireLiveUser(userId);
+    return this.userRolesRepo.findRolesOf(userId);
+  }
+
+  /** The live extra permissions of a live user (expired ones included), by key. */
+  async listUserGrants(userId: string): Promise<GrantWithPermission[]> {
+    await this.requireLiveUser(userId);
+    return this.userPermissionsRepo.findGrantsOf(userId);
+  }
+
+  /**
+   * Gives a role to a user. `super_admin` only by a super admin; any other role only by someone
+   * holding every permission it carries (no escalation, plan RBAC step 6b).
+   */
   @Transactional()
   async assignRole(userId: string, roleId: string): Promise<UserRole> {
     await this.requireLiveUser(userId);
-    await this.findRoleOrFail(roleId);
+    const role = await this.findRoleOrFail(roleId);
+    if (role.key === SUPER_ADMIN_ROLE) {
+      await requireActorIsSuperAdmin();
+    } else {
+      const carried = await this.permissionsRepo.findMappedToRole(roleId);
+      await requireActorHolds(
+        carried.filter((permission) => permission.retiredAt === null).map(({ key }) => key),
+      );
+    }
     if (await this.userRolesRepo.findLive(userId, roleId)) {
       throw new ConflictError(RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED);
     }
@@ -112,9 +151,37 @@ export class RbacService {
     return assigned;
   }
 
-  /** Soft delete = revocation (D55), audited. */
+  /** `PUT`: gives the role unless the user already has it (`created` false, nothing checked or written). */
+  @Transactional()
+  async putUserRole(userId: string, roleId: string): Promise<{ created: boolean }> {
+    await this.requireLiveUser(userId);
+    await this.findRoleOrFail(roleId);
+    if (await this.userRolesRepo.findLive(userId, roleId)) return { created: false };
+    await this.assignRole(userId, roleId);
+    return { created: true };
+  }
+
+  /**
+   * Soft delete = revocation (D55), audited. `super_admin` (anti-lockout, plan RBAC step 6b): only a
+   * super admin takes it, never from themselves (403 `ERR_SELF_LOCKOUT_FORBIDDEN`), and never from
+   * the last live, active user holding it (409) — the holders are locked, so two concurrent
+   * revocations cannot both pass.
+   */
   @Transactional()
   async revokeRole(userId: string, roleId: string): Promise<void> {
+    const role = await this.rolesRepo.findById(roleId);
+    if (role?.key === SUPER_ADMIN_ROLE) {
+      await requireActorIsSuperAdmin();
+      if (actorUserId() === userId) {
+        throw new ForbiddenError(RBAC_MESSAGES.OWN_SUPER_ADMIN, {
+          code: APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+        });
+      }
+      const others = (await this.userRolesRepo.lockHolderIds(roleId)).filter((id) => id !== userId);
+      if ((await this.userRolesRepo.findActiveUserIds(others)).length === 0) {
+        throw new ConflictError(RBAC_MESSAGES.LAST_SUPER_ADMIN);
+      }
+    }
     const assignment = await this.userRolesRepo.findLive(userId, roleId);
     if (!assignment) throw new NotFoundError(rbacRoleNotAssignedMessage(userId, roleId));
     await this.userRolesRepo.softDeleteById(assignment.id);
@@ -162,7 +229,8 @@ export class RbacService {
       throw new BadRequestError(RBAC_MESSAGES.EXPIRY_IN_PAST);
     }
     await this.requireLiveUser(userId);
-    await this.requireGrantablePermission(permissionId);
+    const permission = await this.requireGrantablePermission(permissionId);
+    await requireActorHolds([permission.key]);
     if (await this.userPermissionsRepo.findLive(userId, permissionId)) {
       throw new ConflictError(RBAC_MESSAGES.PERMISSION_ALREADY_GRANTED);
     }
@@ -178,6 +246,37 @@ export class RbacService {
     );
     await this.forget([userId]);
     return granted;
+  }
+
+  /**
+   * `PUT`: grants the permission, or changes the expiry and note of the live grant (`created`
+   * false). Both only by someone holding the permission (no escalation, also when extending a grant).
+   */
+  @Transactional()
+  async putGrant(
+    userId: string,
+    permissionId: string,
+    input: GrantPermissionInput = {},
+  ): Promise<{ grant: GrantWithPermission; created: boolean }> {
+    const existing = await this.userPermissionsRepo.findLive(userId, permissionId);
+    if (!existing) {
+      const grant = await this.grantPermission(userId, permissionId, input);
+      const permission = await this.requireGrantablePermission(permissionId);
+      return { grant: { grant, permission }, created: true };
+    }
+    const expiresAt = input.expiresAt ?? null;
+    if (expiresAt !== null && Temporal.Instant.compare(expiresAt, nowInstant()) <= 0) {
+      throw new BadRequestError(RBAC_MESSAGES.EXPIRY_IN_PAST);
+    }
+    const permission = await this.requireGrantablePermission(permissionId);
+    await requireActorHolds([permission.key]);
+    const updated = await this.userPermissionsRepo.updateById(existing.id, {
+      expiresAt,
+      note: input.note ?? null,
+    });
+    if (!updated) throw new NotFoundError(rbacPermissionNotGrantedMessage(userId, permissionId));
+    await this.forget([userId]);
+    return { grant: { grant: updated, permission }, created: false };
   }
 
   /** Soft delete = revocation (D55), audited — also for a grant that has already expired. */

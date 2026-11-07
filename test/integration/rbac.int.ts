@@ -27,6 +27,8 @@ import { usersService } from '../../src/modules/users/users.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
 import { nowInstant } from '../../src/utils/datetime.util';
 import { asActor, rejectionOf, unique } from '../helpers/integration';
+import { runWithRequestContext } from '../../src/core/context/request-context';
+import { ConflictError } from '../../src/core/errors';
 
 /**
  * The RBAC tables on a real PostgreSQL (plan RBAC, step 1): the system roles and the move of
@@ -776,5 +778,167 @@ describe('admin API: roles and permissions (step 6a)', () => {
     ]);
     expect(page.meta?.total_items).toBe(5);
     expect(rows.every(({ endpoints }) => endpoints.length > 0)).toBe(true);
+  });
+});
+
+describe('user access (step 6b)', () => {
+  const base = `${appConfig.API_BASE_PATH}/v1`;
+  const keyId = async (key: string): Promise<string> => {
+    const [row] = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.key, key), isNull(permissions.deletedAt)));
+    return row.id;
+  };
+
+  /** Calls the real app (database lookup, cache) as `userId`: status and error code (or data). */
+  const caller = async (userId: string) => {
+    const app = createApp();
+    const { token } = await signAccessToken({ userId });
+    return async (
+      method: string,
+      route: string,
+      body?: unknown,
+    ): Promise<{ status: number; code?: string; data?: unknown }> => {
+      const res = await app.request(`${base}${route}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      const json = (await res.json()) as { data?: unknown; error?: { code: string } };
+      return { status: res.status, code: json.error?.code, data: json.data };
+    };
+  };
+  const newSuperAdmin = async (): Promise<string> => {
+    const userId = await insertUser();
+    await rbacService.assignRole(userId, await roleId('super_admin'));
+    return userId;
+  };
+
+  it('roles and extra permissions of a user: given, listed, changed and revoked — the user follows on the next request', async () => {
+    const admin = await caller(await newSuperAdmin());
+    const userId = await insertUser();
+    const user = await caller(userId);
+    const readers = await insertRole();
+    await rbacService.mapPermission(readers, await keyId('users.read'));
+
+    expect((await user('GET', '/users')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+    expect((await admin('PUT', `/users/${userId}/roles/${readers}`)).status).toBe(201);
+    expect((await admin('PUT', `/users/${userId}/roles/${readers}`)).status).toBe(200);
+    expect((await user('GET', '/users')).status).toBe(200);
+    const roleKeys = ((await admin('GET', `/users/${userId}/roles`)).data as { key: string }[]).map(
+      ({ key }) => key,
+    );
+    // insertUser() writes the row directly: the only role is the one just given.
+    expect(roleKeys).toHaveLength(1);
+    expect((await admin('DELETE', `/users/${userId}/roles/${readers}`)).status).toBe(200);
+    expect((await user('GET', '/users')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+
+    const usersRead = await keyId('users.read');
+    const later = nowInstant().add({ hours: 2 }).toString();
+    expect(
+      (await admin('PUT', `/users/${userId}/permissions/${usersRead}`, { expires_at: later }))
+        .status,
+    ).toBe(201);
+    expect((await user('GET', '/users')).status).toBe(200);
+    expect(
+      (await admin('PUT', `/users/${userId}/permissions/${usersRead}`, { note: 'audit' })).status,
+    ).toBe(200);
+    expect((await admin('GET', `/users/${userId}/permissions`)).data).toMatchObject([
+      { note: 'audit', expires_at: null, permission: { key: 'users.read' } },
+    ]);
+    expect(
+      (
+        await admin('PUT', `/users/${userId}/permissions/${usersRead}`, {
+          expires_at: '2000-01-01T00:00:00Z',
+        })
+      ).status,
+    ).toBe(400);
+    expect((await admin('DELETE', `/users/${userId}/permissions/${usersRead}`)).status).toBe(200);
+    expect((await user('GET', '/users')).code).toBe('ERR_PERMISSION_FORBIDDEN');
+
+    // /me/permissions: every signed-in user, read per request.
+    const mine = (await user('GET', '/me/permissions')).data as { permissions: string[] };
+    expect(mine.permissions).not.toContain('users.read');
+  });
+
+  it('no escalation: an administrator gives only roles and permissions they hold, and never super_admin', async () => {
+    const admins = await insertRole();
+    for (const key of ['user-roles.create', 'user-permissions.create', 'users.read']) {
+      await rbacService.mapPermission(admins, await keyId(key));
+    }
+    const adminId = await insertUser();
+    await rbacService.assignRole(adminId, admins);
+    const admin = await caller(adminId);
+    const target = await insertUser();
+
+    const readers = await insertRole();
+    await rbacService.mapPermission(readers, await keyId('users.read'));
+    const deleters = await insertRole();
+    await rbacService.mapPermission(deleters, await keyId('users.delete'));
+
+    expect((await admin('PUT', `/users/${target}/roles/${readers}`)).status).toBe(201);
+    for (const route of [
+      `/users/${target}/roles/${deleters}`,
+      `/users/${target}/roles/${await roleId('super_admin')}`,
+      // An admin cannot raise themselves either.
+      `/users/${adminId}/roles/${await roleId('super_admin')}`,
+    ]) {
+      expect((await admin('PUT', route)).code).toBe('ERR_PERMISSION_ESCALATION_FORBIDDEN');
+    }
+    expect(
+      (await admin('PUT', `/users/${target}/permissions/${await keyId('users.read')}`, {})).status,
+    ).toBe(201);
+    expect(
+      (await admin('PUT', `/users/${target}/permissions/${await keyId('users.delete')}`, {})).code,
+    ).toBe('ERR_PERMISSION_ESCALATION_FORBIDDEN');
+  });
+
+  it('super_admin: never taken from oneself, nor from the last active holder', async () => {
+    const selfId = await newSuperAdmin();
+    const me = await caller(selfId);
+    const superAdminRole = await roleId('super_admin');
+    expect((await me('DELETE', `/users/${selfId}/roles/${superAdminRole}`)).code).toBe(
+      'ERR_SELF_LOCKOUT_FORBIDDEN',
+    );
+
+    // Another super admin may take it — while someone else can still sign in as super admin.
+    const other = await caller(await newSuperAdmin());
+    expect((await other('DELETE', `/users/${selfId}/roles/${superAdminRole}`)).status).toBe(200);
+
+    // The last active holder: every other holder deactivated, inside a transaction rolled back.
+    const lastId = await newSuperAdmin();
+    await inRolledBackSync(async () => {
+      await defaultTxHost.tx
+        .update(users)
+        .set({ isActive: false })
+        .where(
+          inArray(
+            users.id,
+            db
+              .select({ id: userRoles.userId })
+              .from(userRoles)
+              .where(and(eq(userRoles.roleId, superAdminRole), isNull(userRoles.deletedAt))),
+          ),
+        );
+      await defaultTxHost.tx.update(users).set({ isActive: true }).where(eq(users.id, lastId));
+      const error = await rejectionOf(
+        runWithRequestContext(
+          {
+            requestId: 'int-6b',
+            locale: 'en',
+            clientIp: '127.0.0.1',
+            actor: 'user:0192f1d0-0000-7000-8000-00000000beef',
+            user: { id: '0192f1d0-0000-7000-8000-00000000beef' },
+            permissions: () => Promise.resolve({ superAdmin: true, permissions: [] }),
+          },
+          () => rbacService.revokeRole(lastId, superAdminRole),
+        ),
+      );
+      expect(error).toBeInstanceOf(ConflictError);
+    });
   });
 });

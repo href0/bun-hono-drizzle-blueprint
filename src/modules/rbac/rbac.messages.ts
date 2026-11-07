@@ -25,6 +25,46 @@ export const RBAC_MESSAGES = {
     id: 'Kunci permission sudah dipakai permission lain',
     en: 'The permission key is already used by another permission',
   },
+  LAST_SUPER_ADMIN: {
+    id: 'Super admin aktif terakhir tidak dapat dicabut',
+    en: 'The last active super admin cannot be revoked',
+  },
+  OWN_SUPER_ADMIN: {
+    id: 'Anda tidak dapat mencabut role super admin dari akun Anda sendiri',
+    en: 'You cannot revoke the super admin role from your own account',
+  },
+  USER_ROLES_RETRIEVED: {
+    id: 'Daftar role pengguna berhasil diambil',
+    en: 'The roles of the user retrieved successfully',
+  },
+  USER_ROLE_ASSIGNED: {
+    id: 'Role berhasil diberikan ke pengguna',
+    en: 'Role given to the user',
+  },
+  USER_ROLE_REVOKED: {
+    id: 'Role berhasil dicabut dari pengguna',
+    en: 'Role revoked from the user',
+  },
+  USER_PERMISSIONS_RETRIEVED: {
+    id: 'Daftar izin tambahan pengguna berhasil diambil',
+    en: 'The extra permissions of the user retrieved successfully',
+  },
+  USER_PERMISSION_GRANTED: {
+    id: 'Izin tambahan berhasil diberikan',
+    en: 'Extra permission granted',
+  },
+  USER_PERMISSION_UPDATED: {
+    id: 'Masa berlaku dan catatan izin tambahan berhasil diperbarui',
+    en: 'Expiry and note of the extra permission updated',
+  },
+  USER_PERMISSION_REVOKED: {
+    id: 'Izin tambahan berhasil dicabut',
+    en: 'Extra permission revoked',
+  },
+  MY_PERMISSIONS_RETRIEVED: {
+    id: 'Permission Anda berhasil diambil',
+    en: 'Your permissions retrieved successfully',
+  },
   ROLE_CREATED: { id: 'Role berhasil dibuat', en: 'Role created successfully' },
   ROLE_RETRIEVED: { id: 'Role berhasil diambil', en: 'Role retrieved successfully' },
   ROLE_LIST_RETRIEVED: {

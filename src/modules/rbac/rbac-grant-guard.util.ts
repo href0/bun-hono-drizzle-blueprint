@@ -14,6 +14,21 @@ const escalationForbidden = (): ForbiddenError =>
  * user (seeds, jobs: actor `system`) nothing is checked; a request without `permissionContext()`
  * is refused (fail closed).
  */
+/** The signed-in user's id, if the current request has one (seeds and jobs have none). */
+export const actorUserId = (): string | undefined => getRequestContext()?.user?.id;
+
+/**
+ * Only a super admin gives or takes the role `super_admin` (plan RBAC step 6b): anyone else → 403
+ * `ERR_PERMISSION_ESCALATION_FORBIDDEN`. Without a signed-in user (seeds, jobs) nothing is checked;
+ * a request without `permissionContext()` is refused (fail closed).
+ */
+export const requireActorIsSuperAdmin = async (): Promise<void> => {
+  const context = getRequestContext();
+  if (!context?.user) return;
+  const resolve = context.permissions;
+  if (resolve === undefined || !(await resolve()).superAdmin) throw escalationForbidden();
+};
+
 export const requireActorHolds = async (keys: readonly string[]): Promise<void> => {
   const context = getRequestContext();
   if (!context?.user) return;
