@@ -3,6 +3,11 @@ import { createApp } from './app';
 import { appConfig, redisConfig } from './config';
 import { logger } from './core/logger';
 import { sqlClient } from './database/connection';
+import {
+  findUnsyncedPermissions,
+  unsyncedPermissionsMessage,
+} from './database/rbac/permission-sync';
+import { PERMISSION_REGISTRY } from './permissions';
 import { closeRedisClient, redisClient } from './core/cache/redis.client';
 
 export async function bootstrap(): Promise<Server<unknown>> {
@@ -20,6 +25,13 @@ export async function bootstrap(): Promise<Server<unknown>> {
       { err: errorMsg },
       'FATAL: PostgreSQL database connection failed during startup. Server startup aborted.',
     );
+    process.exit(1);
+  }
+
+  // 1b. Every permission the code checks is in the database (D49): synced by `bun run db:migrate`
+  const unsynced = await findUnsyncedPermissions(PERMISSION_REGISTRY);
+  if (unsynced.length > 0) {
+    logger.fatal({ permissions: unsynced }, unsyncedPermissionsMessage(unsynced));
     process.exit(1);
   }
 

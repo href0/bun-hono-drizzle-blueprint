@@ -16,7 +16,7 @@ Read this file when: naming a file, a folder, a module, an identifier or a table
 | E2E / guard test | `test/<area>.e2e.test.ts` / `test/<name>.test.ts` | `test/users.e2e.test.ts` |
 | Integration test | `test/integration/<area>.int.ts` (only there) | `test/integration/redis.int.ts` |
 
-- `<module>` is the folder name; `<role>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `util` (a module-local helper). A qualifier names a second file of the same role (`auth-users.repository.ts`).
+- `<module>` is the folder name; `<role>` ∈ `routes`, `controller`, `service`, `repository`, `queries`, `dto`, `transformer`, `messages`, `permissions` (the module's API permissions, collected in `src/permissions.ts`), `util` (a module-local helper). A qualifier names a second file of the same role (`auth-users.repository.ts`).
 - The channel segment (`.webhook`, …) says which caller the file serves: [auth-and-inbound.md](auth-and-inbound.md) §1.
 - No `integration-*` prefix for vendor files: the folder is the marker.
 - A **dependent module** lives in a subfolder of its parent, one level only; its files are named after the subfolder, the subfolder holds a `DependentRepository` module, and a module name is used once across `src/modules/` (it also names a table and the flat routes `/<child>/:id`) — [new-module.md](new-module.md) §2.7.

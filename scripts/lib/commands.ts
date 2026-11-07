@@ -173,7 +173,17 @@ export const COMMAND_GROUPS: readonly CommandGroup[] = [
         script: 'db:generate',
         summary: 'Write a migration into drizzle/ from the schema change (offline; commit it)',
       },
-      { script: 'db:migrate', summary: 'Apply the migrations to DATABASE_URL', developer: true },
+      {
+        script: 'db:migrate',
+        summary: 'Apply the migrations to DATABASE_URL, then sync the permission registry',
+        developer: true,
+      },
+      {
+        script: 'db:sync-permissions',
+        summary:
+          'Sync the permission registry into DATABASE_URL and ensure the system roles (db:migrate runs it)',
+        developer: true,
+      },
       { script: 'db:studio', summary: 'Open Drizzle Studio on DATABASE_URL', developer: true },
     ],
   },
@@ -279,6 +289,12 @@ export const SCRIPT_USAGE: Scripts = {
   password is asked masked, twice. Without a terminal --email is required and the password is the
   first line of stdin:
     printf '%s\\n' "$ADMIN_PASSWORD" | bun run seed:admin --email admin@example.com`,
+  'sync-permissions.ts': `Usage: bun run db:sync-permissions
+  Brings the permissions table of DATABASE_URL in step with the code (src/permissions.ts): adds new
+  keys, updates labels and groups, retires API permissions the code no longer declares (never
+  deletes them) and restores those that return; menu permissions are never touched. Creates the
+  system roles super_admin and user when missing. Idempotent, never asks. bun run db:migrate runs it
+  after the migrations; the server refuses to start while a permission of the code is missing.`,
   'purge-refresh-tokens.ts': `Usage: bun run auth:purge-tokens [--days <whole number ≥ 0>]
   Deletes refresh tokens that expired more than N days ago (default 7). Schedule it daily: cron,
   a CI job, a Kubernetes CronJob — without a terminal it never asks. In a terminal it shows how many

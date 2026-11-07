@@ -48,7 +48,7 @@ src/
 │   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, webhookAuth, requireRole, validate, globalErrorHandler, …
 │   ├── openapi/                 # describeEndpoint, envelope schemas, OpenAPI document + Scalar UI (<base>/docs), contract guard (NODE_ENV=test)
 │   ├── response/                # ApiResponse (success envelope), error envelope builder
-│   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist)
+│   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist), rbac.ts (PermissionDefinition, crudPermissions, registry checks, SYSTEM_ROLES)
 │       └── partner-credentials.ts # partnerAuth() keys: API key hash, secret cipher (the partner gateway) <!-- partner -->
 │
 ├── database/                    # Drizzle infrastructure & data layer
@@ -65,6 +65,7 @@ src/
 │   ├── health-probe.ts          # pingDatabase() for health checks
 │   ├── seeds/                   # seed-admin.ts (`bun run seed:admin`)
 │   ├── maintenance/             # purge-refresh-tokens.ts (`bun run auth:purge-tokens`: the purge and the count it shows first)
+│   ├── rbac/                    # permission-sync.ts: the permission registry into `permissions` + the system roles (`bun run db:sync-permissions`, run by `db:migrate`), the start check
 │   └── schema/                  # Table definitions (public) & reference views
 │       ├── schemas.ts           # appTable (public) & referenceSchema — the only pgTable / pgSchema
 │       ├── columns.ts           # Column helpers: uuidPrimaryKey, timestamps, instant, softDelete, …
@@ -101,6 +102,7 @@ src/
 │
 ├── utils/                       # Pure functions (datetime, crypto, secret cipher, case converter, ip/route match, record diff, …)
 ├── app.ts                       # createApp(): middleware pipeline, versioned router, WEBHOOK_VENDORS; `// scaffold:*` markers = where `bun run scaffold` registers
+├── permissions.ts               # PERMISSION_REGISTRY: the `<module>.permissions.ts` of every module (D47–D49), synced into the database
 └── index.ts                     # Bun.serve, startup checks, graceful shutdown
 ```
 
@@ -143,6 +145,7 @@ scripts/
 ├── with-env.ts                  # `bun run env <environment> <command>`: a script with only .env.<environment> loaded (D62)
 ├── acceptance.ts                # `bun run acceptance`: per setup combination a fresh clone through setup, every scaffold variant (the wizard answered by the runner), a database, a server, HTTP, Docker (manual-acceptance.md)
 ├── seed-admin.ts                # `bun run seed:admin --email <email>`
+├── sync-permissions.ts          # `bun run db:sync-permissions`: the permission registry into the database (also the second half of `db:migrate`)
 ├── partner-sign.ts              # `bun run partner:sign`: signs a partner request for manual testing <!-- partner -->
 ├── openapi.ts                   # `bun run openapi:check` / `openapi:update`: the API contract snapshot (docs/api/openapi.json)
 ├── lib/acceptance.ts            # The acceptance stages A–D as data, the wizard driver, the run of a combination (+ lib/acceptance.test.ts)

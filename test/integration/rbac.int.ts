@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { permission, SYSTEM_ROLES } from '../../src/core/security/rbac';
 import { db, sqlClient } from '../../src/database/connection';
+import { findUnsyncedPermissions, syncPermissions } from '../../src/database/rbac/permission-sync';
 import { permissions, roles, userRoles } from '../../src/database/schema';
 import { NOW } from '../../src/database/schema/columns';
+import { defaultTxHost, transactionStorage } from '../../src/database/transaction-host';
 import { isUniqueViolation } from '../../src/database/unique-violation';
+import { PERMISSION_REGISTRY } from '../../src/permissions';
 import { rejectionOf, unique } from '../helpers/integration';
 
 /**
  * The RBAC tables on a real PostgreSQL (plan RBAC, step 1): the system roles and the move of
  * `users.role` into `user_roles` written by migration 0010, and the constraints the schema
- * declares (partial uniques, the permission source / `menu.` prefix CHECKs, RESTRICT foreign keys).
+ * declares (partial uniques, the permission source / `menu.` prefix CHECKs, RESTRICT foreign keys);
+ * and the sync of the permission registry (step 2), each test in a transaction that is rolled back.
  */
 
 const MIGRATION = 'drizzle/0010_rbac.sql';
@@ -161,5 +166,127 @@ describe('RBAC constraints', () => {
 
     const error = await rejectionOf(db.delete(roles).where(eq(roles.id, role)));
     expect(sqlStateOf(error)).toBe('23503');
+  });
+});
+
+/** Runs `fn` in a transaction every repository joins (TransactionHost), then rolls it back. */
+const inRolledBackSync = async (fn: () => Promise<void>) => {
+  const error = await rejectionOf(
+    db.transaction((tx) =>
+      transactionStorage.run(tx, async () => {
+        await fn();
+        throw new Rollback();
+      }),
+    ),
+  );
+  if (!(error instanceof Rollback)) throw error;
+};
+
+const apiPermission = async (key: string) => {
+  const [row] = await defaultTxHost.tx
+    .select()
+    .from(permissions)
+    .where(and(eq(permissions.key, key), isNull(permissions.deletedAt)));
+  return row;
+};
+
+describe('permission registry sync (step 2)', () => {
+  const group = unique('sync');
+  const read = permission(group, 'read', 'Read things');
+  const approve = permission(group, 'approve', 'Approve things');
+
+  it('adds every registry key once: a second run changes nothing (idempotent)', async () => {
+    await inRolledBackSync(async () => {
+      expect(await findUnsyncedPermissions(PERMISSION_REGISTRY)).toEqual(
+        PERMISSION_REGISTRY.map((entry) => entry.key),
+      );
+
+      const first = await syncPermissions(PERMISSION_REGISTRY);
+      expect(first.added).toEqual(PERMISSION_REGISTRY.map((entry) => entry.key));
+      expect(first.rolesCreated).toEqual([]);
+      expect(await findUnsyncedPermissions(PERMISSION_REGISTRY)).toEqual([]);
+
+      expect(await syncPermissions(PERMISSION_REGISTRY)).toEqual({
+        added: [],
+        updated: [],
+        retired: [],
+        restored: [],
+        rolesCreated: [],
+      });
+      const row = await apiPermission('users.read');
+      expect(row).toMatchObject({
+        label: 'Read users',
+        groupName: 'users',
+        source: 'api',
+        createdBy: 'system',
+      });
+      expect(row.id).toMatch(UUID_V7);
+    });
+  });
+
+  it('retires a key that left the registry (never deletes it), restores it when it returns, relabels', async () => {
+    await inRolledBackSync(async () => {
+      await syncPermissions([read, approve]);
+
+      const retiredRun = await syncPermissions([read]);
+      expect(retiredRun.retired).toEqual([approve.key]);
+      expect((await apiPermission(approve.key)).retiredAt).not.toBeNull();
+      expect(await findUnsyncedPermissions([read, approve])).toEqual([approve.key]);
+
+      const relabelled = { ...approve, label: 'Approve things (renamed)' };
+      const back = await syncPermissions([read, relabelled]);
+      expect(back).toMatchObject({ restored: [approve.key], updated: [approve.key], retired: [] });
+      expect(await apiPermission(approve.key)).toMatchObject({
+        retiredAt: null,
+        label: 'Approve things (renamed)',
+      });
+      expect(await findUnsyncedPermissions([read, approve])).toEqual([]);
+    });
+  });
+
+  it('never touches menu permissions', async () => {
+    await inRolledBackSync(async () => {
+      const key = `menu.${group}`;
+      await defaultTxHost.tx.insert(permissions).values({
+        id: Bun.randomUUIDv7(),
+        key,
+        label: 'Reports',
+        groupName: 'menu',
+        source: 'menu',
+        ...SYSTEM,
+      });
+      const before = await apiPermission(key);
+
+      const result = await syncPermissions([read]);
+
+      expect([
+        ...result.added,
+        ...result.updated,
+        ...result.retired,
+        ...result.restored,
+      ]).not.toContain(key);
+      expect(await apiPermission(key)).toEqual(before);
+    });
+  });
+
+  it('recreates missing system roles (a project whose migrations setup regenerated)', async () => {
+    await inRolledBackSync(async () => {
+      await defaultTxHost.tx
+        .update(roles)
+        .set({ deletedAt: NOW })
+        .where(inArray(roles.key, ['super_admin', 'user']));
+
+      const result = await syncPermissions([read]);
+
+      expect(result.rolesCreated).toEqual(SYSTEM_ROLES.map((role) => role.key));
+      const live = await defaultTxHost.tx
+        .select()
+        .from(roles)
+        .where(and(inArray(roles.key, ['super_admin', 'user']), isNull(roles.deletedAt)));
+      expect(live.map((role) => [role.key, role.isSystem, role.createdBy]).sort()).toEqual([
+        ['super_admin', true, 'system'],
+        ['user', true, 'system'],
+      ]);
+    });
   });
 });

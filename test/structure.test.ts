@@ -35,6 +35,7 @@ const MODULE_ROLES = [
   'dto',
   'transformer',
   'messages',
+  'permissions',
   'util',
 ] as const;
 const INTEGRATION_ROLES = ['service', 'dto', 'webhook', 'webhook\\.dto'] as const;
