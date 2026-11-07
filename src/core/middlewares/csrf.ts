@@ -3,7 +3,7 @@ import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import { APP_ERROR_CODES, ForbiddenError } from '../errors';
 import { I18N_MESSAGES } from '../i18n/messages';
-import { documentsForbidden } from './require-role';
+import { documentsForbidden } from './require-permission';
 
 /**
  * CSRF protection for cookie-authenticated endpoints (D4), on top of `SameSite` cookies:

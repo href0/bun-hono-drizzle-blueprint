@@ -15,6 +15,7 @@ import {
   // partner:start
   partnerAuth,
   // partner:end
+  permissionContext,
   rateLimit,
   rejectionLimit,
   requestContextMiddleware,
@@ -31,8 +32,10 @@ import {
   isPublicRoute,
 } from './core/security/public-routes';
 import { ApiResponse } from './core/response';
+import type { PermissionLookup } from './core/security/rbac';
 import { authRoutes } from './modules/auth/auth.routes';
 import { healthRoutes } from './modules/health/health.routes';
+import { rbacService } from './modules/rbac/rbac.service';
 // partner:start
 import { partnerCredentialRoutes } from './modules/partner-credentials/partner-credentials.routes';
 import { partnerCredentialsService } from './modules/partner-credentials/partner-credentials.service';
@@ -70,8 +73,18 @@ const serviceInfoSchema = z.object({
   version: z.string(),
 });
 
+export interface AppOptions {
+  /**
+   * Resolves a user's effective permissions for `requirePermission()` (D49); default: the RBAC
+   * module (database + per-user cache). Tests of a module's contract pass a fixed one.
+   */
+  permissionLookup?: PermissionLookup;
+}
+
+const rbacLookup: PermissionLookup = (userId) => rbacService.getEffectivePermissions(userId);
+
 /** Pipeline order: docs/standards/bootstrap.md §3. */
-export const createApp = (): Hono => {
+export const createApp = ({ permissionLookup = rbacLookup }: AppOptions = {}): Hono => {
   const app = new Hono();
   const basePath = appConfig.API_BASE_PATH;
   const healthPath = `${basePath}/health`;
@@ -145,6 +158,8 @@ export const createApp = (): Hono => {
   // 9. Default-deny: every versioned route needs an access token, except PUBLIC_ROUTES and the
   //    routes an inbound guard above already verified
   app.use(`${v1Path}/*`, authenticate({ basePath: v1Path }));
+  //    … and the user's permissions, resolved once per request by the routes that check one (D49)
+  app.use(`${v1Path}/*`, permissionContext({ lookup: permissionLookup }));
 
   // 10. Versioned API — the version is code, not configuration (a new version = a new router)
   const v1 = new Hono();

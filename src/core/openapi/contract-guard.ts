@@ -15,7 +15,7 @@ export const CONTRACT_CHECKS = appConfig.NODE_ENV === 'test';
 
 /**
  * Codes sent by the platform's own middlewares (validation, authentication, signature
- * verification, roles, CSRF, body limit, rate limits, 404 route, error handler). Each documents
+ * verification, permissions, CSRF, body limit, rate limits, 404 route, error handler). Each documents
  * itself on the routes it guards, so they are allowed on any route; domain codes must be listed
  * by the route's `describeEndpoint({ errors })`.
  */
@@ -33,7 +33,7 @@ const PLATFORM_CODES: ReadonlySet<AppErrorCode> = new Set([
   APP_ERROR_CODES.PARTNER_SIGNATURE_INVALID,
   // partner:end
   APP_ERROR_CODES.WEBHOOK_SIGNATURE_INVALID,
-  APP_ERROR_CODES.ROLE_FORBIDDEN,
+  APP_ERROR_CODES.PERMISSION_FORBIDDEN,
   APP_ERROR_CODES.CSRF_ORIGIN_FORBIDDEN,
   // partner:start
   APP_ERROR_CODES.PARTNER_IP_FORBIDDEN,

@@ -14,8 +14,8 @@ Read this file when: adding or changing a route, a request/response schema, or a
 | Success message(s) (`x-success-messages`) | `describeEndpoint({ response: { message } })` — the controller's own `*_MESSAGES` constant | **Yes** |
 | Domain errors (404, 409, 502, …) with their codes | `describeEndpoint({ errors })` | **Yes** |
 | 429 and 500 | `describeEndpoint()`, on every route | No |
-| Codes of 400 / 413, 401, 403 (`x-error-codes` on each error response) | the middleware that sends them: `validate()`, `authenticate()` / the inbound guards (document builder), `requireRole()`, `csrfProtection()`, the channel guards | No |
-| Who may call (`x-allowed-callers`: `admin`, `self:<param>`, …) | `requireRole()`, `requireSelfOrRole()`, the channel guards | No |
+| Codes of 400 / 413, 401, 403 (`x-error-codes` on each error response) | the middleware that sends them: `validate()`, `authenticate()` / the inbound guards (document builder), `requirePermission()` / `requireSelfOrPermission()`, `csrfProtection()`, the channel guards | No |
+| Who may call (`x-allowed-callers`, alternatives: `permission:<key>`, `self:<param>`, `any-user`, …) | `requirePermission()`, `requireSelfOrPermission()`, `allowAnyUser()`, the channel guards | No |
 | Headers: `Accept-Language`, `X-Request-ID` in; `X-Request-ID`, `Content-Language`, `RateLimit-*` out; `Retry-After` on 429 | `addCommonHeaders()` in the document builder | No |
 | snake_case names | `toSnakeCaseOpenApi()` (`src/utils/openapi-case.util.ts`) | No — write camelCase like the DTOs |
 
@@ -139,7 +139,7 @@ Labels are asymmetric — a client **sends** the request side and **reads** the 
 | Operation added · error status added · a security alternative added | safe | safe |
 
 | Error code added or removed (`x-error-codes`) | safe | safe |
-| Allowed callers narrowed (`requireRole()` added, a role removed — `x-allowed-callers`) | **BREAKING** | **BREAKING** |
+| Allowed callers narrowed (a permission guard added or changed, an alternative removed — `x-allowed-callers`; `any-user` counts as no list) | **BREAKING** | **BREAKING** |
 
 Text only (`summary`, `description`, `tags`, `example`, success messages, …) is labelled `docs`; a keyword the engine does not know is assumed `BREAKING`. Source of truth: `scripts/lib/api-contract/compare.ts`, one test per row in `compare.test.ts`.
 

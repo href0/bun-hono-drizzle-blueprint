@@ -6,7 +6,7 @@ import { hashPartnerApiKey, partnerSecretCipher } from '../src/core/security/par
 import { partnerCredentialsService } from '../src/modules/partner-credentials/partner-credentials.service';
 import { nowInstant } from '../src/utils/datetime.util';
 import { signV1 } from '../src/utils/partner-signature.util';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 
 /**
  * The partner gateway through createApp(): partnerAuth() mounted on <base>/v1/partner, the
@@ -89,7 +89,7 @@ describe('Partner gateway — E2E through createApp()', () => {
   });
 
   it('a valid access token does not replace partner headers (401 ERR_PARTNER_HEADERS_MISSING)', async () => {
-    const withToken = await authorize(createApp(), 'admin');
+    const withToken = await authorize(createTestApp(), 'super_admin');
     const res = await withToken.request(`${PARTNER}/ping`);
     const body = (await res.json()) as { error: { code: string } };
 

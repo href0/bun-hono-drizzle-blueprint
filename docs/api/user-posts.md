@@ -13,7 +13,7 @@
 **List the user's posts from the external JSONPlaceholder service (example)**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: pemilik resource (`id` = id Anda) atau role `admin`
+- Hanya: pemilik resource (`id` = id Anda) atau permission `user-posts.read`
 
 **Path parameter**
 
@@ -63,7 +63,7 @@ Pesan: `Postingan eksternal pengguna berhasil diambil` (en: `User external posts
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
 | 502 | `ERR_EXT_ERROR` | Layanan vendor menjawab dengan error |
@@ -120,10 +120,10 @@ Pesan: `Postingan eksternal pengguna berhasil diambil` (en: `User external posts
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

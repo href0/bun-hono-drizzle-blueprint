@@ -99,7 +99,7 @@ One factory serves `src/index.ts` and every e2e test, so tests run the productio
  8. webhookAuth(vendor)   per WEBHOOK_VENDORS, then requireVerifiedWebhook() → fail-closed
  9. partnerAuth()         <base>/v1/partner/* (signing v1) <!-- partner -->
 10. authenticate()        <base>/v1/* default-deny, except PUBLIC_ROUTES and routes a guard above verified
-11. v1 router             modules (requireRole per route); mountApiDocs() (off in production)
+11. v1 router             modules (requirePermission / allowAnyUser per route); mountApiDocs() (off in production)
 12. onError / notFound    globalErrorHandler, notFoundHandler (error envelope)
 ```
 
@@ -296,12 +296,12 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | ID | Rule | Enforcer |
 |---|---|---|
 | R38 | Default-deny `<base>/v1/*`; public only through `PUBLIC_ROUTES` | [test:default-deny.e2e] [test:public-routes] [test:authenticate] |
-| R39 | Per-route authorization `requireRole` / `requireSelfOrRole` → 403 `ERR_ROLE_FORBIDDEN`, documented in OpenAPI | [test:require-role] [test:openapi.e2e] |
+| R39 | Per-route authorization by permission (D47–D53): `requirePermission` / `requireSelfOrPermission` → 403 `ERR_PERMISSION_FORBIDDEN`, `allowAnyUser` for every signed-in user, documented in OpenAPI (`x-allowed-callers`); permissions resolved per request, never from the token | [test:require-permission] [test:openapi.e2e] [test:rbac] |
 | R40 | Refresh token only in an HttpOnly cookie, rotated; reuse revokes the whole family | [test:auth.service] [test:auth.e2e] [test:auth] |
 | R41 | Cookie endpoints use `csrfProtection()` | [test:csrf] [test:auth.e2e] |
 | R42 | Partner routes only through `partnerAuth()` (signing v1, IP, `allowed_routes`, nonce, rate limit), also with a bearer token | [test:partner-auth] [test:default-deny.e2e] [test:partner] | <!-- partner -->
 <!-- no-partner: | R42 | Partner gateway: removed by `bun run setup --no-partner` (D39) — no partner routes | [review-only] | -->
-| R43 | Helpers per channel: a channel's helpers only in its files (`*.<channel>.*`), `requireRole` / `requireSelfOrRole` / `currentUser` never there (`*.webhook.*`, …) | [eslint:local/inbound-channel] |
+| R43 | Helpers per channel: a channel's helpers only in its files (`*.<channel>.*`), `requirePermission` / `requireSelfOrPermission` / `allowAnyUser` / `currentUser` never there (`*.webhook.*`, …) | [eslint:local/inbound-channel] |
 | R44 | Channel routers only under their prefix (`*.webhook.routes.ts` under `/webhooks`, …) | [test:structure] |
 | R45 | Webhook verifiers imported only by `app.ts`; the webhook prefix is fail-closed (no valid signature → 401) | [depcruise:webhook-verifier-only-in-app] [test:webhook-auth] [test:default-deny.e2e] |
 | R46 | `bodyKeys: 'verbatim'` (vendor casing) only in `*.webhook.*` files | [eslint:local/inbound-channel] [test:validate] |

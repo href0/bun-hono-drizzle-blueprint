@@ -17,6 +17,7 @@
 **Get a projectBudget by id**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-budgets.read`
 
 **Path parameter**
 
@@ -65,6 +66,7 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -104,6 +106,25 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -175,6 +196,7 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 **Restore a soft-deleted projectBudget (409 while another one is live)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-budgets.restore`
 
 **Path parameter**
 
@@ -223,6 +245,7 @@ Pesan: `Anggaran berhasil dipulihkan` (en: `Budget restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -263,6 +286,25 @@ Pesan: `Anggaran berhasil dipulihkan` (en: `Budget restored successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -353,6 +395,7 @@ Pesan: `Anggaran berhasil dipulihkan` (en: `Budget restored successfully`)
 **Get a project's projectBudget**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-budgets.read`
 
 **Path parameter**
 
@@ -401,6 +444,7 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -440,6 +484,25 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -511,6 +574,7 @@ Pesan: `Data anggaran berhasil diambil` (en: `Budget retrieved successfully`)
 **Save a project's projectBudget (201 created, 200 updated)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-budgets.update`
 
 **Path parameter**
 
@@ -591,6 +655,7 @@ Pesan: `Anggaran berhasil dibuat` (en: `Budget created successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -631,6 +696,25 @@ Pesan: `Anggaran berhasil dibuat` (en: `Budget created successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -721,6 +805,7 @@ Pesan: `Anggaran berhasil dibuat` (en: `Budget created successfully`)
 **Delete a project's projectBudget (soft delete; restorable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-budgets.delete`
 
 **Path parameter**
 
@@ -763,6 +848,7 @@ Pesan: `Anggaran berhasil dihapus` (en: `Budget deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -802,6 +888,25 @@ Pesan: `Anggaran berhasil dihapus` (en: `Budget deleted successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

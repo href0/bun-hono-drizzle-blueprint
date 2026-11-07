@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import packageJson from '../package.json';
 import { createApp } from '../src/app';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 import { appConfig } from '../src/config';
 
 describe('Health Module', () => {
@@ -59,7 +59,7 @@ describe('Health Module', () => {
     expect(appConfig.API_BASE_PATH).toBe('/api');
     // Default-deny answers anonymous callers before routing; authenticated ones get 404.
     expect((await app.request('/api/v1/health')).status).toBe(401);
-    expect((await (await authorize(createApp())).request('/api/v1/health')).status).toBe(404);
+    expect((await (await authorize(createTestApp())).request('/api/v1/health')).status).toBe(404);
     expect((await app.request('/api/health/liveness')).status).toBe(200);
   });
 

@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { appConfig, type Locale } from '../../config';
 import type { LocalizedMessage } from '../i18n/translate';
+import type { EffectivePermissions } from '../security/rbac';
 import type { Role } from '../security/roles';
 
 /** Who performs the current operation; persisted in audit columns and logs. */
@@ -48,6 +49,11 @@ export interface RequestContext {
   actor: Actor;
   /** Set by `authenticate()`; absent for anonymous requests and public routes. */
   user?: AuthenticatedUser;
+  /**
+   * The effective permissions of `user`, resolved at most once per request and only when a route
+   * asks (`permissionContext()` → `requirePermission()`).
+   */
+  permissions?: () => Promise<EffectivePermissions>;
   // partner:start
   /** Set by `partnerAuth()` on partner routes. */
   partner?: AuthenticatedPartner;

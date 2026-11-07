@@ -23,6 +23,7 @@
 **List orders (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.read`
 
 **Query**
 
@@ -85,6 +86,7 @@ Pesan: `Daftar pesanan berhasil diambil` (en: `Orders retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
 
@@ -123,6 +125,25 @@ Pesan: `Daftar pesanan berhasil diambil` (en: `Orders retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -175,6 +196,7 @@ Pesan: `Daftar pesanan berhasil diambil` (en: `Orders retrieved successfully`)
 **Create a order**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.create`
 
 **Header**
 
@@ -232,6 +254,7 @@ Pesan: `Pesanan berhasil dibuat` (en: `Order created successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -271,6 +294,25 @@ Pesan: `Pesanan berhasil dibuat` (en: `Order created successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -342,6 +384,7 @@ Pesan: `Pesanan berhasil dibuat` (en: `Order created successfully`)
 **Get a order by id**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.read`
 
 **Path parameter**
 
@@ -390,6 +433,7 @@ Pesan: `Data pesanan berhasil diambil` (en: `Order retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -429,6 +473,25 @@ Pesan: `Data pesanan berhasil diambil` (en: `Order retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -500,6 +563,7 @@ Pesan: `Data pesanan berhasil diambil` (en: `Order retrieved successfully`)
 **Update a order (only the given fields)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.update`
 
 **Path parameter**
 
@@ -563,6 +627,7 @@ Pesan: `Pesanan berhasil diperbarui` (en: `Order updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -603,6 +668,25 @@ Pesan: `Pesanan berhasil diperbarui` (en: `Order updated successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -693,6 +777,7 @@ Pesan: `Pesanan berhasil diperbarui` (en: `Order updated successfully`)
 **Delete a order (soft delete; restorable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.delete`
 
 **Path parameter**
 
@@ -735,6 +820,7 @@ Pesan: `Pesanan berhasil dihapus` (en: `Order deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -774,6 +860,25 @@ Pesan: `Pesanan berhasil dihapus` (en: `Order deleted successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -845,6 +950,7 @@ Pesan: `Pesanan berhasil dihapus` (en: `Order deleted successfully`)
 **List a order's items**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.read`
 
 **Path parameter**
 
@@ -895,6 +1001,7 @@ Pesan: `Daftar item berhasil diambil` (en: `Items retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -934,6 +1041,25 @@ Pesan: `Daftar item berhasil diambil` (en: `Items retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1005,6 +1131,7 @@ Pesan: `Daftar item berhasil diambil` (en: `Items retrieved successfully`)
 **Add an item to a order**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.update`
 
 **Path parameter**
 
@@ -1068,6 +1195,7 @@ Pesan: `Item berhasil ditambahkan` (en: `Item added successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -1108,6 +1236,25 @@ Pesan: `Item berhasil ditambahkan` (en: `Item added successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1198,6 +1345,7 @@ Pesan: `Item berhasil ditambahkan` (en: `Item added successfully`)
 **Replace a order's item list (update kept ids, add new, delete missing)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.update`
 
 **Path parameter**
 
@@ -1270,6 +1418,7 @@ Pesan: `Daftar item berhasil disimpan` (en: `Items saved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -1310,6 +1459,25 @@ Pesan: `Daftar item berhasil disimpan` (en: `Items saved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1400,6 +1568,7 @@ Pesan: `Daftar item berhasil disimpan` (en: `Items saved successfully`)
 **Update an item (only the given fields)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.update`
 
 **Path parameter**
 
@@ -1464,6 +1633,7 @@ Pesan: `Item berhasil diperbarui` (en: `Item updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -1504,6 +1674,25 @@ Pesan: `Item berhasil diperbarui` (en: `Item updated successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1594,6 +1783,7 @@ Pesan: `Item berhasil diperbarui` (en: `Item updated successfully`)
 **Delete an item**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.update`
 
 **Path parameter**
 
@@ -1637,6 +1827,7 @@ Pesan: `Item berhasil dihapus` (en: `Item deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -1676,6 +1867,25 @@ Pesan: `Item berhasil dihapus` (en: `Item deleted successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1747,6 +1957,7 @@ Pesan: `Item berhasil dihapus` (en: `Item deleted successfully`)
 **Restore a soft-deleted order**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `orders.restore`
 
 **Path parameter**
 
@@ -1795,6 +2006,7 @@ Pesan: `Pesanan berhasil dipulihkan` (en: `Order restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -1834,6 +2046,25 @@ Pesan: `Pesanan berhasil dipulihkan` (en: `Order restored successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

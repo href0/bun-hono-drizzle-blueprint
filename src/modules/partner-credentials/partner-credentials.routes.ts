@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../core/dto/common.dto';
-import { requireRole, validate } from '../../core/middlewares';
+import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { partnerCredentialsController } from './partner-credentials.controller';
 import { PARTNER_CREDENTIAL_MESSAGES } from './partner-credentials.messages';
@@ -20,7 +20,6 @@ export const partnerCredentialRoutes = new Hono();
 const tags = ['Partner credentials'];
 
 /** Partner credentials are managed by admins only. */
-const adminOnly = requireRole('admin');
 
 partnerCredentialRoutes.post(
   '/',
@@ -35,7 +34,7 @@ partnerCredentialRoutes.post(
     },
     errors: [409],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.create'),
   validate({ body: createPartnerCredentialSchema }),
   partnerCredentialsController.create,
 );
@@ -51,7 +50,7 @@ partnerCredentialRoutes.get(
       paginatedItem: partnerCredentialResponseSchema,
     },
   }),
-  adminOnly,
+  requirePermission('partner-credentials.read'),
   validate({ query: partnerCredentialListQuerySchema }),
   partnerCredentialsController.list,
 );
@@ -68,7 +67,7 @@ partnerCredentialRoutes.get(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.read'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.getById,
 );
@@ -85,7 +84,7 @@ partnerCredentialRoutes.patch(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.update'),
   validate({ params: uuidParamSchema, body: updatePartnerCredentialSchema }),
   partnerCredentialsController.update,
 );
@@ -102,7 +101,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.activate'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.activate,
 );
@@ -119,7 +118,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.deactivate'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.deactivate,
 );
@@ -136,7 +135,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.rotate-secret'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.rotateSecret,
 );
@@ -153,7 +152,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.rotate-api-key'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.rotateApiKey,
 );
@@ -170,7 +169,7 @@ partnerCredentialRoutes.delete(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.delete'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.remove,
 );
@@ -187,7 +186,7 @@ partnerCredentialRoutes.post(
     },
     errors: [404],
   }),
-  adminOnly,
+  requirePermission('partner-credentials.restore'),
   validate({ params: uuidParamSchema }),
   partnerCredentialsController.restore,
 );

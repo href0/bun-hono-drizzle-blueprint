@@ -9,8 +9,7 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
-import { createApp } from '../src/app';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 import { NotFoundError } from '../src/core/errors';
 import { projectBudgetsService } from '../src/modules/projects/project-budgets/project-budgets.service';
 import { projectTasksService } from '../src/modules/projects/project-tasks/project-tasks.service';
@@ -74,7 +73,7 @@ describe('Projects with tasks (1:N) and a budget (1:1) — example dependent mod
       ),
       spyOn(projectBudgetsService, 'getProjectBudgetById').mockImplementation(async () => BUDGET),
     );
-    app = await authorize(createApp());
+    app = await authorize(createTestApp());
   });
 
   afterAll(() => {

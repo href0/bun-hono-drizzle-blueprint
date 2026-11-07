@@ -66,9 +66,9 @@ export const I18N_MESSAGES = {
     en: 'This route is not allowed for this partner',
   },
   // partner:end
-  ROLE_FORBIDDEN: {
-    id: 'Peran Anda tidak memiliki akses ke fitur ini',
-    en: 'Your role is not allowed to use this feature',
+  PERMISSION_FORBIDDEN: {
+    id: 'Anda tidak memiliki izin untuk fitur ini',
+    en: 'You do not have permission to use this feature',
   },
   CSRF_ORIGIN_FORBIDDEN: {
     id: 'Permintaan ditolak: asal (origin) tidak diizinkan',

@@ -20,6 +20,7 @@
 Requires the current password (attempts count like logins → 429). Returns a new access token and sets a new refresh cookie for this device; every other session ends.
 
 - Access token: `Authorization: Bearer <access_token>`
+- Semua pengguna yang sudah login
 
 **Header**
 
@@ -476,6 +477,7 @@ Pesan: `Logout berhasil` (en: `Logged out successfully`)
 **Log out of every session on every device**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Semua pengguna yang sudah login
 
 **Header**
 
@@ -576,6 +578,7 @@ Pesan: `Semua sesi berhasil diakhiri` (en: `All sessions have been signed out`)
 **The signed-in user**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Semua pengguna yang sudah login
 
 **Header**
 

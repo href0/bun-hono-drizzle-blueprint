@@ -45,7 +45,7 @@ src/
 │   ├── http/                    # HttpClientService (keep-alive pool, required timeout, X-Request-ID, vendor masking), vendor-body.ts (vendor body redaction for logs), access-token-cache.ts (single-flight vendor token)
 │   ├── i18n/                    # LocalizedMessage, translate(), I18N_MESSAGES (cross-cutting messages)
 │   ├── logger/                  # Pino logger with redaction
-│   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, webhookAuth, requireRole, validate, globalErrorHandler, …
+│   ├── middlewares/             # requestContext, clientIp, cors, bodySizeLimit, rateLimit, csrfProtection, authenticate, webhookAuth, permissionContext / requirePermission / requireSelfOrPermission / allowAnyUser, validate, globalErrorHandler, …
 │   ├── openapi/                 # describeEndpoint, envelope schemas, OpenAPI document + Scalar UI (<base>/docs), contract guard (NODE_ENV=test)
 │   ├── response/                # ApiResponse (success envelope), error envelope builder
 │   └── security/                # JWT HS256 access tokens, ROLES, PUBLIC_ROUTES (default-deny allowlist), rbac.ts (PermissionDefinition, crudPermissions, registry checks, SYSTEM_ROLES)

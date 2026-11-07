@@ -3,7 +3,7 @@ import type { Hono } from 'hono';
 import { createApp } from '../src/app';
 import { appConfig } from '../src/config';
 import { APP_ERROR_CODES } from '../src/core/errors';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 
 /**
  * The list convention on every paginated endpoint (D41, R85) — found in the OpenAPI document, so a
@@ -40,7 +40,7 @@ beforeAll(async () => {
       ? [{ path, operation }]
       : [];
   });
-  admin = await authorize(createApp(), 'admin');
+  admin = await authorize(createTestApp(), 'super_admin');
 });
 
 const request = async (

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidParamSchema } from '../../core/dto/common.dto';
-import { validate } from '../../core/middlewares';
+import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { projectsController } from './projects.controller';
 import { PROJECT_MESSAGES } from './projects.messages';
@@ -27,6 +27,7 @@ router.post(
       data: projectResponseSchema,
     },
   }),
+  requirePermission('projects.create'),
   validate({ body: createProjectSchema }),
   projectsController.create,
 );
@@ -42,6 +43,7 @@ router.get(
       paginatedItem: projectResponseSchema,
     },
   }),
+  requirePermission('projects.read'),
   validate({ query: projectListQuerySchema }),
   projectsController.list,
 );
@@ -58,6 +60,7 @@ router.get(
     },
     errors: [404],
   }),
+  requirePermission('projects.read'),
   validate({ params: uuidParamSchema }),
   projectsController.getById,
 );
@@ -74,6 +77,7 @@ router.patch(
     },
     errors: [404],
   }),
+  requirePermission('projects.update'),
   validate({ params: uuidParamSchema, body: updateProjectSchema }),
   projectsController.update,
 );
@@ -90,6 +94,7 @@ router.delete(
     },
     errors: [404],
   }),
+  requirePermission('projects.delete'),
   validate({ params: uuidParamSchema }),
   projectsController.remove,
 );
@@ -106,6 +111,7 @@ router.post(
     },
     errors: [404],
   }),
+  requirePermission('projects.restore'),
   validate({ params: uuidParamSchema }),
   projectsController.restore,
 );

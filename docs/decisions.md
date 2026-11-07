@@ -14,7 +14,7 @@ A changed decision keeps its ID: the row says what replaced what. **Numbering**:
 | D3 | The refresh token travels only in the `refresh_token` cookie: `HttpOnly; Secure; SameSite=Strict; Path=<base>/v1/auth`, `Max-Age` = its TTL; never in a body | Unreachable from scripts; `Secure` still works on `http://localhost` |
 | D4 | Cookie endpoints are protected by `SameSite` plus an `Origin` / `Sec-Fetch-Site` check against `CORS_ORIGINS` | The frontend manages no CSRF token |
 | D5 | Login is email + password (argon2id via `Bun.password`); public registration is off (`AUTH_REGISTRATION_ENABLED=false`) | Admins create users |
-| D6 | Authorization is simple RBAC: `users.role` ∈ `ROLES` + `requireRole()` | Fine-grained permissions stay in the backlog |
+| D6 | Authorization is simple RBAC: `users.role` ∈ `ROLES` + `requireRole()` — **superseded** by permission-based RBAC (D46–D61, plan RBAC) | Fine-grained permissions stay in the backlog |
 | D7 | Routes are default-deny: `authenticate()` on every `/v1` route except `PUBLIC_ROUTES`, proven by enumerating `app.routes` | A forgotten guard must not open a route |
 | D8 | Request context (request ID, actor, locale, client IP) lives in `AsyncLocalStorage` | Services never receive the Hono `Context` |
 | D9 | `X-Request-ID` is accepted only when it matches `^[A-Za-z0-9._:-]{1,128}$`, otherwise a UUID v7 is generated | Prevents log injection |

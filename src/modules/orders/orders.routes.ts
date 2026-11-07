@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { uuidChildParamSchema, uuidParamSchema } from '../../core/dto/common.dto';
-import { validate } from '../../core/middlewares';
+import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { ordersController } from './orders.controller';
 import { ORDER_MESSAGES } from './orders.messages';
@@ -31,6 +31,7 @@ router.post(
       data: orderResponseSchema,
     },
   }),
+  requirePermission('orders.create'),
   validate({ body: createOrderSchema }),
   ordersController.create,
 );
@@ -46,6 +47,7 @@ router.get(
       paginatedItem: orderResponseSchema,
     },
   }),
+  requirePermission('orders.read'),
   validate({ query: orderListQuerySchema }),
   ordersController.list,
 );
@@ -62,6 +64,7 @@ router.get(
     },
     errors: [404],
   }),
+  requirePermission('orders.read'),
   validate({ params: uuidParamSchema }),
   ordersController.getById,
 );
@@ -78,6 +81,7 @@ router.patch(
     },
     errors: [404],
   }),
+  requirePermission('orders.update'),
   validate({ params: uuidParamSchema, body: updateOrderSchema }),
   ordersController.update,
 );
@@ -94,6 +98,7 @@ router.delete(
     },
     errors: [404],
   }),
+  requirePermission('orders.delete'),
   validate({ params: uuidParamSchema }),
   ordersController.remove,
 );
@@ -110,6 +115,7 @@ router.post(
     },
     errors: [404],
   }),
+  requirePermission('orders.restore'),
   validate({ params: uuidParamSchema }),
   ordersController.restore,
 );
@@ -127,6 +133,7 @@ router.get(
     },
     errors: [404],
   }),
+  requirePermission('orders.read'),
   validate({ params: uuidParamSchema }),
   ordersController.listItems,
 );
@@ -143,6 +150,7 @@ router.post(
     },
     errors: [404],
   }),
+  requirePermission('orders.update'),
   validate({ params: uuidParamSchema, body: createOrderItemSchema }),
   ordersController.addItem,
 );
@@ -159,6 +167,7 @@ router.put(
     },
     errors: [404],
   }),
+  requirePermission('orders.update'),
   validate({ params: uuidParamSchema, body: syncOrderItemsSchema }),
   ordersController.syncItems,
 );
@@ -175,6 +184,7 @@ router.patch(
     },
     errors: [404],
   }),
+  requirePermission('orders.update'),
   validate({ params: uuidChildParamSchema, body: updateOrderItemSchema }),
   ordersController.updateItem,
 );
@@ -191,6 +201,7 @@ router.delete(
     },
     errors: [404],
   }),
+  requirePermission('orders.update'),
   validate({ params: uuidChildParamSchema }),
   ordersController.deleteItem,
 );

@@ -88,7 +88,7 @@
                   "ERR_WEBHOOK_SIGNATURE_INVALID",
                   "ERR_FORBIDDEN",
                   "ERR_CSRF_ORIGIN_FORBIDDEN",
-                  "ERR_ROLE_FORBIDDEN",
+                  "ERR_PERMISSION_FORBIDDEN",
                   "ERR_SELF_LOCKOUT_FORBIDDEN",
                   "ERR_PARTNER_IP_FORBIDDEN",
                   "ERR_PARTNER_ROUTE_FORBIDDEN",
@@ -1241,6 +1241,9 @@
         "summary": "Change your own password (ends every other session)",
         "tags": [
           "Auth"
+        ],
+        "x-allowed-callers": [
+          "any-user"
         ]
       }
     },
@@ -1918,6 +1921,9 @@
         "summary": "Log out of every session on every device",
         "tags": [
           "Auth"
+        ],
+        "x-allowed-callers": [
+          "any-user"
         ]
       }
     },
@@ -2118,6 +2124,9 @@
         "summary": "The signed-in user",
         "tags": [
           "Auth"
+        ],
+        "x-allowed-callers": [
+          "any-user"
         ]
       }
     },
@@ -2567,6 +2576,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "429": {
             "content": {
               "application/json": {
@@ -2639,6 +2678,9 @@
         "summary": "List orders (paginated, sortable, searchable)",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.read"
         ]
       },
       "post": {
@@ -2825,6 +2867,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "413": {
             "content": {
               "application/json": {
@@ -2927,6 +2999,9 @@
         "summary": "Create a order",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.create"
         ]
       }
     },
@@ -3068,6 +3143,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -3170,6 +3275,9 @@
         "summary": "Delete a order (soft delete; restorable)",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.delete"
         ]
       },
       "get": {
@@ -3339,6 +3447,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -3441,6 +3579,9 @@
         "summary": "Get a order by id",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.read"
         ]
       },
       "patch": {
@@ -3636,6 +3777,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -3768,6 +3939,9 @@
         "summary": "Update a order (only the given fields)",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.update"
         ]
       }
     },
@@ -3939,6 +4113,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4041,6 +4245,9 @@
         "summary": "List a order's items",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.read"
         ]
       },
       "post": {
@@ -4234,6 +4441,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4366,6 +4603,9 @@
         "summary": "Add an item to a order",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.update"
         ]
       },
       "put": {
@@ -4578,6 +4818,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4710,6 +4980,9 @@
         "summary": "Replace a order's item list (update kept ids, add new, delete missing)",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.update"
         ]
       }
     },
@@ -4860,6 +5133,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4962,6 +5265,9 @@
         "summary": "Delete an item",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.update"
         ]
       },
       "patch": {
@@ -5160,6 +5466,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5292,6 +5628,9 @@
         "summary": "Update an item (only the given fields)",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.update"
         ]
       }
     },
@@ -5463,6 +5802,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5565,6 +5934,9 @@
         "summary": "Restore a soft-deleted order",
         "tags": [
           "Orders"
+        ],
+        "x-allowed-callers": [
+          "permission:orders.restore"
         ]
       }
     },
@@ -5855,7 +6227,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "429": {
@@ -5932,7 +6304,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.read"
         ]
       },
       "post": {
@@ -6206,7 +6578,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "409": {
@@ -6343,7 +6715,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.create"
         ]
       }
     },
@@ -6512,7 +6884,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -6619,7 +6991,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.delete"
         ]
       },
       "get": {
@@ -6839,7 +7211,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -6946,7 +7318,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.read"
         ]
       },
       "patch": {
@@ -7208,7 +7580,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -7345,7 +7717,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.update"
         ]
       }
     },
@@ -7567,7 +7939,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -7674,7 +8046,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.activate"
         ]
       }
     },
@@ -7901,7 +8273,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -8008,7 +8380,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.rotate-api-key"
         ]
       }
     },
@@ -8230,7 +8602,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -8337,7 +8709,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.deactivate"
         ]
       }
     },
@@ -8559,7 +8931,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -8666,7 +9038,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.restore"
         ]
       }
     },
@@ -8893,7 +9265,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -9000,7 +9372,7 @@
           "Partner credentials"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:partner-credentials.rotate-secret"
         ]
       }
     },
@@ -9700,6 +10072,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -9802,6 +10204,9 @@
         "summary": "Get a projectBudget by id",
         "tags": [
           "ProjectBudgets"
+        ],
+        "x-allowed-callers": [
+          "permission:project-budgets.read"
         ]
       }
     },
@@ -9971,6 +10376,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -10103,6 +10538,9 @@
         "summary": "Restore a soft-deleted projectBudget (409 while another one is live)",
         "tags": [
           "ProjectBudgets"
+        ],
+        "x-allowed-callers": [
+          "permission:project-budgets.restore"
         ]
       }
     },
@@ -10244,6 +10682,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -10346,6 +10814,9 @@
         "summary": "Delete a projectTask (soft delete; restorable)",
         "tags": [
           "ProjectTasks"
+        ],
+        "x-allowed-callers": [
+          "permission:project-tasks.delete"
         ]
       },
       "get": {
@@ -10513,6 +10984,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -10615,6 +11116,9 @@
         "summary": "Get a projectTask by id",
         "tags": [
           "ProjectTasks"
+        ],
+        "x-allowed-callers": [
+          "permission:project-tasks.read"
         ]
       },
       "patch": {
@@ -10801,6 +11305,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -10933,6 +11467,9 @@
         "summary": "Update a projectTask (only the given fields)",
         "tags": [
           "ProjectTasks"
+        ],
+        "x-allowed-callers": [
+          "permission:project-tasks.update"
         ]
       }
     },
@@ -11102,6 +11639,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -11204,6 +11771,9 @@
         "summary": "Restore a soft-deleted projectTask",
         "tags": [
           "ProjectTasks"
+        ],
+        "x-allowed-callers": [
+          "permission:project-tasks.restore"
         ]
       }
     },
@@ -11441,6 +12011,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "429": {
             "content": {
               "application/json": {
@@ -11513,6 +12113,9 @@
         "summary": "List projects (paginated, sortable, searchable)",
         "tags": [
           "Projects"
+        ],
+        "x-allowed-callers": [
+          "permission:projects.read"
         ]
       },
       "post": {
@@ -11692,6 +12295,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "413": {
             "content": {
               "application/json": {
@@ -11794,6 +12427,9 @@
         "summary": "Create a project",
         "tags": [
           "Projects"
+        ],
+        "x-allowed-callers": [
+          "permission:projects.create"
         ]
       }
     },
@@ -11935,6 +12571,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -12037,6 +12703,9 @@
         "summary": "Delete a project (soft delete; restorable)",
         "tags": [
           "Projects"
+        ],
+        "x-allowed-callers": [
+          "permission:projects.delete"
         ]
       },
       "get": {
@@ -12203,6 +12872,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -12305,6 +13004,9 @@
         "summary": "Get a project by id",
         "tags": [
           "Projects"
+        ],
+        "x-allowed-callers": [
+          "permission:projects.read"
         ]
       },
       "patch": {
@@ -12493,6 +13195,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -12625,6 +13357,9 @@
         "summary": "Update a project (only the given fields)",
         "tags": [
           "Projects"
+        ],
+        "x-allowed-callers": [
+          "permission:projects.update"
         ]
       }
     },
@@ -12793,6 +13528,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -12895,6 +13660,9 @@
         "summary": "Restore a soft-deleted project",
         "tags": [
           "Projects"
+        ],
+        "x-allowed-callers": [
+          "permission:projects.restore"
         ]
       }
     },
@@ -13036,6 +13804,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -13138,6 +13936,9 @@
         "summary": "Delete a project's projectBudget (soft delete; restorable)",
         "tags": [
           "ProjectBudgets"
+        ],
+        "x-allowed-callers": [
+          "permission:project-budgets.delete"
         ]
       },
       "get": {
@@ -13305,6 +14106,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -13407,6 +14238,9 @@
         "summary": "Get a project's projectBudget",
         "tags": [
           "ProjectBudgets"
+        ],
+        "x-allowed-callers": [
+          "permission:project-budgets.read"
         ]
       },
       "put": {
@@ -13679,6 +14513,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -13811,6 +14675,9 @@
         "summary": "Save a project's projectBudget (201 created, 200 updated)",
         "tags": [
           "ProjectBudgets"
+        ],
+        "x-allowed-callers": [
+          "permission:project-budgets.update"
         ]
       }
     },
@@ -14050,6 +14917,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14152,6 +15049,9 @@
         "summary": "List a project's projectTasks (paginated, sortable, searchable)",
         "tags": [
           "ProjectTasks"
+        ],
+        "x-allowed-callers": [
+          "permission:project-tasks.read"
         ]
       },
       "post": {
@@ -14341,6 +15241,36 @@
               "ERR_UNAUTHORIZED"
             ]
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
           "404": {
             "content": {
               "application/json": {
@@ -14473,6 +15403,9 @@
         "summary": "Add a projectTask to a project",
         "tags": [
           "ProjectTasks"
+        ],
+        "x-allowed-callers": [
+          "permission:project-tasks.create"
         ]
       }
     },
@@ -14758,7 +15691,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "429": {
@@ -14835,7 +15768,7 @@
           "Users"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:users.read"
         ]
       },
       "post": {
@@ -15070,7 +16003,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "409": {
@@ -15207,7 +16140,7 @@
           "Users"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:users.create"
         ]
       }
     },
@@ -15376,7 +16309,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN",
+              "ERR_PERMISSION_FORBIDDEN",
               "ERR_SELF_LOCKOUT_FORBIDDEN"
             ]
           },
@@ -15484,7 +16417,7 @@
           "Users"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:users.delete"
         ]
       },
       "get": {
@@ -15687,7 +16620,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -15795,7 +16728,7 @@
         ],
         "x-allowed-callers": [
           "self:id",
-          "admin"
+          "permission:users.read"
         ]
       },
       "patch": {
@@ -16032,7 +16965,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN",
+              "ERR_PERMISSION_FORBIDDEN",
               "ERR_SELF_LOCKOUT_FORBIDDEN"
             ]
           },
@@ -16200,7 +17133,7 @@
           "Users"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:users.update"
         ]
       }
     },
@@ -16392,7 +17325,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "429": {
@@ -16531,7 +17464,7 @@
         ],
         "x-allowed-callers": [
           "self:id",
-          "admin"
+          "permission:user-posts.read"
         ]
       }
     },
@@ -16722,7 +17655,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -16859,7 +17792,7 @@
           "Users"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:users.update"
         ]
       }
     },
@@ -17064,7 +17997,7 @@
               }
             },
             "x-error-codes": [
-              "ERR_ROLE_FORBIDDEN"
+              "ERR_PERMISSION_FORBIDDEN"
             ]
           },
           "404": {
@@ -17201,7 +18134,7 @@
           "Users"
         ],
         "x-allowed-callers": [
-          "admin"
+          "permission:users.restore"
         ]
       }
     },

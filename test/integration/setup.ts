@@ -44,6 +44,10 @@ const schema = await import('../../src/database/schema');
 const fixtures = await import('../helpers/repository-fixtures');
 
 await migrate(db, { migrationsFolder: 'drizzle' });
+// Like `bun run db:migrate`: the permission registry is synced after the migrations (D49).
+const { syncPermissions } = await import('../../src/database/rbac/permission-sync');
+const { PERMISSION_REGISTRY } = await import('../../src/permissions');
+await syncPermissions(PERMISSION_REGISTRY);
 
 // The generic data-layer fixtures (test_orders, its detail and dependent tables, test_events) are
 // not in the schema barrel, so no migration creates them: their DDL is the difference

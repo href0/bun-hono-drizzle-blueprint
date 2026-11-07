@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
+import { signedIn } from '../../../test/helpers/authorized-app';
 import { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
 import { NotFoundError } from '../../core/errors';
@@ -24,6 +25,7 @@ const record: Project = {
 
 const app = new Hono();
 app.use('*', requestContextMiddleware());
+app.use('*', signedIn());
 app.route('/', projectsRouter);
 app.onError(globalErrorHandler);
 

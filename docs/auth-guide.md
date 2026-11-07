@@ -27,7 +27,7 @@ Base: `<API>/api/v1/auth`. Body dan respons memakai `snake_case`.
 
 - Email tidak peka huruf besar/kecil: server menyimpan dan mencarinya dalam huruf kecil.
 - `expires_in` adalah umur access token dalam detik (default 900).
-- `user.role` bernilai `admin` atau `user`. Endpoint yang tidak diizinkan untuk role tertentu menjawab 403 `ERR_ROLE_FORBIDDEN`.
+- Hak akses berbasis **permission** (mis. `orders.read`), diberikan lewat role atau izin tambahan per pengguna dan diperiksa di setiap request — tidak tersimpan di access token, jadi perubahan hak akses berlaku di request berikutnya tanpa login ulang. Endpoint yang permission-nya tidak Anda miliki menjawab 403 `ERR_PERMISSION_FORBIDDEN`. (`user.role` masih ada di respons untuk sementara, tetapi tidak lagi menentukan akses.)
 - Refresh token **tidak pernah** muncul di body respons.
 
 Cookie yang dipasang server:
@@ -201,7 +201,7 @@ Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 m
 | 401 | `ERR_AUTH_INVALID_CREDENTIALS` | Email/password salah atau akun nonaktif (sengaja tidak dibedakan) | Tampilkan pesan dari `message` |
 | 401 | `ERR_AUTH_REFRESH_INVALID` | Sesi tidak ada/berakhir (logout, kedaluwarsa, akun dinonaktifkan) | Halaman login |
 | 401 | `ERR_AUTH_REFRESH_REUSED` | Refresh token lama dipakai lagi — seluruh sesi dicabut | Halaman login (periksa single-flight, §4) |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role tidak boleh mengakses endpoint ini | Sembunyikan fitur / tampilkan pesan |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini | Sembunyikan fitur / tampilkan pesan |
 | 403 | `ERR_CSRF_ORIGIN_FORBIDDEN` | Origin FE tidak terdaftar | Konfigurasi: tambahkan origin ke `CORS_ORIGINS` |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin mencoba menghapus, menonaktifkan, atau mencabut role admin akunnya sendiri | Tampilkan pesan |
 | 400 | `ERR_INVALID_INPUT` (`details[].field = current_password`) | Password lama salah saat ganti password | Tampilkan pesan |

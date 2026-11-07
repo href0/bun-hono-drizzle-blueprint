@@ -1,12 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { Hono } from 'hono';
 import { Temporal } from 'temporal-polyfill';
-import { createApp } from '../src/app';
 import { ConflictError } from '../src/core/errors';
 import type { PartnerCredential } from '../src/database/schema';
 import { PARTNER_CREDENTIAL_MESSAGES } from '../src/modules/partner-credentials/partner-credentials.messages';
 import { partnerCredentialsService } from '../src/modules/partner-credentials/partner-credentials.service';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 
 /**
  * Partner credentials admin API — contract tests. The service singleton is spied (no database);
@@ -85,8 +84,8 @@ describe('Partner credentials — E2E contract', () => {
       spyOn(service, 'deleteCredential').mockImplementation(async () => undefined),
       spyOn(service, 'restoreCredential').mockImplementation(async () => credential),
     );
-    admin = await authorize(createApp(), 'admin');
-    user = await authorize(createApp(), 'user');
+    admin = await authorize(createTestApp(), 'super_admin');
+    user = await authorize(createTestApp(), []);
   });
 
   afterAll(() => {
@@ -122,10 +121,10 @@ describe('Partner credentials — E2E contract', () => {
     }
   });
 
-  it('refuses every route to a non-admin (403 ERR_ROLE_FORBIDDEN)', async () => {
+  it('refuses every route to a user without the permission (403 ERR_PERMISSION_FORBIDDEN)', async () => {
     for (const [method, path, body] of ROUTES) {
       expect(`${method} ${path}: ${await codeOf(await send(user, method, path, body))}`).toBe(
-        `${method} ${path}: 403 ERR_ROLE_FORBIDDEN`,
+        `${method} ${path}: 403 ERR_PERMISSION_FORBIDDEN`,
       );
     }
   });

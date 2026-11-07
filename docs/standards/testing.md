@@ -99,12 +99,12 @@ describe('UsersService (Unit)', () => {
 
 ## 5. Module E2E Tests (`test/<name>.e2e.test.ts`)
 
-A module's HTTP contract is tested through `createApp()` with its service stubbed by `spyOn` on the exported singleton — never `mock.module()`, which leaks into later files. Restore every spy in `afterAll`. Routes are protected by default (default-deny), so wrap the app with `authorize(createApp(), role?, userId?)` (`test/helpers/authorized-app.ts`): every request then carries a Bearer token unless it sets its own `Authorization` header; a role test signs in as `'user'` and expects 403 `ERR_ROLE_FORBIDDEN`. See `test/users.e2e.test.ts` (standalone) and `test/orders.e2e.test.ts` (header + detail: IDOR → 404, sync, nested snake_case keys).
+A module's HTTP contract is tested through `createApp()` with its service stubbed by `spyOn` on the exported singleton — never `mock.module()`, which leaks into later files. Restore every spy in `afterAll`. Routes are protected by default (default-deny), so wrap the app with `authorize(createTestApp(), grant?, userId?)` (`test/helpers/authorized-app.ts`): every request then carries a Bearer token unless it sets its own `Authorization` header, and the user holds `grant` — every permission (`'super_admin'`, the default) or exactly the listed keys; a permission test grants `[]` and expects 403 `ERR_PERMISSION_FORBIDDEN`. `createTestApp()` resolves permissions from those grants instead of the database; a router mounted on a bare `Hono` gets `signedIn(grant)` after `requestContextMiddleware()`. See `test/users.e2e.test.ts` (standalone) and `test/orders.e2e.test.ts` (header + detail: IDOR → 404, sync, nested snake_case keys).
 
 ```typescript
 beforeAll(async () => {
   spies.push(spyOn(ordersService, 'listItems').mockImplementation(async (id) => { … }));
-  app = await authorize(createApp(), 'admin');
+  app = await authorize(createTestApp());
 });
 afterAll(() => {
   for (const spy of spies) spy.mockRestore();

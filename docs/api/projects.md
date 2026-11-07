@@ -23,6 +23,7 @@
 **List projects (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `projects.read`
 
 **Query**
 
@@ -86,6 +87,7 @@ Pesan: `Daftar proyek berhasil diambil` (en: `Projects retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
 
@@ -124,6 +126,25 @@ Pesan: `Daftar proyek berhasil diambil` (en: `Projects retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -176,6 +197,7 @@ Pesan: `Daftar proyek berhasil diambil` (en: `Projects retrieved successfully`)
 **Create a project**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `projects.create`
 
 **Header**
 
@@ -231,6 +253,7 @@ Pesan: `Proyek berhasil dibuat` (en: `Project created successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -270,6 +293,25 @@ Pesan: `Proyek berhasil dibuat` (en: `Project created successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -341,6 +383,7 @@ Pesan: `Proyek berhasil dibuat` (en: `Project created successfully`)
 **Get a project by id**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `projects.read`
 
 **Path parameter**
 
@@ -389,6 +432,7 @@ Pesan: `Data proyek berhasil diambil` (en: `Project retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -428,6 +472,25 @@ Pesan: `Data proyek berhasil diambil` (en: `Project retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -499,6 +562,7 @@ Pesan: `Data proyek berhasil diambil` (en: `Project retrieved successfully`)
 **Update a project (only the given fields)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `projects.update`
 
 **Path parameter**
 
@@ -562,6 +626,7 @@ Pesan: `Proyek berhasil diperbarui` (en: `Project updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -602,6 +667,25 @@ Pesan: `Proyek berhasil diperbarui` (en: `Project updated successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -692,6 +776,7 @@ Pesan: `Proyek berhasil diperbarui` (en: `Project updated successfully`)
 **Delete a project (soft delete; restorable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `projects.delete`
 
 **Path parameter**
 
@@ -734,6 +819,7 @@ Pesan: `Proyek berhasil dihapus` (en: `Project deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -773,6 +859,25 @@ Pesan: `Proyek berhasil dihapus` (en: `Project deleted successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -844,6 +949,7 @@ Pesan: `Proyek berhasil dihapus` (en: `Project deleted successfully`)
 **Restore a soft-deleted project**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `projects.restore`
 
 **Path parameter**
 
@@ -892,6 +998,7 @@ Pesan: `Proyek berhasil dipulihkan` (en: `Project restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -931,6 +1038,25 @@ Pesan: `Proyek berhasil dipulihkan` (en: `Project restored successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

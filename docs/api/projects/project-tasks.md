@@ -18,6 +18,7 @@
 **Get a projectTask by id**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-tasks.read`
 
 **Path parameter**
 
@@ -66,6 +67,7 @@ Pesan: `Data tugas berhasil diambil` (en: `Task retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -105,6 +107,25 @@ Pesan: `Data tugas berhasil diambil` (en: `Task retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -176,6 +197,7 @@ Pesan: `Data tugas berhasil diambil` (en: `Task retrieved successfully`)
 **Update a projectTask (only the given fields)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-tasks.update`
 
 **Path parameter**
 
@@ -237,6 +259,7 @@ Pesan: `Tugas berhasil diperbarui` (en: `Task updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -277,6 +300,25 @@ Pesan: `Tugas berhasil diperbarui` (en: `Task updated successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -367,6 +409,7 @@ Pesan: `Tugas berhasil diperbarui` (en: `Task updated successfully`)
 **Delete a projectTask (soft delete; restorable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-tasks.delete`
 
 **Path parameter**
 
@@ -409,6 +452,7 @@ Pesan: `Tugas berhasil dihapus` (en: `Task deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -448,6 +492,25 @@ Pesan: `Tugas berhasil dihapus` (en: `Task deleted successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -519,6 +582,7 @@ Pesan: `Tugas berhasil dihapus` (en: `Task deleted successfully`)
 **Restore a soft-deleted projectTask**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-tasks.restore`
 
 **Path parameter**
 
@@ -567,6 +631,7 @@ Pesan: `Tugas berhasil dipulihkan` (en: `Task restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -606,6 +671,25 @@ Pesan: `Tugas berhasil dipulihkan` (en: `Task restored successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -677,6 +761,7 @@ Pesan: `Tugas berhasil dipulihkan` (en: `Task restored successfully`)
 **List a project's projectTasks (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-tasks.read`
 
 **Path parameter**
 
@@ -745,6 +830,7 @@ Pesan: `Daftar tugas berhasil diambil` (en: `Tasks retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -784,6 +870,25 @@ Pesan: `Daftar tugas berhasil diambil` (en: `Tasks retrieved successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -855,6 +960,7 @@ Pesan: `Daftar tugas berhasil diambil` (en: `Tasks retrieved successfully`)
 **Add a projectTask to a project**
 
 - Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `project-tasks.create`
 
 **Path parameter**
 
@@ -916,6 +1022,7 @@ Pesan: `Tugas berhasil dibuat` (en: `Task created successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -956,6 +1063,25 @@ Pesan: `Tugas berhasil dibuat` (en: `Task created successfully`)
   "error": {
     "type": "UNAUTHORIZED",
     "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

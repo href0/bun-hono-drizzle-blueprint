@@ -127,7 +127,7 @@ export const errorCodeEntries = (specs: readonly ErrorSpec[]): string[] =>
 
 /**
  * The spec fragment a middleware attaches to document the errors it causes (`validate()`,
- * `requireRole()`, …): one response per status plus its codes.
+ * `requirePermission()`, …): one response per status plus its codes.
  */
 export const documentErrors = (
   specs: readonly ErrorSpec[],

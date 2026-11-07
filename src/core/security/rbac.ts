@@ -87,6 +87,19 @@ export const registryProblems = (registry: readonly PermissionDefinition[]): str
   return problems;
 };
 
+/**
+ * What a user may do (D52): `superAdmin` holds every permission that is not retired (no list is
+ * kept, so permissions added by a later sync count at once); otherwise the keys of every live role
+ * ∪ the user's own grants that have not expired.
+ */
+export interface EffectivePermissions {
+  superAdmin: boolean;
+  permissions: string[];
+}
+
+/** Resolves the effective permissions of a user (the RBAC module's, injected by `src/app.ts`). */
+export type PermissionLookup = (userId: string) => Promise<EffectivePermissions>;
+
 /** A role the platform needs and keeps (D52, D59): created by the migration and by every sync. */
 export interface SystemRole {
   readonly key: string;

@@ -19,7 +19,7 @@
 **List users (paginated, sortable, searchable)**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: role `admin`
+- Hanya: permission `users.read`
 
 **Query**
 
@@ -86,7 +86,7 @@ Pesan: `Daftar pengguna berhasil diambil` (en: `Users retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
 
@@ -140,10 +140,10 @@ Pesan: `Daftar pengguna berhasil diambil` (en: `Users retrieved successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -196,7 +196,7 @@ Pesan: `Daftar pengguna berhasil diambil` (en: `Users retrieved successfully`)
 **Create a user**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: role `admin`
+- Hanya: permission `users.create`
 
 **Header**
 
@@ -260,7 +260,7 @@ Pesan: `Pengguna berhasil dibuat` (en: `User created successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -316,10 +316,10 @@ Pesan: `Pengguna berhasil dibuat` (en: `User created successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -410,7 +410,7 @@ Pesan: `Pengguna berhasil dibuat` (en: `User created successfully`)
 **Get a user by id**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: pemilik resource (`id` = id Anda) atau role `admin`
+- Hanya: pemilik resource (`id` = id Anda) atau permission `users.read`
 
 **Path parameter**
 
@@ -461,7 +461,7 @@ Pesan: `Data pengguna berhasil diambil` (en: `User retrieved successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
 | 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
@@ -516,10 +516,10 @@ Pesan: `Data pengguna berhasil diambil` (en: `User retrieved successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -591,7 +591,7 @@ Pesan: `Data pengguna berhasil diambil` (en: `User retrieved successfully`)
 **Update a user (only the given fields)**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: role `admin`
+- Hanya: permission `users.update`
 
 **Path parameter**
 
@@ -661,7 +661,7 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus, menonaktifkan, atau menurunkan role akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -719,10 +719,10 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -832,7 +832,7 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
 **Delete a user (soft delete; restorable)**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: role `admin`
+- Hanya: permission `users.delete`
 
 **Path parameter**
 
@@ -875,7 +875,7 @@ Pesan: `Pengguna berhasil dihapus` (en: `User deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus, menonaktifkan, atau menurunkan role akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -931,10 +931,10 @@ Pesan: `Pengguna berhasil dihapus` (en: `User deleted successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1006,7 +1006,7 @@ Pesan: `Pengguna berhasil dihapus` (en: `User deleted successfully`)
 **Reset a user's password (ends all of their sessions)**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: role `admin`
+- Hanya: permission `users.update`
 
 **Path parameter**
 
@@ -1062,7 +1062,7 @@ Pesan: `Password berhasil diganti; semua sesi pengguna diakhiri` (en: `Password 
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -1118,10 +1118,10 @@ Pesan: `Password berhasil diganti; semua sesi pengguna diakhiri` (en: `Password 
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -1212,7 +1212,7 @@ Pesan: `Password berhasil diganti; semua sesi pengguna diakhiri` (en: `Password 
 **Restore a soft-deleted user**
 
 - Access token: `Authorization: Bearer <access_token>`
-- Hanya: role `admin`
+- Hanya: permission `users.restore`
 
 **Path parameter**
 
@@ -1263,7 +1263,7 @@ Pesan: `Pengguna berhasil dipulihkan` (en: `User restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_ROLE_FORBIDDEN` | Role pengguna tidak diizinkan untuk endpoint ini |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -1319,10 +1319,10 @@ Pesan: `Pengguna berhasil dipulihkan` (en: `User restored successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Role pengguna tidak diizinkan untuk endpoint ini",
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_ROLE_FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

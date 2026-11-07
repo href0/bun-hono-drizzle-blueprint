@@ -5,9 +5,8 @@
  */
 import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test';
 import type { Hono } from 'hono';
-import { createApp } from '../src/app';
 import { userPostsService } from '../src/modules/user-posts/user-posts.service';
-import { authorize } from './helpers/authorized-app';
+import { authorize, createTestApp } from './helpers/authorized-app';
 
 const ownId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const otherId = 'b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a99';
@@ -21,8 +20,8 @@ describe('User posts (example outbound module) — E2E', () => {
     listSpy = spyOn(userPostsService, 'listExternalPosts').mockImplementation(async () => [
       { id: 1, userId: 1, title: 'Sample Post', body: 'Sample Body' },
     ]);
-    admin = await authorize(createApp(), 'admin');
-    owner = await authorize(createApp(), 'user', ownId);
+    admin = await authorize(createTestApp(), 'super_admin');
+    owner = await authorize(createTestApp(), [], ownId);
   });
 
   afterAll(() => {
@@ -49,7 +48,7 @@ describe('User posts (example outbound module) — E2E', () => {
     const forbidden = await get(owner, otherId);
     expect(forbidden.status).toBe(403);
     expect(((await forbidden.json()) as { error: { code: string } }).error.code).toBe(
-      'ERR_ROLE_FORBIDDEN',
+      'ERR_PERMISSION_FORBIDDEN',
     );
     expect((await get(admin, otherId)).status).toBe(200);
   });

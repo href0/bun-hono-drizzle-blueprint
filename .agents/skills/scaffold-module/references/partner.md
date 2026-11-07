@@ -238,7 +238,7 @@ export const <camelPlural>PartnerController = new <PascalPlural>PartnerControlle
 
 ### Step 8: Create Partner Routes (`src/modules/<name>/<name>.partner.routes.ts`)
 
-No `requireRole()` here: `partnerAuth()` already verified the partner (signature, IP whitelist, `allowed_routes`, nonce, rate limit). OpenAPI marks these operations with the partner signing headers automatically.
+No `requirePermission()` here (D57): `partnerAuth()` already verified the partner (signature, IP whitelist, `allowed_routes`, nonce, rate limit). OpenAPI marks these operations with the partner signing headers automatically.
 
 ```typescript
 import { Hono } from 'hono';
