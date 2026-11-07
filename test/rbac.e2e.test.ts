@@ -35,9 +35,9 @@ const role: Role = {
 
 const permission: Permission = {
   id: PERMISSION_ID,
-  key: 'orders.read',
-  label: 'Read orders',
-  groupName: 'orders',
+  key: 'users.read',
+  label: 'Read users',
+  groupName: 'users',
   source: 'api',
   retiredAt: null,
   createdAt: AT,
@@ -156,7 +156,7 @@ describe('RBAC admin API — /roles', () => {
     const res = await app.request(`/api/v1/roles/${ROLE_ID}/permissions`);
     expect(res.status).toBe(200);
     expect(await bodyOf(res)).toMatchObject({
-      data: [{ key: 'orders.read', group: 'orders', source: 'api', endpoints: [] }],
+      data: [{ key: 'users.read', group: 'users', source: 'api', endpoints: [] }],
     });
   });
 
@@ -189,7 +189,8 @@ describe('RBAC admin API — /permissions', () => {
       data: { endpoints: { method: string; path: string }[] };
     };
     expect(data.endpoints.map(({ method, path }) => `${method} ${path}`)).toEqual(
-      expect.arrayContaining(['GET /api/v1/orders', 'GET /api/v1/orders/{id}']),
+      // users: a module every project keeps (setup removes the examples).
+      expect.arrayContaining(['GET /api/v1/users', 'GET /api/v1/users/{id}']),
     );
   });
 
@@ -224,7 +225,7 @@ describe('RBAC admin API — /permissions', () => {
       });
 
     expect((await post('menu.reports')).status).toBe(201);
-    expect((await post('orders.read')).status).toBe(400);
+    expect((await post('users.read')).status).toBe(400);
   });
 
   it('PATCH / DELETE / restore a menu permission; an API permission is a 409', async () => {
