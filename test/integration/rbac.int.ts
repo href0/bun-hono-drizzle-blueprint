@@ -15,7 +15,9 @@ import {
   roles,
   userPermissions,
   userRoles,
+  users,
 } from '../../src/database/schema';
+import { seedAdmin } from '../../src/database/seeds/seed-admin';
 import { NOW } from '../../src/database/schema/columns';
 import { defaultTxHost, transactionStorage } from '../../src/database/transaction-host';
 import { runInTransaction } from '../../src/database/transactional.decorator';
@@ -519,5 +521,42 @@ describe('routes check permissions per request (step 4a)', () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(res.status).toBe(200);
+  });
+});
+
+describe('seed:admin gives the super_admin role (step 4a)', () => {
+  it('a created admin, a promoted user and an earlier admin without the role all pass every check', async () => {
+    const hash = (password: string) => Promise.resolve(`hashed:${password}`);
+    const created = await seedAdmin(
+      {
+        email: `${unique('seed')}@example.com`,
+        fullName: 'Admin',
+        password: 'long enough',
+        promote: false,
+      },
+      undefined,
+      hash,
+    );
+    expect(created.action).toBe('created');
+    expect((await rbacService.getEffectivePermissions(created.user.id)).superAdmin).toBe(true);
+
+    const userId = await insertUser();
+    const [{ email }] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, userId));
+    const promoted = await seedAdmin(
+      { email, fullName: 'x', promote: true },
+      undefined,
+      hash,
+      (id) => cacheService.del(CACHE_KEYS.userPermissions(id)),
+    );
+    expect(promoted.action).toBe('promoted');
+    expect((await rbacService.getEffectivePermissions(userId)).superAdmin).toBe(true);
+
+    // Run again: nothing to do.
+    expect(
+      (await seedAdmin({ email, fullName: 'x', promote: false }, undefined, hash)).action,
+    ).toBe('unchanged');
   });
 });
