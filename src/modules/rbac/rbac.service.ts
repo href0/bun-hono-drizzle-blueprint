@@ -63,7 +63,7 @@ const cachedPermissionsSchema = z.object({
 const INVALIDATION_BATCH = 100;
 
 /**
- * RBAC (plan RBAC step 3): the effective permissions of a user, cached per user (D53), and every
+ * RBAC (D52, D53): the effective permissions of a user, cached per user (D53), and every
  * change of roles, role mappings and per-user grants. Writes run in one transaction through the
  * base repositories (audited in `record_changes`); the cached permissions of every affected user
  * are dropped after the outermost commit (`afterCommit`, D63), so a concurrent read cannot cache
@@ -128,7 +128,7 @@ export class RbacService {
 
   /**
    * Gives a role to a user. `super_admin` only by a super admin; any other role only by someone
-   * holding every permission it carries (no escalation, plan RBAC step 6b).
+   * holding every permission it carries (no escalation, D69).
    */
   @Transactional()
   async assignRole(userId: string, roleId: string): Promise<UserRole> {
@@ -164,7 +164,7 @@ export class RbacService {
   }
 
   /**
-   * Soft delete = revocation (D55), audited. `super_admin` (anti-lockout, plan RBAC step 6b): only a
+   * Soft delete = revocation (D55), audited. `super_admin` (anti-lockout, D69): only a
    * super admin takes it, never from themselves (403 `ERR_SELF_LOCKOUT_FORBIDDEN`), and never from
    * the last live, active user holding it (409) — the holders are locked, so two concurrent
    * revocations cannot both pass.

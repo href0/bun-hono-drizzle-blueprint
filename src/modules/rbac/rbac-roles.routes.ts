@@ -15,7 +15,7 @@ import {
 import { RBAC_MESSAGES } from './rbac.messages';
 import { ROLE_PERMISSIONS } from './rbac.permissions';
 
-/** `/roles`: roles and the permissions mapped to them (plan RBAC step 6a). */
+/** `/roles`: roles and the permissions mapped to them (D68). */
 export const rbacRolesRouter = new Hono();
 
 const tags = ['Roles'];

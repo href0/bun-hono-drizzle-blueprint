@@ -16,7 +16,7 @@ import {
 } from './rbac.transformer';
 import { RBAC_MESSAGES } from './rbac.messages';
 
-/** The roles and extra permissions of users, and the caller's own permissions (plan RBAC step 6b). */
+/** The roles and extra permissions of users, and the caller's own permissions (D68). */
 export class RbacUserAccessController {
   constructor(private readonly service: RbacService = rbacService) {}
 

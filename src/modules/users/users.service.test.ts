@@ -414,7 +414,7 @@ describe('UsersService password reset and self-lockout', () => {
   });
 });
 
-describe('UsersService: changing another account never goes round RBAC (plan RBAC step 8b)', () => {
+describe('UsersService: changing another account never goes round RBAC (D69)', () => {
   const target: User = {
     id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e',
     email: 'root@example.com',

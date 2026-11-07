@@ -8,7 +8,7 @@ const escalationForbidden = (): ForbiddenError =>
   });
 
 /**
- * Stops privilege escalation (plan RBAC step 6): whoever changes access may only give what they
+ * Stops privilege escalation (D69): whoever changes access may only give what they
  * hold themselves — every key of `keys` must be among the signed-in user's effective permissions,
  * or they are a super admin; otherwise 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`. Without a signed-in
  * user (seeds, jobs: actor `system`) nothing is checked; a request without `permissionContext()`
@@ -18,7 +18,7 @@ const escalationForbidden = (): ForbiddenError =>
 export const actorUserId = (): string | undefined => getRequestContext()?.user?.id;
 
 /**
- * Only a super admin gives or takes the role `super_admin` (plan RBAC step 6b): anyone else → 403
+ * Only a super admin gives or takes the role `super_admin` (D69): anyone else → 403
  * `ERR_PERMISSION_ESCALATION_FORBIDDEN`. Without a signed-in user (seeds, jobs) nothing is checked;
  * a request without `permissionContext()` is refused (fail closed).
  */

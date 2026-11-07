@@ -15,7 +15,7 @@ import { PERMISSION_PERMISSIONS } from './rbac.permissions';
 
 /**
  * `/permissions`: every permission with the endpoints it opens (D47); menu permissions are created
- * and changed here, API permissions only by the registry in code (E1, 409 here).
+ * and changed here, API permissions only by the registry in code (D64, 409 here).
  */
 export const rbacPermissionsRouter = new Hono();
 

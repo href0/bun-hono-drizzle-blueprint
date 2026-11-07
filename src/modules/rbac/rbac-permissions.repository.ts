@@ -29,7 +29,7 @@ export class RbacPermissionsRepository extends BaseRepository<typeof permissions
     super(permissions, txHost);
   }
 
-  /** A live permission that still counts (not retired, E4) — the only kind that can be given. */
+  /** A live permission that still counts (not retired, D67) — the only kind that can be given. */
   async findGrantableById(id: string): Promise<Permission | null> {
     const rows = await this.txHost.tx
       .select()

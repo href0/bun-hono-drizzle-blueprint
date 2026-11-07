@@ -31,7 +31,7 @@ export const authUserSchema = z.object({
   fullName: z.string(),
 });
 
-/** Also what the service returns. Roles and permissions: `GET /me/permissions` (plan RBAC step 6). */
+/** Also what the service returns. Roles and permissions: `GET /me/permissions` (D68). */
 export type AuthUser = z.infer<typeof authUserSchema>;
 
 /** OAuth2-style token response; the refresh token travels only in the HttpOnly cookie. */

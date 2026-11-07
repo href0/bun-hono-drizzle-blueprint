@@ -7,7 +7,7 @@ import { RBAC_MESSAGES } from '../src/modules/rbac/rbac.messages';
 import { authorize, createTestApp, TEST_PRINCIPAL_ID } from './helpers/authorized-app';
 
 /**
- * RBAC user access (plan RBAC step 6b) — the HTTP contract of `/users/:id/roles`,
+ * RBAC user access (D68) — the HTTP contract of `/users/:id/roles`,
  * `/users/:id/permissions` and `/me/permissions` through `createApp()`: the service spied
  * (hermetic). The rules (escalation, last super admin, own account) are proven by the service unit
  * tests and, on a real database, by `test/integration/rbac.int.ts`.

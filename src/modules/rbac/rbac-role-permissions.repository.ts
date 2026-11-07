@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { BaseRepository, defaultTxHost, type TransactionHost } from '../../database';
 import { rolePermissions, type RolePermission } from '../../database/schema';
 
-/** Which permissions a role holds (E2: own `id`, soft delete = unmapping, audited). Global (D56). */
+/** Which permissions a role holds (D65: own `id`, soft delete = unmapping, audited). Global (D56). */
 export class RbacRolePermissionsRepository extends BaseRepository<typeof rolePermissions> {
   constructor(txHost: TransactionHost = defaultTxHost) {
     super(rolePermissions, txHost);

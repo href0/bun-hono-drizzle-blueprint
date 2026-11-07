@@ -303,7 +303,7 @@ describe('RbacService', () => {
     });
   });
 
-  describe('user access (step 6b)', () => {
+  describe('user access (D68, D69)', () => {
     /** Runs `fn` in a committing stand-in transaction as signed-in user `id` holding `effective`. */
     const as = <T>(
       id: string,

@@ -13,9 +13,9 @@ import { appTable } from '../schemas';
 /**
  * RBAC permission (D47, D48). `source = 'api'`: an action checked by routes (`orders.read`),
  * created and kept in step by the permission registry sync, never changed through the API;
- * `source = 'menu'`: created by an administrator for the frontend, key prefixed `menu.` (E1).
+ * `source = 'menu'`: created by an administrator for the frontend, key prefixed `menu.` (D64).
  * An API permission that left the registry is not deleted: `retired_at` is set and it no longer
- * counts (E4).
+ * counts (D67).
  */
 export const permissions = appTable(
   'permissions',
