@@ -13,6 +13,7 @@ import {
   RbacRolePermissionsRepository,
   rbacRolePermissionsRepository,
 } from './rbac-role-permissions.repository';
+import type { AccessChange } from './rbac-replace.dto';
 import type { CreateRoleDto, RoleListQueryDto, UpdateRoleDto } from './rbac-roles.dto';
 import { RbacRolesRepository, rbacRolesRepository } from './rbac-roles.repository';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
@@ -121,6 +122,14 @@ export class RbacRolesService {
     if (await this.rolePermissionsRepo.findLive(roleId, permissionId)) return { created: false };
     await this.rbac.mapPermission(roleId, permissionId);
     return { created: true };
+  }
+
+  /** `PUT /roles/:id/permissions`: the whole set at once (D72). */
+  async replaceRolePermissions(
+    roleId: string,
+    permissionIds: readonly string[],
+  ): Promise<AccessChange> {
+    return this.rbac.replaceRolePermissions(roleId, permissionIds);
   }
 
   @Transactional()

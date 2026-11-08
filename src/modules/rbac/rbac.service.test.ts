@@ -7,6 +7,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ValidationError,
 } from '../../core/errors';
 import type { Role } from '../../database/schema';
 import { runInFakeTransaction } from '../../database/transaction-host';
@@ -243,6 +244,123 @@ describe('RbacService', () => {
         NotFoundError,
       );
       expect(memory.deleted).toEqual([]);
+    });
+  });
+
+  describe('replaceRolePermissions (D72, D74)', () => {
+    const live = (id: string, key: string, retired = false) => ({
+      mapping: { id: `rp-${id}` },
+      permission: { id, key, retiredAt: retired ? {} : null },
+    });
+    const CATALOG = new Map(
+      [
+        ['p-read', 'orders.read'],
+        ['p-create', 'orders.create'],
+        ['p-delete', 'orders.delete'],
+      ].map(([id, key]) => [id, { id, key, retiredAt: null }]),
+    );
+    let created: string[];
+    let unmapped: string[];
+    const asCaller = <T>(held: string[] | 'root', fn: () => Promise<T>) =>
+      runWithRequestContext(
+        {
+          requestId: 'r1',
+          locale: 'en',
+          clientIp: 'unknown',
+          actor: 'user:a1',
+          user: { id: 'a1' },
+          permissions: () =>
+            Promise.resolve(
+              held === 'root'
+                ? { superAdmin: true, permissions: [] }
+                : { superAdmin: false, permissions: held },
+            ),
+        },
+        () => inTx(fn),
+      );
+    const replace = (ids: string[]) => service().replaceRolePermissions('role-staff', ids);
+    const keys = (items: { key: string }[]) => items.map(({ key }) => key);
+
+    beforeEach(() => {
+      created = [];
+      unmapped = [];
+      // The role holds orders.read, orders.delete and a retired permission.
+      rolePermissions.findMappingsOf = () =>
+        Promise.resolve([
+          live('p-delete', 'orders.delete'),
+          live('p-old', 'old.thing', true),
+          live('p-read', 'orders.read'),
+        ]);
+      permissions.findGrantableByIds = (ids: string[]) =>
+        Promise.resolve(ids.flatMap((id) => CATALOG.get(id) ?? []));
+      rolePermissions.create = (input: { permissionId: string }) => {
+        created.push(input.permissionId);
+        return Promise.resolve({});
+      };
+      rolePermissions.softDeleteById = (id: string) => {
+        unmapped.push(id);
+        return Promise.resolve({});
+      };
+    });
+
+    it('writes only the difference, drops the holders’ cache once, reports each part', async () => {
+      const change = await asCaller(['orders.read', 'orders.create', 'orders.delete'], () =>
+        replace(['p-read', 'p-create']),
+      );
+      expect(created).toEqual(['p-create']);
+      // The retired permission goes without being held: it gives nothing.
+      expect(unmapped).toEqual(['rp-p-delete', 'rp-p-old']);
+      expect(memory.deleted).toEqual(['rbac:permissions:u1', 'rbac:permissions:u2']);
+      expect([keys(change.added), keys(change.removed), keys(change.unchanged)]).toEqual([
+        ['orders.create'],
+        ['orders.delete', 'old.thing'],
+        ['orders.read'],
+      ]);
+    });
+
+    it('the same set again writes nothing and drops no cache; [] removes everything', async () => {
+      const same = await asCaller('root', () => replace(['p-read', 'p-old', 'p-delete']));
+      expect([created, unmapped, memory.deleted]).toEqual([[], [], []]);
+      expect(keys(same.unchanged)).toEqual(['orders.delete', 'old.thing', 'orders.read']);
+
+      await asCaller('root', () => replace([]));
+      expect(unmapped).toEqual(['rp-p-delete', 'rp-p-old', 'rp-p-read']);
+    });
+
+    it('an id that cannot be given is a 400 naming its index, before any write', async () => {
+      const error = await errorOf(asCaller('root', () => replace(['p-read', 'p-gone', 'p-new'])));
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).details.map(({ field }) => field)).toEqual([
+        'permissionIds.1',
+        'permissionIds.2',
+      ]);
+      expect([created, unmapped, memory.deleted]).toEqual([[], [], []]);
+    });
+
+    it('the caller must hold every permission added or removed: 403 naming each, nothing written', async () => {
+      const error = await errorOf(asCaller(['orders.read'], () => replace(['p-read', 'p-create'])));
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as ForbiddenError).details.map(({ field }) => field)).toEqual([
+        'orders.create',
+        'orders.delete',
+      ]);
+      expect([created, unmapped, memory.deleted]).toEqual([[], [], []]);
+    });
+
+    it('super_admin has no mapping (409); seeds and jobs (no signed-in user) are not checked', async () => {
+      expect(
+        await errorOf(inTx(() => service().replaceRolePermissions('role-super_admin', ['p-read']))),
+      ).toBeInstanceOf(ConflictError);
+      await inTx(() => replace(['p-create']));
+      expect(created).toEqual(['p-create']);
+    });
+
+    it('a concurrent identical mapping is the same 409 as the per-item PUT', async () => {
+      rolePermissions.create = () =>
+        Promise.reject(Object.assign(new Error('dup'), { code: '23505' }));
+      expect(await errorOf(asCaller('root', () => replace(['p-read', 'p-create'])))).toBeInstanceOf(
+        ConflictError,
+      );
     });
   });
 

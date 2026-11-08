@@ -17,6 +17,15 @@ export const RBAC_MESSAGES = {
     id: 'Anda tidak dapat memberikan atau mencabut permission yang tidak Anda miliki',
     en: 'You cannot give or take a permission you do not hold',
   },
+  /** One detail of a replace refused with 400: the permission at that index cannot be given. */
+  PERMISSION_NOT_GRANTABLE: {
+    id: 'Permission tidak dikenal atau sudah tidak berlaku',
+    en: 'Unknown or retired permission',
+  },
+  ROLE_PERMISSIONS_REPLACED: {
+    id: 'Permission role berhasil diperbarui',
+    en: 'The permissions of the role updated',
+  },
   /** One detail of the escalation error: its `field` is the permission key. */
   PERMISSION_NOT_HELD: {
     id: 'Anda tidak memiliki permission ini',

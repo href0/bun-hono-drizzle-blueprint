@@ -8,6 +8,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ValidationError,
 } from '../../core/errors';
 import { SUPER_ADMIN_ROLE, type EffectivePermissions } from '../../core/security/rbac';
 import { afterCommit, Transactional } from '../../database/transactional.decorator';
@@ -35,6 +36,8 @@ import {
   rbacUserPermissionsRepository,
   type ActiveGrant,
 } from './rbac-user-permissions.repository';
+import type { AccessChange, ChangedItem } from './rbac-replace.dto';
+import { diffIds } from './rbac-replace.util';
 import type { GrantWithPermission } from './rbac-user-access.dto';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
 import { actorUserId, requireActorHolds, requireActorIsSuperAdmin } from './rbac-grant-guard.util';
@@ -220,6 +223,52 @@ export class RbacService {
     await this.forget(await this.userRolesRepo.findHolderIds(roleId));
   }
 
+  /**
+   * Replaces the permissions of a role with `permissionIds` (D72): only the difference is written —
+   * new mappings created, missing ones unmapped, the rest untouched. Every check runs before the
+   * first write: the role can be mapped, every added permission can be given (400 naming its
+   * index), and the caller holds every permission added or taken that still counts (D74). The
+   * holders' cache is dropped once, after the commit, only when something changed.
+   */
+  @Transactional()
+  async replaceRolePermissions(
+    roleId: string,
+    permissionIds: readonly string[],
+  ): Promise<AccessChange> {
+    await this.requireMappableRole(roleId);
+    const mappings = await this.rolePermissionsRepo.findMappingsOf(roleId);
+    const byPermission = new Map(mappings.map((row) => [row.permission.id, row]));
+    const diff = diffIds([...byPermission.keys()], permissionIds);
+    const adding = await this.requireGrantableAll(
+      diff.added,
+      (id) => `permissionIds.${String(permissionIds.indexOf(id))}`,
+    );
+    const removing = mappings.filter((row) => diff.removed.includes(row.permission.id));
+    await requireActorHolds([
+      ...adding.map(({ key }) => key),
+      ...removing
+        .filter((row) => row.permission.retiredAt === null)
+        .map((row) => row.permission.key),
+    ]);
+    for (const permission of adding) {
+      await this.createUnique(
+        () => this.rolePermissionsRepo.create({ roleId, permissionId: permission.id }),
+        RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED,
+      );
+    }
+    for (const row of removing) await this.rolePermissionsRepo.softDeleteById(row.mapping.id);
+    if (adding.length + removing.length > 0) {
+      await this.forget(await this.userRolesRepo.findHolderIds(roleId));
+    }
+    return {
+      added: adding.map(changedItem),
+      removed: removing.map((row) => changedItem(row.permission)),
+      unchanged: mappings
+        .filter((row) => diff.unchanged.includes(row.permission.id))
+        .map((row) => changedItem(row.permission)),
+    };
+  }
+
   /** An extra permission for one user, optionally until `expiresAt` (D51). */
   @Transactional()
   async grantPermission(
@@ -364,6 +413,28 @@ export class RbacService {
     if (permission) await requireActorHolds([permission.key]);
   }
 
+  /**
+   * The permissions of `ids`, each of which must be grantable (live, not retired) — otherwise 400
+   * with one detail per refused id at `fieldOf(id)` (its place in the request body).
+   */
+  private async requireGrantableAll(
+    ids: readonly string[],
+    fieldOf: (id: string) => string,
+  ): Promise<Permission[]> {
+    const found = await this.permissionsRepo.findGrantableByIds(ids);
+    const known = new Set(found.map(({ id }) => id));
+    const refused = ids.filter((id) => !known.has(id));
+    if (refused.length > 0) {
+      throw new ValidationError(undefined, {
+        details: refused.map((id) => ({
+          field: fieldOf(id),
+          message: RBAC_MESSAGES.PERMISSION_NOT_GRANTABLE,
+        })),
+      });
+    }
+    return found;
+  }
+
   private async requireGrantablePermission(permissionId: string): Promise<Permission> {
     const permission = await this.permissionsRepo.findGrantableById(permissionId);
     if (!permission) throw new NotFoundError(rbacPermissionNotFoundMessage(permissionId));
@@ -372,3 +443,5 @@ export class RbacService {
 }
 
 export const rbacService = new RbacService();
+
+const changedItem = ({ id, key }: { id: string; key: string }): ChangedItem => ({ id, key });

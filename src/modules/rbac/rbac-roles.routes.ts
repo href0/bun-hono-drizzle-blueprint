@@ -5,6 +5,7 @@ import { APP_ERROR_CODES } from '../../core/errors';
 import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
 import { permissionResponseSchema } from './rbac-permissions.dto';
+import { accessChangeSchema, replaceRolePermissionsSchema } from './rbac-replace.dto';
 import { rbacRolesController } from './rbac-roles.controller';
 import {
   createRoleSchema,
@@ -141,6 +142,25 @@ rbacRolesRouter.get(
   requirePermission(ROLE_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   rbacRolesController.listPermissions,
+);
+rbacRolesRouter.put(
+  '/:id/permissions',
+  describeEndpoint({
+    tags,
+    summary: 'Replace the permissions of a role (a checklist saved at once)',
+    description:
+      'The body is the whole set the role should hold: a permission left out is removed, `[]` removes every one. Only the difference is written, in one transaction — nothing is saved when one item is refused. 400 for an unknown, retired or repeated id (its index in `details`); 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` naming every permission added or removed that the caller does not hold (one that no longer counts may be removed); `super_admin` has no mapping (409).',
+    response: {
+      status: 200,
+      description: 'What was added, removed and kept, each by key',
+      message: RBAC_MESSAGES.ROLE_PERMISSIONS_REPLACED,
+      data: accessChangeSchema,
+    },
+    errors: [400, 404, 409, ESCALATION],
+  }),
+  requirePermission(ROLE_PERMISSIONS.update),
+  validate({ params: uuidParamSchema, body: replaceRolePermissionsSchema }),
+  rbacRolesController.replacePermissions,
 );
 rbacRolesRouter.put(
   '/:id/permissions/:childId',

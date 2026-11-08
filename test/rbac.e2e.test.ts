@@ -175,6 +175,59 @@ describe('RBAC admin API — /roles', () => {
       (await app.request(`/api/v1/roles/${ROLE_ID}/permissions/x`, { method: 'PUT' })).status,
     ).toBe(400);
   });
+
+  it('PUT /:id/permissions replaces the whole set: the change by key; 400 for a bad body (D72)', async () => {
+    const replace = spyOn(rbacRolesService, 'replaceRolePermissions').mockResolvedValue({
+      added: [
+        { id: PERMISSION_ID, key: 'users.read' },
+        { id: ROLE_ID, key: 'menu.reports' },
+      ],
+      removed: [],
+      unchanged: [],
+    });
+    spies.push(replace);
+    const app = await authorize(createTestApp(), ['roles.update']);
+    const put = (body: unknown) =>
+      app.request(`/api/v1/roles/${ROLE_ID}/permissions`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(body),
+      });
+
+    const res = await put({ permission_ids: [PERMISSION_ID, ROLE_ID] });
+    expect(res.status).toBe(200);
+    expect(replace.mock.calls[0]).toEqual([ROLE_ID, [PERMISSION_ID, ROLE_ID]]);
+    expect(await bodyOf(res)).toMatchObject({
+      message: RBAC_MESSAGES.ROLE_PERMISSIONS_REPLACED.id,
+      data: {
+        added: [
+          { id: ROLE_ID, key: 'menu.reports' },
+          { id: PERMISSION_ID, key: 'users.read' },
+        ],
+        removed: [],
+        unchanged: [],
+      },
+    });
+
+    // `{}` is not "remove everything": the set must be sent, `[]` included.
+    expect((await put({})).status).toBe(400);
+    expect((await put({ permission_ids: ['x'] })).status).toBe(400);
+    const repeated = await put({ permission_ids: [PERMISSION_ID, PERMISSION_ID] });
+    expect(repeated.status).toBe(400);
+    expect(await bodyOf(repeated)).toMatchObject({
+      error: { details: [{ field: 'permission_ids.1' }] },
+    });
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect((await put({ permission_ids: [] })).status).toBe(200);
+
+    const denied = await authorize(createTestApp(), ['roles.read']);
+    const refused = await denied.request(`/api/v1/roles/${ROLE_ID}/permissions`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ permission_ids: [] }),
+    });
+    expect(refused.status).toBe(403);
+  });
 });
 
 describe('RBAC admin API — /permissions', () => {

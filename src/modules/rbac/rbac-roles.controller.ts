@@ -6,9 +6,15 @@ import {
   getValidatedQuery,
 } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
+import type { ReplaceRolePermissionsDto } from './rbac-replace.dto';
 import type { CreateRoleDto, RoleListQueryDto, UpdateRoleDto } from './rbac-roles.dto';
 import { RbacRolesService, rbacRolesService } from './rbac-roles.service';
-import { toPermissionListResponse, toRoleListResponse, toRoleResponse } from './rbac.transformer';
+import {
+  toAccessChangeResponse,
+  toPermissionListResponse,
+  toRoleListResponse,
+  toRoleResponse,
+} from './rbac.transformer';
 import { RBAC_MESSAGES } from './rbac.messages';
 
 export class RbacRolesController {
@@ -70,6 +76,17 @@ export class RbacRolesController {
     return created
       ? new ApiResponse(null, RBAC_MESSAGES.ROLE_PERMISSION_MAPPED, 201)
       : new ApiResponse(null, RBAC_MESSAGES.PERMISSION_ALREADY_MAPPED, 200);
+  });
+
+  replacePermissions = asyncHandler(async (c) => {
+    const { id } = getValidatedParams<UuidParamDto>(c);
+    const { permissionIds } = getValidatedBody<ReplaceRolePermissionsDto>(c);
+    const change = await this.service.replaceRolePermissions(id, permissionIds);
+    return new ApiResponse(
+      toAccessChangeResponse(change),
+      RBAC_MESSAGES.ROLE_PERMISSIONS_REPLACED,
+      200,
+    );
   });
 
   removePermission = asyncHandler(async (c) => {

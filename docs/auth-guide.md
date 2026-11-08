@@ -203,7 +203,7 @@ Access token yang sudah terbit tetap berlaku sampai umurnya habis (maksimal 15 m
 | 401 | `ERR_AUTH_REFRESH_REUSED` | Refresh token lama dipakai lagi — seluruh sesi dicabut | Halaman login (periksa single-flight, §4) |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini | Sembunyikan fitur / tampilkan pesan |
 | 403 | `ERR_CSRF_ORIGIN_FORBIDDEN` | Origin FE tidak terdaftar | Konfigurasi: tambahkan origin ke `CORS_ORIGINS` |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Admin mencoba memberi permission yang tidak ia miliki (role, pemetaan, izin tambahan), mengubah akun pengguna yang memegang lebih banyak permission, atau mengatur `super_admin` tanpa menjadi super admin | Tampilkan pesan dari `message` |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Admin mencoba memberi atau mencabut permission yang tidak ia miliki (role, pemetaan, izin tambahan — `details[].field` berisi key permission yang kurang), mengubah akun pengguna yang memegang lebih banyak permission, atau mengatur `super_admin` tanpa menjadi super admin | Tampilkan pesan dari `message` |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin mencoba menghapus atau menonaktifkan akunnya sendiri, atau mencabut role `super_admin` dari dirinya sendiri | Tampilkan pesan |
 | 409 | `ERR_CONFLICT` | Antara lain: menghapus / menonaktifkan / mencabut super admin aktif terakhir, mengubah role `super_admin` atau role sistem, mengubah permission API | Tampilkan pesan dari `message` |
 | 400 | `ERR_INVALID_INPUT` (`details[].field = current_password`) | Password lama salah saat ganti password | Tampilkan pesan |

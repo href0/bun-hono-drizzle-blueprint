@@ -12,6 +12,7 @@ import { findUnsyncedPermissions, syncPermissions } from '../../src/database/rba
 import {
   permissions,
   recordChanges,
+  rolePermissions,
   roles,
   userPermissions,
   userRoles,
@@ -386,6 +387,66 @@ describe('effective permissions (D52, D53)', () => {
         and(eq(recordChanges.tableName, 'user_roles'), eq(recordChanges.recordId, assignment.id)),
       );
     expect(changes.map((change) => change.action)).toEqual(['SOFT_DELETE']);
+  });
+
+  it('replacing the permissions of a role writes only the difference; mappings of a deleted permission stay (D72)', async () => {
+    const role = await insertRole();
+    const [kept, dropped, added] = [
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+    ];
+    const keptMapping = await rbacService.mapPermission(role, kept.id);
+    const droppedMapping = await rbacService.mapPermission(role, dropped.id);
+    // A deleted menu permission: invisible to the checklist, its mapping waits for a restore.
+    const menuId = Bun.randomUUIDv7();
+    await db.insert(permissions).values({
+      id: menuId,
+      key: `menu.${unique('m')}`,
+      label: 'Menu',
+      groupName: 'menus',
+      source: 'menu',
+      ...SYSTEM,
+    });
+    const menuMapping = await rbacService.mapPermission(role, menuId);
+    await db.update(permissions).set({ deletedAt: NOW }).where(eq(permissions.id, menuId));
+    const auditOf = async (recordId: string) =>
+      (
+        await db
+          .select({ action: recordChanges.action })
+          .from(recordChanges)
+          .where(
+            and(
+              eq(recordChanges.tableName, 'role_permissions'),
+              eq(recordChanges.recordId, recordId),
+            ),
+          )
+      ).map(({ action }) => action);
+    const keptAudit = await auditOf(keptMapping.id);
+
+    const change = await rbacService.replaceRolePermissions(role, [kept.id, added.id]);
+    expect(change).toMatchObject({
+      added: [{ id: added.id, key: added.key }],
+      removed: [{ id: dropped.id, key: dropped.key }],
+      unchanged: [{ id: kept.id, key: kept.key }],
+    });
+
+    const live = await db
+      .select({ id: rolePermissions.id, permissionId: rolePermissions.permissionId })
+      .from(rolePermissions)
+      .where(and(eq(rolePermissions.roleId, role), isNull(rolePermissions.deletedAt)));
+    expect(live.map(({ permissionId }) => permissionId).sort()).toEqual(
+      [kept.id, added.id, menuId].sort(),
+    );
+    // The kept mapping is the same row, with no new audit entry; the dropped one is soft-deleted.
+    expect(live.find(({ permissionId }) => permissionId === kept.id)?.id).toBe(keptMapping.id);
+    expect(await auditOf(keptMapping.id)).toEqual(keptAudit);
+    expect((await auditOf(droppedMapping.id)).at(-1)).toBe('SOFT_DELETE');
+    expect(live.find(({ permissionId }) => permissionId === menuId)?.id).toBe(menuMapping.id);
+
+    // The same set again: nothing written.
+    const again = await rbacService.replaceRolePermissions(role, [added.id, kept.id]);
+    expect([again.added, again.removed]).toEqual([[], []]);
   });
 
   it('gives a super admin every permission and refuses to map that role', async () => {
