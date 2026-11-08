@@ -17,7 +17,7 @@ Read this file when: placing a new file, adding an import between layers, or add
 │   ├── auth-guide.md            # For frontend developers (Indonesian)
 │   ├── partner-integration-guide.md # For partners (Indonesian), guarded by test/partner-guide.test.ts <!-- partner -->
 │   ├── deployment.md            # For whoever deploys (Indonesian): images, production config, migrations
-│   ├── api/                     # API contract: openapi.json snapshot + one Markdown per module (README.md index), written by bun run openapi:update after review, never by hand (R76, R78)
+│   ├── api/                     # API contract: openapi.json snapshot + one Markdown per module, per router when a module has several (README.md index), written by bun run openapi:update after review, never by hand (R76, R78)
 │   ├── plans/                   # Active work plans, if any (.agents/AGENTS.md "Work Plans")
 │   └── archive/                 # Finished plans = decision history (D0…), original NestJS blueprint (not maintained)
 ├── docs-site/                   # Interactive documentation portal (Astro Starlight)

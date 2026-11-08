@@ -137,4 +137,84 @@ describe('renderContractMarkdown', () => {
       renderContractMarkdown(document, new Map([['POST /api/v1/projects', 'projects']])),
     ).toThrow('GET /api/v1/projects/{projectId}/tasks');
   });
+
+  describe('a module with several routers (D68: one per resource)', () => {
+    // projects.routes.ts and projects-tasks.routes.ts both in the module `projects` here.
+    const owners = new Map([
+      ['POST /api/v1/projects', 'projects'],
+      ['GET /api/v1/projects/{projectId}/tasks', 'projects'],
+    ]);
+    const routers = new Map([
+      ['POST /api/v1/projects', 'projects'],
+      ['GET /api/v1/projects/{projectId}/tasks', 'projects-tasks'],
+    ]);
+    const split = renderContractMarkdown(document, owners, routers);
+
+    it('gets an index file and one file per router, named without the module prefix', () => {
+      expect([...split.keys()]).toEqual([
+        'README.md',
+        'projects.md',
+        'projects/projects.md',
+        'projects/tasks.md',
+      ]);
+      expect(split.get('README.md')).toContain(
+        '- [projects](projects.md) — 2 endpoint\n  - [projects](projects/projects.md) — 1 endpoint\n  - [tasks](projects/tasks.md) — 1 endpoint',
+      );
+    });
+
+    it('the index lists every endpoint with its router file; each router file holds the details', () => {
+      const index = split.get('projects.md') ?? '';
+      expect(index).toContain('| [tasks](projects/tasks.md) | 1 |');
+      expect(index).toContain(
+        '| `GET /api/v1/projects/{projectId}/tasks` | List tasks | [tasks](projects/tasks.md) |',
+      );
+      // The index carries no endpoint details: those live in the router files only.
+      expect(index).not.toContain('## `GET /api/v1/projects/{projectId}/tasks`');
+      const tasks = split.get('projects/tasks.md') ?? '';
+      expect(tasks).toContain('# Tasks (`projects/tasks`)');
+      expect(tasks).toContain('[Kontrak API](../README.md) › [projects](../projects.md) › tasks');
+      expect(tasks).toContain('## `GET /api/v1/projects/{projectId}/tasks`');
+    });
+
+    it('a file spanning several tags names them all, not the tag of the endpoint that sorts first', () => {
+      expect(split.get('projects.md')).toContain('# Projects · Tasks (`projects`)');
+      expect(files.get('projects.md')).toContain('# Projects (`projects`)');
+    });
+
+    it('one router: one file, as before', () => {
+      const single = new Map([
+        ['POST /api/v1/projects', 'projects'],
+        ['GET /api/v1/projects/{projectId}/tasks', 'projects-tasks'],
+      ]);
+      expect([
+        ...renderContractMarkdown(
+          document,
+          new Map([
+            ['POST /api/v1/projects', 'projects'],
+            ['GET /api/v1/projects/{projectId}/tasks', 'projects/project-tasks'],
+          ]),
+          single,
+        ).keys(),
+      ]).toEqual(['README.md', 'projects.md', 'projects/project-tasks.md']);
+    });
+
+    it('refuses a router file that would take the file of a dependent module', () => {
+      expect(() =>
+        renderContractMarkdown(
+          document,
+          new Map([
+            ['POST /api/v1/projects', 'projects'],
+            ['GET /api/v1/projects/{projectId}/tasks', 'projects/project-tasks'],
+            ['GET /', 'projects'],
+          ]),
+          new Map([
+            ['POST /api/v1/projects', 'projects'],
+            ['GET /', 'projects-project-tasks'],
+          ]),
+        ),
+      ).toThrow(
+        'projects: a router file and a dependent module would share projects/project-tasks.md',
+      );
+    });
+  });
 });

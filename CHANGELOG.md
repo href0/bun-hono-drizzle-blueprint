@@ -2,6 +2,13 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
+## [Unreleased]
+
+### Changed
+
+- **RBAC service split**: `rbac.service.ts` keeps the effective permissions, their cache and `forget`; every change of access moves to `RbacAccessService` (`rbac-access.service.ts`) — no behaviour change. A project that imported `rbacService.assignRole` and the like imports them from `rbacAccessService` now.
+- **API contract documents** (D77): a module with several routers gets an index file and one file per router — `docs/api/rbac.md` becomes an index with `docs/api/rbac/{me,permissions,roles,user-access}.md`; file titles name every tag they cover. Run `bun run openapi:update` after porting the generator.
+
 ## [2.1.0] - 2026-11-08
 
 **MINOR.** Administrators save RBAC checklists — the permissions of a role, the roles and the extra permissions of a user — in one request each, from catalogs that tell the frontend which boxes a save would refuse (D72–D76). The API changes are additive; one behaviour is stricter: revoking now needs the permissions it takes (D74).

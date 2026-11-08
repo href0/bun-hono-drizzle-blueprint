@@ -2,7 +2,9 @@
  * Renders the API contract (the same OpenAPI document as the snapshot) as Indonesian Markdown for
  * integrators (D35): `docs/api/README.md` (index, envelopes, every error code, the Platform
  * routes) and one file per module named after its folder — dependent modules in their parent's
- * subfolder (`docs/api/projects/project-tasks.md`). Pure and deterministic: the same document gives the
+ * subfolder (`docs/api/projects/project-tasks.md`). A module with several routers (`rbac`: one per
+ * resource, D68) gets an index file and one file per router in its subfolder
+ * (`docs/api/rbac/roles.md` from `rbac-roles.routes.ts`), so no file grows with every resource. Pure and deterministic: the same document gives the
  * same bytes, which `openapi:check` compares.
  */
 // Pure modules only (no configuration): this file is imported before the contract env is set.
@@ -214,6 +216,56 @@ const operationsOf = (document: Json): Operation[] =>
     });
 
 const keyOf = ({ method, path }: Operation): string => `${method.toUpperCase()} ${path}`;
+
+const summaryOf = (operation: Operation): string =>
+  asString(operation.op.summary).replaceAll('|', '\\|');
+
+/**
+ * A file's title: the tag its endpoints share, or every tag of a file that spans several
+ * (`Permissions · Roles · User access`) — never the tag of whichever endpoint sorts first.
+ */
+const titleOf = (operations: readonly Operation[], fallback: string): string => {
+  const tags = [...new Set(operations.map(({ op }) => asString(asArray(op.tags)[0])))].filter(
+    (tag) => tag !== '',
+  );
+  return tags.length === 0 ? fallback : tags.sort().join(' · ');
+};
+
+const finish = (lines: readonly string[]): string =>
+  `${lines
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd()}\n`;
+
+/** One router of a module split by router: its file path (`rbac/roles`) and its endpoints. */
+interface Section {
+  path: string;
+  operations: Operation[];
+}
+
+/**
+ * The routers of a module, when it has more than one: `rbac-roles` → section `roles` (the module
+ * prefix dropped), in name order. One router → none (the module keeps one file).
+ */
+const sectionsOfModule = (
+  module: string,
+  operations: readonly Operation[],
+  routers: ReadonlyMap<string, string>,
+): Section[] => {
+  const base = module.split('/').at(-1) ?? module;
+  const byRouter = new Map<string, Operation[]>();
+  for (const operation of operations) {
+    const router = routers.get(keyOf(operation)) ?? base;
+    byRouter.set(router, [...(byRouter.get(router) ?? []), operation]);
+  }
+  if (byRouter.size < 2) return [];
+  return [...byRouter.entries()]
+    .map(([router, list]) => ({
+      path: `${module}/${router.startsWith(`${base}-`) ? router.slice(base.length + 1) : router}`,
+      operations: list,
+    }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+};
 
 /** Path relative to `docs/api/` of a module's file (`users.md`, `projects/project-tasks.md`). */
 const fileOf = (module: string): string => `${module}.md`;
@@ -437,11 +489,11 @@ class ContractMarkdown {
     return lines;
   }
 
-  moduleFile(module: string, operations: Operation[], children: readonly string[]): string {
-    const file = fileOf(module);
-    const title = asString(asArray(operations[0]?.op.tags)[0]) || module;
-    const parts = module.split('/');
-    const lines = [`# ${title} (\`${module}\`)`, '', GENERATED_NOTE, ''];
+  /** Title, generated note and breadcrumb of a module or router file. */
+  private head(path: string, operations: readonly Operation[]): string[] {
+    const file = fileOf(path);
+    const parts = path.split('/');
+    const lines = [`# ${titleOf(operations, path)} (\`${path}\`)`, '', GENERATED_NOTE, ''];
     const indexLink = linkBetween(file, 'README.md');
     if (parts.length > 1) {
       const parent = parts.slice(0, -1).join('/');
@@ -450,28 +502,68 @@ class ContractMarkdown {
         '',
       );
     } else {
-      lines.push(`[Kontrak API](${indexLink}) › ${module}`, '');
+      lines.push(`[Kontrak API](${indexLink}) › ${path}`, '');
     }
-    lines.push('| Endpoint | Ringkasan |', '|---|---|');
-    for (const operation of operations) {
-      lines.push(
-        `| \`${keyOf(operation)}\` | ${asString(operation.op.summary).replaceAll('|', '\\|')} |`,
-      );
-    }
-    lines.push('');
-    if (children.length > 0) {
-      lines.push('**Modul turunan**', '');
-      for (const child of children) lines.push(`- [${child}](${linkBetween(file, fileOf(child))})`);
-      lines.push('');
-    }
-    for (const operation of operations) lines.push(...this.endpoint(operation));
-    return `${lines
-      .join('\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trimEnd()}\n`;
+    return lines;
   }
 
-  readme(modules: ReadonlyMap<string, Operation[]>, platform: Operation[]): string {
+  private childLinks(file: string, children: readonly string[]): string[] {
+    if (children.length === 0) return [];
+    return [
+      '**Modul turunan**',
+      '',
+      ...children.map((child) => `- [${child}](${linkBetween(file, fileOf(child))})`),
+      '',
+    ];
+  }
+
+  moduleFile(module: string, operations: Operation[], children: readonly string[]): string {
+    const lines = [...this.head(module, operations), '| Endpoint | Ringkasan |', '|---|---|'];
+    for (const operation of operations) {
+      lines.push(`| \`${keyOf(operation)}\` | ${summaryOf(operation)} |`);
+    }
+    lines.push('', ...this.childLinks(fileOf(module), children));
+    for (const operation of operations) lines.push(...this.endpoint(operation));
+    return finish(lines);
+  }
+
+  /** The index of a module split by router: every endpoint with a link to its router's file. */
+  splitModuleFile(
+    module: string,
+    sections: readonly Section[],
+    children: readonly string[],
+  ): string {
+    const file = fileOf(module);
+    const all = sections.flatMap(({ operations }) => operations);
+    const lines = [
+      ...this.head(module, all),
+      'Endpoint modul ini dibagi per file route — satu halaman per bagian:',
+      '',
+      '| Bagian | Endpoint |',
+      '|---|---|',
+      ...sections.map(
+        ({ path, operations }) =>
+          `| [${path.split('/').at(-1) ?? path}](${linkBetween(file, fileOf(path))}) | ${String(operations.length)} |`,
+      ),
+      '',
+      '| Endpoint | Ringkasan | Bagian |',
+      '|---|---|---|',
+    ];
+    for (const { path, operations } of sections) {
+      const link = `[${path.split('/').at(-1) ?? path}](${linkBetween(file, fileOf(path))})`;
+      for (const operation of operations) {
+        lines.push(`| \`${keyOf(operation)}\` | ${summaryOf(operation)} | ${link} |`);
+      }
+    }
+    lines.push('', ...this.childLinks(file, children));
+    return finish(lines);
+  }
+
+  readme(
+    modules: ReadonlyMap<string, Operation[]>,
+    sectionsOf: ReadonlyMap<string, readonly Section[]>,
+    platform: Operation[],
+  ): string {
     const lines = [
       '# Kontrak API',
       '',
@@ -531,6 +623,11 @@ class ContractMarkdown {
     for (const module of roots) {
       const count = modules.get(module)?.length ?? 0;
       lines.push(`- [${module}](${fileOf(module)}) — ${String(count)} endpoint`);
+      for (const { path, operations } of sectionsOf.get(module) ?? []) {
+        lines.push(
+          `  - [${path.split('/').at(-1) ?? path}](${fileOf(path)}) — ${String(operations.length)} endpoint`,
+        );
+      }
       for (const child of [...modules.keys()].filter((m) => m.startsWith(`${module}/`)).sort()) {
         lines.push(
           `  - [${child.split('/').at(-1) ?? child}](${fileOf(child)}) — ${String(modules.get(child)?.length ?? 0)} endpoint`,
@@ -574,6 +671,7 @@ class ContractMarkdown {
 export const renderContractMarkdown = (
   document: Json,
   owners: ReadonlyMap<string, string>,
+  routers: ReadonlyMap<string, string> = new Map(),
 ): Map<string, string> => {
   const modules = new Map<string, Operation[]>();
   const platform: Operation[] = [];
@@ -591,13 +689,38 @@ export const renderContractMarkdown = (
     );
   }
 
+  const sectionsOf = new Map(
+    [...modules].map(([module, operations]) => [
+      module,
+      sectionsOfModule(module, operations, routers),
+    ]),
+  );
+  for (const [module, sections] of sectionsOf) {
+    const taken = sections.filter(({ path }) => modules.has(path)).map(({ path }) => path);
+    if (taken.length > 0) {
+      throw new Error(
+        `${module}: a router file and a dependent module would share ${taken.map(fileOf).join(', ')}`,
+      );
+    }
+  }
+
   const markdown = new ContractMarkdown(document);
-  const files = new Map<string, string>([['README.md', markdown.readme(modules, platform)]]);
+  const files = new Map<string, string>([
+    ['README.md', markdown.readme(modules, sectionsOf, platform)],
+  ]);
   for (const [module, operations] of [...modules.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
     const children = [...modules.keys()].filter((m) => m.startsWith(`${module}/`)).sort();
-    files.set(fileOf(module), markdown.moduleFile(module, operations, children));
+    const sections = sectionsOf.get(module) ?? [];
+    if (sections.length === 0) {
+      files.set(fileOf(module), markdown.moduleFile(module, operations, children));
+      continue;
+    }
+    files.set(fileOf(module), markdown.splitModuleFile(module, sections, children));
+    for (const section of sections) {
+      files.set(fileOf(section.path), markdown.moduleFile(section.path, section.operations, []));
+    }
   }
   return files;
 };

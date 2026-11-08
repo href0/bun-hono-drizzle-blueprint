@@ -58,6 +58,11 @@ export interface Contract {
    * `projects/project-tasks`); operations mounted by `src/app.ts` itself have no entry.
    */
   owners: ReadonlyMap<string, string>;
+  /**
+   * The router file that mounts each operation, named without `.routes.ts` (`rbac-roles`): how
+   * the Markdown splits a module with several routers (one file per router).
+   */
+  routers: ReadonlyMap<string, string>;
 }
 
 interface MountedRoute {
@@ -80,26 +85,34 @@ const routeListOf = (value: unknown): readonly MountedRoute[] | undefined => {
 const ownersOf = async (
   rootDir: string,
   appRoutes: readonly MountedRoute[],
-): Promise<Map<string, string>> => {
+): Promise<Pick<Contract, 'owners' | 'routers'>> => {
   const moduleOfHandler = new Map<unknown, string>();
+  const routerOfHandler = new Map<unknown, string>();
   const files = [...new Bun.Glob('src/modules/**/*.routes.ts').scanSync({ cwd: rootDir })].sort();
   for (const file of files) {
     const normalized = file.split('\\').join('/');
     const module = normalized.replace(/^src\/modules\//, '').replace(/\/[^/]+$/, '');
+    const router = (normalized.split('/').at(-1) ?? '').replace(/\.routes\.ts$/, '');
     const exported = Object.values(
       (await import(resolve(rootDir, file))) as Record<string, unknown>,
     );
     for (const value of exported) {
-      for (const route of routeListOf(value) ?? []) moduleOfHandler.set(route.handler, module);
+      for (const route of routeListOf(value) ?? []) {
+        moduleOfHandler.set(route.handler, module);
+        routerOfHandler.set(route.handler, router);
+      }
     }
   }
   const owners = new Map<string, string>();
+  const routers = new Map<string, string>();
   for (const route of appRoutes) {
     const module = moduleOfHandler.get(route.handler);
     if (route.method === 'ALL' || module === undefined) continue;
-    owners.set(`${route.method} ${route.path.replace(/:(\w+)/g, '{$1}')}`, module);
+    const key = `${route.method} ${route.path.replace(/:(\w+)/g, '{$1}')}`;
+    owners.set(key, module);
+    routers.set(key, routerOfHandler.get(route.handler) ?? module);
   }
-  return owners;
+  return { owners, routers };
 };
 
 /**
@@ -124,6 +137,6 @@ export const buildContract = async (rootDir: string): Promise<Contract> => {
   const document = (await response.json()) as Record<string, unknown>;
   return {
     document: { ...document, info: FIXED_INFO },
-    owners: await ownersOf(rootDir, app.routes),
+    ...(await ownersOf(rootDir, app.routes)),
   };
 };

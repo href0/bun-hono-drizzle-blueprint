@@ -73,6 +73,10 @@ Error:
   - [project-budgets](projects/project-budgets.md) — 5 endpoint
   - [project-tasks](projects/project-tasks.md) — 6 endpoint
 - [rbac](rbac.md) — 27 endpoint
+  - [me](rbac/me.md) — 1 endpoint
+  - [permissions](rbac/permissions.md) — 7 endpoint
+  - [roles](rbac/roles.md) — 11 endpoint
+  - [user-access](rbac/user-access.md) — 8 endpoint
 - [user-posts](user-posts.md) — 1 endpoint
 - [users](users.md) — 7 endpoint
 
