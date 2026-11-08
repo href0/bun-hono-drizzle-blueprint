@@ -3,6 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import type { Permission, Role } from '../../database/schema';
 import {
   toPermissionListResponse,
+  toPermissionOptionsResponse,
   toPermissionResponse,
   toRoleListResponse,
   toRoleResponse,
@@ -65,5 +66,68 @@ describe('rbac transformers', () => {
       updatedAt: AT,
     });
     expect(toPermissionListResponse([{ ...permission, endpoints: [] }])).toHaveLength(1);
+  });
+
+  it('the checklist catalog: groups by name, permissions by key, grantable kept (D73)', () => {
+    const of = (key: string, groupName: string, source = 'api'): Permission => ({
+      ...permission,
+      id: `id-${key}`,
+      key,
+      groupName,
+      source,
+    });
+    expect(
+      toPermissionOptionsResponse([
+        { permission: of('users.read', 'users'), grantable: true },
+        { permission: of('orders.update', 'orders'), grantable: false },
+        { permission: of('menu.reports', 'menus', 'menu'), grantable: true },
+        { permission: of('orders.create', 'orders'), grantable: true },
+      ]),
+    ).toEqual([
+      {
+        group: 'menus',
+        permissions: [
+          {
+            id: 'id-menu.reports',
+            key: 'menu.reports',
+            label: 'Read orders',
+            source: 'menu',
+            grantable: true,
+          },
+        ],
+      },
+      {
+        group: 'orders',
+        permissions: [
+          {
+            id: 'id-orders.create',
+            key: 'orders.create',
+            label: 'Read orders',
+            source: 'api',
+            grantable: true,
+          },
+          {
+            id: 'id-orders.update',
+            key: 'orders.update',
+            label: 'Read orders',
+            source: 'api',
+            grantable: false,
+          },
+        ],
+      },
+      {
+        group: 'users',
+        permissions: [
+          {
+            id: 'id-users.read',
+            key: 'users.read',
+            label: 'Read orders',
+            source: 'api',
+            grantable: true,
+          },
+        ],
+      },
+    ]);
+    expect(toPermissionOptionsResponse([])).toEqual([]);
   });
 });

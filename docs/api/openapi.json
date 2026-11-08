@@ -10870,6 +10870,261 @@
         ]
       }
     },
+    "/api/v1/permissions/options": {
+      "get": {
+        "description": "Every permission that counts (not retired), grouped and sorted by key. `grantable` is false for a permission the caller does not hold: giving or taking it is refused (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`).",
+        "operationId": "getApiV1PermissionsOptions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AcceptLanguage"
+          },
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "group": {
+                            "type": "string"
+                          },
+                          "permissions": {
+                            "items": {
+                              "properties": {
+                                "grantable": {
+                                  "type": "boolean"
+                                },
+                                "id": {
+                                  "format": "uuid",
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "enum": [
+                                    "api",
+                                    "menu"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "key",
+                                "label",
+                                "source",
+                                "grantable"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "permissions"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "message": {
+                      "description": "Localized via Accept-Language (id | en)",
+                      "type": "string"
+                    },
+                    "status_code": {
+                      "type": "integer"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "status_code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The permissions by group",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-success-messages": [
+              {
+                "en": "Permission options retrieved successfully",
+                "id": "Daftar pilihan permission berhasil diambil"
+              }
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_AUTH_TOKEN_EXPIRED",
+              "ERR_AUTH_TOKEN_INVALID",
+              "ERR_UNAUTHORIZED"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_PERMISSION_FORBIDDEN"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded; retry after the Retry-After header",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_RATE_LIMITED"
+            ]
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server error (details are never exposed)",
+            "headers": {
+              "Content-Language": {
+                "$ref": "#/components/headers/ContentLanguage"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "x-error-codes": [
+              "ERR_INTERNAL"
+            ]
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Every permission for a checklist, by group (not paginated)",
+        "tags": [
+          "Permissions"
+        ],
+        "x-allowed-callers": [
+          "permission:permissions.read"
+        ]
+      }
+    },
     "/api/v1/permissions/{id}": {
       "delete": {
         "operationId": "deleteApiV1PermissionsById",

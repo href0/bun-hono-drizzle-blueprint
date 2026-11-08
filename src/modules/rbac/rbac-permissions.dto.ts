@@ -7,6 +7,7 @@ import {
 } from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
 import { PERMISSION_LIMITS } from '../../core/security/rbac';
+import type { Permission } from '../../database/schema';
 
 /** Where a permission comes from (D64): the registry in code, or an administrator (frontend menus). */
 export const PERMISSION_SOURCES = ['api', 'menu'] as const;
@@ -85,3 +86,27 @@ export const permissionResponseSchema = z.object({
 });
 
 export type PermissionResponse = z.infer<typeof permissionResponseSchema>;
+
+/** A permission with whether the caller may give or take it (`GET /permissions/options`, D73). */
+export interface PermissionOption {
+  permission: Permission;
+  grantable: boolean;
+}
+
+/** One box of the checklist (D73). */
+export const permissionOptionSchema = z.object({
+  id: z.string().uuid(),
+  key: z.string(),
+  label: z.string(),
+  source: z.enum(PERMISSION_SOURCES),
+  /** The caller holds it (a super admin: every one): giving or taking it would not be refused (D69). */
+  grantable: z.boolean(),
+});
+
+/** The permissions of one group, by key — how a checklist draws them. */
+export const permissionOptionGroupSchema = z.object({
+  group: z.string(),
+  permissions: z.array(permissionOptionSchema),
+});
+
+export type PermissionOptionGroupResponse = z.infer<typeof permissionOptionGroupSchema>;

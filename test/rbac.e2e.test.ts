@@ -178,6 +178,43 @@ describe('RBAC admin API — /roles', () => {
 });
 
 describe('RBAC admin API — /permissions', () => {
+  it('GET /options: every counting permission by group, not paginated, grantable per caller (D73)', async () => {
+    // The real service: rows from a stand-in; grantable from the caller's permissions.
+    const menu: Permission = {
+      ...permission,
+      id: '0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8da0',
+      key: 'menu.reports',
+      label: 'Reports menu',
+      groupName: 'menus',
+      source: 'menu',
+    };
+    spy(rbacPermissionsRepository, 'findCounting', () => Promise.resolve([menu, permission]));
+    const app = await authorize(createTestApp(), ['permissions.read', 'users.read']);
+
+    const res = await app.request('/api/v1/permissions/options');
+    expect(res.status).toBe(200);
+    const body = await bodyOf(res);
+    expect(body.meta).toBeUndefined();
+    expect(body).toMatchObject({
+      message: RBAC_MESSAGES.PERMISSION_OPTIONS_RETRIEVED.id,
+      data: [
+        {
+          group: 'menus',
+          permissions: [{ key: 'menu.reports', source: 'menu', grantable: false }],
+        },
+        {
+          group: 'users',
+          permissions: [
+            { id: PERMISSION_ID, key: 'users.read', label: 'Read users', grantable: true },
+          ],
+        },
+      ],
+    });
+
+    const denied = await authorize(createTestApp(), ['roles.read']);
+    expect((await denied.request('/api/v1/permissions/options')).status).toBe(403);
+  });
+
   it('GET /:id returns the endpoints the permission opens, read from the routes of the app (D47)', async () => {
     // The real service: only the row comes from a stand-in; the endpoints come from createApp().
     spy(rbacPermissionsRepository, 'findById', () => Promise.resolve(permission));

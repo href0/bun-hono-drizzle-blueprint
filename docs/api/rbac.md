@@ -9,6 +9,7 @@
 | `GET /api/v1/me/permissions` | My permissions (API and menu keys) |
 | `GET /api/v1/permissions` | List permissions with the endpoints they open (paginated, sortable, searchable) |
 | `POST /api/v1/permissions` | Create a menu permission (key menu.…) |
+| `GET /api/v1/permissions/options` | Every permission for a checklist, by group (not paginated) |
 | `GET /api/v1/permissions/{id}` | Get a permission by id, with the endpoints it opens |
 | `PATCH /api/v1/permissions/{id}` | Update a menu permission (label, group) |
 | `DELETE /api/v1/permissions/{id}` | Delete a menu permission (soft delete; restorable) |
@@ -494,6 +495,142 @@ Pesan: `Permission menu berhasil dibuat` (en: `Menu permission created successfu
   "error": {
     "type": "PAYLOAD_TOO_LARGE",
     "code": "ERR_PAYLOAD_TOO_LARGE",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 429</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 429,
+  "message": "Batas request terlampaui: tunggu `Retry-After` detik",
+  "error": {
+    "type": "TOO_MANY_REQUESTS",
+    "code": "ERR_RATE_LIMITED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 500</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 500,
+  "message": "Error tak terduga di server (detail tidak pernah dikirim)",
+  "error": {
+    "type": "INTERNAL_SERVER_ERROR",
+    "code": "ERR_INTERNAL",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+## `GET /api/v1/permissions/options`
+
+**Every permission for a checklist, by group (not paginated)**
+
+Every permission that counts (not retired), grouped and sorted by key. `grantable` is false for a permission the caller does not hold: giving or taking it is refused (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`).
+
+- Access token: `Authorization: Bearer <access_token>`
+- Hanya: permission `permissions.read`
+
+**Header**
+
+| Nama | Tipe | Wajib | Aturan / keterangan |
+|---|---|---|---|
+| `Accept-Language` | string | tidak | Language of response messages: id \| en (q-values honoured; unsupported or missing = DEFAULT_LOCALE). |
+| `X-Request-ID` | string | tidak | pola `^[A-Za-z0-9._:-]{1,128}$`; Correlation id, echoed back and written to every log line. Missing or not matching the pattern = a UUID v7 is generated. |
+
+**Contoh request**
+
+```http
+GET /api/v1/permissions/options
+Authorization: Bearer <access_token>
+```
+
+**200 — The permissions by group**
+
+Pesan: `Daftar pilihan permission berhasil diambil` (en: `Permission options retrieved successfully`)
+
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "message": "Daftar pilihan permission berhasil diambil",
+  "data": [
+    {
+      "group": "string",
+      "permissions": [
+        {
+          "id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+          "key": "string",
+          "label": "string",
+          "source": "api",
+          "grantable": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Error**
+
+| Status | Code | Arti |
+|---|---|---|
+| 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
+| 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
+| 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
+| 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
+| 500 | `ERR_INTERNAL` | Error tak terduga di server (detail tidak pernah dikirim) |
+
+<details><summary>Contoh 401</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 401,
+  "message": "Access token kedaluwarsa: refresh lalu ulangi",
+  "error": {
+    "type": "UNAUTHORIZED",
+    "code": "ERR_AUTH_TOKEN_EXPIRED",
+    "origin": "APP"
+  },
+  "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
+  "timestamp": "2026-01-01T00:00:00.000Z"
+}
+```
+
+</details>
+
+<details><summary>Contoh 403</summary>
+
+```json
+{
+  "success": false,
+  "status_code": 403,
+  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "error": {
+    "type": "FORBIDDEN",
+    "code": "ERR_PERMISSION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",

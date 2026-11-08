@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { runWithRequestContext, type RequestContext } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ForbiddenError } from '../../core/errors';
 import type { EffectivePermissions } from '../../core/security/rbac';
-import { requireActorHolds } from './rbac-grant-guard.util';
+import { actorCanGive, requireActorHolds } from './rbac-grant-guard.util';
 
 const contextOf = (permissions?: EffectivePermissions): RequestContext => ({
   requestId: 'r1',
@@ -51,5 +51,29 @@ describe('requireActorHolds', () => {
       actor: 'anonymous',
     };
     await runWithRequestContext(anonymous, () => requireActorHolds(['orders.read']));
+  });
+});
+
+describe('actorCanGive', () => {
+  const keys = ['orders.read', 'orders.delete'];
+  const answers = async (context?: RequestContext): Promise<boolean[]> => {
+    const ask = async () => {
+      const canGive = await actorCanGive();
+      return keys.map(canGive);
+    };
+    return context ? runWithRequestContext(context, ask) : ask();
+  };
+
+  it('a caller may give what they hold; a super admin everything', async () => {
+    expect(await answers(contextOf({ superAdmin: false, permissions: ['orders.read'] }))).toEqual([
+      true,
+      false,
+    ]);
+    expect(await answers(contextOf({ superAdmin: true, permissions: [] }))).toEqual([true, true]);
+  });
+
+  it('fails closed without a permission context; everything without a signed-in user', async () => {
+    expect(await answers(contextOf())).toEqual([false, false]);
+    expect(await answers()).toEqual([true, true]);
   });
 });
