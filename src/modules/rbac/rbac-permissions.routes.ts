@@ -7,6 +7,7 @@ import { rbacPermissionsController } from './rbac-permissions.controller';
 import {
   createMenuPermissionSchema,
   permissionListQuerySchema,
+  permissionOptionGroupSchema,
   permissionResponseSchema,
   updateMenuPermissionSchema,
 } from './rbac-permissions.dto';
@@ -36,6 +37,24 @@ rbacPermissionsRouter.get(
   requirePermission(PERMISSION_PERMISSIONS.read),
   validate({ query: permissionListQuerySchema }),
   rbacPermissionsController.list,
+);
+// Before `/:id`: `options` is not an id.
+rbacPermissionsRouter.get(
+  '/options',
+  describeEndpoint({
+    tags,
+    summary: 'Every permission for a checklist, by group (not paginated)',
+    description:
+      'Every permission that counts (not retired), grouped and sorted by key. `grantable` is false for a permission the caller does not hold: giving or taking it is refused (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`).',
+    response: {
+      status: 200,
+      description: 'The permissions by group',
+      message: RBAC_MESSAGES.PERMISSION_OPTIONS_RETRIEVED,
+      data: z.array(permissionOptionGroupSchema),
+    },
+  }),
+  requirePermission(PERMISSION_PERMISSIONS.read),
+  rbacPermissionsController.options,
 );
 rbacPermissionsRouter.get(
   '/:id',

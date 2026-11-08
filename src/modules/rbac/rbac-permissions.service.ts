@@ -6,12 +6,14 @@ import { withEndpoints, type PermissionWithEndpoints } from './rbac-endpoints.ut
 import type {
   CreateMenuPermissionDto,
   PermissionListQueryDto,
+  PermissionOption,
   UpdateMenuPermissionDto,
 } from './rbac-permissions.dto';
 import {
   RbacPermissionsRepository,
   rbacPermissionsRepository,
 } from './rbac-permissions.repository';
+import { actorCanGive } from './rbac-grant-guard.util';
 import { RbacService, rbacService } from './rbac.service';
 import { RBAC_MESSAGES, rbacPermissionMissingMessage } from './rbac.messages';
 
@@ -34,6 +36,18 @@ export class RbacPermissionsService {
   ): Promise<{ permissions: PermissionWithEndpoints[]; total: number }> {
     const { rows, total } = await this.permissionsRepo.findPermissionList(query);
     return { permissions: await withEndpoints(rows), total };
+  }
+
+  /**
+   * Every permission that counts, by key, for a checklist (D73): not paginated — permissions grow
+   * per module, not per transaction — each marked whether the caller may give or take it.
+   */
+  async listPermissionOptions(): Promise<PermissionOption[]> {
+    const canGive = await actorCanGive();
+    return (await this.permissionsRepo.findCounting()).map((permission) => ({
+      permission,
+      grantable: canGive(permission.key),
+    }));
   }
 
   async getPermission(id: string): Promise<PermissionWithEndpoints> {

@@ -6,7 +6,12 @@ import type {
 } from './rbac-user-access.dto';
 import type { EffectivePermissions } from '../../core/security/rbac';
 import type { PermissionWithEndpoints } from './rbac-endpoints.util';
-import type { PermissionResponse, PermissionSource } from './rbac-permissions.dto';
+import type {
+  PermissionOption,
+  PermissionOptionGroupResponse,
+  PermissionResponse,
+  PermissionSource,
+} from './rbac-permissions.dto';
 import type { RoleResponse } from './rbac-roles.dto';
 
 export const toRoleResponse = (role: Role): RoleResponse => ({
@@ -38,6 +43,32 @@ export const toPermissionResponse = (permission: PermissionWithEndpoints): Permi
 export const toPermissionListResponse = (
   permissions: readonly PermissionWithEndpoints[],
 ): PermissionResponse[] => permissions.map(toPermissionResponse);
+
+/** The checklist catalog (D73): groups by name, each with its permissions by key. */
+export const toPermissionOptionsResponse = (
+  options: readonly PermissionOption[],
+): PermissionOptionGroupResponse[] => {
+  const groups = new Map<string, PermissionOption[]>();
+  for (const option of options) {
+    const group = groups.get(option.permission.groupName) ?? [];
+    group.push(option);
+    groups.set(option.permission.groupName, group);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([group, members]) => ({
+      group,
+      permissions: members
+        .toSorted((a, b) => a.permission.key.localeCompare(b.permission.key))
+        .map(({ permission, grantable }) => ({
+          id: permission.id,
+          key: permission.key,
+          label: permission.label,
+          source: permission.source as PermissionSource,
+          grantable,
+        })),
+    }));
+};
 
 export const toUserGrantResponse = ({
   grant,

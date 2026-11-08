@@ -94,6 +94,10 @@ export const RBAC_MESSAGES = {
     id: 'Permission berhasil diambil',
     en: 'Permission retrieved successfully',
   },
+  PERMISSION_OPTIONS_RETRIEVED: {
+    id: 'Daftar pilihan permission berhasil diambil',
+    en: 'Permission options retrieved successfully',
+  },
   PERMISSION_LIST_RETRIEVED: {
     id: 'Daftar permission berhasil diambil',
     en: 'Permissions retrieved successfully',

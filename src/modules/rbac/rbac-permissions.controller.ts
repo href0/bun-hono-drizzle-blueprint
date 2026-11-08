@@ -12,7 +12,11 @@ import type {
   UpdateMenuPermissionDto,
 } from './rbac-permissions.dto';
 import { RbacPermissionsService, rbacPermissionsService } from './rbac-permissions.service';
-import { toPermissionListResponse, toPermissionResponse } from './rbac.transformer';
+import {
+  toPermissionListResponse,
+  toPermissionOptionsResponse,
+  toPermissionResponse,
+} from './rbac.transformer';
 import { RBAC_MESSAGES } from './rbac.messages';
 
 export class RbacPermissionsController {
@@ -31,6 +35,15 @@ export class RbacPermissionsController {
         totalItems: total,
         totalPages: Math.ceil(total / query.perPage) || 1,
       },
+    );
+  });
+
+  options = asyncHandler(async () => {
+    const options = await this.service.listPermissionOptions();
+    return new ApiResponse(
+      toPermissionOptionsResponse(options),
+      RBAC_MESSAGES.PERMISSION_OPTIONS_RETRIEVED,
+      200,
     );
   });
 

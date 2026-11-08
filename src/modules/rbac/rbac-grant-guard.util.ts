@@ -29,6 +29,23 @@ export const requireActorIsSuperAdmin = async (): Promise<void> => {
   if (resolve === undefined || !(await resolve()).superAdmin) throw escalationForbidden();
 };
 
+/**
+ * Which permission keys the signed-in user may give or take (D69, D73) — `grantable` of the
+ * checklist catalog, the same answer `requireActorHolds` enforces: every key without a signed-in
+ * user (seeds, jobs) or for a super admin, only the held ones otherwise, none when the request has
+ * no `permissionContext()` (fail closed).
+ */
+export const actorCanGive = async (): Promise<(key: string) => boolean> => {
+  const context = getRequestContext();
+  if (!context?.user) return () => true;
+  const resolve = context.permissions;
+  if (resolve === undefined) return () => false;
+  const effective = await resolve();
+  if (effective.superAdmin) return () => true;
+  const held = new Set(effective.permissions);
+  return (key) => held.has(key);
+};
+
 export const requireActorHolds = async (keys: readonly string[]): Promise<void> => {
   const context = getRequestContext();
   if (!context?.user) return;

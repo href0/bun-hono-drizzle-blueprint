@@ -64,7 +64,24 @@ describe('RbacPermissionsService', () => {
       softDeleteById: () => Promise.resolve({}),
       restoreById: (id: string) => Promise.resolve(rows.get(id) ?? null),
       findHolderIds: () => Promise.resolve(['u1']),
+      findCounting: () => Promise.resolve([...rows.values()]),
     };
+  });
+
+  it('lists every counting permission for a checklist, grantable = the caller holds it (D73)', async () => {
+    const context: RequestContext = {
+      requestId: 'r1',
+      locale: 'en',
+      clientIp: 'unknown',
+      actor: 'user:u1',
+      user: { id: 'u1' },
+      permissions: () => Promise.resolve({ superAdmin: false, permissions: ['orders.read'] }),
+    };
+    const options = await runWithRequestContext(context, () => service().listPermissionOptions());
+    expect(options.map(({ permission, grantable }) => [permission.key, grantable])).toEqual([
+      ['orders.read', true],
+      ['menu.reports', false],
+    ]);
   });
 
   it('lists permissions with the endpoints of API permissions (menus: none)', async () => {
