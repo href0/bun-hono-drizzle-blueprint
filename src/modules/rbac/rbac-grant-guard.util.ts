@@ -2,13 +2,19 @@ import { getRequestContext } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ForbiddenError } from '../../core/errors';
 import { RBAC_MESSAGES } from './rbac.messages';
 
-const escalationForbidden = (): ForbiddenError =>
+/** 403 escalation; `missing` = the permission keys the caller lacks, one detail each (`field` = key). */
+const escalationForbidden = (missing: readonly string[] = []): ForbiddenError =>
   new ForbiddenError(RBAC_MESSAGES.PERMISSION_ESCALATION, {
     code: APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN,
+    details: missing.map((key) => ({
+      field: key,
+      verbatimField: true,
+      message: RBAC_MESSAGES.PERMISSION_NOT_HELD,
+    })),
   });
 
 /**
- * Stops privilege escalation (D69): whoever changes access may only give what they
+ * Stops privilege escalation (D69, D74): whoever changes access may only give or take what they
  * hold themselves — every key of `keys` must be among the signed-in user's effective permissions,
  * or they are a super admin; otherwise 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`. Without a signed-in
  * user (seeds, jobs: actor `system`) nothing is checked; a request without `permissionContext()`
@@ -53,5 +59,6 @@ export const requireActorHolds = async (keys: readonly string[]): Promise<void> 
   if (resolve === undefined) throw escalationForbidden();
   const effective = await resolve();
   if (effective.superAdmin) return;
-  if (keys.some((key) => !effective.permissions.includes(key))) throw escalationForbidden();
+  const missing = keys.filter((key) => !effective.permissions.includes(key));
+  if (missing.length > 0) throw escalationForbidden(missing);
 };

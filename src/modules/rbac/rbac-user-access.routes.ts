@@ -12,7 +12,8 @@ import { USER_PERMISSION_PERMISSIONS, USER_ROLE_PERMISSIONS } from './rbac.permi
 
 /**
  * `/users/:id/roles` and `/users/:id/permissions`: what a user holds (D68), mounted
- * next to the `users` module. Giving needs what is given (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`);
+ * next to the `users` module. Giving or taking needs what is given or taken (403
+ * `ERR_PERMISSION_ESCALATION_FORBIDDEN`, D74);
  * `super_admin` only by a super admin, never taken from oneself or from the last active holder.
  */
 export const rbacUserAccessRouter = new Hono();
@@ -68,7 +69,7 @@ rbacUserAccessRouter.delete(
     tags,
     summary: 'Revoke a role from a user',
     description:
-      '`super_admin`: only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).',
+      'The caller must hold every permission of the role (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`). `super_admin`: only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).',
     response: {
       status: 200,
       description: 'Revoked',
@@ -135,13 +136,15 @@ rbacUserAccessRouter.delete(
   describeEndpoint({
     tags,
     summary: 'Revoke an extra permission from a user',
+    description:
+      'The caller must hold the permission (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`), unless it no longer counts (retired or deleted). An expired grant is revoked like a live one.',
     response: {
       status: 200,
       description: 'Revoked',
       message: RBAC_MESSAGES.USER_PERMISSION_REVOKED,
       data: z.null(),
     },
-    errors: [404],
+    errors: [404, ESCALATION],
   }),
   requirePermission(USER_PERMISSION_PERMISSIONS.delete),
   validate({ params: uuidChildParamSchema }),

@@ -664,7 +664,7 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
@@ -723,7 +723,7 @@ Pesan: `Pengguna berhasil diperbarui` (en: `User updated successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -879,7 +879,7 @@ Pesan: `Pengguna berhasil dihapus` (en: `User deleted successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
@@ -937,7 +937,7 @@ Pesan: `Pengguna berhasil dihapus` (en: `User deleted successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -1087,7 +1087,7 @@ Pesan: `Password berhasil diganti; semua sesi pengguna diakhiri` (en: `Password 
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 413 | `ERR_PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
@@ -1144,7 +1144,7 @@ Pesan: `Password berhasil diganti; semua sesi pengguna diakhiri` (en: `Password 
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -1291,7 +1291,7 @@ Pesan: `Pengguna berhasil dipulihkan` (en: `User restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -1348,7 +1348,7 @@ Pesan: `Pengguna berhasil dipulihkan` (en: `User restored successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",

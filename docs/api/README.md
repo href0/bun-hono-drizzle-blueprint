@@ -190,7 +190,7 @@ Pesan: `Layanan aktif` (en: `Service online`)
 | `ERR_PARTNER_ROUTE_FORBIDDEN` | 403 | `FORBIDDEN` | Route tidak termasuk `allowed_routes` partner (atau khusus partner lain) |
 | `ERR_PARTNER_SIGNATURE_INVALID` | 401 | `UNAUTHORIZED` | Signature partner tidak cocok |
 | `ERR_PAYLOAD_TOO_LARGE` | 413 | `PAYLOAD_TOO_LARGE` | Body melebihi `HTTP_BODY_LIMIT_BYTES` |
-| `ERR_PERMISSION_ESCALATION_FORBIDDEN` | 403 | `FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| `ERR_PERMISSION_ESCALATION_FORBIDDEN` | 403 | `FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | `ERR_PERMISSION_FORBIDDEN` | 403 | `FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | `ERR_RATE_LIMITED` | 429 | `TOO_MANY_REQUESTS` | Batas request terlampaui: tunggu `Retry-After` detik |
 | `ERR_ROUTE_NOT_FOUND` | 404 | `NOT_FOUND` | Route tidak ada |

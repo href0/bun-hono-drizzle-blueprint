@@ -137,10 +137,7 @@ export class RbacService {
     if (role.key === SUPER_ADMIN_ROLE) {
       await requireActorIsSuperAdmin();
     } else {
-      const carried = await this.permissionsRepo.findMappedToRole(roleId);
-      await requireActorHolds(
-        carried.filter((permission) => permission.retiredAt === null).map(({ key }) => key),
-      );
+      await requireActorHolds(await this.countingKeysOf(roleId));
     }
     if (await this.userRolesRepo.findLive(userId, roleId)) {
       throw new ConflictError(RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED);
@@ -172,6 +169,10 @@ export class RbacService {
   @Transactional()
   async revokeRole(userId: string, roleId: string): Promise<void> {
     const role = await this.rolesRepo.findById(roleId);
+    if (role !== null && role.key !== SUPER_ADMIN_ROLE) {
+      // D74: taking a role away needs what it carries, like giving it.
+      await requireActorHolds(await this.countingKeysOf(roleId));
+    }
     if (role?.key === SUPER_ADMIN_ROLE) {
       await requireActorIsSuperAdmin();
       if (actorUserId() === userId) {
@@ -212,6 +213,7 @@ export class RbacService {
   @Transactional()
   async unmapPermission(roleId: string, permissionId: string): Promise<void> {
     await this.requireMappableRole(roleId);
+    await this.requireActorHoldsIfCounting(permissionId);
     const mapping = await this.rolePermissionsRepo.findLive(roleId, permissionId);
     if (!mapping) throw new NotFoundError(rbacPermissionNotMappedMessage(roleId, permissionId));
     await this.rolePermissionsRepo.softDeleteById(mapping.id);
@@ -283,6 +285,7 @@ export class RbacService {
   /** Soft delete = revocation (D55), audited — also for a grant that has already expired. */
   @Transactional()
   async revokePermission(userId: string, permissionId: string): Promise<void> {
+    await this.requireActorHoldsIfCounting(permissionId);
     const grant = await this.userPermissionsRepo.findLive(userId, permissionId);
     if (!grant) throw new NotFoundError(rbacPermissionNotGrantedMessage(userId, permissionId));
     await this.userPermissionsRepo.softDeleteById(grant.id);
@@ -344,6 +347,21 @@ export class RbacService {
   private async requireMappableRole(roleId: string): Promise<void> {
     const role = await this.findRoleOrFail(roleId);
     if (role.key === SUPER_ADMIN_ROLE) throw new ConflictError(RBAC_MESSAGES.SUPER_ADMIN_FIXED);
+  }
+
+  /** The keys a role gives (live, not retired): what giving or taking it needs (D69, D74). */
+  private async countingKeysOf(roleId: string): Promise<string[]> {
+    const carried = await this.permissionsRepo.findMappedToRole(roleId);
+    return carried.filter((permission) => permission.retiredAt === null).map(({ key }) => key);
+  }
+
+  /**
+   * Taking a permission away needs it (D74) — unless it no longer counts (retired, deleted): it
+   * gives nothing, and only a super admin could hold it.
+   */
+  private async requireActorHoldsIfCounting(permissionId: string): Promise<void> {
+    const permission = await this.permissionsRepo.findGrantableById(permissionId);
+    if (permission) await requireActorHolds([permission.key]);
   }
 
   private async requireGrantablePermission(permissionId: string): Promise<Permission> {

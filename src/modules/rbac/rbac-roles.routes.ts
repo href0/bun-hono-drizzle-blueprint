@@ -173,13 +173,15 @@ rbacRolesRouter.delete(
   describeEndpoint({
     tags,
     summary: 'Remove a permission from a role',
+    description:
+      'The caller must hold the permission (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`), unless it no longer counts (retired or deleted); `super_admin` has no mapping (409).',
     response: {
       status: 200,
       description: 'Removed',
       message: RBAC_MESSAGES.ROLE_PERMISSION_UNMAPPED,
       data: z.null(),
     },
-    errors: [404, 409],
+    errors: [404, 409, ESCALATION],
   }),
   requirePermission(ROLE_PERMISSIONS.update),
   validate({ params: uuidChildParamSchema }),

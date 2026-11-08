@@ -366,6 +366,48 @@ describe('RbacService', () => {
       await as('root', ROOT, () => service().assignRole('u1', 'role-super_admin'));
     });
 
+    it('taking access away needs what it takes (D74): a mapping, a role, a grant', async () => {
+      rolePermissions.findLive = () => Promise.resolve({ id: 'rp1' });
+      userRoles.findLive = () => Promise.resolve({ id: 'ur1' });
+      userPermissions.findLive = () => Promise.resolve({ id: 'up1' });
+      const deleted: string[] = [];
+      for (const repo of [rolePermissions, userRoles, userPermissions]) {
+        repo.softDeleteById = (id: string) => {
+          deleted.push(id);
+          return Promise.resolve({});
+        };
+      }
+      const lacking = { superAdmin: false, permissions: ['users.read'] };
+      const refusal = async (fn: () => Promise<unknown>) => {
+        const error = await errorOf(as('a1', lacking, fn));
+        return error instanceof ForbiddenError
+          ? [error.errorCode, error.details.map(({ field }) => field)]
+          : String(error);
+      };
+      const denied = [APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN, ['orders.read']];
+
+      expect(await refusal(() => service().unmapPermission('role-staff', 'p1'))).toEqual(denied);
+      // The role carries orders.read (and a retired permission, which is not needed).
+      expect(await refusal(() => service().revokeRole('u1', 'role-staff'))).toEqual(denied);
+      expect(await refusal(() => service().revokePermission('u1', 'p1'))).toEqual(denied);
+      expect(deleted).toEqual([]);
+
+      const holder = { superAdmin: false, permissions: ['orders.read'] };
+      await as('a1', holder, () => service().unmapPermission('role-staff', 'p1'));
+      await as('a1', holder, () => service().revokeRole('u1', 'role-staff'));
+      await as('a1', holder, () => service().revokePermission('u1', 'p1'));
+      expect(deleted).toEqual(['rp1', 'ur1', 'up1']);
+    });
+
+    it('a permission that no longer counts (retired, deleted) is taken away without holding it', async () => {
+      permissions.findGrantableById = () => Promise.resolve(null);
+      rolePermissions.findLive = () => Promise.resolve({ id: 'rp1' });
+      userPermissions.findLive = () => Promise.resolve({ id: 'up1' });
+      const nothing = { superAdmin: false, permissions: [] };
+      await as('a1', nothing, () => service().unmapPermission('role-staff', 'p-old'));
+      await as('a1', nothing, () => service().revokePermission('u1', 'p-old'));
+    });
+
     it('PUT a role: given once, then a no-op', async () => {
       expect(await inTx(() => service().putUserRole('u1', 'role-staff'))).toEqual({
         created: true,
