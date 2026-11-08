@@ -61,6 +61,8 @@ Always look first: `--dry-run` (or the wizard's plan) prints every file it would
 
 Both value forms work: `--title "API Gateway"` and `--title="API Gateway"`. An unknown option or a second name is refused with the usage.
 
+A new option is added to `SETUP_USAGE` and classified in `SETUP_OPTION_COVERAGE` (`scripts/lib/acceptance.ts`, R91); one that changes what the project contains gets an acceptance combination ([manual-acceptance.md](manual-acceptance.md) §2).
+
 ## 3. The wizard
 
 `bun run setup` in a terminal, without a name:

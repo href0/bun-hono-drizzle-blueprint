@@ -15,6 +15,7 @@ import {
   PROJECT_TITLE,
   readinessText,
   runCombo,
+  SETUP_OPTION_COVERAGE,
   StepFailure,
   type AcceptanceContext,
   type AcceptanceStep,
@@ -27,8 +28,29 @@ import {
 import type { ComboResult, StepLabel } from './acceptance-progress';
 import { projectChangelog } from './project-changelog';
 import { ENTER, scriptedPrompter } from './scripted-prompter';
+import { SETUP_USAGE } from './setup-wizard';
 
 const [NEW_PROJECT, KEEP_EXAMPLES, NO_PARTNER] = COMBOS as [Combo, Combo, Combo];
+
+/** Every setup option is classified, and each one that shapes the project is run both ways. */
+describe('setup options and combinations (R91)', () => {
+  it('classifies every option of bun run setup, and nothing else', () => {
+    const options = new Set(SETUP_USAGE.match(/--[a-z][a-z-]*/g));
+    const classified = new Set(Object.keys(SETUP_OPTION_COVERAGE).map((key) => key.split(' ')[0]));
+    expect([...classified].sort()).toEqual([...options].sort());
+  });
+
+  it('a combination chooses each option that changes the project, and another leaves it out', () => {
+    const gaps = Object.entries(SETUP_OPTION_COVERAGE).flatMap(([option, chosen]) => {
+      if (typeof chosen !== 'function') return [];
+      if (!COMBOS.some(chosen)) return [`${option}: no combination chooses it`];
+      if (COMBOS.every(chosen))
+        return [`${option}: every combination chooses it (its default never runs)`];
+      return [];
+    });
+    expect(gaps).toEqual([]);
+  });
+});
 
 describe('arguments', () => {
   it('defaults: menu, HEAD, stage C on', () => {
