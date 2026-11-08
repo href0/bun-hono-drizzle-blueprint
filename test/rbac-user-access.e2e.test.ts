@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, spyOn } from 'bun:test';
 import { Temporal } from 'temporal-polyfill';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError } from '../src/core/errors';
 import type { Permission, Role, UserPermission } from '../src/database/schema';
+import { rbacAccessService } from '../src/modules/rbac/rbac-access.service';
 import { rbacService } from '../src/modules/rbac/rbac.service';
 import { requireActorHolds } from '../src/modules/rbac/rbac-grant-guard.util';
 import { RBAC_MESSAGES } from '../src/modules/rbac/rbac.messages';
@@ -53,8 +54,15 @@ const grant: UserPermission = {
 };
 
 const spies: { mockRestore: () => void }[] = [];
-const spy = (method: keyof typeof rbacService, impl: (...args: never[]) => unknown): void => {
-  spies.push(spyOn(rbacService, method as any).mockImplementation(impl as any));
+const spy = (
+  method: keyof typeof rbacAccessService | 'listMyPermissions',
+  impl: (...args: never[]) => unknown,
+): void => {
+  spies.push(
+    method === 'listMyPermissions'
+      ? spyOn(rbacService, method).mockImplementation(impl as any)
+      : spyOn(rbacAccessService, method as any).mockImplementation(impl as any),
+  );
 };
 afterEach(() => {
   for (const s of spies.splice(0)) s.mockRestore();

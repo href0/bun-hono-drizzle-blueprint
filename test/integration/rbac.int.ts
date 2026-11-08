@@ -25,6 +25,7 @@ import { defaultTxHost, transactionStorage } from '../../src/database/transactio
 import { runInTransaction } from '../../src/database/transactional.decorator';
 import { isUniqueViolation } from '../../src/database/unique-violation';
 import { rbacRolesService } from '../../src/modules/rbac/rbac-roles.service';
+import { RbacAccessService, rbacAccessService } from '../../src/modules/rbac/rbac-access.service';
 import { RbacService, rbacService } from '../../src/modules/rbac/rbac.service';
 import { usersService } from '../../src/modules/users/users.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
@@ -348,11 +349,13 @@ describe('effective permissions (D52, D53)', () => {
       await insertPermission(),
       await insertPermission(),
     ];
-    await rbacService.mapPermission(staff, a.id);
-    await rbacService.mapPermission(auditor, b.id);
-    await rbacService.assignRole(userId, staff);
-    await rbacService.assignRole(userId, auditor);
-    await rbacService.grantPermission(userId, c.id, { expiresAt: nowInstant().add({ hours: 1 }) });
+    await rbacAccessService.mapPermission(staff, a.id);
+    await rbacAccessService.mapPermission(auditor, b.id);
+    await rbacAccessService.assignRole(userId, staff);
+    await rbacAccessService.assignRole(userId, auditor);
+    await rbacAccessService.grantPermission(userId, c.id, {
+      expiresAt: nowInstant().add({ hours: 1 }),
+    });
     // Expired already: written directly, the service refuses a past expiry.
     await db.insert(userPermissions).values({
       id: Bun.randomUUIDv7(),
@@ -366,9 +369,9 @@ describe('effective permissions (D52, D53)', () => {
     expect(effective).toEqual({ superAdmin: false, permissions: [a.key, b.key, c.key].sort() });
     expect(await cacheService.get<unknown>(CACHE_KEYS.userPermissions(userId))).toEqual(effective);
 
-    await rbacService.revokeRole(userId, auditor);
+    await rbacAccessService.revokeRole(userId, auditor);
     expect(await cacheService.get(CACHE_KEYS.userPermissions(userId))).toBeNull();
-    await rbacService.revokePermission(userId, c.id);
+    await rbacAccessService.revokePermission(userId, c.id);
     expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([a.key]);
 
     await db.update(permissions).set({ retiredAt: NOW }).where(eq(permissions.id, a.id));
@@ -379,8 +382,8 @@ describe('effective permissions (D52, D53)', () => {
   it('records every revocation in record_changes (D53)', async () => {
     const userId = await insertUser();
     const role = await insertRole();
-    const assignment = await rbacService.assignRole(userId, role);
-    await rbacService.revokeRole(userId, role);
+    const assignment = await rbacAccessService.assignRole(userId, role);
+    await rbacAccessService.revokeRole(userId, role);
 
     const changes = await db
       .select()
@@ -398,8 +401,8 @@ describe('effective permissions (D52, D53)', () => {
       await insertPermission(),
       await insertPermission(),
     ];
-    const keptMapping = await rbacService.mapPermission(role, kept.id);
-    const droppedMapping = await rbacService.mapPermission(role, dropped.id);
+    const keptMapping = await rbacAccessService.mapPermission(role, kept.id);
+    const droppedMapping = await rbacAccessService.mapPermission(role, dropped.id);
     // A deleted menu permission: invisible to the checklist, its mapping waits for a restore.
     const menuId = Bun.randomUUIDv7();
     await db.insert(permissions).values({
@@ -410,7 +413,7 @@ describe('effective permissions (D52, D53)', () => {
       source: 'menu',
       ...SYSTEM,
     });
-    const menuMapping = await rbacService.mapPermission(role, menuId);
+    const menuMapping = await rbacAccessService.mapPermission(role, menuId);
     await db.update(permissions).set({ deletedAt: NOW }).where(eq(permissions.id, menuId));
     const auditOf = async (recordId: string) =>
       (
@@ -426,7 +429,7 @@ describe('effective permissions (D52, D53)', () => {
       ).map(({ action }) => action);
     const keptAudit = await auditOf(keptMapping.id);
 
-    const change = await rbacService.replaceRolePermissions(role, [kept.id, added.id]);
+    const change = await rbacAccessService.replaceRolePermissions(role, [kept.id, added.id]);
     expect(change).toMatchObject({
       added: [{ id: added.id, key: added.key }],
       removed: [{ id: dropped.id, key: dropped.key }],
@@ -447,7 +450,7 @@ describe('effective permissions (D52, D53)', () => {
     expect(live.find(({ permissionId }) => permissionId === menuId)?.id).toBe(menuMapping.id);
 
     // The same set again: nothing written.
-    const again = await rbacService.replaceRolePermissions(role, [added.id, kept.id]);
+    const again = await rbacAccessService.replaceRolePermissions(role, [added.id, kept.id]);
     expect([again.added, again.removed]).toEqual([[], []]);
   });
 
@@ -459,12 +462,12 @@ describe('effective permissions (D52, D53)', () => {
       await insertRole(),
       await insertRole(),
     ];
-    const keptAssignment = await rbacService.assignRole(userId, kept);
-    await rbacService.assignRole(userId, dropped);
-    const deletedAssignment = await rbacService.assignRole(userId, deleted);
+    const keptAssignment = await rbacAccessService.assignRole(userId, kept);
+    await rbacAccessService.assignRole(userId, dropped);
+    const deletedAssignment = await rbacAccessService.assignRole(userId, deleted);
     await db.update(roles).set({ deletedAt: NOW }).where(eq(roles.id, deleted));
 
-    const change = await rbacService.replaceUserRoles(userId, [kept, added]);
+    const change = await rbacAccessService.replaceUserRoles(userId, [kept, added]);
     expect(
       [change.added, change.removed, change.unchanged].map((items) => items.map(({ id }) => id)),
     ).toEqual([[added], [dropped], [kept]]);
@@ -476,7 +479,7 @@ describe('effective permissions (D52, D53)', () => {
     expect(live.find(({ roleId }) => roleId === kept)?.id).toBe(keptAssignment.id);
     expect(live.find(({ roleId }) => roleId === deleted)?.id).toBe(deletedAssignment.id);
 
-    const again = await rbacService.replaceUserRoles(userId, [added, kept]);
+    const again = await rbacAccessService.replaceUserRoles(userId, [added, kept]);
     expect([again.added, again.removed]).toEqual([[], []]);
   });
 
@@ -489,9 +492,11 @@ describe('effective permissions (D52, D53)', () => {
       await insertPermission(),
       await insertPermission(),
     ];
-    const keptGrant = await rbacService.grantPermission(userId, kept.id);
-    const changedGrant = await rbacService.grantPermission(userId, changed.id, { note: 'old' });
-    await rbacService.grantPermission(userId, dropped.id);
+    const keptGrant = await rbacAccessService.grantPermission(userId, kept.id);
+    const changedGrant = await rbacAccessService.grantPermission(userId, changed.id, {
+      note: 'old',
+    });
+    await rbacAccessService.grantPermission(userId, dropped.id);
     const expiredGrantId = Bun.randomUUIDv7();
     // Microseconds, as PostgreSQL keeps them; the API sends milliseconds.
     const PAST = Temporal.Instant.fromEpochNanoseconds(
@@ -507,7 +512,7 @@ describe('effective permissions (D52, D53)', () => {
     });
     const until = nowInstant().add({ hours: 24 }).round({ smallestUnit: 'millisecond' });
 
-    const change = await rbacService.replaceUserGrants(userId, [
+    const change = await rbacAccessService.replaceUserGrants(userId, [
       { permissionId: kept.id },
       { permissionId: changed.id, note: 'new' },
       { permissionId: added.id, expiresAt: until },
@@ -545,7 +550,7 @@ describe('effective permissions (D52, D53)', () => {
       await insertPermission(),
       await insertPermission(),
     ];
-    for (const { id } of [held, retired, deleted]) await rbacService.mapPermission(role, id);
+    for (const { id } of [held, retired, deleted]) await rbacAccessService.mapPermission(role, id);
     await db.update(permissions).set({ retiredAt: NOW }).where(eq(permissions.id, retired.id));
     await db.update(permissions).set({ deletedAt: NOW }).where(eq(permissions.id, deleted.id));
 
@@ -573,7 +578,7 @@ describe('effective permissions (D52, D53)', () => {
 
   it('gives a super admin every permission and refuses to map that role', async () => {
     const userId = await insertUser();
-    await rbacService.assignRole(userId, await roleId('super_admin'));
+    await rbacAccessService.assignRole(userId, await roleId('super_admin'));
 
     expect(await rbacService.getEffectivePermissions(userId)).toEqual({
       superAdmin: true,
@@ -582,7 +587,7 @@ describe('effective permissions (D52, D53)', () => {
     expect(await rbacService.hasPermission(userId, 'anything.read')).toBe(true);
     const permissionId = (await insertPermission()).id;
     expect(
-      await rejectionOf(rbacService.mapPermission(await roleId('super_admin'), permissionId)),
+      await rejectionOf(rbacAccessService.mapPermission(await roleId('super_admin'), permissionId)),
     ).toBeInstanceOf(Error);
   });
 
@@ -590,19 +595,19 @@ describe('effective permissions (D52, D53)', () => {
     const [first, second] = [await insertUser(), await insertUser()];
     const role = await insertRole();
     const extra = await insertPermission();
-    await rbacService.assignRole(first, role);
-    await rbacService.assignRole(second, role);
+    await rbacAccessService.assignRole(first, role);
+    await rbacAccessService.assignRole(second, role);
     for (const userId of [first, second]) {
       expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
     }
 
-    await rbacService.mapPermission(role, extra.id);
+    await rbacAccessService.mapPermission(role, extra.id);
 
     for (const userId of [first, second]) {
       expect(await cacheService.get(CACHE_KEYS.userPermissions(userId))).toBeNull();
       expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([extra.key]);
     }
-    await rbacService.unmapPermission(role, extra.id);
+    await rbacAccessService.unmapPermission(role, extra.id);
     for (const userId of [first, second]) {
       expect((await rbacService.getEffectivePermissions(userId)).permissions).toEqual([]);
     }
@@ -612,11 +617,11 @@ describe('effective permissions (D52, D53)', () => {
     const userId = await insertUser();
     const role = await insertRole();
     const extra = await insertPermission();
-    await rbacService.mapPermission(role, extra.id);
-    await rbacService.assignRole(userId, role);
+    await rbacAccessService.mapPermission(role, extra.id);
+    await rbacAccessService.assignRole(userId, role);
 
     await runInTransaction(async () => {
-      await rbacService.revokeRole(userId, role);
+      await rbacAccessService.revokeRole(userId, role);
       // Another request, outside this uncommitted transaction, still sees the role and caches it.
       const racing = await transactionStorage.exit(() =>
         rbacService.getEffectivePermissions(userId),
@@ -633,8 +638,8 @@ describe('effective permissions (D52, D53)', () => {
     const userId = await insertUser();
     const role = await insertRole();
     const extra = await insertPermission();
-    await rbacService.mapPermission(role, extra.id);
-    await rbacService.assignRole(userId, role);
+    await rbacAccessService.mapPermission(role, extra.id);
+    await rbacAccessService.assignRole(userId, role);
 
     const offline = createRedisClient(redisConfig); // never connected: not ready
     try {
@@ -642,15 +647,22 @@ describe('effective permissions (D52, D53)', () => {
         undefined,
         undefined,
         undefined,
-        undefined,
-        undefined,
         new CacheService(offline),
+      );
+      const accessWithoutRedis = new RbacAccessService(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        withoutRedis,
       );
       expect(await withoutRedis.getEffectivePermissions(userId)).toEqual({
         superAdmin: false,
         permissions: [extra.key],
       });
-      await withoutRedis.revokeRole(userId, role);
+      await accessWithoutRedis.revokeRole(userId, role);
       expect((await withoutRedis.getEffectivePermissions(userId)).permissions).toEqual([]);
     } finally {
       await closeRedisClient(offline);
@@ -685,16 +697,16 @@ describe('routes check permissions per request (D49, D53)', () => {
     expect(await get('/roles')).toBe('403 ERR_PERMISSION_FORBIDDEN');
 
     const role = await insertRole();
-    await rbacService.mapPermission(role, await permissionId('users.read'));
-    await rbacService.assignRole(userId, role);
+    await rbacAccessService.mapPermission(role, await permissionId('users.read'));
+    await rbacAccessService.assignRole(userId, role);
     expect(await get('/users')).toBe('200');
 
-    await rbacService.grantPermission(userId, await permissionId('roles.read'));
+    await rbacAccessService.grantPermission(userId, await permissionId('roles.read'));
     expect(await get('/roles')).toBe('200');
 
-    await rbacService.revokeRole(userId, role);
+    await rbacAccessService.revokeRole(userId, role);
     expect(await get('/users')).toBe('403 ERR_PERMISSION_FORBIDDEN');
-    await rbacService.revokePermission(userId, await permissionId('roles.read'));
+    await rbacAccessService.revokePermission(userId, await permissionId('roles.read'));
     expect(await get('/roles')).toBe('403 ERR_PERMISSION_FORBIDDEN');
 
     // allowAnyUser(): no permission needed.
@@ -704,7 +716,7 @@ describe('routes check permissions per request (D49, D53)', () => {
   it('a super admin passes every permission check', async () => {
     const app = createApp();
     const userId = await insertUser();
-    await rbacService.assignRole(userId, await roleId('super_admin'));
+    await rbacAccessService.assignRole(userId, await roleId('super_admin'));
     const { token } = await signAccessToken({ userId });
 
     const res = await app.request(`${appConfig.API_BASE_PATH}/v1/users`, {
@@ -763,7 +775,7 @@ describe('users start with the role user and show their roles (D59)', () => {
     expect(created.roles).toEqual(['user']);
 
     const role = await insertRole();
-    await rbacService.assignRole(created.id, role);
+    await rbacAccessService.assignRole(created.id, role);
     const [{ key }] = await db.select({ key: roles.key }).from(roles).where(eq(roles.id, role));
     expect((await usersService.getUserById(created.id)).roles).toEqual([key, 'user'].sort());
   });
@@ -806,7 +818,7 @@ describe('admin API: roles and permissions (D68, D69)', () => {
 
   const superAdmin = async () => {
     const userId = await insertUser();
-    await rbacService.assignRole(userId, await roleId('super_admin'));
+    await rbacAccessService.assignRole(userId, await roleId('super_admin'));
     return caller(userId);
   };
 
@@ -842,7 +854,7 @@ describe('admin API: roles and permissions (D68, D69)', () => {
 
     // A holder of the role reads users; deleting the role takes it away on the next request.
     const holderId = await insertUser();
-    await rbacService.assignRole(holderId, id);
+    await rbacAccessService.assignRole(holderId, id);
     const holder = await caller(holderId);
     expect((await holder('GET', '/users')).status).toBe(200);
     expect((await call('DELETE', `/roles/${id}`)).status).toBe(200);
@@ -890,10 +902,10 @@ describe('admin API: roles and permissions (D68, D69)', () => {
       'roles.delete',
       'users.read',
     ]) {
-      await rbacService.mapPermission(admins, await keyId(key));
+      await rbacAccessService.mapPermission(admins, await keyId(key));
     }
     const adminId = await insertUser();
-    await rbacService.assignRole(adminId, admins);
+    await rbacAccessService.assignRole(adminId, admins);
     const call = await caller(adminId);
     const target = await insertRole();
 
@@ -908,7 +920,7 @@ describe('admin API: roles and permissions (D68, D69)', () => {
 
     // A role holding users.delete (mapped by the system), deleted: restoring it would give it back.
     const powerful = await insertRole();
-    await rbacService.mapPermission(powerful, await keyId('users.delete'));
+    await rbacAccessService.mapPermission(powerful, await keyId('users.delete'));
     expect((await call('DELETE', `/roles/${powerful}`)).status).toBe(200);
     expect((await call('POST', `/roles/${powerful}/restore`)).code).toBe(
       'ERR_PERMISSION_ESCALATION_FORBIDDEN',
@@ -935,9 +947,9 @@ describe('admin API: roles and permissions (D68, D69)', () => {
     });
 
     const role = await insertRole();
-    await rbacService.mapPermission(role, id);
+    await rbacAccessService.mapPermission(role, id);
     const holderId = await insertUser();
-    await rbacService.assignRole(holderId, role);
+    await rbacAccessService.assignRole(holderId, role);
     expect((await rbacService.getEffectivePermissions(holderId)).permissions).toContain(key);
 
     expect((await call('DELETE', `/permissions/${id}`)).status).toBe(200);
@@ -999,7 +1011,7 @@ describe('user access (D68, D69)', () => {
   };
   const newSuperAdmin = async (): Promise<string> => {
     const userId = await insertUser();
-    await rbacService.assignRole(userId, await roleId('super_admin'));
+    await rbacAccessService.assignRole(userId, await roleId('super_admin'));
     return userId;
   };
 
@@ -1008,7 +1020,7 @@ describe('user access (D68, D69)', () => {
     const userId = await insertUser();
     const user = await caller(userId);
     const readers = await insertRole();
-    await rbacService.mapPermission(readers, await keyId('users.read'));
+    await rbacAccessService.mapPermission(readers, await keyId('users.read'));
 
     expect((await user('GET', '/users')).code).toBe('ERR_PERMISSION_FORBIDDEN');
     expect((await admin('PUT', `/users/${userId}/roles/${readers}`)).status).toBe(201);
@@ -1053,17 +1065,17 @@ describe('user access (D68, D69)', () => {
   it('no escalation: an administrator gives only roles and permissions they hold, and never super_admin', async () => {
     const admins = await insertRole();
     for (const key of ['user-roles.create', 'user-permissions.create', 'users.read']) {
-      await rbacService.mapPermission(admins, await keyId(key));
+      await rbacAccessService.mapPermission(admins, await keyId(key));
     }
     const adminId = await insertUser();
-    await rbacService.assignRole(adminId, admins);
+    await rbacAccessService.assignRole(adminId, admins);
     const admin = await caller(adminId);
     const target = await insertUser();
 
     const readers = await insertRole();
-    await rbacService.mapPermission(readers, await keyId('users.read'));
+    await rbacAccessService.mapPermission(readers, await keyId('users.read'));
     const deleters = await insertRole();
-    await rbacService.mapPermission(deleters, await keyId('users.delete'));
+    await rbacAccessService.mapPermission(deleters, await keyId('users.delete'));
 
     expect((await admin('PUT', `/users/${target}/roles/${readers}`)).status).toBe(201);
     for (const route of [
@@ -1120,7 +1132,7 @@ describe('user access (D68, D69)', () => {
             user: { id: '0192f1d0-0000-7000-8000-00000000beef' },
             permissions: () => Promise.resolve({ superAdmin: true, permissions: [] }),
           },
-          () => rbacService.revokeRole(lastId, superAdminRole),
+          () => rbacAccessService.revokeRole(lastId, superAdminRole),
         ),
       );
       expect(error).toBeInstanceOf(ConflictError);
@@ -1157,14 +1169,14 @@ describe('accounts never go round RBAC (D69)', () => {
   it('an account administrator changes only accounts holding no more than they do', async () => {
     const admins = await insertRole();
     for (const key of ['users.read', 'users.update', 'users.delete']) {
-      await rbacService.mapPermission(admins, await keyId(key));
+      await rbacAccessService.mapPermission(admins, await keyId(key));
     }
     const adminId = await insertUser();
-    await rbacService.assignRole(adminId, admins);
+    await rbacAccessService.assignRole(adminId, admins);
     const admin = await caller(adminId);
 
     const rootId = await insertUser();
-    await rbacService.assignRole(rootId, await roleId('super_admin'));
+    await rbacAccessService.assignRole(rootId, await roleId('super_admin'));
     const plainId = await insertUser();
 
     const password = { password: 'a new password 1' };
@@ -1183,7 +1195,7 @@ describe('accounts never go round RBAC (D69)', () => {
   it('the last active super admin is never deleted or deactivated', async () => {
     const superAdminRole = await roleId('super_admin');
     const lastId = await insertUser();
-    await rbacService.assignRole(lastId, superAdminRole);
+    await rbacAccessService.assignRole(lastId, superAdminRole);
     await inRolledBackSync(async () => {
       // Every other holder deactivated: lastId is the only one who can still sign in.
       await defaultTxHost.tx
