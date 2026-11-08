@@ -193,6 +193,62 @@ describe('RBAC user access — /users/:id/permissions', () => {
     expect((await put({ expires_at: 'tomorrow' })).status).toBe(400);
   });
 
+  it('PUT /:id/permissions replaces the grants with their expiry and note; guarded by user-permissions.update (D72, D75)', async () => {
+    const calls: unknown[][] = [];
+    spy('replaceUserGrants', (...args: never[]) => {
+      calls.push(args);
+      return Promise.resolve({
+        added: [],
+        updated: [{ id: CHILD_ID, key: 'users.read' }],
+        removed: [],
+        unchanged: [],
+      });
+    });
+    const put = async (grant: string[], body: unknown) => {
+      const app = await authorize(createTestApp(), grant);
+      return app.request(`/api/v1/users/${USER_ID}/permissions`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(body),
+      });
+    };
+    const holder = ['user-permissions.update'];
+
+    const res = await put(holder, {
+      grants: [{ permission_id: CHILD_ID, expires_at: '2030-01-01T00:00:00Z', note: 'audit' }],
+    });
+    expect(res.status).toBe(200);
+    const [userId, grants] = calls[0] as [string, { permissionId: string; expiresAt: unknown }[]];
+    expect(userId).toBe(USER_ID);
+    expect(grants[0]?.permissionId).toBe(CHILD_ID);
+    expect(String(grants[0]?.expiresAt)).toBe('2030-01-01T00:00:00Z');
+    expect(await res.json()).toMatchObject({
+      message: RBAC_MESSAGES.USER_PERMISSIONS_REPLACED.id,
+      data: {
+        added: [],
+        updated: [{ id: CHILD_ID, key: 'users.read' }],
+        removed: [],
+        unchanged: [],
+      },
+    });
+
+    expect((await put(holder, {})).status).toBe(400);
+    expect(
+      (await put(holder, { grants: [{ permission_id: CHILD_ID, expires_at: 'soon' }] })).status,
+    ).toBe(400);
+    const repeated = await put(holder, {
+      grants: [{ permission_id: CHILD_ID }, { permission_id: CHILD_ID }],
+    });
+    expect(repeated.status).toBe(400);
+    expect(await repeated.json()).toMatchObject({
+      error: { details: [{ field: 'grants.1.permission_id' }] },
+    });
+    expect(
+      (await put(['user-permissions.create', 'user-permissions.delete'], { grants: [] })).status,
+    ).toBe(403);
+    expect(calls).toHaveLength(1);
+  });
+
   it('DELETE revokes an extra permission', async () => {
     spy('revokePermission', () => Promise.resolve());
     const app = await authorize(createTestApp(), ['user-permissions.delete']);

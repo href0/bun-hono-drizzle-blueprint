@@ -6,11 +6,12 @@ import {
   getValidatedParams,
 } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
-import type { ReplaceUserRolesDto } from './rbac-replace.dto';
+import type { ReplaceUserPermissionsDto, ReplaceUserRolesDto } from './rbac-replace.dto';
 import type { PutGrantDto } from './rbac-user-access.dto';
 import { RbacService, rbacService } from './rbac.service';
 import {
   toAccessChangeResponse,
+  toGrantChangeResponse,
   toMyPermissionsResponse,
   toRoleListResponse,
   toUserGrantListResponse,
@@ -47,6 +48,17 @@ export class RbacUserAccessController {
     const { id, childId } = getValidatedParams<UuidChildParamDto>(c);
     await this.service.revokeRole(id, childId);
     return new ApiResponse(null, RBAC_MESSAGES.USER_ROLE_REVOKED, 200);
+  });
+
+  replaceGrants = asyncHandler(async (c) => {
+    const { id } = getValidatedParams<UuidParamDto>(c);
+    const { grants } = getValidatedBody<ReplaceUserPermissionsDto>(c);
+    const change = await this.service.replaceUserGrants(id, grants);
+    return new ApiResponse(
+      toGrantChangeResponse(change),
+      RBAC_MESSAGES.USER_PERMISSIONS_REPLACED,
+      200,
+    );
   });
 
   listGrants = asyncHandler(async (c) => {

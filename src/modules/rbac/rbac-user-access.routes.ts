@@ -4,7 +4,12 @@ import { uuidChildParamSchema, uuidParamSchema } from '../../core/dto/common.dto
 import { APP_ERROR_CODES } from '../../core/errors';
 import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
-import { accessChangeSchema, replaceUserRolesSchema } from './rbac-replace.dto';
+import {
+  accessChangeSchema,
+  grantChangeSchema,
+  replaceUserPermissionsSchema,
+  replaceUserRolesSchema,
+} from './rbac-replace.dto';
 import { roleResponseSchema } from './rbac-roles.dto';
 import { rbacUserAccessController } from './rbac-user-access.controller';
 import { putGrantSchema, userGrantResponseSchema } from './rbac-user-access.dto';
@@ -141,6 +146,26 @@ rbacUserAccessRouter.get(
   requirePermission(USER_PERMISSION_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   rbacUserAccessController.listGrants,
+);
+rbacUserAccessRouter.put(
+  '/:id/permissions',
+  describeEndpoint({
+    tags,
+    summary: 'Replace the extra permissions of a user (a checklist saved at once)',
+    description:
+      'The body is the whole set the user should hold, each grant with its `expires_at` and `note` (absent = none — send the current ones to keep them): a permission left out is revoked, `[]` revokes every one, a kept grant with another expiry or note is `updated`, an expired grant sent back as it is stays unchanged. Only the difference is written, in one transaction — nothing is saved when one item is refused. 400 for an unknown, retired or repeated permission or an expiry not in the future (its index in `details`); 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` naming every permission granted, updated or revoked that the caller does not hold (one that no longer counts may be revoked).',
+    response: {
+      status: 200,
+      description: 'What was added, updated, removed and kept, each by key',
+      message: RBAC_MESSAGES.USER_PERMISSIONS_REPLACED,
+      data: grantChangeSchema,
+    },
+    errors: [400, 404, 409, ESCALATION],
+  }),
+  // A replace grants and revokes: a permission of its own (D75), not create + delete.
+  requirePermission(USER_PERMISSION_PERMISSIONS.update),
+  validate({ params: uuidParamSchema, body: replaceUserPermissionsSchema }),
+  rbacUserAccessController.replaceGrants,
 );
 rbacUserAccessRouter.put(
   '/:id/permissions/:childId',

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { Temporal } from 'temporal-polyfill';
 import { existsSync, readFileSync } from 'node:fs';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { createApp } from '../../src/app';
@@ -26,7 +27,7 @@ import { isUniqueViolation } from '../../src/database/unique-violation';
 import { RbacService, rbacService } from '../../src/modules/rbac/rbac.service';
 import { usersService } from '../../src/modules/users/users.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
-import { nowInstant } from '../../src/utils/datetime.util';
+import { nowInstant, parseInstant, toIsoUtc } from '../../src/utils/datetime.util';
 import { asActor, rejectionOf, unique } from '../helpers/integration';
 import { runWithRequestContext } from '../../src/core/context/request-context';
 import { ConflictError } from '../../src/core/errors';
@@ -476,6 +477,64 @@ describe('effective permissions (D52, D53)', () => {
 
     const again = await rbacService.replaceUserRoles(userId, [added, kept]);
     expect([again.added, again.removed]).toEqual([[], []]);
+  });
+
+  it('replacing the grants of a user: created, updated, revoked, kept untouched — expired kept as is (D72)', async () => {
+    const userId = await insertUser();
+    const [kept, changed, dropped, added, expired] = [
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+    ];
+    const keptGrant = await rbacService.grantPermission(userId, kept.id);
+    const changedGrant = await rbacService.grantPermission(userId, changed.id, { note: 'old' });
+    await rbacService.grantPermission(userId, dropped.id);
+    const expiredGrantId = Bun.randomUUIDv7();
+    // Microseconds, as PostgreSQL keeps them; the API sends milliseconds.
+    const PAST = Temporal.Instant.fromEpochNanoseconds(
+      BigInt(nowInstant().subtract({ hours: 1 }).epochMilliseconds) * 1_000_000n + 456_000n,
+    );
+    await db.insert(userPermissions).values({
+      id: expiredGrantId,
+      userId,
+      permissionId: expired.id,
+      expiresAt: PAST,
+      note: 'audit',
+      ...SYSTEM,
+    });
+    const until = nowInstant().add({ hours: 24 }).round({ smallestUnit: 'millisecond' });
+
+    const change = await rbacService.replaceUserGrants(userId, [
+      { permissionId: kept.id },
+      { permissionId: changed.id, note: 'new' },
+      { permissionId: added.id, expiresAt: until },
+      // As read from GET /users/:id/permissions (milliseconds on the wire).
+      {
+        permissionId: expired.id,
+        expiresAt: parseInstant(toIsoUtc(PAST)),
+        note: 'audit',
+      },
+    ]);
+    expect(
+      [change.added, change.updated, change.removed, change.unchanged].map((items) =>
+        items.map(({ id }) => id).sort(),
+      ),
+    ).toEqual([[added.id], [changed.id], [dropped.id], [kept.id, expired.id].sort()]);
+
+    const live = await db
+      .select()
+      .from(userPermissions)
+      .where(and(eq(userPermissions.userId, userId), isNull(userPermissions.deletedAt)));
+    const byPermission = new Map(live.map((row) => [row.permissionId, row]));
+    expect([...byPermission.keys()].sort()).toEqual(
+      [kept.id, changed.id, added.id, expired.id].sort(),
+    );
+    expect(byPermission.get(kept.id)?.id).toBe(keptGrant.id);
+    expect(byPermission.get(changed.id)).toMatchObject({ id: changedGrant.id, note: 'new' });
+    expect(byPermission.get(added.id)?.expiresAt?.toString()).toBe(until.toString());
+    expect(byPermission.get(expired.id)?.id).toBe(expiredGrantId);
   });
 
   it('gives a super admin every permission and refuses to map that role', async () => {

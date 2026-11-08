@@ -13,6 +13,7 @@ import type { Role } from '../../database/schema';
 import { runInFakeTransaction } from '../../database/transaction-host';
 import { nowInstant, parseInstant } from '../../utils/datetime.util';
 import type { RbacPermissionsRepository } from './rbac-permissions.repository';
+import type { GrantItem } from './rbac-replace.dto';
 import type { RbacRolePermissionsRepository } from './rbac-role-permissions.repository';
 import type { RbacRolesRepository } from './rbac-roles.repository';
 import type {
@@ -486,6 +487,157 @@ describe('RbacService', () => {
     it('a user who is gone is a 404', async () => {
       userRoles.isLiveUser = () => Promise.resolve(false);
       expect(await errorOf(inTx(() => replace([])))).toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe('replaceUserGrants (D72, D74)', () => {
+    const PAST = nowInstant().subtract({ hours: 1 });
+    const LATER = nowInstant().add({ hours: 1 });
+    const CATALOG = new Map(
+      [
+        ['p-read', 'orders.read'],
+        ['p-create', 'orders.create'],
+        ['p-delete', 'orders.delete'],
+        ['p-reports', 'reports.read'],
+      ].map(([id, key]) => [id, { id, key, retiredAt: null }]),
+    );
+    let created: { permissionId: string; expiresAt: unknown; note: unknown }[];
+    let updated: [string, unknown][];
+    let revoked: string[];
+    const asCaller = <T>(held: string[] | 'root', fn: () => Promise<T>) =>
+      runWithRequestContext(
+        {
+          requestId: 'r1',
+          locale: 'en',
+          clientIp: 'unknown',
+          actor: 'user:a1',
+          user: { id: 'a1' },
+          permissions: () =>
+            Promise.resolve(
+              held === 'root'
+                ? { superAdmin: true, permissions: [] }
+                : { superAdmin: false, permissions: held },
+            ),
+        },
+        () => inTx(fn),
+      );
+    const replace = (grants: GrantItem[]) => service().replaceUserGrants('u1', grants);
+    const keys = (items: { key: string }[]) => items.map(({ key }) => key);
+    const ALL = ['orders.read', 'orders.create', 'orders.delete', 'reports.read'];
+
+    beforeEach(() => {
+      created = [];
+      updated = [];
+      revoked = [];
+      // orders.read (no end), reports.read (expired, with a note), orders.delete.
+      userPermissions.findGrantsOf = () =>
+        Promise.resolve([
+          {
+            grant: { id: 'g-read', expiresAt: null, note: null },
+            permission: CATALOG.get('p-read'),
+          },
+          {
+            grant: { id: 'g-reports', expiresAt: PAST, note: 'audit' },
+            permission: CATALOG.get('p-reports'),
+          },
+          {
+            grant: { id: 'g-delete', expiresAt: null, note: null },
+            permission: CATALOG.get('p-delete'),
+          },
+        ]);
+      permissions.findGrantableByIds = (ids: string[]) =>
+        Promise.resolve(ids.flatMap((id) => CATALOG.get(id) ?? []));
+      userPermissions.create = (input: (typeof created)[number]) => {
+        created.push(input);
+        return Promise.resolve({});
+      };
+      userPermissions.updateById = (id: string, patch: unknown) => {
+        updated.push([id, patch]);
+        return Promise.resolve({});
+      };
+      userPermissions.softDeleteById = (id: string) => {
+        revoked.push(id);
+        return Promise.resolve({});
+      };
+    });
+
+    it('grants, updates, revokes and keeps — an expired grant sent back as it is stays unchanged', async () => {
+      const change = await asCaller(ALL, () =>
+        replace([
+          { permissionId: 'p-read', note: 'on call' },
+          { permissionId: 'p-reports', expiresAt: PAST, note: 'audit' },
+          { permissionId: 'p-create', expiresAt: LATER },
+        ]),
+      );
+      expect(created).toEqual([
+        { userId: 'u1', permissionId: 'p-create', expiresAt: LATER, note: null } as never,
+      ]);
+      expect(updated).toEqual([['g-read', { expiresAt: null, note: 'on call' }]]);
+      expect(revoked).toEqual(['g-delete']);
+      expect(memory.deleted).toEqual(['rbac:permissions:u1']);
+      expect([
+        keys(change.added),
+        keys(change.updated),
+        keys(change.removed),
+        keys(change.unchanged),
+      ]).toEqual([['orders.create'], ['orders.read'], ['orders.delete'], ['reports.read']]);
+    });
+
+    it('the same set writes nothing and drops no cache; a grant sent without its note loses it', async () => {
+      await asCaller([], () =>
+        replace([
+          { permissionId: 'p-read' },
+          { permissionId: 'p-reports', expiresAt: PAST, note: 'audit' },
+          { permissionId: 'p-delete', expiresAt: null, note: null },
+        ]),
+      );
+      expect([created, updated, revoked, memory.deleted]).toEqual([[], [], [], []]);
+
+      // reports.read sent without expiry and note: both cleared, which is a change to check.
+      await asCaller(ALL, () =>
+        replace([
+          { permissionId: 'p-read' },
+          { permissionId: 'p-reports' },
+          { permissionId: 'p-delete' },
+        ]),
+      );
+      expect(updated).toEqual([['g-reports', { expiresAt: null, note: null }]]);
+    });
+
+    it('400 for a permission that cannot be given or an expiry not in the future, before any write', async () => {
+      const unknown = await errorOf(
+        asCaller('root', () => replace([{ permissionId: 'p-read' }, { permissionId: 'p-gone' }])),
+      );
+      expect(unknown).toBeInstanceOf(ValidationError);
+      expect((unknown as ValidationError).details.map(({ field }) => field)).toEqual([
+        'grants.1.permissionId',
+      ]);
+      const expired = await errorOf(
+        asCaller('root', () => replace([{ permissionId: 'p-create', expiresAt: PAST }])),
+      );
+      expect((expired as ValidationError).details.map(({ field }) => field)).toEqual([
+        'grants.0.expiresAt',
+      ]);
+      expect([created, updated, revoked]).toEqual([[], [], []]);
+    });
+
+    it('the caller must hold every permission granted, updated or revoked: one 403 naming all', async () => {
+      const error = await errorOf(
+        asCaller(['reports.read'], () =>
+          replace([
+            { permissionId: 'p-read', note: 'changed' },
+            { permissionId: 'p-reports', expiresAt: PAST, note: 'audit' },
+            { permissionId: 'p-create' },
+          ]),
+        ),
+      );
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as ForbiddenError).details.map(({ field }) => field)).toEqual([
+        'orders.create',
+        'orders.read',
+        'orders.delete',
+      ]);
+      expect([created, updated, revoked, memory.deleted]).toEqual([[], [], [], []]);
     });
   });
 
