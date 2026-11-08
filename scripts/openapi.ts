@@ -180,9 +180,9 @@ const main = async (): Promise<void> => {
   if (command === 'check' && cli.flags.has('--allow-breaking')) {
     exitWithUsage('--allow-breaking is an option of update', usage);
   }
-  const { document, owners } = await buildContract(ROOT);
+  const { document, owners, routers } = await buildContract(ROOT);
   const serialized = serializeDocument(document);
-  const markdown = renderContractMarkdown(document, owners);
+  const markdown = renderContractMarkdown(document, owners, routers);
   if (command === 'check') check(document, serialized, markdown);
   else await update(document, serialized, markdown, cli.flags.has('--allow-breaking'));
 };
