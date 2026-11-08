@@ -314,6 +314,14 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
         : [];
       return reply(200, { added, removed: [], unchanged: [] });
     }
+    if (path === '/api/v1/roles/options') {
+      // Every role created so far is grantable for the admin (ids from POST: id-<n>).
+      const ids = Array.from({ length: nextId }, (_, index) => `id-${String(index + 1)}`);
+      return reply(
+        200,
+        ids.map((id) => ({ id, key: id, grantable: true })),
+      );
+    }
     if (method === 'GET' && /^\/api\/v1\/users\/[^/]+\/roles$/.test(path)) {
       return reply(200, [{ id: 'role-user', key: 'user' }]);
     }

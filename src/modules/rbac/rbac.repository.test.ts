@@ -99,6 +99,23 @@ describe('RBAC repositories (SQL shape)', () => {
     expect(lastSql()).toContain('"role_permissions"."deleted_at" is null');
   });
 
+  it('role checklist (D73): every live role by key; counting permission keys of every role', async () => {
+    expect(await new RbacRolesRepository(recorder.txHost).findAllLive()).toEqual([]);
+    expect(lastSql()).toContain('"roles"."deleted_at" is null');
+    expect(lastSql()).toContain('order by "roles"."key"');
+
+    expect(
+      await new RbacRolePermissionsRepository(recorder.txHost).findCountingKeysByRole(),
+    ).toEqual([]);
+    for (const filter of [
+      '"role_permissions"."deleted_at" is null',
+      '"permissions"."deleted_at" is null',
+      '"permissions"."retired_at" is null',
+    ]) {
+      expect(lastSql()).toContain(filter);
+    }
+  });
+
   it('replace (D72): the live assignments of a user with live roles; live roles among many ids', async () => {
     expect(await new RbacUserRolesRepository(recorder.txHost).findAssignmentsOf('u1')).toEqual([]);
     expect(lastSql()).toContain('"user_roles"."deleted_at" is null');

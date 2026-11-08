@@ -6,6 +6,7 @@ import {
   strictListQuery,
 } from '../../core/dto/list-query.dto';
 import { isoInstant } from '../../core/openapi';
+import type { Role } from '../../database/schema';
 
 /** A role key: lower case letters, digits and `_`, starting with a letter (`finance_staff`). */
 export const ROLE_KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -61,3 +62,24 @@ export const roleResponseSchema = z.object({
 });
 
 export type RoleResponse = z.infer<typeof roleResponseSchema>;
+
+/** A role with whether the caller may give or take it (`GET /roles/options`, D73). */
+export interface RoleOption {
+  role: Role;
+  grantable: boolean;
+}
+
+/** One box of the role checklist of a user (D73). */
+export const roleOptionSchema = z.object({
+  id: z.string().uuid(),
+  key: z.string(),
+  name: z.string(),
+  isSystem: z.boolean(),
+  /**
+   * The caller holds every permission the role gives (`super_admin`: the caller is a super admin):
+   * giving or taking it would not be refused (D69, D74).
+   */
+  grantable: z.boolean(),
+});
+
+export type RoleOptionResponse = z.infer<typeof roleOptionSchema>;

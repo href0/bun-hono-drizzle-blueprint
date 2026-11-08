@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { runWithRequestContext, type RequestContext } from '../../core/context/request-context';
 import { APP_ERROR_CODES, ForbiddenError } from '../../core/errors';
 import type { EffectivePermissions } from '../../core/security/rbac';
-import { actorCanGive, requireActorHolds } from './rbac-grant-guard.util';
+import { actorCanGive, actorIsSuperAdmin, requireActorHolds } from './rbac-grant-guard.util';
 
 const contextOf = (permissions?: EffectivePermissions): RequestContext => ({
   requestId: 'r1',
@@ -92,5 +92,18 @@ describe('actorCanGive', () => {
   it('fails closed without a permission context; everything without a signed-in user', async () => {
     expect(await answers(contextOf())).toEqual([false, false]);
     expect(await answers()).toEqual([true, true]);
+  });
+});
+
+describe('actorIsSuperAdmin', () => {
+  it('a super admin yes, anyone else no; fails closed without a permission context', async () => {
+    const ask = (context: RequestContext) => runWithRequestContext(context, actorIsSuperAdmin);
+    expect(await ask(contextOf({ superAdmin: true, permissions: [] }))).toBe(true);
+    expect(await ask(contextOf({ superAdmin: false, permissions: ['roles.read'] }))).toBe(false);
+    expect(await ask(contextOf())).toBe(false);
+  });
+
+  it('yes without a signed-in user (seeds, jobs: nothing is checked)', async () => {
+    expect(await actorIsSuperAdmin()).toBe(true);
   });
 });

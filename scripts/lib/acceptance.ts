@@ -677,6 +677,15 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         'GET /users without the role',
       );
       // The user's role checklist: the roles they hold (the default `user` among them) plus the new one.
+      const roleOptions = await ctx.http('GET', '/api/v1/roles/options', admin);
+      expectStatus(roleOptions, 200, 'read the role checklist');
+      check(
+        (roleOptions.json.data as unknown as { id: string; grantable: boolean }[]).some(
+          (option) => option.id === roleId && option.grantable,
+        ),
+        'the new role is in the role checklist, grantable by the admin',
+        JSON.stringify(roleOptions.json.data).slice(0, 300),
+      );
       const held = await ctx.http('GET', `/api/v1/users/${userId}/roles`, admin);
       expectStatus(held, 200, 'read the roles of the user');
       const heldIds = (held.json.data as unknown as { id: string }[]).map(({ id }) => id);

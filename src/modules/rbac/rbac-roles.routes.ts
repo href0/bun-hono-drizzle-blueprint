@@ -10,6 +10,7 @@ import { rbacRolesController } from './rbac-roles.controller';
 import {
   createRoleSchema,
   roleListQuerySchema,
+  roleOptionSchema,
   roleResponseSchema,
   updateRoleSchema,
 } from './rbac-roles.dto';
@@ -57,6 +58,24 @@ rbacRolesRouter.get(
   requirePermission(ROLE_PERMISSIONS.read),
   validate({ query: roleListQuerySchema }),
   rbacRolesController.list,
+);
+// Before `/:id`: `options` is not an id.
+rbacRolesRouter.get(
+  '/options',
+  describeEndpoint({
+    tags,
+    summary: 'Every role for the role checklist of a user, by key (not paginated)',
+    description:
+      'Every live role, sorted by key. `grantable` is false for a role the caller may not give or take: one that gives a permission the caller does not hold, or `super_admin` for anyone but a super admin (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` on `PUT /users/:id/roles`).',
+    response: {
+      status: 200,
+      description: 'The roles by key',
+      message: RBAC_MESSAGES.ROLE_OPTIONS_RETRIEVED,
+      data: z.array(roleOptionSchema),
+    },
+  }),
+  requirePermission(ROLE_PERMISSIONS.read),
+  rbacRolesController.options,
 );
 rbacRolesRouter.get(
   '/:id',

@@ -29,6 +29,25 @@ export class RbacRolePermissionsRepository extends BaseRepository<typeof rolePer
   }
 
   /**
+   * Every live mapping to a permission that counts (live, not retired), as role id → permission
+   * key: what giving or taking each role needs (D69, D74), for the role checklist in one query.
+   */
+  async findCountingKeysByRole(): Promise<{ roleId: string; key: string }[]> {
+    return this.txHost.tx
+      .select({ roleId: rolePermissions.roleId, key: permissions.key })
+      .from(rolePermissions)
+      .innerJoin(
+        permissions,
+        and(
+          eq(permissions.id, rolePermissions.permissionId),
+          isNull(permissions.deletedAt),
+          isNull(permissions.retiredAt),
+        ),
+      )
+      .where(this.scoped());
+  }
+
+  /**
    * The live mappings of `roleId` with their permission, by key — retired permissions included (an
    * admin sees them), deleted ones not: their mappings wait for a restore of the permission.
    */
