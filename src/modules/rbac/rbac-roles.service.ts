@@ -17,6 +17,7 @@ import type { AccessChange } from './rbac-replace.dto';
 import type { CreateRoleDto, RoleListQueryDto, RoleOption, UpdateRoleDto } from './rbac-roles.dto';
 import { RbacRolesRepository, rbacRolesRepository } from './rbac-roles.repository';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
+import { RbacAccessService, rbacAccessService } from './rbac-access.service';
 import { RbacService, rbacService } from './rbac.service';
 import { RBAC_MESSAGES, rbacRoleNotFoundMessage } from './rbac.messages';
 
@@ -34,6 +35,7 @@ export class RbacRolesService {
     private readonly rolePermissionsRepo: RbacRolePermissionsRepository = rbacRolePermissionsRepository,
     private readonly userRolesRepo: RbacUserRolesRepository = rbacUserRolesRepository,
     private readonly rbac: RbacService = rbacService,
+    private readonly access: RbacAccessService = rbacAccessService,
   ) {}
 
   async listRoles(query: RoleListQueryDto): Promise<{ roles: Role[]; total: number }> {
@@ -134,13 +136,13 @@ export class RbacRolesService {
 
   /**
    * Adds a permission to a role (`PUT`, idempotent): `created` is false when the role already had
-   * it. Checks (role, permission, no escalation) in `RbacService.mapPermission`.
+   * it. Checks (role, permission, no escalation) in `RbacAccessService.mapPermission`.
    */
   @Transactional()
   async putRolePermission(roleId: string, permissionId: string): Promise<{ created: boolean }> {
     await this.getRole(roleId);
     if (await this.rolePermissionsRepo.findLive(roleId, permissionId)) return { created: false };
-    await this.rbac.mapPermission(roleId, permissionId);
+    await this.access.mapPermission(roleId, permissionId);
     return { created: true };
   }
 
@@ -149,12 +151,12 @@ export class RbacRolesService {
     roleId: string,
     permissionIds: readonly string[],
   ): Promise<AccessChange> {
-    return this.rbac.replaceRolePermissions(roleId, permissionIds);
+    return this.access.replaceRolePermissions(roleId, permissionIds);
   }
 
   @Transactional()
   async deleteRolePermission(roleId: string, permissionId: string): Promise<void> {
-    await this.rbac.unmapPermission(roleId, permissionId);
+    await this.access.unmapPermission(roleId, permissionId);
   }
 }
 

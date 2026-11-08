@@ -9,6 +9,7 @@ import type { RbacRolePermissionsRepository } from './rbac-role-permissions.repo
 import type { RbacRolesRepository } from './rbac-roles.repository';
 import { RbacRolesService } from './rbac-roles.service';
 import type { RbacUserRolesRepository } from './rbac-user-roles.repository';
+import type { RbacAccessService } from './rbac-access.service';
 import type { RbacService } from './rbac.service';
 
 const role = (key: string, isSystem = false): Role =>
@@ -69,6 +70,20 @@ describe('RbacRolesService', () => {
           return Promise.resolve();
         },
       } as unknown as RbacService,
+      {
+        forget: (ids: readonly string[]) => {
+          forgotten.push([...ids]);
+          return Promise.resolve();
+        },
+        mapPermission: (roleId: string, permissionId: string) => {
+          mapped.push([roleId, permissionId]);
+          return Promise.resolve({});
+        },
+        unmapPermission: (roleId: string, permissionId: string) => {
+          unmapped.push([roleId, permissionId]);
+          return Promise.resolve();
+        },
+      } as unknown as RbacAccessService,
     );
 
   beforeEach(() => {
@@ -186,7 +201,7 @@ describe('RbacRolesService', () => {
     expect(all.map(({ key }) => key)).toEqual(['orders.read', 'users.read']);
   });
 
-  it('PUT a permission: mapped through RbacService (checks + escalation) once, idempotent after', async () => {
+  it('PUT a permission: mapped through RbacAccessService (checks + escalation) once, idempotent after', async () => {
     expect(await inTx(() => service().putRolePermission('role-finance', 'perm-x'))).toEqual({
       created: true,
     });
@@ -202,7 +217,7 @@ describe('RbacRolesService', () => {
     ).toBeInstanceOf(NotFoundError);
   });
 
-  it('DELETE a permission goes through RbacService.unmapPermission', async () => {
+  it('DELETE a permission goes through RbacAccessService.unmapPermission', async () => {
     await inTx(() => service().deleteRolePermission('role-finance', 'perm-x'));
     expect(unmapped).toEqual([['role-finance', 'perm-x']]);
   });

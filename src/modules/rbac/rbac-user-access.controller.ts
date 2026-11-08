@@ -8,6 +8,7 @@ import {
 import { ApiResponse } from '../../core/response';
 import type { ReplaceUserPermissionsDto, ReplaceUserRolesDto } from './rbac-replace.dto';
 import type { PutGrantDto } from './rbac-user-access.dto';
+import { RbacAccessService, rbacAccessService } from './rbac-access.service';
 import { RbacService, rbacService } from './rbac.service';
 import {
   toAccessChangeResponse,
@@ -21,7 +22,10 @@ import { RBAC_MESSAGES } from './rbac.messages';
 
 /** The roles and extra permissions of users, and the caller's own permissions (D68). */
 export class RbacUserAccessController {
-  constructor(private readonly service: RbacService = rbacService) {}
+  constructor(
+    private readonly service: RbacAccessService = rbacAccessService,
+    private readonly rbac: RbacService = rbacService,
+  ) {}
 
   listRoles = asyncHandler(async (c) => {
     const { id } = getValidatedParams<UuidParamDto>(c);
@@ -91,7 +95,7 @@ export class RbacUserAccessController {
   });
 
   myPermissions = asyncHandler(async () => {
-    const effective = await this.service.listMyPermissions(currentUser().id);
+    const effective = await this.rbac.listMyPermissions(currentUser().id);
     return new ApiResponse(
       toMyPermissionsResponse(effective),
       RBAC_MESSAGES.MY_PERMISSIONS_RETRIEVED,
