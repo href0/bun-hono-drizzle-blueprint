@@ -370,6 +370,7 @@ Labels (checked by `test/docs-sync.test.ts`: every row has one, every label poin
 | R88 | A module drops cache entries only after the change committed: inside `afterCommit(() => …)` (`src/database/transaction-host.ts`, D63) — never inside a transaction, where a concurrent read could cache the old row again until the TTL | [eslint:CACHE_DROP_RULES] [test:transaction-host] [test:rbac] |
 | R89 | Every route states who may call it (D49): each `/v1` operation is in exactly one category — a permission guard (`requirePermission` / `requireSelfOrPermission`), `allowAnyUser()`, `PUBLIC_ROUTES` or an inbound channel with its own guard; a permission guard refuses a token without the permission (403) before validating anything; every permission a route checks is in the registry (`src/permissions.ts`) and every registry permission guards a route | [test:route-permissions.e2e] |
 | R90 | Every decision ID cited in code, tests, scripts, agent rules or documents (`D…`, a project's `PD…`) has its row in `docs/decisions.md`; code, tests and scripts never cite a plan (`plan <topic> step N`) — a plan's decisions get `D…` IDs from its first step and its file is deleted when it is finished | [test:docs-sync] |
+| R91 | Every `bun run setup` option is classified in `SETUP_OPTION_COVERAGE` (`scripts/lib/acceptance.ts`): one that changes what the project contains is chosen by at least one acceptance combination (`COMBOS`) and left out by another, so its effect and its default both run; one that changes no code states why it needs no combination | [test:acceptance] |
 
 ---
 

@@ -49,6 +49,28 @@ export const COMBOS: readonly Combo[] = [
   },
 ];
 
+/** Why a `setup` option needs no combination of its own. */
+export interface NoCombination {
+  noCombination: string;
+}
+
+/**
+ * Every option of `bun run setup` (`SETUP_USAGE`) and which combinations choose it (R91). An option
+ * that changes what the project contains is chosen by at least one combination and left out by
+ * another, so both its effect and its default run; one that changes no code says why it needs no
+ * combination. A new option fails test until it is classified here (a value option names each
+ * value: `'--preset lite'`).
+ */
+export const SETUP_OPTION_COVERAGE: Readonly<
+  Record<string, ((combo: Combo) => boolean) | NoCombination>
+> = {
+  '--keep-examples': (combo) => combo.keepExamples,
+  '--no-partner': (combo) => !combo.partner,
+  '--title': { noCombination: 'only the README and portal heading (combination 2 passes one)' },
+  '--description': { noCombination: 'only one line in package.json' },
+  '--dry-run': { noCombination: 'changes nothing' },
+};
+
 export interface CommandResult {
   exitCode: number;
   output: string;
