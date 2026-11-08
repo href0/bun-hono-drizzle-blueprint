@@ -7,6 +7,7 @@ export const ROLE_PERMISSIONS = crudPermissions('roles', 'roles and their permis
 export const USER_ROLE_PERMISSIONS = definePermissions('user-roles', {
   read: 'Read the roles of users',
   create: 'Give roles to users',
+  update: 'Replace the roles of users at once (checklist): gives and revokes',
   delete: 'Revoke roles from users',
 });
 

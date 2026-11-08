@@ -4,6 +4,7 @@ import { uuidChildParamSchema, uuidParamSchema } from '../../core/dto/common.dto
 import { APP_ERROR_CODES } from '../../core/errors';
 import { requirePermission, validate } from '../../core/middlewares';
 import { describeEndpoint } from '../../core/openapi';
+import { accessChangeSchema, replaceUserRolesSchema } from './rbac-replace.dto';
 import { roleResponseSchema } from './rbac-roles.dto';
 import { rbacUserAccessController } from './rbac-user-access.controller';
 import { putGrantSchema, userGrantResponseSchema } from './rbac-user-access.dto';
@@ -40,6 +41,38 @@ rbacUserAccessRouter.get(
   requirePermission(USER_ROLE_PERMISSIONS.read),
   validate({ params: uuidParamSchema }),
   rbacUserAccessController.listRoles,
+);
+rbacUserAccessRouter.put(
+  '/:id/roles',
+  describeEndpoint({
+    tags,
+    summary: 'Replace the roles of a user (a checklist saved at once)',
+    description:
+      'The body is the whole set the user should hold: a role left out is revoked, `[]` revokes every one. Only the difference is written, in one transaction — nothing is saved when one item is refused. 400 for an unknown or repeated id (its index in `details`); 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` naming every permission of a role added or removed that the caller does not hold; `super_admin` only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).',
+    response: {
+      status: 200,
+      description: 'What was added, removed and kept, each by key',
+      message: RBAC_MESSAGES.USER_ROLES_REPLACED,
+      data: accessChangeSchema,
+    },
+    errors: [
+      400,
+      404,
+      409,
+      {
+        status: 403,
+        codes: [
+          APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN,
+          APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+        ],
+      },
+    ],
+  }),
+  // A replace gives and takes: a permission of its own (D75), not create + delete — the allowed
+  // callers of a route are alternatives, so two guards would document "either" (openapi.md).
+  requirePermission(USER_ROLE_PERMISSIONS.update),
+  validate({ params: uuidParamSchema, body: replaceUserRolesSchema }),
+  rbacUserAccessController.replaceRoles,
 );
 rbacUserAccessRouter.put(
   '/:id/roles/:childId',

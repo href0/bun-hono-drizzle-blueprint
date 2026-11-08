@@ -449,6 +449,35 @@ describe('effective permissions (D52, D53)', () => {
     expect([again.added, again.removed]).toEqual([[], []]);
   });
 
+  it('replacing the roles of a user writes only the difference; assignments of a deleted role stay (D72)', async () => {
+    const userId = await insertUser();
+    const [kept, dropped, added, deleted] = [
+      await insertRole(),
+      await insertRole(),
+      await insertRole(),
+      await insertRole(),
+    ];
+    const keptAssignment = await rbacService.assignRole(userId, kept);
+    await rbacService.assignRole(userId, dropped);
+    const deletedAssignment = await rbacService.assignRole(userId, deleted);
+    await db.update(roles).set({ deletedAt: NOW }).where(eq(roles.id, deleted));
+
+    const change = await rbacService.replaceUserRoles(userId, [kept, added]);
+    expect(
+      [change.added, change.removed, change.unchanged].map((items) => items.map(({ id }) => id)),
+    ).toEqual([[added], [dropped], [kept]]);
+    const live = await db
+      .select({ id: userRoles.id, roleId: userRoles.roleId })
+      .from(userRoles)
+      .where(and(eq(userRoles.userId, userId), isNull(userRoles.deletedAt)));
+    expect(live.map(({ roleId }) => roleId).sort()).toEqual([kept, added, deleted].sort());
+    expect(live.find(({ roleId }) => roleId === kept)?.id).toBe(keptAssignment.id);
+    expect(live.find(({ roleId }) => roleId === deleted)?.id).toBe(deletedAssignment.id);
+
+    const again = await rbacService.replaceUserRoles(userId, [added, kept]);
+    expect([again.added, again.removed]).toEqual([[], []]);
+  });
+
   it('gives a super admin every permission and refuses to map that role', async () => {
     const userId = await insertUser();
     await rbacService.assignRole(userId, await roleId('super_admin'));

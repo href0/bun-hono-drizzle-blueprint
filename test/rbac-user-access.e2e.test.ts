@@ -66,6 +66,46 @@ const escalation = () =>
   });
 
 describe('RBAC user access — /users/:id/roles', () => {
+  it('PUT /:id/roles replaces the whole set; guarded by user-roles.update alone (D72, D75)', async () => {
+    const calls: unknown[][] = [];
+    spy('replaceUserRoles', (...args: never[]) => {
+      calls.push(args);
+      return Promise.resolve({
+        added: [{ id: CHILD_ID, key: 'finance_staff' }],
+        removed: [{ id: USER_ID, key: 'auditor' }],
+        unchanged: [],
+      });
+    });
+    const put = async (grant: string[], body: unknown) => {
+      const app = await authorize(createTestApp(), grant);
+      return app.request(`/api/v1/users/${USER_ID}/roles`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(body),
+      });
+    };
+    const holder = ['user-roles.update'];
+
+    const res = await put(holder, { role_ids: [CHILD_ID] });
+    expect(res.status).toBe(200);
+    expect(calls).toEqual([[USER_ID, [CHILD_ID]]]);
+    expect(await res.json()).toMatchObject({
+      message: RBAC_MESSAGES.USER_ROLES_REPLACED.id,
+      data: {
+        added: [{ id: CHILD_ID, key: 'finance_staff' }],
+        removed: [{ id: USER_ID, key: 'auditor' }],
+        unchanged: [],
+      },
+    });
+    expect((await put(holder, {})).status).toBe(400);
+    expect((await put(holder, { role_ids: [CHILD_ID, CHILD_ID] })).status).toBe(400);
+    // The per-item permissions do not open the replace, not even together.
+    expect((await put(['user-roles.create', 'user-roles.delete'], { role_ids: [] })).status).toBe(
+      403,
+    );
+    expect(calls).toHaveLength(1);
+  });
+
   it('GET lists the roles of a user (snake_case)', async () => {
     spy('listUserRoles', () => Promise.resolve([role]));
     const app = await authorize(createTestApp(), ['user-roles.read']);

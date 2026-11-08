@@ -176,17 +176,7 @@ export class RbacService {
       // D74: taking a role away needs what it carries, like giving it.
       await requireActorHolds(await this.countingKeysOf(roleId));
     }
-    if (role?.key === SUPER_ADMIN_ROLE) {
-      await requireActorIsSuperAdmin();
-      if (actorUserId() === userId) {
-        throw new ForbiddenError(RBAC_MESSAGES.OWN_SUPER_ADMIN, {
-          code: APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
-        });
-      }
-      if ((await this.superAdmins.lockOtherActiveHolders(userId)).length === 0) {
-        throw new ConflictError(RBAC_MESSAGES.LAST_SUPER_ADMIN);
-      }
-    }
+    if (role?.key === SUPER_ADMIN_ROLE) await this.requireSuperAdminRevocable(userId);
     const assignment = await this.userRolesRepo.findLive(userId, roleId);
     if (!assignment) throw new NotFoundError(rbacRoleNotAssignedMessage(userId, roleId));
     await this.userRolesRepo.softDeleteById(assignment.id);
@@ -266,6 +256,56 @@ export class RbacService {
       unchanged: mappings
         .filter((row) => diff.unchanged.includes(row.permission.id))
         .map((row) => changedItem(row.permission)),
+    };
+  }
+
+  /**
+   * Replaces the roles of a user with `roleIds` (D72) — only the difference is written, every
+   * check before the first write: the user is live, every added role is live (400 naming its
+   * index), the caller holds every permission of each role added or removed (D69, D74, one 403
+   * naming all), `super_admin` is given or taken only by a super admin, never from oneself, never
+   * from the last active holder. The user's cache is dropped once, only when something changed.
+   */
+  @Transactional()
+  async replaceUserRoles(userId: string, roleIds: readonly string[]): Promise<AccessChange> {
+    await this.requireLiveUser(userId);
+    const assignments = await this.userRolesRepo.findAssignmentsOf(userId);
+    const diff = diffIds(
+      assignments.map(({ role }) => role.id),
+      roleIds,
+    );
+    const adding = await this.rolesRepo.findLiveByIds(diff.added);
+    refuseUnknown(
+      diff.added,
+      adding,
+      (id) => `roleIds.${String(roleIds.indexOf(id))}`,
+      RBAC_MESSAGES.ROLE_NOT_ASSIGNABLE,
+    );
+    const removing = assignments.filter(({ role }) => diff.removed.includes(role.id));
+    const touched = [...adding, ...removing.map(({ role }) => role)];
+    if (touched.some(({ key }) => key === SUPER_ADMIN_ROLE)) await requireActorIsSuperAdmin();
+    const carried = new Set<string>();
+    for (const role of touched.filter(({ key }) => key !== SUPER_ADMIN_ROLE)) {
+      for (const key of await this.countingKeysOf(role.id)) carried.add(key);
+    }
+    await requireActorHolds([...carried].sort());
+    if (removing.some(({ role }) => role.key === SUPER_ADMIN_ROLE)) {
+      await this.requireSuperAdminRevocable(userId);
+    }
+    for (const role of adding) {
+      await this.createUnique(
+        () => this.userRolesRepo.create({ userId, roleId: role.id }),
+        RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED,
+      );
+    }
+    for (const { assignment } of removing) await this.userRolesRepo.softDeleteById(assignment.id);
+    if (touched.length > 0) await this.forget([userId]);
+    return {
+      added: adding.map(changedItem),
+      removed: removing.map(({ role }) => changedItem(role)),
+      unchanged: assignments
+        .filter(({ role }) => diff.unchanged.includes(role.id))
+        .map(({ role }) => changedItem(role)),
     };
   }
 
@@ -413,26 +453,31 @@ export class RbacService {
     if (permission) await requireActorHolds([permission.key]);
   }
 
-  /**
-   * The permissions of `ids`, each of which must be grantable (live, not retired) — otherwise 400
-   * with one detail per refused id at `fieldOf(id)` (its place in the request body).
-   */
+  /** The permissions of `ids`, each grantable (live, not retired) — otherwise 400 at `fieldOf(id)`. */
   private async requireGrantableAll(
     ids: readonly string[],
     fieldOf: (id: string) => string,
   ): Promise<Permission[]> {
     const found = await this.permissionsRepo.findGrantableByIds(ids);
-    const known = new Set(found.map(({ id }) => id));
-    const refused = ids.filter((id) => !known.has(id));
-    if (refused.length > 0) {
-      throw new ValidationError(undefined, {
-        details: refused.map((id) => ({
-          field: fieldOf(id),
-          message: RBAC_MESSAGES.PERMISSION_NOT_GRANTABLE,
-        })),
+    refuseUnknown(ids, found, fieldOf, RBAC_MESSAGES.PERMISSION_NOT_GRANTABLE);
+    return found;
+  }
+
+  /**
+   * `super_admin` is taken only by a super admin (403), never from oneself (403
+   * `ERR_SELF_LOCKOUT_FORBIDDEN`), never from the last live, active holder (409 — the holders are
+   * locked, so two concurrent revocations cannot both pass).
+   */
+  private async requireSuperAdminRevocable(userId: string): Promise<void> {
+    await requireActorIsSuperAdmin();
+    if (actorUserId() === userId) {
+      throw new ForbiddenError(RBAC_MESSAGES.OWN_SUPER_ADMIN, {
+        code: APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
       });
     }
-    return found;
+    if ((await this.superAdmins.lockOtherActiveHolders(userId)).length === 0) {
+      throw new ConflictError(RBAC_MESSAGES.LAST_SUPER_ADMIN);
+    }
   }
 
   private async requireGrantablePermission(permissionId: string): Promise<Permission> {
@@ -445,3 +490,22 @@ export class RbacService {
 export const rbacService = new RbacService();
 
 const changedItem = ({ id, key }: { id: string; key: string }): ChangedItem => ({ id, key });
+
+/**
+ * 400 when some of `ids` were not `found`: one detail per refused id at `fieldOf(id)` — its place
+ * in the request body — so the frontend can mark it.
+ */
+const refuseUnknown = (
+  ids: readonly string[],
+  found: readonly { id: string }[],
+  fieldOf: (id: string) => string,
+  message: (typeof RBAC_MESSAGES)[keyof typeof RBAC_MESSAGES],
+): void => {
+  const known = new Set(found.map(({ id }) => id));
+  const refused = ids.filter((id) => !known.has(id));
+  if (refused.length > 0) {
+    throw new ValidationError(undefined, {
+      details: refused.map((id) => ({ field: fieldOf(id), message })),
+    });
+  }
+};

@@ -22,6 +22,15 @@ export const RBAC_MESSAGES = {
     id: 'Permission tidak dikenal atau sudah tidak berlaku',
     en: 'Unknown or retired permission',
   },
+  /** One detail of a replace refused with 400: no live role has that id. */
+  ROLE_NOT_ASSIGNABLE: {
+    id: 'Role tidak dikenal',
+    en: 'Unknown role',
+  },
+  USER_ROLES_REPLACED: {
+    id: 'Role pengguna berhasil diperbarui',
+    en: 'The roles of the user updated',
+  },
   ROLE_PERMISSIONS_REPLACED: {
     id: 'Permission role berhasil diperbarui',
     en: 'The permissions of the role updated',
