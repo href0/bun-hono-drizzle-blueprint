@@ -2,6 +2,23 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
+## [Unreleased]
+
+### Added
+
+- **RBAC checklists** (D72, D73): `GET /permissions/options` and `GET /roles/options` list every choice at once (not paginated) with `grantable`; `PUT /roles/:id/permissions`, `PUT /users/:id/roles` and `PUT /users/:id/permissions` save a whole relation in one transaction, writing only the difference and answering `added` / `removed` / `unchanged` (`updated` for grants). The per-item routes stay. Frontend guide: `docs/auth-guide.md` (*Layar checklist RBAC*).
+- The 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` names each permission the caller lacks in `details` (`field` = the key).
+
+### Changed
+
+- **Revoking needs what it takes** (D74): unmapping a permission from a role, revoking a role or an extra permission from a user now needs every permission taken, like giving it — an administrator with fewer permissions than before may now get a 403 there. A permission that no longer counts (retired, deleted) is taken without it.
+
+### Upgrading a project
+
+1. Port the commits of this release outside the example modules ([git-workflow.md](docs/standards/git-workflow.md) §1.2); no migration — `bun run env dev db:migrate` syncs the two new permissions `user-roles.update` and `user-permissions.update` (D75).
+2. Only `super_admin` holds them at first: map them to the administrator roles that use the user checklists (`PUT /api/v1/roles/:id/permissions`, with `roles.read` / `permissions.read` for the catalogs — see the table in `docs/auth-guide.md`).
+3. Frontends saving a checklist send the whole set: what is left out is revoked — the default role `user` and the `expires_at` / `note` of a grant included.
+
 ## [2.0.0] - 2026-11-07
 
 **Breaking (MAJOR, D61).** Authorization moves from one role per user to permissions kept in the database (D46–D61, D64–D71): every route names the permission it checks, administrators manage roles, role permissions, menu permissions and per-user grants through an API, and no administrator can give more than they hold. The role leaves the access token and the `users` table. Every local command now names its environment (D62). A project that is already set up follows *Upgrading a project* below.
