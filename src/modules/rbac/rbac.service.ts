@@ -36,7 +36,7 @@ import {
   rbacUserPermissionsRepository,
   type ActiveGrant,
 } from './rbac-user-permissions.repository';
-import type { AccessChange, ChangedItem } from './rbac-replace.dto';
+import type { AccessChange, ChangedItem, GrantChange, GrantItem } from './rbac-replace.dto';
 import { diffIds } from './rbac-replace.util';
 import type { GrantWithPermission } from './rbac-user-access.dto';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
@@ -309,6 +309,87 @@ export class RbacService {
     };
   }
 
+  /**
+   * Replaces the extra permissions of a user with `grants` (D72), each with its expiry and note:
+   * new grants created, missing ones revoked, kept ones with another expiry or note `updated`, the
+   * rest untouched — an expired grant sent back as it is stays unchanged. Every check before the
+   * first write: the user is live, every permission granted or updated can be given (400 at its
+   * index) with an expiry in the future (400), and the caller holds every permission granted,
+   * updated or revoked that still counts (D74, one 403 naming all). The user's cache is dropped
+   * once, only when something changed.
+   */
+  @Transactional()
+  async replaceUserGrants(userId: string, grants: readonly GrantItem[]): Promise<GrantChange> {
+    await this.requireLiveUser(userId);
+    const current = await this.userPermissionsRepo.findGrantsOf(userId);
+    const wanted = new Map(grants.map((item, index) => [item.permissionId, { item, index }]));
+    const diff = diffIds(
+      current.map(({ permission }) => permission.id),
+      grants.map(({ permissionId }) => permissionId),
+    );
+    const kept = current.filter(({ permission }) => diff.unchanged.includes(permission.id));
+    const updating = kept.filter(({ grant, permission }) => {
+      const want = wanted.get(permission.id)?.item;
+      return want !== undefined && !sameGrant(grant, want);
+    });
+    const removing = current.filter(({ permission }) => diff.removed.includes(permission.id));
+    const writing = [...diff.added, ...updating.map(({ permission }) => permission.id)];
+    const indexOf = (id: string): string => String(wanted.get(id)?.index ?? -1);
+    const grantable = await this.requireGrantableAll(
+      writing,
+      (id) => `grants.${indexOf(id)}.permissionId`,
+    );
+    const past = writing.filter((id) => {
+      const expiresAt = wanted.get(id)?.item.expiresAt ?? null;
+      return expiresAt !== null && Temporal.Instant.compare(expiresAt, nowInstant()) <= 0;
+    });
+    if (past.length > 0) {
+      throw new ValidationError(undefined, {
+        details: past.map((id) => ({
+          field: `grants.${indexOf(id)}.expiresAt`,
+          message: RBAC_MESSAGES.EXPIRY_IN_PAST,
+        })),
+      });
+    }
+    await requireActorHolds([
+      ...grantable.map(({ key }) => key),
+      ...removing
+        .filter(({ permission }) => permission.retiredAt === null)
+        .map(({ permission }) => permission.key),
+    ]);
+    const adding = grantable.filter(({ id }) => diff.added.includes(id));
+    for (const permission of adding) {
+      const item = wanted.get(permission.id)?.item;
+      await this.createUnique(
+        () =>
+          this.userPermissionsRepo.create({
+            userId,
+            permissionId: permission.id,
+            expiresAt: item?.expiresAt ?? null,
+            note: item?.note ?? null,
+          }),
+        RBAC_MESSAGES.PERMISSION_ALREADY_GRANTED,
+      );
+    }
+    for (const { grant, permission } of updating) {
+      const item = wanted.get(permission.id)?.item;
+      await this.userPermissionsRepo.updateById(grant.id, {
+        expiresAt: item?.expiresAt ?? null,
+        note: item?.note ?? null,
+      });
+    }
+    for (const { grant } of removing) await this.userPermissionsRepo.softDeleteById(grant.id);
+    if (adding.length + updating.length + removing.length > 0) await this.forget([userId]);
+    return {
+      added: adding.map(changedItem),
+      updated: updating.map(({ permission }) => changedItem(permission)),
+      removed: removing.map(({ permission }) => changedItem(permission)),
+      unchanged: kept
+        .filter((row) => !updating.includes(row))
+        .map(({ permission }) => changedItem(permission)),
+    };
+  }
+
   /** An extra permission for one user, optionally until `expiresAt` (D51). */
   @Transactional()
   async grantPermission(
@@ -508,4 +589,21 @@ const refuseUnknown = (
       details: refused.map((id) => ({ field: fieldOf(id), message })),
     });
   }
+};
+
+/**
+ * Does the live grant already have the expiry and note `want` asks for (absent = none)? Expiries
+ * compare to the millisecond: the API sends them with milliseconds (`toIsoUtc`) while PostgreSQL
+ * keeps microseconds, so a grant read and sent back as it is must count as unchanged.
+ */
+const sameGrant = (
+  grant: { expiresAt: Temporal.Instant | null; note: string | null },
+  want: GrantItem,
+): boolean => {
+  const expiresAt = want.expiresAt ?? null;
+  const sameExpiry =
+    expiresAt === null || grant.expiresAt === null
+      ? expiresAt === grant.expiresAt
+      : expiresAt.epochMilliseconds === grant.expiresAt.epochMilliseconds;
+  return sameExpiry && (want.note ?? null) === grant.note;
 };

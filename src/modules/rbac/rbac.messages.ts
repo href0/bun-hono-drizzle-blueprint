@@ -27,6 +27,10 @@ export const RBAC_MESSAGES = {
     id: 'Role tidak dikenal',
     en: 'Unknown role',
   },
+  USER_PERMISSIONS_REPLACED: {
+    id: 'Permission tambahan pengguna berhasil diperbarui',
+    en: 'The extra permissions of the user updated',
+  },
   USER_ROLES_REPLACED: {
     id: 'Role pengguna berhasil diperbarui',
     en: 'The roles of the user updated',

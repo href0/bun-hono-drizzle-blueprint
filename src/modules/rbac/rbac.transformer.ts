@@ -12,7 +12,7 @@ import type {
   PermissionResponse,
   PermissionSource,
 } from './rbac-permissions.dto';
-import type { AccessChange, ChangedItem } from './rbac-replace.dto';
+import type { AccessChange, ChangedItem, GrantChange } from './rbac-replace.dto';
 import type { RoleResponse } from './rbac-roles.dto';
 
 export const toRoleResponse = (role: Role): RoleResponse => ({
@@ -108,4 +108,10 @@ export const toAccessChangeResponse = (change: AccessChange): AccessChange => ({
   added: byKey(change.added),
   removed: byKey(change.removed),
   unchanged: byKey(change.unchanged),
+});
+
+/** What a replace of grants did (D72): also the grants whose expiry or note changed. */
+export const toGrantChangeResponse = (change: GrantChange): GrantChange => ({
+  ...toAccessChangeResponse(change),
+  updated: byKey(change.updated),
 });

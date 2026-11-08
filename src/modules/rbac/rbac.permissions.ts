@@ -15,6 +15,7 @@ export const USER_ROLE_PERMISSIONS = definePermissions('user-roles', {
 export const USER_PERMISSION_PERMISSIONS = definePermissions('user-permissions', {
   read: 'Read the extra permissions of users',
   create: 'Grant extra permissions to users and change their expiry',
+  update: 'Replace the extra permissions of users at once (checklist): grants, changes and revokes',
   delete: 'Revoke extra permissions from users',
 });
 
