@@ -12,6 +12,7 @@ import type {
   PermissionResponse,
   PermissionSource,
 } from './rbac-permissions.dto';
+import type { AccessChange, ChangedItem } from './rbac-replace.dto';
 import type { RoleResponse } from './rbac-roles.dto';
 
 export const toRoleResponse = (role: Role): RoleResponse => ({
@@ -97,4 +98,14 @@ export const toMyPermissionsResponse = (
 ): MyPermissionsResponse => ({
   superAdmin: effective.superAdmin,
   permissions: [...effective.permissions].sort(),
+});
+
+const byKey = (items: readonly ChangedItem[]): ChangedItem[] =>
+  items.toSorted((a, b) => a.key.localeCompare(b.key));
+
+/** What a replace did (D72), each list by key. */
+export const toAccessChangeResponse = (change: AccessChange): AccessChange => ({
+  added: byKey(change.added),
+  removed: byKey(change.removed),
+  unchanged: byKey(change.unchanged),
 });

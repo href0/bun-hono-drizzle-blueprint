@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNotNull, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, isNull, or } from 'drizzle-orm';
 import {
   BaseRepository,
   defaultTxHost,
@@ -37,6 +37,15 @@ export class RbacPermissionsRepository extends BaseRepository<typeof permissions
       .where(this.scoped(eq(permissions.id, id), isNull(permissions.retiredAt)))
       .limit(1);
     return rows.at(0) ?? null;
+  }
+
+  /** The permissions among `ids` that can be given (live, not retired); unknown ids are left out. */
+  async findGrantableByIds(ids: readonly string[]): Promise<Permission[]> {
+    if (ids.length === 0) return [];
+    return this.txHost.tx
+      .select()
+      .from(permissions)
+      .where(this.scoped(inArray(permissions.id, [...ids]), isNull(permissions.retiredAt)));
   }
 
   /** The permission with this id, soft-deleted or not (to check what a restore would bring back). */

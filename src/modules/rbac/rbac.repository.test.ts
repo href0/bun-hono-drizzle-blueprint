@@ -99,6 +99,25 @@ describe('RBAC repositories (SQL shape)', () => {
     expect(lastSql()).toContain('"role_permissions"."deleted_at" is null');
   });
 
+  it('replace (D72): the live mappings of a role with live permissions; grantable among many ids', async () => {
+    expect(await new RbacRolePermissionsRepository(recorder.txHost).findMappingsOf('r1')).toEqual(
+      [],
+    );
+    expect(lastSql()).toContain('"role_permissions"."deleted_at" is null');
+    // Deleted permissions are left out (their mappings wait for a restore); retired ones are not.
+    expect(lastSql()).toContain('"permissions"."deleted_at" is null');
+    expect(lastSql()).not.toContain('retired_at" is null');
+
+    const permissions = new RbacPermissionsRepository(recorder.txHost);
+    recorder.reset();
+    expect(await permissions.findGrantableByIds([])).toEqual([]);
+    expect(recorder.statements).toEqual([]);
+    expect(await permissions.findGrantableByIds(['p1', 'p2'])).toEqual([]);
+    expect(lastSql()).toContain('"permissions"."id" in (');
+    expect(lastSql()).toContain('"permissions"."retired_at" is null');
+    expect(lastSql()).toContain('"permissions"."deleted_at" is null');
+  });
+
   it('user roles: live assignment, holders, live user, role keys and permissions through roles', async () => {
     const repository = new RbacUserRolesRepository(recorder.txHost);
     expect(await repository.findLive('u1', 'r1')).toBeNull();
