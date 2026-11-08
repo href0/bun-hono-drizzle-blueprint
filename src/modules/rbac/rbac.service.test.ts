@@ -364,6 +364,131 @@ describe('RbacService', () => {
     });
   });
 
+  describe('replaceUserRoles (D72, D74)', () => {
+    /** What each role carries (`findMappedToRole`). */
+    const CARRIES: Record<string, string[]> = {
+      'role-staff': ['orders.read'],
+      'role-auditor': ['reports.read'],
+      'role-user': [],
+    };
+    let given: string[];
+    let revoked: string[];
+    const asCaller = <T>(id: string, held: string[] | 'root', fn: () => Promise<T>) =>
+      runWithRequestContext(
+        {
+          requestId: 'r1',
+          locale: 'en',
+          clientIp: 'unknown',
+          actor: `user:${id}`,
+          user: { id },
+          permissions: () =>
+            Promise.resolve(
+              held === 'root'
+                ? { superAdmin: true, permissions: [] }
+                : { superAdmin: false, permissions: held },
+            ),
+        },
+        () => inTx(fn),
+      );
+    const replace = (ids: string[]) => service().replaceUserRoles('u1', ids);
+    const keys = (items: { key: string }[]) => items.map(({ key }) => key);
+    const holding = (...assigned: string[]) => {
+      userRoles.findAssignmentsOf = () =>
+        Promise.resolve(
+          assigned.map((key) => ({ assignment: { id: `ur-${key}` }, role: role(key) })),
+        );
+    };
+
+    beforeEach(() => {
+      given = [];
+      revoked = [];
+      holding('staff', 'user');
+      roles.findLiveByIds = (ids: string[]) =>
+        Promise.resolve(
+          ids.filter((id) => id !== 'role-gone').map((id) => role(id.replace('role-', ''))),
+        );
+      permissions.findMappedToRole = (roleId: string) =>
+        Promise.resolve((CARRIES[roleId] ?? []).map((key) => ({ key, retiredAt: null })));
+      userRoles.create = (input: { roleId: string }) => {
+        given.push(input.roleId);
+        return Promise.resolve({});
+      };
+      userRoles.softDeleteById = (id: string) => {
+        revoked.push(id);
+        return Promise.resolve({});
+      };
+    });
+
+    it('writes only the difference, drops the user’s cache once, reports each part', async () => {
+      const change = await asCaller('a1', ['orders.read', 'reports.read'], () =>
+        replace(['role-user', 'role-auditor']),
+      );
+      expect([given, revoked]).toEqual([['role-auditor'], ['ur-staff']]);
+      expect(memory.deleted).toEqual(['rbac:permissions:u1']);
+      expect([keys(change.added), keys(change.removed), keys(change.unchanged)]).toEqual([
+        ['auditor'],
+        ['staff'],
+        ['user'],
+      ]);
+    });
+
+    it('the same set writes nothing and drops no cache; an unknown role is a 400 at its index', async () => {
+      await asCaller('a1', [], () => replace(['role-user', 'role-staff']));
+      expect([given, revoked, memory.deleted]).toEqual([[], [], []]);
+
+      const error = await errorOf(
+        asCaller('a1', 'root', () => replace(['role-user', 'role-gone'])),
+      );
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).details.map(({ field }) => field)).toEqual(['roleIds.1']);
+      expect([given, revoked]).toEqual([[], []]);
+    });
+
+    it('the caller must hold what every role added or removed carries: one 403 naming all', async () => {
+      // Adds auditor (reports.read) and removes staff (orders.read); holds neither.
+      const error = await errorOf(asCaller('a1', [], () => replace(['role-user', 'role-auditor'])));
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as ForbiddenError).details.map(({ field }) => field)).toEqual([
+        'orders.read',
+        'reports.read',
+      ]);
+      expect([given, revoked, memory.deleted]).toEqual([[], [], []]);
+    });
+
+    it('super_admin: only by a super admin, never one’s own, never the last active holder', async () => {
+      const codeOf = async (promise: Promise<unknown>) => {
+        const error = await errorOf(promise);
+        return error instanceof ForbiddenError || error instanceof ConflictError
+          ? error.errorCode
+          : String(error);
+      };
+      const everything = ['orders.read', 'reports.read'];
+      expect(
+        await codeOf(asCaller('a1', everything, () => replace(['role-staff', 'role-super_admin']))),
+      ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
+
+      holding('super_admin', 'user');
+      otherSuperAdmins = ['u2'];
+      expect(await codeOf(asCaller('u1', 'root', () => replace(['role-user'])))).toBe(
+        APP_ERROR_CODES.SELF_LOCKOUT_FORBIDDEN,
+      );
+      otherSuperAdmins = [];
+      expect(await codeOf(asCaller('root', 'root', () => replace(['role-user'])))).toBe(
+        APP_ERROR_CODES.CONFLICT,
+      );
+      expect([given, revoked]).toEqual([[], []]);
+
+      otherSuperAdmins = ['u2'];
+      await asCaller('root', 'root', () => replace(['role-user']));
+      expect(revoked).toEqual(['ur-super_admin']);
+    });
+
+    it('a user who is gone is a 404', async () => {
+      userRoles.isLiveUser = () => Promise.resolve(false);
+      expect(await errorOf(inTx(() => replace([])))).toBeInstanceOf(NotFoundError);
+    });
+  });
+
   describe('refusals', () => {
     it('never maps the super admin role (it holds everything)', async () => {
       for (const change of <(() => Promise<unknown>)[]>[

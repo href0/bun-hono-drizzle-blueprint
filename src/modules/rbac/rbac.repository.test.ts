@@ -99,6 +99,20 @@ describe('RBAC repositories (SQL shape)', () => {
     expect(lastSql()).toContain('"role_permissions"."deleted_at" is null');
   });
 
+  it('replace (D72): the live assignments of a user with live roles; live roles among many ids', async () => {
+    expect(await new RbacUserRolesRepository(recorder.txHost).findAssignmentsOf('u1')).toEqual([]);
+    expect(lastSql()).toContain('"user_roles"."deleted_at" is null');
+    expect(lastSql()).toContain('"roles"."deleted_at" is null');
+
+    const rolesRepo = new RbacRolesRepository(recorder.txHost);
+    recorder.reset();
+    expect(await rolesRepo.findLiveByIds([])).toEqual([]);
+    expect(recorder.statements).toEqual([]);
+    expect(await rolesRepo.findLiveByIds(['r1', 'r2'])).toEqual([]);
+    expect(lastSql()).toContain('"roles"."id" in (');
+    expect(lastSql()).toContain('"roles"."deleted_at" is null');
+  });
+
   it('replace (D72): the live mappings of a role with live permissions; grantable among many ids', async () => {
     expect(await new RbacRolePermissionsRepository(recorder.txHost).findMappingsOf('r1')).toEqual(
       [],

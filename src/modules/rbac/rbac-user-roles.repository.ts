@@ -54,6 +54,22 @@ export class RbacUserRolesRepository extends BaseRepository<typeof userRoles> {
     return rows.map((row) => row.role);
   }
 
+  /**
+   * The live assignments of `userId` with their live role, by key — a deleted role is left out: its
+   * assignments wait for a restore of the role.
+   */
+  async findAssignmentsOf(userId: string): Promise<{ assignment: UserRole; role: Role }[]> {
+    return this.txHost.tx
+      .select({ assignment: userRoles, role: roles })
+      .from(userRoles)
+      .innerJoin(
+        roles,
+        and(eq(roles.id, userRoles.roleId), isNull(roles.deletedAt), rbacScope(roles)),
+      )
+      .where(this.scoped(eq(userRoles.userId, userId)))
+      .orderBy(asc(roles.key));
+  }
+
   /** Is `userId` a live user? Roles and permissions are given to live users only. */
   async isLiveUser(userId: string): Promise<boolean> {
     const rows = await this.txHost.tx

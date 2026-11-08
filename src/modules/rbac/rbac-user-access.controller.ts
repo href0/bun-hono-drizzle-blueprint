@@ -6,9 +6,11 @@ import {
   getValidatedParams,
 } from '../../core/middlewares';
 import { ApiResponse } from '../../core/response';
+import type { ReplaceUserRolesDto } from './rbac-replace.dto';
 import type { PutGrantDto } from './rbac-user-access.dto';
 import { RbacService, rbacService } from './rbac.service';
 import {
+  toAccessChangeResponse,
   toMyPermissionsResponse,
   toRoleListResponse,
   toUserGrantListResponse,
@@ -32,6 +34,13 @@ export class RbacUserAccessController {
     return created
       ? new ApiResponse(null, RBAC_MESSAGES.USER_ROLE_ASSIGNED, 201)
       : new ApiResponse(null, RBAC_MESSAGES.ROLE_ALREADY_ASSIGNED, 200);
+  });
+
+  replaceRoles = asyncHandler(async (c) => {
+    const { id } = getValidatedParams<UuidParamDto>(c);
+    const { roleIds } = getValidatedBody<ReplaceUserRolesDto>(c);
+    const change = await this.service.replaceUserRoles(id, roleIds);
+    return new ApiResponse(toAccessChangeResponse(change), RBAC_MESSAGES.USER_ROLES_REPLACED, 200);
   });
 
   revokeRole = asyncHandler(async (c) => {

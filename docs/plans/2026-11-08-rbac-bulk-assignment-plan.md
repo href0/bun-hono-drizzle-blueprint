@@ -2,15 +2,15 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — langkah 3 + checkpoint menunggu review |
+| Status | IN PROGRESS — langkah 4 menunggu review |
 | Tanggal | 2026-11-08 |
 | Tujuan | Frontend bisa menampilkan checklist permission / role untuk satu role atau satu user, lalu menyimpannya dalam **satu request atomik**, tanpa mengirim N request per item. Endpoint per item yang ada tetap berlaku (perubahan aditif, rilis MINOR `v2.1.0`). |
 
 ## Lanjut dari sini
 
-**Posisi repo**: branch `feat/rbac-bulk-assignment`; langkah 1 (`2bc904e`) dan 2 (`e5adb62`) di-commit; langkah 3 + perbaikan dokumen dari checkpoint di working tree, belum di-commit. `openapi:check`: 1 safe (operation added) — user menjalankan `bun run openapi:update`.
+**Posisi repo**: branch `feat/rbac-bulk-assignment`; langkah 1–3 di-commit (`2bc904e`, `e5adb62`, `bea6372`); langkah 4 di working tree, belum di-commit. `openapi:check`: endpoint baru (safe) — user menjalankan `bun run openapi:update`.
 **Sudah diputuskan — jangan tanya lagi** (2026-11-08): D72–D76 di bawah. Dikerjakan sebelum plan `feature:enable`.
-**Berikutnya**: review langkah 3 dan hasil checkpoint → `openapi:update` + commit oleh user → langkah 4 (`PUT /users/:id/roles`).
+**Berikutnya**: review langkah 4 → `openapi:update` + commit oleh user → langkah 5 (`PUT /users/:id/permissions`, guard `user-permissions.update`).
 
 ## Konteks
 
@@ -23,7 +23,7 @@ Saat ini (v2.0.0, D68) semua penulisan RBAC per item: `PUT` / `DELETE /roles/:id
 | D72 | Penyimpanan checklist = **replace** per relasi: `PUT /roles/:id/permissions` `{ permission_ids }`, `PUT /users/:id/roles` `{ role_ids }`, `PUT /users/:id/permissions` `{ grants: [{ permission_id, expires_at?, note? }] }`. Body = keadaan akhir; yang tidak dikirim dicabut. Server membandingkan dengan baris hidup dan **hanya menyentuh yang berubah** (insert yang baru, soft delete yang hilang, update `expires_at` / `note` grant), dalam satu transaksi; `unchanged` tidak disentuh. Field wajib ada (`{}` → 400), `[]` = cabut semua, ID duplikat / tidak dikenal / retired → 400 dengan index. Respons 200 `{ added, removed, unchanged }` (+ `updated` untuk grant), tiap item `{ id, key }`. Invalidasi cache sekali setelah commit, hanya bila ada perubahan (R88). Endpoint per item tetap | replace / delta `{ add, remove }` / per item paralel | replace | Cocok dengan checklist yang menampilkan semua dan disimpan sekali; atomik dan idempoten; audit per baris tetap bermakna |
 | D73 | `GET /permissions/options`: semua permission hidup dan tidak retired, **tanpa paginasi**, dikelompokkan per `group` (urut group, lalu key), tiap item `{ id, key, label, source, grantable }` — `grantable` = pemanggil memegangnya (super admin: semua). `GET /permissions` tetap dipaginasi (layar manajemen dengan filter dan endpoint) | tanpa paginasi / naikkan `per_page` | endpoint baru tanpa paginasi | Jumlah permission tumbuh per modul, bukan per transaksi; paginasi seragam D41 / R85 tetap tanpa pengecualian; FE bisa menonaktifkan kotak yang pasti ditolak |
 | D74 | **Escalation juga saat mencabut**: siapa pun yang mencabut permission dari role, mencabut role dari user, atau mencabut grant user harus memegang setiap permission yang terlibat (perluasan D69) — berlaku di endpoint replace **dan** `DELETE` per item. 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN` dengan `details` berisi key yang ditolak. Aturan `super_admin` (hanya super admin, tidak dari diri sendiri, bukan super admin terakhir) tidak berubah | hanya replace / replace + per item / tidak sama sekali | replace + per item | Admin terbatas tidak bisa menghapus akses yang tidak bisa ia kembalikan; satu aturan di dua jalur — jalur per item tidak menjadi celah |
-| D75 | Guard route replace (R89): `PUT /roles/:id/permissions` → `roles.update` (sama dengan per item); `PUT /users/:id/roles` → `user-roles.create` **dan** `user-roles.delete`; `PUT /users/:id/permissions` → `user-permissions.create` **dan** `user-permissions.delete`; `GET /permissions/options` → `permissions.read` | izin statis gabungan / izin dinamis sesuai beda | statis gabungan | Replace bisa menambah dan mencabut; guard tetap dicek sebelum validasi (R89) tanpa membaca isi body |
+| D75 | Guard route replace (R89): `PUT /roles/:id/permissions` → `roles.update` (sama dengan per item); `PUT /users/:id/roles` → permission baru **`user-roles.update`**; `PUT /users/:id/permissions` → permission baru **`user-permissions.update`**; `GET /permissions/options` → `permissions.read`. Permission `.update` bisa dipetakan ke role mana pun oleh yang memegangnya (D69); super admin memegangnya otomatis; proyek turunan memetakannya ke role admin-nya setelah upgrade (CHANGELOG). *Revisi 2026-11-08 (langkah 4)*: semula `create` **dan** `delete` (dua guard) — ditolak karena `x-allowed-callers` berisi alternatif (`openapi.md`), sehingga dua guard terdokumentasi sebagai "salah satu" dan `permissionEndpointsOf` mencantumkan route itu di bawah `create` | `create` + `delete` / permission `.update` / guard "semua dari" di core / `create` + cek `delete` di service | permission `.update` | Kontrak dan daftar endpoint per permission tetap akurat tanpa mengubah core; sama dengan pola role (`roles.update` menjaga tambah, cabut dan replace); "ganti seluruh set" memang setara memberi + mencabut |
 | D76 | Dua admin menyimpan role yang sama bersamaan → yang terakhir menang (tanpa optimistic lock); optimistic lock (`If-Match` / versi) masuk Backlog | last write wins / optimistic lock | last write wins | Layar admin RBAC jarang diedit bersamaan; unique index baris hidup tetap mencegah duplikat |
 
 ## Langkah
@@ -32,8 +32,8 @@ Saat ini (v2.0.0, D68) semua penulisan RBAC per item: `PUT` / `DELETE /roles/:id
 |---|---|---|---|---|
 | 1 | Katalog `GET /permissions/options` (D73, D75) |  | ✅ | `2bc904e` |
 | 2 | Escalation saat mencabut di endpoint `DELETE` per item (D74) |  | ✅ | `e5adb62` |
-| 3 | Mekanisme replace + `PUT /roles/:id/permissions` (D72, D74, D75) | 🔍 | 👀 |  |
-| 4 | `PUT /users/:id/roles` (D72, D74, D75; aturan `super_admin`) |  | ⬜ |  |
+| 3 | Mekanisme replace + `PUT /roles/:id/permissions` (D72, D74, D75) | 🔍 | ✅ | `bea6372` |
+| 4 | `PUT /users/:id/roles` (D72, D74, D75; aturan `super_admin`) |  | 👀 |  |
 | 5 | `PUT /users/:id/permissions` dengan `expires_at` / `note` (D72, D74, D75) |  | ⬜ |  |
 | 6 | Dokumen dan acceptance: `docs/standards/auth-and-inbound.md`, langkah HTTP acceptance bila perlu, kontrak API (`openapi:update` oleh user) | 🔍 | ⬜ |  |
 | 7 | Review penutupan (`README.md` → *Review checkpoints*) | 🔍 | ⬜ |  |
@@ -78,13 +78,13 @@ Checkpoint: setelah langkah 3 (pola kontrak replace pertama ditetapkan, langkah 
 **Langkah**: DTO `{ role_ids }`; memakai helper beda; per role yang ditambah / dicabut: aturan memberi dan mencabut yang ada (`super_admin` hanya oleh super admin, tidak mencabut dari diri sendiri, super admin terakhir → 409 dengan kunci baris pemegang lain seperti `revokeRole`), escalation D74; `forget([userId])` sekali.
 
 **Selesai bila**:
-- [ ] Test service: setiap aturan `super_admin` lewat replace (tambah, cabut diri sendiri, terakhir), escalation tambah dan cabut, rollback seluruhnya bila satu ditolak, tanpa perubahan → tanpa tulis
-- [ ] Test e2e: 200 ringkasan; 403 bila hanya memegang salah satu dari `user-roles.create` / `.delete` (D75)
-- [ ] Gate hijau
+- [x] Test service: setiap aturan `super_admin` lewat replace (tambah, cabut diri sendiri, terakhir), escalation tambah dan cabut (satu 403 menyebut semua key), tidak ada tulis bila satu ditolak, tanpa perubahan → tanpa tulis; `test:int`: assignment yang tetap sama `id`, assignment role yang dihapus tetap
+- [x] Test e2e: 200 ringkasan; 403 dengan `user-roles.create` + `.delete` tanpa `.update` (D75 revisi)
+- [x] Gate hijau kecuali `openapi:check` (1 safe)
 
 ### Langkah 5 — `PUT /users/:id/permissions`
 
-**Langkah**: DTO `{ grants: [{ permission_id, expires_at?, note? }] }` (`expires_at` di masa depan, seperti `putGrantSchema`); helper beda + kelompok `updated` bila `expires_at` / `note` berubah; escalation D74 pada added ∪ removed ∪ updated; `forget([userId])` sekali.
+**Langkah**: permission `user-permissions.update` di registry (D75; ditambah di langkah ini, bukan langkah 4: R89 menolak permission registry yang belum menjaga route); DTO `{ grants: [{ permission_id, expires_at?, note? }] }` (`expires_at` di masa depan, seperti `putGrantSchema`); helper beda + kelompok `updated` bila `expires_at` / `note` berubah; escalation D74 pada added ∪ removed ∪ updated; `forget([userId])` sekali.
 
 **Selesai bila**:
 - [ ] Test service: added / updated / removed / unchanged, grant kedaluwarsa yang tetap dikirim tanpa perubahan = unchanged, rollback bila satu ditolak
@@ -119,3 +119,5 @@ D72–D76 ke `docs/decisions.md` §1 (D76 dengan optimistic lock sebagai item §
 | 2026-11-08 | 2 | Di-commit atas permintaan user sebagai `e5adb62` (dengan `docs/api/` dari `openapi:update` user). |
 | 2026-11-08 | 3 | `rbac-replace.util.ts` (`diffIds`, murni) dan `rbac-replace.dto.ts` (`idSetField`: UUID, unik — duplikat 400 dengan index, maks `REPLACE_MAX_ITEMS` = 1000; `accessChangeSchema`). Repository: `findMappingsOf(roleId)` (mapping hidup + permission hidup, retired ikut, yang dihapus tidak — mapping-nya menunggu restore) dan `findGrantableByIds`. `RbacService.replaceRolePermissions`: semua cek sebelum tulis pertama (role bisa dipetakan, yang ditambah bisa diberikan → 400 `permission_ids.<index>`, escalation satu kali atas added ∪ removed yang masih berlaku, dengan `details` semua key yang kurang), lalu insert / soft delete hanya yang berubah, `forget` sekali bila ada perubahan. Route `PUT /roles/:id/permissions` (`roles.update`). Chaos: hapus-semua-lalu-insert → service + `test:int` gagal; cabut tanpa cek → gagal; retired ikut dicek → gagal; cache selalu dibuang → gagal; duplikat lolos → e2e gagal. Gate: `test:cov` 1402 pass (line 99.71%; coverage per file sempat gagal untuk dua query baru → test bentuk SQL ditambah), build, lint, `test:int rbac` 30 pass. |
 | 2026-11-08 | 🔍 1–3 | Checkpoint. (1) Keputusan ↔ kode: D72–D75 sesuai untuk langkah 1–3. (2) Dokumen: `docs/standards/auth-and-inbound.md` (baris RBAC) dan `docs/auth-guide.md` (baris 403 escalation) belum menyebut escalation saat mencabut (seharusnya ikut di langkah 2), `details`, katalog dan replace → **diperbaiki di langkah ini**. (3) Gate di atas. (4) Kontrak: aditif, menunggu `openapi:update`. (5) Proyek turunan: modul `rbac` inti; test memakai permission `users` / `roles`, tidak bergantung modul contoh. (6) Jalur lain: `seed-admin` menulis `user_roles` sebagai system; role default `user` (D59) dipegang semua pengguna termasuk sign-up, memetakan permission ke role itu tetap dicek — bukan celah. (7) Backlog: playground dan RBAC arah reverse sudah di `decisions.md` §3. |
+| 2026-11-08 | 3 | Di-commit oleh user sebagai `bea6372` (dengan `docs/api/`). |
+| 2026-11-08 | 4 | `PUT /users/:id/roles`: `findAssignmentsOf(userId)` (assignment hidup + role hidup; assignment role yang dihapus menunggu restore), `findLiveByIds` di repository role; `RbacService.replaceUserRoles` dengan semua cek sebelum tulis (user hidup, role dikenal → 400 `role_ids.<index>`, `super_admin` hanya oleh super admin, escalation sekali atas semua permission role yang ditambah / dicabut, cabut `super_admin` lewat helper `requireSuperAdminRevocable` yang kini juga dipakai `revokeRole`); helper `refuseUnknown` dipakai bersama `requireGrantableAll`. **Penyimpangan / revisi D75**: dua guard `create` + `delete` terdokumentasi sebagai alternatif di `x-allowed-callers` → user memilih permission baru `user-roles.update` (dicek dengan skrip `buildContract`: route kini `["permission:user-roles.update"]`). `user-permissions.update` sempat ditambah juga, R89 menolaknya (belum menjaga route) → dipindah ke langkah 5. Dokumen: baris "What a user holds" di `auth-and-inbound.md`. Chaos: guard kembali ke `create` + `delete` → e2e gagal; role yang dicabut tidak dicek → service gagal; cabut `super_admin` tanpa aturan → service gagal; hapus-semua-lalu-insert → `test:int` gagal. Gate: `bun test` 1409 pass, `test:cov` (line 99.72%), build, `test:int rbac` 31 pass. |

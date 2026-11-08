@@ -1,4 +1,4 @@
-import { eq, type SQL } from 'drizzle-orm';
+import { eq, inArray, type SQL } from 'drizzle-orm';
 import {
   BaseRepository,
   defaultTxHost,
@@ -28,6 +28,15 @@ export class RbacRolesRepository extends BaseRepository<typeof roles> {
 
   protected override scoped(...conditions: (SQL | undefined)[]): SQL | undefined {
     return super.scoped(rbacScope(roles), ...conditions);
+  }
+
+  /** The live roles among `ids`; unknown or deleted ids are left out. */
+  async findLiveByIds(ids: readonly string[]): Promise<Role[]> {
+    if (ids.length === 0) return [];
+    return this.txHost.tx
+      .select()
+      .from(roles)
+      .where(this.scoped(inArray(roles.id, [...ids])));
   }
 
   /** A page of live roles for `GET /roles` and the total under the same filters. */

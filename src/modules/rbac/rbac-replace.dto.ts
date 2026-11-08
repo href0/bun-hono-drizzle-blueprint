@@ -29,6 +29,11 @@ export const replaceRolePermissionsSchema = z.object({ permissionIds: idSetField
 
 export type ReplaceRolePermissionsDto = z.infer<typeof replaceRolePermissionsSchema>;
 
+/** `PUT /users/:id/roles`: every role the user should hold. */
+export const replaceUserRolesSchema = z.object({ roleIds: idSetField });
+
+export type ReplaceUserRolesDto = z.infer<typeof replaceUserRolesSchema>;
+
 /** One permission or role a replace added, removed or kept. */
 export const changedItemSchema = z.object({ id: z.string().uuid(), key: z.string() });
 
