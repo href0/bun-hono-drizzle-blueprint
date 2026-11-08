@@ -304,6 +304,25 @@ const fakeMachine = (combo: Combo, overrides: Partial<AcceptanceContext> = {}): 
     if (path.startsWith('/api/v1/partner/')) return partner(method, body, headers);
     if (options.token === undefined) return reply(401);
     // RBAC: the admin holds everything (token a2, from refresh); a fresh login (a1) only what it was given.
+    if (path === '/api/v1/permissions/options') {
+      const permissions = [{ id: 'perm-users-read', key: 'users.read', grantable: true }];
+      return reply(200, [{ group: 'users', permissions }]);
+    }
+    if (method === 'PUT' && /^\/api\/v1\/roles\/[^/]+\/permissions$/.test(path)) {
+      const added = body.includes('perm-users-read')
+        ? [{ id: 'perm-users-read', key: 'users.read' }]
+        : [];
+      return reply(200, { added, removed: [], unchanged: [] });
+    }
+    if (method === 'GET' && /^\/api\/v1\/users\/[^/]+\/roles$/.test(path)) {
+      return reply(200, [{ id: 'role-user', key: 'user' }]);
+    }
+    if (method === 'PUT' && /^\/api\/v1\/users\/[^/]+\/roles$/.test(path)) {
+      // The default role must be sent back, or the replace would revoke it.
+      readerHasRole = body.includes('role-user');
+      const removed = readerHasRole ? [] : [{ id: 'role-user', key: 'user' }];
+      return reply(200, { added: [], removed, unchanged: [] });
+    }
     if (path.startsWith('/api/v1/permissions?')) {
       const endpoints = [{ method: 'GET', path: '/api/v1/users', summary: 'List users' }];
       return reply(200, [{ id: 'perm-users-read', key: 'users.read', endpoints }]);

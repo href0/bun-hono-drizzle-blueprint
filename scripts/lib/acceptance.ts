@@ -614,7 +614,7 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
   },
   {
     stage: 'C',
-    title: 'HTTP: RBAC — a role with a permission, given to a new user, who then gets in',
+    title: 'HTTP: RBAC — a role checklist with a permission, given to a new user, who then gets in',
     minutes: 0.05,
     skipWhen: databaseStage,
     run: async (ctx) => {
@@ -636,10 +636,28 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         'users.read is listed with the endpoints it opens',
         JSON.stringify(listed.json.data).slice(0, 300),
       );
-      expectStatus(
-        await ctx.http('PUT', `/api/v1/roles/${roleId}/permissions/${usersRead?.id ?? ''}`, admin),
-        201,
-        'map users.read to the role',
+      // The checklist: every permission by group, then the role's whole set saved at once.
+      const options = await ctx.http('GET', '/api/v1/permissions/options', admin);
+      expectStatus(options, 200, 'read the permission checklist');
+      const box = (
+        options.json.data as unknown as { permissions: { key: string; grantable: boolean }[] }[]
+      )
+        .flatMap((group) => group.permissions)
+        .find((entry) => entry.key === 'users.read');
+      check(
+        box?.grantable === true,
+        'users.read is in the checklist, grantable by the admin',
+        JSON.stringify(options.json.data).slice(0, 300),
+      );
+      const mapped = await ctx.http('PUT', `/api/v1/roles/${roleId}/permissions`, {
+        ...admin,
+        body: { permission_ids: [usersRead?.id ?? ''] },
+      });
+      expectStatus(mapped, 200, 'save the role checklist with users.read');
+      check(
+        JSON.stringify(mapped.json.data?.added).includes('"users.read"'),
+        'the checklist answer lists users.read as added',
+        JSON.stringify(mapped.json).slice(0, 300),
       );
 
       const password = strongPassword();
@@ -658,10 +676,19 @@ export const ACCEPTANCE_STEPS: readonly AcceptanceStep[] = [
         403,
         'GET /users without the role',
       );
-      expectStatus(
-        await ctx.http('PUT', `/api/v1/users/${userId}/roles/${roleId}`, admin),
-        201,
-        'give the role to the user',
+      // The user's role checklist: the roles they hold (the default `user` among them) plus the new one.
+      const held = await ctx.http('GET', `/api/v1/users/${userId}/roles`, admin);
+      expectStatus(held, 200, 'read the roles of the user');
+      const heldIds = (held.json.data as unknown as { id: string }[]).map(({ id }) => id);
+      const given = await ctx.http('PUT', `/api/v1/users/${userId}/roles`, {
+        ...admin,
+        body: { role_ids: [...heldIds, roleId] },
+      });
+      expectStatus(given, 200, 'save the user role checklist with the new role');
+      check(
+        JSON.stringify(given.json.data?.removed) === '[]',
+        'the roles the user held are kept',
+        JSON.stringify(given.json).slice(0, 300),
       );
       expectStatus(
         await ctx.http('GET', '/api/v1/users', reader),
