@@ -206,4 +206,41 @@ describe('RbacRolesService', () => {
     await inTx(() => service().deleteRolePermission('role-finance', 'perm-x'));
     expect(unmapped).toEqual([['role-finance', 'perm-x']]);
   });
+
+  it('the role checklist: every live role by key, grantable when the caller holds all it gives (D73)', async () => {
+    roles.findAllLive = () =>
+      Promise.resolve([role('auditor'), role('empty'), role('staff'), role('super_admin', true)]);
+    rolePermissions.findCountingKeysByRole = () =>
+      Promise.resolve([
+        { roleId: 'role-auditor', key: 'reports.read' },
+        { roleId: 'role-staff', key: 'orders.read' },
+        { roleId: 'role-staff', key: 'orders.update' },
+      ]);
+    const grantable = async (effective: EffectivePermissions) =>
+      (await asUser(effective, () => service().listRoleOptions())).map(
+        ({ role: { key }, grantable: may }) => [key, may],
+      );
+
+    expect(
+      await grantable({ superAdmin: false, permissions: ['orders.read', 'orders.update'] }),
+    ).toEqual([
+      ['auditor', false],
+      ['empty', true],
+      ['staff', true],
+      ['super_admin', false],
+    ]);
+    // One missing permission is enough to refuse the role.
+    expect(await grantable({ superAdmin: false, permissions: ['orders.read'] })).toEqual([
+      ['auditor', false],
+      ['empty', true],
+      ['staff', false],
+      ['super_admin', false],
+    ]);
+    expect(await grantable({ superAdmin: true, permissions: [] })).toEqual([
+      ['auditor', true],
+      ['empty', true],
+      ['staff', true],
+      ['super_admin', true],
+    ]);
+  });
 });

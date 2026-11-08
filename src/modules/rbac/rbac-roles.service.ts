@@ -4,7 +4,7 @@ import { Transactional } from '../../database/transactional.decorator';
 import { isUniqueViolation } from '../../database/unique-violation';
 import type { Role } from '../../database/schema';
 import { withEndpoints, type PermissionWithEndpoints } from './rbac-endpoints.util';
-import { requireActorHolds } from './rbac-grant-guard.util';
+import { actorCanGive, actorIsSuperAdmin, requireActorHolds } from './rbac-grant-guard.util';
 import {
   RbacPermissionsRepository,
   rbacPermissionsRepository,
@@ -14,7 +14,7 @@ import {
   rbacRolePermissionsRepository,
 } from './rbac-role-permissions.repository';
 import type { AccessChange } from './rbac-replace.dto';
-import type { CreateRoleDto, RoleListQueryDto, UpdateRoleDto } from './rbac-roles.dto';
+import type { CreateRoleDto, RoleListQueryDto, RoleOption, UpdateRoleDto } from './rbac-roles.dto';
 import { RbacRolesRepository, rbacRolesRepository } from './rbac-roles.repository';
 import { RbacUserRolesRepository, rbacUserRolesRepository } from './rbac-user-roles.repository';
 import { RbacService, rbacService } from './rbac.service';
@@ -39,6 +39,26 @@ export class RbacRolesService {
   async listRoles(query: RoleListQueryDto): Promise<{ roles: Role[]; total: number }> {
     const { rows, total } = await this.rolesRepo.findRoleList(query);
     return { roles: rows, total };
+  }
+
+  /**
+   * Every live role, by key, for the role checklist of a user (D73): not paginated, each marked
+   * whether the caller may give or take it — they hold every permission the role gives, and
+   * `super_admin` only for a super admin (D69, D74).
+   */
+  async listRoleOptions(): Promise<RoleOption[]> {
+    const [canGive, superAdmin] = [await actorCanGive(), await actorIsSuperAdmin()];
+    const keysOf = new Map<string, string[]>();
+    for (const { roleId, key } of await this.rolePermissionsRepo.findCountingKeysByRole()) {
+      keysOf.set(roleId, [...(keysOf.get(roleId) ?? []), key]);
+    }
+    return (await this.rolesRepo.findAllLive()).map((role) => ({
+      role,
+      grantable:
+        role.key === SUPER_ADMIN_ROLE
+          ? superAdmin
+          : (keysOf.get(role.id) ?? []).every((key) => canGive(key)),
+    }));
   }
 
   async getRole(id: string): Promise<Role> {

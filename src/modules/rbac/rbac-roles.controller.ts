@@ -13,6 +13,7 @@ import {
   toAccessChangeResponse,
   toPermissionListResponse,
   toRoleListResponse,
+  toRoleOptionsResponse,
   toRoleResponse,
 } from './rbac.transformer';
 import { RBAC_MESSAGES } from './rbac.messages';
@@ -23,6 +24,15 @@ export class RbacRolesController {
   create = asyncHandler(async (c) => {
     const role = await this.service.createRole(getValidatedBody<CreateRoleDto>(c));
     return new ApiResponse(toRoleResponse(role), RBAC_MESSAGES.ROLE_CREATED, 201);
+  });
+
+  options = asyncHandler(async () => {
+    const options = await this.service.listRoleOptions();
+    return new ApiResponse(
+      toRoleOptionsResponse(options),
+      RBAC_MESSAGES.ROLE_OPTIONS_RETRIEVED,
+      200,
+    );
   });
 
   list = asyncHandler(async (c) => {

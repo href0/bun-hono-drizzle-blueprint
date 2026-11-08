@@ -13,13 +13,6 @@ const escalationForbidden = (missing: readonly string[] = []): ForbiddenError =>
     })),
   });
 
-/**
- * Stops privilege escalation (D69, D74): whoever changes access may only give or take what they
- * hold themselves — every key of `keys` must be among the signed-in user's effective permissions,
- * or they are a super admin; otherwise 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`. Without a signed-in
- * user (seeds, jobs: actor `system`) nothing is checked; a request without `permissionContext()`
- * is refused (fail closed).
- */
 /** The signed-in user's id, if the current request has one (seeds and jobs have none). */
 export const actorUserId = (): string | undefined => getRequestContext()?.user?.id;
 
@@ -33,6 +26,18 @@ export const requireActorIsSuperAdmin = async (): Promise<void> => {
   if (!context?.user) return;
   const resolve = context.permissions;
   if (resolve === undefined || !(await resolve()).superAdmin) throw escalationForbidden();
+};
+
+/**
+ * Whether the signed-in user may give or take `super_admin` (D69) — the answer
+ * `requireActorIsSuperAdmin` enforces: true without a signed-in user (seeds, jobs), false when the
+ * request has no `permissionContext()` (fail closed).
+ */
+export const actorIsSuperAdmin = async (): Promise<boolean> => {
+  const context = getRequestContext();
+  if (!context?.user) return true;
+  const resolve = context.permissions;
+  return resolve !== undefined && (await resolve()).superAdmin;
 };
 
 /**
@@ -52,6 +57,13 @@ export const actorCanGive = async (): Promise<(key: string) => boolean> => {
   return (key) => held.has(key);
 };
 
+/**
+ * Stops privilege escalation (D69, D74): whoever changes access may only give or take what they
+ * hold themselves — every key of `keys` must be among the signed-in user's effective permissions,
+ * or they are a super admin; otherwise 403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`. Without a signed-in
+ * user (seeds, jobs: actor `system`) nothing is checked; a request without `permissionContext()`
+ * is refused (fail closed).
+ */
 export const requireActorHolds = async (keys: readonly string[]): Promise<void> => {
   const context = getRequestContext();
   if (!context?.user) return;

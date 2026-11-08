@@ -59,6 +59,39 @@ const bodyOf = async (res: Response): Promise<Record<string, unknown>> =>
   (await res.json()) as Record<string, unknown>;
 
 describe('RBAC admin API — /roles', () => {
+  it('GET /options: every role by key, not paginated, grantable per caller (D73)', async () => {
+    const options = spyOn(rbacRolesService, 'listRoleOptions').mockResolvedValue([
+      { role, grantable: true },
+      {
+        role: { ...role, id: PERMISSION_ID, key: 'super_admin', isSystem: true },
+        grantable: false,
+      },
+    ]);
+    spies.push(options);
+    const app = await authorize(createTestApp(), ['roles.read']);
+
+    const res = await app.request('/api/v1/roles/options');
+    expect(res.status).toBe(200);
+    const body = await bodyOf(res);
+    expect(body.meta).toBeUndefined();
+    expect(body).toMatchObject({
+      message: RBAC_MESSAGES.ROLE_OPTIONS_RETRIEVED.id,
+      data: [
+        {
+          id: ROLE_ID,
+          key: 'finance_staff',
+          name: 'Finance staff',
+          is_system: false,
+          grantable: true,
+        },
+        { id: PERMISSION_ID, key: 'super_admin', is_system: true, grantable: false },
+      ],
+    });
+
+    const denied = await authorize(createTestApp(), ['permissions.read']);
+    expect((await denied.request('/api/v1/roles/options')).status).toBe(403);
+  });
+
   it('POST creates a role (201, snake_case) and refuses an invalid key with 400', async () => {
     spy(rbacRolesService, 'createRole', () => Promise.resolve(role));
     const app = await authorize(createTestApp(), ['roles.create']);

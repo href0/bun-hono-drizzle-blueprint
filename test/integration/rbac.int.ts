@@ -24,6 +24,7 @@ import { NOW } from '../../src/database/schema/columns';
 import { defaultTxHost, transactionStorage } from '../../src/database/transaction-host';
 import { runInTransaction } from '../../src/database/transactional.decorator';
 import { isUniqueViolation } from '../../src/database/unique-violation';
+import { rbacRolesService } from '../../src/modules/rbac/rbac-roles.service';
 import { RbacService, rbacService } from '../../src/modules/rbac/rbac.service';
 import { usersService } from '../../src/modules/users/users.service';
 import { PERMISSION_REGISTRY } from '../../src/permissions';
@@ -535,6 +536,39 @@ describe('effective permissions (D52, D53)', () => {
     expect(byPermission.get(changed.id)).toMatchObject({ id: changedGrant.id, note: 'new' });
     expect(byPermission.get(added.id)?.expiresAt?.toString()).toBe(until.toString());
     expect(byPermission.get(expired.id)?.id).toBe(expiredGrantId);
+  });
+
+  it('the role checklist: grantable when the caller holds what the role gives — retired and deleted permissions aside (D73)', async () => {
+    const role = await insertRole();
+    const [held, retired, deleted] = [
+      await insertPermission(),
+      await insertPermission(),
+      await insertPermission(),
+    ];
+    for (const { id } of [held, retired, deleted]) await rbacService.mapPermission(role, id);
+    await db.update(permissions).set({ retiredAt: NOW }).where(eq(permissions.id, retired.id));
+    await db.update(permissions).set({ deletedAt: NOW }).where(eq(permissions.id, deleted.id));
+
+    const asHolder = (keys: string[]) =>
+      runWithRequestContext(
+        {
+          requestId: 'r-options',
+          locale: 'en',
+          clientIp: '127.0.0.1',
+          actor: 'user:checklist-admin',
+          user: { id: Bun.randomUUIDv7() },
+          permissions: () => Promise.resolve({ superAdmin: false, permissions: keys }),
+        },
+        () => rbacRolesService.listRoleOptions(),
+      );
+    const grantableOf = (options: Awaited<ReturnType<typeof asHolder>>) =>
+      options.find((option) => option.role.id === role)?.grantable;
+
+    expect(grantableOf(await asHolder([held.key]))).toBe(true);
+    expect(grantableOf(await asHolder([]))).toBe(false);
+    const all = await asHolder([held.key]);
+    expect(all.map(({ role: { key } }) => key)).toEqual(all.map(({ role: { key } }) => key).sort());
+    expect(all.find(({ role: { key } }) => key === 'super_admin')?.grantable).toBe(false);
   });
 
   it('gives a super admin every permission and refuses to map that role', async () => {

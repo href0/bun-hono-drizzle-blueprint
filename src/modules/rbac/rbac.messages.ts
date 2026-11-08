@@ -94,6 +94,10 @@ export const RBAC_MESSAGES = {
   },
   ROLE_CREATED: { id: 'Role berhasil dibuat', en: 'Role created successfully' },
   ROLE_RETRIEVED: { id: 'Role berhasil diambil', en: 'Role retrieved successfully' },
+  ROLE_OPTIONS_RETRIEVED: {
+    id: 'Daftar pilihan role berhasil diambil',
+    en: 'Role options retrieved successfully',
+  },
   ROLE_LIST_RETRIEVED: {
     id: 'Daftar role berhasil diambil',
     en: 'Roles retrieved successfully',

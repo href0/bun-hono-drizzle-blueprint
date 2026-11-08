@@ -13,7 +13,7 @@ import type {
   PermissionSource,
 } from './rbac-permissions.dto';
 import type { AccessChange, ChangedItem, GrantChange } from './rbac-replace.dto';
-import type { RoleResponse } from './rbac-roles.dto';
+import type { RoleOption, RoleOptionResponse, RoleResponse } from './rbac-roles.dto';
 
 export const toRoleResponse = (role: Role): RoleResponse => ({
   id: role.id,
@@ -24,6 +24,16 @@ export const toRoleResponse = (role: Role): RoleResponse => ({
   createdAt: role.createdAt,
   updatedAt: role.updatedAt,
 });
+
+/** The role checklist (D73), already by key. */
+export const toRoleOptionsResponse = (options: readonly RoleOption[]): RoleOptionResponse[] =>
+  options.map(({ role, grantable }) => ({
+    id: role.id,
+    key: role.key,
+    name: role.name,
+    isSystem: role.isSystem,
+    grantable,
+  }));
 
 export const toRoleListResponse = (roles: readonly Role[]): RoleResponse[] =>
   roles.map(toRoleResponse);
