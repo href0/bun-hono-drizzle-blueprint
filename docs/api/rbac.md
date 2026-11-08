@@ -2764,7 +2764,7 @@ Pesan: `Permission berhasil ditambahkan ke role` (en: `Permission added to the r
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -2821,7 +2821,7 @@ Pesan: `Permission berhasil ditambahkan ke role` (en: `Permission added to the r
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -2914,6 +2914,8 @@ Pesan: `Permission berhasil ditambahkan ke role` (en: `Permission added to the r
 
 **Remove a permission from a role**
 
+The caller must hold the permission (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`), unless it no longer counts (retired or deleted); `super_admin` has no mapping (409).
+
 - Access token: `Authorization: Bearer <access_token>`
 - Hanya: permission `roles.update`
 
@@ -2959,6 +2961,7 @@ Pesan: `Permission berhasil dicabut dari role` (en: `Permission removed from the
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -3015,10 +3018,10 @@ Pesan: `Permission berhasil dicabut dari role` (en: `Permission removed from the
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_PERMISSION_FORBIDDEN",
+    "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -3160,7 +3163,7 @@ Pesan: `Role berhasil dipulihkan` (en: `Role restored successfully`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -3217,7 +3220,7 @@ Pesan: `Role berhasil dipulihkan` (en: `Role restored successfully`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -3600,7 +3603,7 @@ Pesan: `Izin tambahan berhasil diberikan` (en: `Extra permission granted`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -3652,7 +3655,7 @@ Pesan: `Izin tambahan berhasil diberikan` (en: `Extra permission granted`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -3764,6 +3767,8 @@ Pesan: `Izin tambahan berhasil diberikan` (en: `Extra permission granted`)
 
 **Revoke an extra permission from a user**
 
+The caller must hold the permission (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`), unless it no longer counts (retired or deleted). An expired grant is revoked like a live one.
+
 - Access token: `Authorization: Bearer <access_token>`
 - Hanya: permission `user-permissions.delete`
 
@@ -3809,6 +3814,7 @@ Pesan: `Izin tambahan berhasil dicabut` (en: `Extra permission revoked`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 429 | `ERR_RATE_LIMITED` | Batas request terlampaui: tunggu `Retry-After` detik |
@@ -3864,10 +3870,10 @@ Pesan: `Izin tambahan berhasil dicabut` (en: `Extra permission revoked`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna tidak memiliki permission yang dibutuhkan endpoint ini",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
-    "code": "ERR_PERMISSION_FORBIDDEN",
+    "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
     "origin": "APP"
   },
   "request_id": "0192f1d0-7c2e-7a51-9b3e-4f5a6b7c8d9e",
@@ -4181,7 +4187,7 @@ Pesan: `Role berhasil diberikan ke pengguna` (en: `Role given to the user`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
 | 409 | `ERR_CONFLICT` | Bentrok dengan data yang ada (mis. nilai unik sudah dipakai) |
@@ -4238,7 +4244,7 @@ Pesan: `Role berhasil diberikan ke pengguna` (en: `Role given to the user`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",
@@ -4331,7 +4337,7 @@ Pesan: `Role berhasil diberikan ke pengguna` (en: `Role given to the user`)
 
 **Revoke a role from a user**
 
-`super_admin`: only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).
+The caller must hold every permission of the role (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`). `super_admin`: only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).
 
 - Access token: `Authorization: Bearer <access_token>`
 - Hanya: permission `user-roles.delete`
@@ -4378,7 +4384,7 @@ Pesan: `Role berhasil dicabut dari pengguna` (en: `Role revoked from the user`)
 | 401 | `ERR_AUTH_TOKEN_EXPIRED` | Access token kedaluwarsa: refresh lalu ulangi |
 | 401 | `ERR_AUTH_TOKEN_INVALID` | Access token tidak valid |
 | 401 | `ERR_UNAUTHORIZED` | Header `Authorization: Bearer` tidak ada |
-| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan permission yang tidak ia miliki sendiri |
+| 403 | `ERR_PERMISSION_ESCALATION_FORBIDDEN` | Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri |
 | 403 | `ERR_PERMISSION_FORBIDDEN` | Pengguna tidak memiliki permission yang dibutuhkan endpoint ini |
 | 403 | `ERR_SELF_LOCKOUT_FORBIDDEN` | Admin tidak bisa menghapus atau menonaktifkan akunnya sendiri |
 | 404 | `ERR_NOT_FOUND` | Data tidak ditemukan |
@@ -4436,7 +4442,7 @@ Pesan: `Role berhasil dicabut dari pengguna` (en: `Role revoked from the user`)
 {
   "success": false,
   "status_code": 403,
-  "message": "Pengguna mencoba memberikan permission yang tidak ia miliki sendiri",
+  "message": "Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri",
   "error": {
     "type": "FORBIDDEN",
     "code": "ERR_PERMISSION_ESCALATION_FORBIDDEN",

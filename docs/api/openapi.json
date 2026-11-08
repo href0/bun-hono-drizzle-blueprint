@@ -20151,6 +20151,7 @@
     },
     "/api/v1/roles/{id}/permissions/{childId}": {
       "delete": {
+        "description": "The caller must hold the permission (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`), unless it no longer counts (retired or deleted); `super_admin` has no mapping (409).",
         "operationId": "deleteApiV1RolesByIdPermissionsByChildId",
         "parameters": [
           {
@@ -20323,6 +20324,7 @@
               }
             },
             "x-error-codes": [
+              "ERR_PERMISSION_ESCALATION_FORBIDDEN",
               "ERR_PERMISSION_FORBIDDEN"
             ]
           },
@@ -23933,6 +23935,7 @@
     },
     "/api/v1/users/{id}/permissions/{childId}": {
       "delete": {
+        "description": "The caller must hold the permission (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`), unless it no longer counts (retired or deleted). An expired grant is revoked like a live one.",
         "operationId": "deleteApiV1UsersByIdPermissionsByChildId",
         "parameters": [
           {
@@ -24105,6 +24108,7 @@
               }
             },
             "x-error-codes": [
+              "ERR_PERMISSION_ESCALATION_FORBIDDEN",
               "ERR_PERMISSION_FORBIDDEN"
             ]
           },
@@ -25446,7 +25450,7 @@
     },
     "/api/v1/users/{id}/roles/{childId}": {
       "delete": {
-        "description": "`super_admin`: only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).",
+        "description": "The caller must hold every permission of the role (403 `ERR_PERMISSION_ESCALATION_FORBIDDEN`). `super_admin`: only by a super admin, never from oneself (403 `ERR_SELF_LOCKOUT_FORBIDDEN`) and never from the last active holder (409).",
         "operationId": "deleteApiV1UsersByIdRolesByChildId",
         "parameters": [
           {

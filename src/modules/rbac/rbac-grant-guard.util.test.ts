@@ -36,6 +36,23 @@ describe('requireActorHolds', () => {
     ).toBe(APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN);
   });
 
+  it('names every missing key in the details (field = the key, verbatim)', async () => {
+    const holder = contextOf({ superAdmin: false, permissions: ['orders.read'] });
+    const error = await runWithRequestContext(holder, () =>
+      requireActorHolds(['orders.read', 'orders.delete', 'users.delete']),
+    ).then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(
+      (error as ForbiddenError).details.map(({ field, verbatimField }) => [field, verbatimField]),
+    ).toEqual([
+      ['orders.delete', true],
+      ['users.delete', true],
+    ]);
+  });
+
   it('fails closed for a signed-in user without a permission context', async () => {
     expect(
       await codeOf(runWithRequestContext(contextOf(), () => requireActorHolds(['orders.read']))),

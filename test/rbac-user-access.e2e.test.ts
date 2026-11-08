@@ -3,6 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import { APP_ERROR_CODES, ConflictError, ForbiddenError } from '../src/core/errors';
 import type { Permission, Role, UserPermission } from '../src/database/schema';
 import { rbacService } from '../src/modules/rbac/rbac.service';
+import { requireActorHolds } from '../src/modules/rbac/rbac-grant-guard.util';
 import { RBAC_MESSAGES } from '../src/modules/rbac/rbac.messages';
 import { authorize, createTestApp, TEST_PRINCIPAL_ID } from './helpers/authorized-app';
 
@@ -159,6 +160,23 @@ describe('RBAC user access — /users/:id/permissions', () => {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
+  });
+
+  it('DELETE of a permission the caller lacks: 403 naming the key, verbatim (D74)', async () => {
+    // The real guard, inside the request: the caller's permissions come from authorize().
+    spy('revokePermission', () => requireActorHolds(['users.read']));
+    const app = await authorize(createTestApp(), ['user-permissions.delete']);
+    const res = await app.request(`/api/v1/users/${USER_ID}/permissions/${CHILD_ID}`, {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({
+      message: RBAC_MESSAGES.PERMISSION_ESCALATION.id,
+      error: {
+        code: APP_ERROR_CODES.PERMISSION_ESCALATION_FORBIDDEN,
+        details: [{ field: 'users.read', message: RBAC_MESSAGES.PERMISSION_NOT_HELD.id }],
+      },
+    });
   });
 });
 

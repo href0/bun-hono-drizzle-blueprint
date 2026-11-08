@@ -154,8 +154,8 @@ export const ERROR_CATALOG: Readonly<Record<AppErrorCode, ErrorCodeEntry>> = {
     status: 403,
     type: TYPE.FORBIDDEN,
     meaning: {
-      id: 'Pengguna mencoba memberikan permission yang tidak ia miliki sendiri',
-      en: 'The user tried to give a permission they do not hold themselves',
+      id: 'Pengguna mencoba memberikan atau mencabut permission yang tidak ia miliki sendiri',
+      en: 'The user tried to give or take a permission they do not hold themselves',
     },
   },
   [CODE.SELF_LOCKOUT_FORBIDDEN]: {

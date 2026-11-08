@@ -14,8 +14,13 @@ export const RBAC_MESSAGES = {
     en: 'API permissions come from the application code and cannot be changed through the API',
   },
   PERMISSION_ESCALATION: {
-    id: 'Anda tidak dapat memberikan permission yang tidak Anda miliki',
-    en: 'You cannot give a permission you do not hold',
+    id: 'Anda tidak dapat memberikan atau mencabut permission yang tidak Anda miliki',
+    en: 'You cannot give or take a permission you do not hold',
+  },
+  /** One detail of the escalation error: its `field` is the permission key. */
+  PERMISSION_NOT_HELD: {
+    id: 'Anda tidak memiliki permission ini',
+    en: 'You do not hold this permission',
   },
   ROLE_KEY_TAKEN: {
     id: 'Kunci role sudah dipakai role lain',

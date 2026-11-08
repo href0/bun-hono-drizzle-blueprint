@@ -2,15 +2,15 @@
 
 | Atribut | Nilai |
 |---|---|
-| Status | IN PROGRESS — langkah 1 menunggu review |
+| Status | IN PROGRESS — langkah 2 menunggu review |
 | Tanggal | 2026-11-08 |
 | Tujuan | Frontend bisa menampilkan checklist permission / role untuk satu role atau satu user, lalu menyimpannya dalam **satu request atomik**, tanpa mengirim N request per item. Endpoint per item yang ada tetap berlaku (perubahan aditif, rilis MINOR `v2.1.0`). |
 
 ## Lanjut dari sini
 
-**Posisi repo**: branch `feat/rbac-bulk-assignment` dari `main` (`2408c8c`); plan + langkah 1 + baris backlog playground (`docs/decisions.md` §3) di working tree, belum di-commit. `docs/api/` belum diperbarui: `openapi:check` melaporkan 1 perubahan safe (operation added) — user menjalankan `bun run openapi:update`.
+**Posisi repo**: branch `feat/rbac-bulk-assignment`; langkah 1 di-commit (`2bc904e`, termasuk `docs/api/`); langkah 2 di working tree, belum di-commit. `openapi:check`: 0 BREAKING, 2 safe (403 escalation di dua `DELETE`), 3 docs — user menjalankan `bun run openapi:update`.
 **Sudah diputuskan — jangan tanya lagi** (2026-11-08): D72–D76 di bawah. Dikerjakan sebelum plan `feature:enable`.
-**Berikutnya**: review langkah 1 → `openapi:update` oleh user → commit atas permintaan user → langkah 2.
+**Berikutnya**: review langkah 2 → `openapi:update` + commit oleh user → langkah 3 (replace `PUT /roles/:id/permissions`, lalu checkpoint 🔍).
 
 ## Konteks
 
@@ -30,8 +30,8 @@ Saat ini (v2.0.0, D68) semua penulisan RBAC per item: `PUT` / `DELETE /roles/:id
 
 | # | Langkah | 🔍 | Status | Commit |
 |---|---|---|---|---|
-| 1 | Katalog `GET /permissions/options` (D73, D75) |  | 👀 |  |
-| 2 | Escalation saat mencabut di endpoint `DELETE` per item (D74) |  | ⬜ |  |
+| 1 | Katalog `GET /permissions/options` (D73, D75) |  | ✅ | `2bc904e` |
+| 2 | Escalation saat mencabut di endpoint `DELETE` per item (D74) |  | 👀 |  |
 | 3 | Mekanisme replace + `PUT /roles/:id/permissions` (D72, D74, D75) | 🔍 | ⬜ |  |
 | 4 | `PUT /users/:id/roles` (D72, D74, D75; aturan `super_admin`) |  | ⬜ |  |
 | 5 | `PUT /users/:id/permissions` dengan `expires_at` / `note` (D72, D74, D75) |  | ⬜ |  |
@@ -57,10 +57,10 @@ Checkpoint: setelah langkah 3 (pola kontrak replace pertama ditetapkan, langkah 
 **Langkah**: `unmapPermission`, `revokeRole` (role selain `super_admin`: semua permission role yang tidak retired), `revokePermission` memanggil `requireActorHolds` seperti jalur memberi. 403 membawa `details` key yang ditolak (juga di jalur memberi, agar seragam). Route `DELETE` menambahkan 403 escalation di `errors`.
 
 **Selesai bila**:
-- [ ] Test: admin tanpa permission X ditolak 403 saat mencabut X dari role / grant, dan saat mencabut role yang membawa X; super admin dan pemegang X lolos; tanpa user login (seed, job) tidak dicek
-- [ ] `details` escalation berisi key, diuji di jalur memberi dan mencabut
-- [ ] Chaos: hapus pemanggilan cek di salah satu jalur cabut → test gagal
-- [ ] Gate hijau; `openapi:check` melaporkan 403 baru di `DELETE` (status baru pada response error)
+- [x] Test: admin tanpa permission X ditolak 403 saat mencabut X dari role / grant, dan saat mencabut role yang membawa X; pemegang X lolos; permission yang tidak lagi berlaku (retired / dihapus) dicabut tanpa cek; tanpa user login tidak dicek (test `requireActorHolds` yang sudah ada)
+- [x] `details` escalation berisi key (`field` = key, verbatim), diuji di guard (dipakai jalur memberi dan mencabut) dan di wire (e2e)
+- [x] Chaos: hapus pemanggilan cek di salah satu jalur cabut → test gagal
+- [x] Gate hijau kecuali `openapi:check` (0 BREAKING, 2 safe, 3 docs — menunggu `openapi:update` oleh user); `test:int rbac` 29 pass
 
 ### Langkah 3 — Mekanisme replace + `PUT /roles/:id/permissions` 🔍
 
@@ -114,3 +114,5 @@ D72–D76 ke `docs/decisions.md` §1 (D76 dengan optimistic lock sebagai item §
 |---|---|---|
 | 2026-11-08 | — | Plan dibuat setelah diskusi: replace (bukan delta), katalog tanpa paginasi + `grantable`, escalation saat mencabut juga di per item, sebelum `feature:enable`. |
 | 2026-11-08 | 1 | `GET /permissions/options`: `actorCanGive()` di `rbac-grant-guard.util.ts` (jawaban yang sama dengan `requireActorHolds`), service memakai `findCounting()` yang sudah ada (tanpa query baru), transformer mengelompokkan per group lalu key, route sebelum `/:id`. Chaos: `grantable` selalu true → test service + e2e gagal; route setelah `/:id` → e2e 400. Gate: typecheck, lint, format, arch, deps, setup, branch, `test:cov` (1387 pass, line 99.77%), build hijau; `openapi:check` 1 safe (operation added). Baris backlog playground RBAC (opsi C, hanya env dev) dan RBAC arah reverse (baca dulu; bulk tulis reverse hanya sebagai delta) ditambahkan ke `docs/decisions.md` §3. |
+| 2026-11-08 | 1 | Di-commit oleh user sebagai `2bc904e` (dengan `docs/api/` dari `openapi:update`). |
+| 2026-11-08 | 2 | `unmapPermission`, `revokePermission`: cek escalation bila permission masih berlaku (`findGrantableById`; retired / dihapus tidak memberi apa-apa, jadi tanpa cek — kalau dicek, hanya super admin yang bisa mencabutnya). `revokeRole` (role selain `super_admin`): semua permission role yang berlaku, lewat helper `countingKeysOf` yang kini juga dipakai `assignRole`. 403 escalation membawa `details` per key yang kurang (`field` = key, `verbatimField`); pesan `PERMISSION_ESCALATION` dan arti di `error-catalog.ts` kini "memberikan atau mencabut"; pesan detail baru `PERMISSION_NOT_HELD`. Route: deskripsi + 403 escalation di `DELETE /roles/:id/permissions/:childId` dan `DELETE /users/:id/permissions/:childId`; deskripsi `DELETE /users/:id/roles/:childId`. Chaos: tiap jalur cabut tanpa cek → test service gagal; tanpa `details` → test guard, service dan e2e gagal. Gate: `test:cov` 1391 pass (line 99.77%), build, `test:int rbac` 29 pass (lewat `bun run env dev`: env file test tidak ada di mesin ini). |
