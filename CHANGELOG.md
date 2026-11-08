@@ -2,7 +2,9 @@
 
 All notable changes to this boilerplate are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/) — what MAJOR, MINOR and PATCH mean for a project created from it: [git-workflow.md](docs/standards/git-workflow.md) §1.1. A project created from the boilerplate takes a release by porting it (§1.2). The IDs (`D13`) point to [docs/decisions.md](docs/decisions.md).
 
-## [Unreleased]
+## [2.1.0] - 2026-11-08
+
+**MINOR.** Administrators save RBAC checklists — the permissions of a role, the roles and the extra permissions of a user — in one request each, from catalogs that tell the frontend which boxes a save would refuse (D72–D76). The API changes are additive; one behaviour is stricter: revoking now needs the permissions it takes (D74).
 
 ### Added
 
@@ -12,10 +14,12 @@ All notable changes to this boilerplate are documented in this file. The format 
 ### Changed
 
 - **Revoking needs what it takes** (D74): unmapping a permission from a role, revoking a role or an extra permission from a user now needs every permission taken, like giving it — an administrator with fewer permissions than before may now get a 403 there. A permission that no longer counts (retired, deleted) is taken without it.
+- **Acceptance coverage** (R91): every `bun run setup` option is classified in `SETUP_OPTION_COVERAGE` (`scripts/lib/acceptance.ts`); one that changes what a project contains must be chosen by an acceptance combination and left out by another, so a new setup option cannot ship untested.
+- Dependencies: `hono` 4.13.16, `@scalar/hono-api-reference` 0.12.17, `temporal-polyfill` 1.0.7, `globals` 17.14.0, `knip` 6.44.1 — after pulling, run `bun install --frozen-lockfile` (a plain `bun install` can leave `knip`'s own `zod` 4 out and fail `lint:deps`).
 
 ### Upgrading a project
 
-1. Port the commits of this release outside the example modules ([git-workflow.md](docs/standards/git-workflow.md) §1.2); no migration — `bun run env dev db:migrate` syncs the two new permissions `user-roles.update` and `user-permissions.update` (D75).
+1. Port the commits of this release outside the example modules (`git log v2.0.0..v2.1.0`, [git-workflow.md](docs/standards/git-workflow.md) §1.2); no migration — `bun run env dev db:migrate` syncs the two new permissions `user-roles.update` and `user-permissions.update` (D75).
 2. Only `super_admin` holds them at first: map them to the administrator roles that use the user checklists (`PUT /api/v1/roles/:id/permissions`, with `roles.read` / `permissions.read` for the catalogs — see the table in `docs/auth-guide.md`).
 3. Frontends saving a checklist send the whole set: what is left out is revoked — the default role `user` and the `expires_at` / `note` of a grant included.
 
